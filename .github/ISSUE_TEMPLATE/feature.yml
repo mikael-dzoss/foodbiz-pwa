@@ -1,0 +1,68 @@
+name: "User Story"
+description: "An implementable user story within an epic"
+labels: ["type: story", "status: planned"]
+body:
+  - type: input
+    id: parent-epic
+    attributes:
+      label: "Parent Epic"
+      description: "Issue number of the parent epic (e.g. #19)"
+      placeholder: "#"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "User story format: As a <role>, I want <goal> so that <benefit>"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "Acceptance Criteria"
+      description: "Specific, testable criteria for completion"
+      placeholder: |
+        - [ ] AC1: ...
+        - [ ] AC2: ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: review-gate
+    attributes:
+      label: "Review Gate"
+      description: "Does this need plan approval before implementation?"
+      options:
+        - "standard — agent implements autonomously"
+        - "needs-review — agent creates plan, waits for approval"
+        - "design-change — breaking or visual change, requires approval"
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-notes
+    attributes:
+      label: "Technical Notes (optional)"
+      description: "Implementation hints, affected files, dependencies, or design references"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - "storefront"
+        - "dashboard"
+        - "orders"
+        - "products"
+        - "expenses"
+        - "analytics"
+        - "auth"
+        - "infra"
+        - "design-system"
+    validations:
+      required: true
