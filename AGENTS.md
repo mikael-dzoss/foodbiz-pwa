@@ -110,17 +110,19 @@ Never mutate state/props in place. Use spread, `map`, `filter`, `toSorted`, etc.
 ```bash
 npm run lint
 npm run typecheck
-npm run test
+npm run test:coverage
+npm run test:tooling
 npm run format:check
 npm run build
 ```
 
-All must pass with zero errors.
+All must pass with zero errors. Coverage floors in `vitest.config.mts` must hold (production code only; raised by the ratchet up to 70%, branches fixed at 80%); a small drop is fine while floors pass. Never lower them; commit them when `test:coverage` raises them. Per-layer targets (Domain 85%, …) are reported in CI, not enforced yet. Core tooling must have tests (coverage target 60%, informative only). Agents never merge PRs.
 
 ### 12. Git & Branching
 
 - Branch model: `develop` → `staging` → `main`. Feature branches are cut from `develop`; **PRs target `develop` only**. Promotion to `staging`/`main` is done by maintainers.
 - Conventional commits with issue reference: `feat(orders): add status filters (#42)`.
+- Backlog: pick work with `python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type story|bug|all` (ask the user which type if unspecified and bugs are open) and follow `.agents/rules/github_issue.md`; create issues only via the `issue-logger` skill.
 
 ### 13. Architectural Separation
 

@@ -18,6 +18,7 @@ const FORMAT_STATUS = process.env.FORMAT_STATUS || "skipped";
 const LINT_STATUS = process.env.LINT_STATUS || "skipped";
 const TYPECHECK_STATUS = process.env.TYPECHECK_STATUS || "skipped";
 const TEST_STATUS = process.env.TEST_STATUS || "skipped";
+const TOOLING_STATUS = process.env.TOOLING_STATUS || "skipped";
 const AUDIT_STATUS = process.env.AUDIT_STATUS || "skipped";
 const BUILD_STATUS = process.env.BUILD_STATUS || "skipped";
 const PR_TITLE = process.env.PR_TITLE || "";
@@ -61,7 +62,7 @@ function computeLayerCoverage(coverage, prefix) {
   };
 }
 
-function buildCoverageTable(coverage) {
+function buildCoverageTable(coverage, toolingCoverage) {
   if (!coverage || !coverage.total) return "";
 
   const layers = [
@@ -89,8 +90,15 @@ function buildCoverageTable(coverage) {
   const totalFuncs = coverage.total.functions.pct;
   const totalOk = totalLines >= 70 && totalBranches >= 70;
 
-  out += `| **Total Project** | **70%** | **${totalLines}%** | **${totalBranches}%** | **${totalFuncs}%** | ${totalOk ? "✅ Passed" : "⚠️ In Progress"} |\n\n`;
-  return out;
+  out += `| **Total Project** | **70%** | **${totalLines}%** | **${totalBranches}%** | **${totalFuncs}%** | ${totalOk ? "✅ Passed" : "⚠️ In Progress"} |\n`;
+
+  if (toolingCoverage && toolingCoverage.total) {
+    const t = toolingCoverage.total;
+    const toolingOk = t.lines.pct >= 60;
+    out += `| _Tooling (informative)_ | 60% | ${t.lines.pct}% | ${t.branches.pct}% | ${t.functions.pct}% | ${toolingOk ? "ℹ️ On target" : "ℹ️ Below target"} |\n`;
+  }
+
+  return out + "\n";
 }
 
 function buildCommentBody(options = {}) {
@@ -99,6 +107,7 @@ function buildCommentBody(options = {}) {
   const lintStatus = options.lintStatus || LINT_STATUS;
   const typecheckStatus = options.typecheckStatus || TYPECHECK_STATUS;
   const testStatus = options.testStatus || TEST_STATUS;
+  const toolingStatus = options.toolingStatus || TOOLING_STATUS;
   const auditStatus = options.auditStatus || AUDIT_STATUS;
   const buildStatus = options.buildStatus || BUILD_STATUS;
   const prTitle = options.prTitle || PR_TITLE;
@@ -109,17 +118,23 @@ function buildCommentBody(options = {}) {
     (lintStatus === "success" || lintStatus === "skipped") &&
     (typecheckStatus === "success" || typecheckStatus === "skipped") &&
     (testStatus === "success" || testStatus === "skipped") &&
+    (toolingStatus === "success" || toolingStatus === "skipped") &&
     (auditStatus === "success" || auditStatus === "skipped") &&
     (buildStatus === "success" || buildStatus === "skipped");
 
-  const coverage = parseJson("coverage/coverage-summary.json");
+  const coverage =
+    options.coverage !== undefined ? options.coverage : parseJson("coverage/coverage-summary.json");
+  const toolingCoverage =
+    options.toolingCoverage !== undefined
+      ? options.toolingCoverage
+      : parseJson("coverage/tooling/coverage-summary.json");
   const testResults = parseJson("coverage/test-results.json");
 
   let body = `${MARKER}\n## 🤖 CI Quality Gate Report\n\n`;
 
   if (isSuccess) {
     body += `> [!NOTE]\n> **All Quality Checks Passed!** Code formatting, linting, typecheck, tests, security audit, and Next.js build are satisfied.\n\n`;
-    body += buildCoverageTable(coverage);
+    body += buildCoverageTable(coverage, toolingCoverage);
     return body;
   }
 
@@ -180,6 +195,12 @@ function buildCommentBody(options = {}) {
       body += `> **Unit Tests Failed**\n>\n`;
       body += `> Test execution failed. Run \`npm run test\` locally to inspect failures.\n\n`;
     }
+  }
+
+  if (toolingStatus === "failure") {
+    body += `> [!WARNING]\n`;
+    body += `> **Tooling Tests Failed**\n>\n`;
+    body += `> Run \`npm run test:tooling\` locally to debug failing tooling tests.\n\n`;
   }
 
   if (auditStatus === "failure") {

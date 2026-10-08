@@ -10,8 +10,23 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.test.{ts,tsx}", "src/app/**/layout.tsx", "src/proxy.ts"],
+      // Production code only: framework entry/metadata files and thin SDK wrappers are covered by E2E.
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/**/__fixtures__/**",
+        "src/app/**/{layout,manifest,robots,sitemap}.{ts,tsx}",
+        "src/proxy.ts",
+        "src/lib/supabase/**",
+      ],
       reporter: ["text", "json-summary", "html"],
+      // Floors: lines/functions/statements raised by scripts/coverage-ratchet.mjs (cap 70%, never lowered); branches fixed.
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 80,
+        statements: 70,
+      },
     },
   },
 });

@@ -9,6 +9,40 @@ description: Creates GitHub issues (epics, stories, bugs) from natural language 
 
 Convert a plain-text user description into a fully formatted GitHub issue (epic, story, or bug) following the project's issue templates, then push to GitHub only after explicit confirmation.
 
+## Tooling (mandatory)
+
+All issue creation goes through `.agents/skills/issue-logger/scripts/gh_issue.py` (stdlib Python, wraps `gh`). Never call `gh issue create` directly: the script enforces the templates, labels (`type`, `status`, `priority`, `area`, `wave`, `gate`), milestone, sub-issue parenting and the epic's child checklist.
+
+```bash
+S=.agents/skills/issue-logger/scripts/gh_issue.py
+python3 -B $S create spec.json            # dry run: prints the exact preview
+python3 -B $S create spec.json --apply    # creates on GitHub (only after user confirmation)
+echo '<json>' | python3 -B $S create -    # spec from stdin
+python3 -B $S next -n 5                   # prioritized ready items
+python3 -B $S setup                       # sync labels/milestones (rarely needed)
+```
+
+### Spec format (JSON object, or array for batch)
+
+```jsonc
+// Epic (stories optional; nested stories get parented automatically)
+{ "type": "epic", "title": "Loyalty", "description": "…", "priority": "P2", "area": "customers",
+  "milestone": "v0.9 MVP", "stories": [ { "type": "story", "title": "…", "description": "…", "ac": ["…"],
+  "priority": "P2", "area": "customers", "wave": 5 } ] }
+// Story
+{ "type": "story", "parent": 48, "title": "…", "description": "As a manager, I want … so that ….",
+  "ac": ["…", "…"], "priority": "P1", "area": "orders", "wave": 3,
+  "gate": "standard|needs-review|design-change", "notes": "optional", "milestone": "v0.9 MVP" }
+// Bug (parented to the open "Epic: Maintenance" automatically)
+{ "type": "bug", "title": "…", "description": "what happened vs expected", "steps": ["…"], "expected": "…",
+  "severity": "critical|major|minor", "area": "orders", "browser": "Chrome (Android)" }
+```
+
+- `area`: storefront, dashboard, orders, products, expenses, analytics, auth, infra, design-system, customers, settings.
+- `milestone`: `v0.9 MVP` (default), `Backlog / v1.x`, or `null`.
+- Bug priority is derived from severity (critical→P0, major→P1, minor→P2) unless `priority` is given.
+- Story `priority` and `wave` are required in the spec: copy them from the parent epic unless the user says otherwise (`gh issue view <epic> --json labels`).
+
 ## Workflow
 
 ### Step 1 — Classify Issue Type
@@ -44,7 +78,8 @@ Parse the user's description to extract as many fields as possible **before** pr
 | Acceptance Criteria | Extract testable criteria from description. If insufficient, prompt: "What specific criteria should we verify?" |
 | Review Gate | Infer: visual changes → "design-change", complex multi-file → "needs-review", simple → "standard" |
 | Technical Notes | Include any implementation hints from the description |
-| Labels | `type: story`, `status: planned` |
+| Priority / Wave | Copy from parent epic labels unless urgency language says otherwise |
+| Labels | Auto-assigned by the script (`type`, `status`, `priority`, `area`, `wave`, `gate`) |
 
 #### For Bugs:
 | Field | Source Strategy |
@@ -54,8 +89,8 @@ Parse the user's description to extract as many fields as possible **before** pr
 | Steps to Reproduce | Extract from description. If missing, prompt. |
 | Expected Behavior | Infer from context or prompt. |
 | Severity | Infer: "crash"/"data loss" → Critical, "broken" → Major, "cosmetic" → Minor. Default: Major |
-| Labels | `type: bug` |
-| Parent Epic | Query open epics for a "Maintenance" or "Bug Triage" epic and use its ID. If none exists, leave empty. |
+| Labels | Auto-assigned by the script (`type: bug`, priority from severity, `area`) |
+| Parent Epic | Automatic: the script parents bugs to the open `Epic: Maintenance`. |
 
 ### Step 3 — Optimize Prompting
 
@@ -69,14 +104,14 @@ Parse the user's description to extract as many fields as possible **before** pr
    - **Epic**: At least one child story if not a maintenance epic
    - **Bug**: Steps to reproduce if not described
 4. Never prompt for:
-   - Priority (default P2 for epics, skip for stories/bugs)
+   - Priority (default P2 for epics, inherit epic for stories, severity for bugs)
    - Review gate (infer from complexity)
    - Labels (auto-assigned)
    - Technical notes (optional, include only if user mentioned)
 
 ### Step 4 — Dry Run Preview
 
-Present the formatted issue as a preview. Format it exactly as it will appear on GitHub:
+Write the spec and run the script **without** `--apply`; show its output to the user. It renders exactly what will appear on GitHub, e.g.:
 
 ```markdown
 ## 📋 Issue Preview — [Epic|Story|Bug]
@@ -110,22 +145,7 @@ If the user says no or requests changes, revise and show preview again.
 
 ### Step 5 — Push to GitHub
 
-Only after explicit "yes" / "confirm" / "push it" / "go ahead":
-
-```bash
-# Create the issue
-gh issue create --title "<title>" --body "<body>" --label "type: story" --label "status: planned"
-
-# If it's a story, parent it to the epic
-gh api repos/{owner}/{repo}/issues/<epic-number>/sub_issues \
-  --method POST --field sub_issue_id=<new-issue-number>
-```
-
-For epics with child stories:
-1. Create the epic first
-2. Create each child story
-3. Parent each story to the epic
-4. Update the epic body with the actual issue numbers
+Only after explicit "yes" / "confirm" / "push it" / "go ahead", re-run the same spec with `--apply`. The script creates the issue(s), parents stories/bugs as sub-issues, appends them to the parent epic's child checklist and wave labels, and skips titles that already exist (safe to re-run).
 
 ### Step 6 — Confirm Success
 
@@ -163,6 +183,7 @@ If the user provides multiple issues at once (e.g., "create stories for X, Y, Z"
 
 ## Error Handling
 
-- If `gh` CLI fails, report the error and suggest manual creation
+- If the script reports `Invalid spec`, fix the listed fields (or ask the user) and dry-run again
+- If `gh` fails, report the error and suggest manual creation
 - If parent epic doesn't exist, ask user which epic to use
-- If sub-issue API fails, fall back to adding `Parent: #<number>` in the body text
+- Sub-issue link failures are printed with `!`; the body still contains `### Parent Epic #<n>`
