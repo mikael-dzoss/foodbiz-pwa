@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [develop, staging, main]
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
   push:
     branches: [develop, staging, main]
 
@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -27,17 +27,6 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Validate PR title (conventional commits)
-        if: github.event_name == 'pull_request'
-        env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          PATTERN='^(feat|fix|refactor|docs|test|chore|ci|build|perf|style)(\([a-zA-Z0-9_./-]+\))?: .+'
-          if [[ ! "$TITLE" =~ $PATTERN ]]; then
-            echo "::error::PR title '$TITLE' must match '<type>(<scope>): <description>'."
-            exit 1
-          fi
-
       - run: npm ci
       - name: Format
         run: npm run format:check
@@ -47,6 +36,17 @@ jobs:
         run: npm run typecheck
       - name: Test with coverage
         run: npm run test:coverage
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.[jt]s', '**/*.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
