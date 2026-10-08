@@ -21,4 +21,3 @@ jobs:
             echo "::error::PR title '$TITLE' must match '<type>(<scope>): <description>' or '<type>: <description>'."
             exit 1
           fi
-
