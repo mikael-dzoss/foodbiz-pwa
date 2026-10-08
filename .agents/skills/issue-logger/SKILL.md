@@ -39,7 +39,7 @@ Parse the user's description to extract as many fields as possible **before** pr
 | Field | Source Strategy |
 |-------|---------------|
 | Title | Derive from description |
-| Parent Epic | Infer from context (e.g., "product" → Inventory epic #19, "order" → Sales epic #23, "expense" → Expense epic #27, "dashboard" → Dashboard epic #12, "auth/login" → Auth epic #8, "settings" → Config epic #30, "navigation/shell" → Shell epic #1). If ambiguous, prompt with list of open epics. |
+| Parent Epic | Infer from context by querying open issues labeled `type: epic`. If ambiguous, prompt the user with a list of open epics. |
 | Description | Convert to user story format: "As a <role>, I want <goal> so that <benefit>" |
 | Acceptance Criteria | Extract testable criteria from description. If insufficient, prompt: "What specific criteria should we verify?" |
 | Review Gate | Infer: visual changes → "design-change", complex multi-file → "needs-review", simple → "standard" |
@@ -55,7 +55,7 @@ Parse the user's description to extract as many fields as possible **before** pr
 | Expected Behavior | Infer from context or prompt. |
 | Severity | Infer: "crash"/"data loss" → Critical, "broken" → Major, "cosmetic" → Minor. Default: Major |
 | Labels | `type: bug` |
-| Parent Epic | Always #40 (Maintenance) |
+| Parent Epic | Query open epics for a "Maintenance" or "Bug Triage" epic and use its ID. If none exists, leave empty. |
 
 ### Step 3 — Optimize Prompting
 
@@ -140,16 +140,19 @@ Report back:
 
 Use this to auto-assign parent epics:
 
-| Keywords in description | Parent Epic |
-|------------------------|-------------|
-| navigation, tab, drawer, shell, layout, screen container | #1 — Application Shell |
-| auth, login, sign-in, OAuth, security, biometric | #8 — Authentication & Security |
-| dashboard, KPI, widget, recent activity, chart, analytics, graph | #12 — Dashboard & Analytics |
-| product, inventory, stock, catalog, category | #19 — Inventory & Product Management |
-| order, checkout, cart, receipt, delivery, status | #23 — Sales & Order Fulfillment |
-| expense, cost, purchase, bill, supplier | #27 — Expense & Financial Tracking |
-| settings, config, currency, theme, backup, sync, cloud | #30 — System Configuration |
-| bug, fix, regression, broken, crash | #40 — Maintenance |
+| Keywords in description | Expected Epic Domain |
+|------------------------|----------------------|
+| navigation, shell, layout | Application Shell |
+| auth, login, sign-in, security | Authentication & Security |
+| dashboard, KPI, widget, chart, analytics | Dashboard & Analytics |
+| product, inventory, stock, catalog | Inventory & Product Management |
+| order, checkout, cart, receipt, delivery | Sales & Order Fulfillment |
+| expense, cost, purchase, supplier | Expense Tracking |
+| storefront, customer, seo, public catalog | Customer Storefront |
+| settings, config, currency, theme | System Configuration |
+| bug, fix, regression, broken | Maintenance |
+
+*(Note: Always query GitHub for the actual issue ID of the corresponding epic in this repository using `gh issue list --label "type: epic"` before assigning).*
 
 ## Batch Mode
 

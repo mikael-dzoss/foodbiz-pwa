@@ -15,12 +15,12 @@ Always. Every code change flows through git.
 
 ## Core Principles
 
-### Trunk-Based Development (Recommended)
+### Project Branch Model: develop -> staging -> main
 
-Keep `main` always deployable. Work in short-lived feature branches that merge back within 1-3 days. Long-lived development branches are hidden costs — they diverge, create merge conflicts, and delay integration. DORA research consistently shows trunk-based development correlates with high-performing engineering teams.
+Keep `develop` as the active integration branch. Feature branches are cut from `develop` and PRs target `develop` only. Maintainers handle promotion to `staging` and `main`. Long-lived development branches are hidden costs — they diverge, create merge conflicts, and delay integration. DORA research consistently shows trunk-based development correlates with high-performing engineering teams.
 
 ```
-main ──●──●──●──●──●──●──●──●──●──  (always deployable)
+develop ──●──●──●──●──●──●──●──●──●──  (integration branch)
         ╲      ╱  ╲    ╱
          ●──●─╱    ●──╱    ← short-lived feature branches (1-3 days)
 ```
@@ -110,7 +110,7 @@ git commit -m "refactor validation and add phone number field"
 
 ### 5. Size Your Changes
 
-Target ~100 lines per commit/PR. Changes over ~1000 lines should be split. See the splitting strategies in `code-review-and-quality` for how to break down large changes.
+Target ~100 lines per commit/PR. Changes over ~1000 lines should be split. Break down large changes into logical, reviewable slices.
 
 ```
 ~100 lines  → Easy to review, easy to revert
@@ -281,7 +281,7 @@ For anything with consumers, version `MAJOR.MINOR.PATCH` and let the number carr
   PATCH  bug fix, backward-compatible — safe to upgrade
 ```
 
-The number is a promise, so make the code match it. A "patch" that changes behavior consumers relied on is a major change wearing a disguise (Hyrum's Law — see the `api-and-interface-design` skill). When unsure whether a change is breaking, assume it is; a surprise major is far cheaper than a broken consumer.
+The number is a promise, so make the code match it. A "patch" that changes behavior consumers relied on is a major change wearing a disguise (Hyrum's Law — respecting semantic versioning). When unsure whether a change is breaking, assume it is; a surprise major is far cheaper than a broken consumer.
 
 ### Tag the release, and let the tag be the source of truth
 
@@ -308,7 +308,7 @@ A changelog is not `git log`. It's the curated, consumer-facing answer to "what 
 - `GET /v1/tasks/all` — use the paginated `GET /v1/tasks` (removal in 2.0)
 ```
 
-Write the entry in the same change that makes the change, while the impact is fresh — not reconstructed from commit archaeology at release time. Breaking changes get a migration note and a deprecation window (follow the `deprecation-and-migration` skill); shipping the actual release is the `shipping-and-launch` skill's job — this section is the versioning contract that feeds it.
+Write the entry in the same change that makes the change, while the impact is fresh — not reconstructed from commit archaeology at release time. Breaking changes get a migration note and a deprecation window (include migration steps in the PR).
 
 ## Common Rationalizations
 
