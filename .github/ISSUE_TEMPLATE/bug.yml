@@ -1,0 +1,71 @@
+name: "Bug Report"
+description: "Report a bug or regression (parented to Maintenance epic)"
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "What happened vs what was expected"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      placeholder: |
+        1. Open the page...
+        2. Navigate to...
+        3. Click/tap on...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected Behavior"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: "Browser / Device"
+      options:
+        - "Mobile Safari (iOS)"
+        - "Chrome (Android)"
+        - "Desktop Chrome"
+        - "Desktop Safari"
+        - "Desktop Firefox"
+        - "Installed PWA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Severity"
+      options:
+        - "Critical — app/page crashes or data loss"
+        - "Major — feature broken, no workaround"
+        - "Minor — cosmetic or minor inconvenience"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - "storefront"
+        - "dashboard"
+        - "orders"
+        - "products"
+        - "expenses"
+        - "analytics"
+        - "auth"
+        - "infra"
+        - "design-system"
+    validations:
+      required: true
