@@ -116,7 +116,7 @@ npm run format:check
 npm run build
 ```
 
-All must pass with zero errors. Coverage must not decrease: never lower the floors in `vitest.config.mts` (raised by the ratchet up to 70%, branches fixed at 80%); commit them when `test:coverage` raises them. Per-layer targets (Domain 85%, …) are reported in CI, not enforced yet. Core tooling must have tests. Agents never merge PRs.
+All must pass with zero errors. Coverage floors in `vitest.config.mts` must hold (production code only; raised by the ratchet up to 70%, branches fixed at 80%); a small drop is fine while floors pass. Never lower them; commit them when `test:coverage` raises them. Per-layer targets (Domain 85%, …) are reported in CI, not enforced yet. Core tooling must have tests (coverage target 60%, informative only). Agents never merge PRs.
 
 ### 12. Git & Branching
 

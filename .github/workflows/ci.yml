@@ -91,6 +91,7 @@ jobs:
           LINT_STATUS: ${{ steps.lint.outcome }}
           TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
           TEST_STATUS: ${{ steps.test.outcome }}
+          TOOLING_STATUS: ${{ steps.tooling.outcome }}
           AUDIT_STATUS: ${{ steps.audit.outcome }}
           BUILD_STATUS: ${{ steps.build.outcome }}
         run: node .github/.scripts/generate-ci-comments.js

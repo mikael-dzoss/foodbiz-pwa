@@ -8,9 +8,16 @@ const passing = {
   lintStatus: "success",
   typecheckStatus: "success",
   testStatus: "success",
+  toolingStatus: "success",
   auditStatus: "success",
   buildStatus: "success",
+  coverage: null,
+  toolingCoverage: null,
 };
+
+const summary = (pct: number) => ({
+  total: { lines: { pct }, branches: { pct }, functions: { pct } },
+});
 
 describe("CI comment generator", () => {
   it("reports success with the summary marker", () => {
@@ -40,5 +47,33 @@ describe("CI comment generator", () => {
     expect(ci.buildCommentBody({ ...passing, auditStatus: "skipped" })).toContain(
       "All Quality Checks Passed",
     );
+  });
+
+  it("reports failing tooling tests", () => {
+    const body = ci.buildCommentBody({ ...passing, toolingStatus: "failure" });
+    expect(body).toContain("Tooling Tests Failed");
+    expect(body).not.toContain("All Quality Checks Passed");
+  });
+
+  it("shows tooling coverage as an informative row against 60%", () => {
+    const onTarget = ci.buildCommentBody({
+      ...passing,
+      coverage: summary(90),
+      toolingCoverage: summary(62),
+    });
+    expect(onTarget).toContain("| **Total Project** | **70%** | **90%**");
+    expect(onTarget).toContain("| _Tooling (informative)_ | 60% | 62% |");
+    expect(onTarget).toContain("On target");
+    const below = ci.buildCommentBody({
+      ...passing,
+      coverage: summary(90),
+      toolingCoverage: summary(40),
+    });
+    expect(below).toContain("Below target");
+    expect(below).toContain("All Quality Checks Passed");
+  });
+
+  it("omits the tooling row without tooling coverage", () => {
+    expect(ci.buildCommentBody({ ...passing, coverage: summary(90) })).not.toContain("Tooling");
   });
 });

@@ -72,16 +72,16 @@ gh issue edit <number> --remove-label "status: planned" --remove-label "status: 
 npm run lint
 npm run typecheck
 npm run test:coverage   # tests + coverage floors + ratchet
-npm run test:tooling    # agent/CI tooling tests (Python)
+npm run test:tooling    # tooling tests (Vitest + Python), informative coverage
 npm run format:check
 npm run build       # all must pass with zero errors
 ```
 
-**Coverage must not decrease.** `vitest.config.mts` holds global coverage floors; `test:coverage` fails below them, then `scripts/coverage-ratchet.mjs` raises lines/functions/statements toward actual coverage (capped at 70%; branches fixed at 80%) — commit the updated config. Coverage counts production code only (see `coverage.exclude`). Never lower thresholds, add coverage excludes, or skip tests to pass; if a change cannot keep coverage, stop and ask. Agents never merge PRs; merging is done by a maintainer.
+**Coverage floors must hold.** `vitest.config.mts` holds global coverage floors for production code (see `coverage.exclude`); `test:coverage` fails below them, then `scripts/coverage-ratchet.mjs` raises lines/functions/statements toward actual coverage (capped at 70%; branches fixed at 80%) — commit the updated config. A small coverage drop is acceptable as long as the floors pass (e.g. a module at 90% may drop to 88%); below the cap the floors track actual coverage, so it cannot drop there. Never lower thresholds, add coverage excludes, or skip tests to pass; if a change cannot meet the floors, stop and ask. Agents never merge PRs; merging is done by a maintainer.
 
 Per-layer targets above the global floor (reported in the CI PR comment by `.github/.scripts/generate-ci-comments.js`, not enforced yet): Domain 85%, Features 80%, Config 80%, Lib 75%, Components 70%, App 70%. Aim for them and mention gaps in the PR.
 
-Core tooling (`scripts/`, `.github/.scripts/`, `.agents/skills/*/scripts/`) must have tests; changes to it update those tests.
+Core tooling (`scripts/`, `.github/.scripts/`, `.agents/skills/*/scripts/`) must have tests, run by `npm run test:tooling`; changes to it update those tests. Tooling coverage targets 60%, is informative only, and is not counted in the production floors.
 
 ## 6. Pull Request
 
@@ -93,7 +93,7 @@ gh pr create --base develop --title "feat(scope): description (#<number>)" --bod
 - <summary of changes>
 
 ## Verification
-- [x] lint, typecheck, test:coverage (no coverage decrease), format:check and build pass"
+- [x] lint, typecheck, test:coverage (floors respected), test:tooling, format:check and build pass"
 ```
 
 ## 7. Update Issue
