@@ -137,12 +137,12 @@ Implemented:
 
 ## Environments
 
-| Environment    | Source                       | Notes                                              |
-| -------------- | ---------------------------- | -------------------------------------------------- |
-| Local          | `npm run dev` / devcontainer | Uses `.env.local` (copy from `.env.example`)       |
-| Vercel preview | Pull requests                | **Planned** (Phase 3): automatic deployment per PR |
-| Staging        | `staging` branch             | Pre-production qualification                       |
-| Production     | `main` branch                | Released by promoting `staging`                    |
+| Environment    | Source                       | Notes                                                                     |
+| -------------- | ---------------------------- | ------------------------------------------------------------------------- |
+| Local          | `npm run dev` / devcontainer | Uses `.env.local` (copy from `.env.example`)                              |
+| Vercel preview | Pull requests                | Automatic deployment per PR (Vercel Git integration; see `DEPLOYMENT.md`) |
+| Staging        | `staging` branch             | Pre-production qualification                                              |
+| Production     | `main` branch                | Released by promoting `staging`                                           |
 
 Each environment needs its own Supabase URL and publishable key. Branch flow: see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 

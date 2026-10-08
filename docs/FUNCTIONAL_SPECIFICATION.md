@@ -101,7 +101,7 @@ PWA migration phases (see [`../migration_plan.md`](../migration_plan.md)):
 
 1. Project initialization — scaffold done
 2. Documentation and agentic setup — in progress
-3. CI/CD pipeline (GitHub Actions, Vercel previews) — Planned
+3. CI/CD pipeline (GitHub Actions, Vercel previews) — Done (Phase 3; Vercel project linking is a manual step)
 4. Backlog and roadmap, towards a `v0.9` staging release — Planned
 5. Design system and design-MCP integration — Planned
 6. Iterative development of the backlog towards `v0.9` — Planned
