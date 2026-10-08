@@ -67,5 +67,7 @@ body:
         - "auth"
         - "infra"
         - "design-system"
+        - "customers"
+        - "settings"
     validations:
       required: true

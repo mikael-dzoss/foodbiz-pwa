@@ -10,6 +10,16 @@ Repository: `MikeDzossa/foodbiz-pwa`. Branch model: `develop` → `staging` → 
 When an agent picks up a GitHub issue, follow this pipeline end-to-end.
 All GitHub operations use the `gh` CLI (repo `MikeDzossa/foodbiz-pwa`; run from the repo root so `gh` resolves it).
 
+## 0. Pick Work ("implement the next N items")
+
+```bash
+python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type story   # features (default)
+python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type bug     # bugs
+python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type all     # both, by priority
+```
+
+Use the type the user asked for ("next N features/stories" → `story`, "next N bugs" → `bug`). If the user just says "next N items" and ready bugs exist, ask which type before starting. Stories are ordered by `wave`, `priority`, issue number (milestone `v0.9 MVP` by default); bugs by `priority`, issue number; `all` by `priority` first. Epics and `status: in-progress|in-review|blocked|completed` are excluded. Take items **in that order**, one branch/PR per issue. Stop at the first gated item (`gate:` label) and present its plan; continue only after approval. To create issues, use the `issue-logger` skill (never raw `gh issue create`).
+
 ## 1. Fetch & Understand
 
 ```bash
@@ -24,13 +34,13 @@ gh issue view <number> --json title,body,labels,parent
 
 Check the issue labels:
 
-| Label           | Action                                                             |
-| --------------- | ------------------------------------------------------------------ |
-| `needs-review`  | Create a plan artifact, wait for user approval before implementing |
-| `design-change` | Create a plan artifact, wait for user approval before implementing |
-| _(any other)_   | **Proceed autonomously** — no plan review needed                   |
+| Label                 | Action                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `gate: needs-review`  | Post a plan (scope, files, approach, risks) and wait for user approval                  |
+| `gate: design-change` | Post a plan plus UI proposal (screens/states, light & dark) and wait for user approval  |
+| _(no `gate:` label)_  | **Proceed autonomously** — no plan review needed                                        |
 
-If a plan is required, outline: scope, affected files, approach, risks. Stop and wait for explicit approval.
+Also stop and ask if acceptance criteria are ambiguous, the issue depends on an unmerged item, or the change needs a new dependency, secret, env var, migration on shared data or service-role usage. The PR review by a maintainer, CI, and promotion to `staging`/`main` remain human gates for every issue.
 
 ## 3. Branch & Update Status
 
@@ -61,10 +71,12 @@ gh issue edit <number> --remove-label "status: planned" --remove-label "status: 
 ```bash
 npm run lint
 npm run typecheck
-npm run test
+npm run test:coverage   # tests + coverage thresholds
 npm run format:check
 npm run build       # all must pass with zero errors
 ```
+
+**Coverage must not decrease.** `vitest.config.mts` holds ratcheting thresholds (`autoUpdate`): `test:coverage` fails below them and raises them when coverage improves — commit the updated config. Never lower thresholds, add coverage excludes, or skip tests to pass; if a change cannot keep coverage, stop and ask. Agents never merge PRs; merging is done by a maintainer.
 
 ## 6. Pull Request
 
@@ -76,7 +88,7 @@ gh pr create --base develop --title "feat(scope): description (#<number>)" --bod
 - <summary of changes>
 
 ## Verification
-- [x] lint, typecheck, tests, format:check and build pass"
+- [x] lint, typecheck, test:coverage (no coverage decrease), format:check and build pass"
 ```
 
 ## 7. Update Issue
@@ -99,7 +111,7 @@ Run `graphify update .` to keep the knowledge graph current.
 
 ## Areas
 
-Issues carry an `area:` label: `storefront`, `dashboard`, `orders`, `products`, `expenses`, `analytics`, `auth`, `infra`, `design-system`.
+Issues carry an `area:` label: `storefront`, `dashboard`, `orders`, `products`, `expenses`, `analytics`, `auth`, `infra`, `design-system`, `customers`, `settings`.
 
 ## Issue Hierarchy
 
@@ -109,9 +121,4 @@ This project uses GitHub sub-issues for epic → story tracking:
 - **Stories** (`type: story`): Implementable user stories, children of an epic
 - **Bugs** (`type: bug`): Bug fixes, children of the Maintenance epic
 
-When creating a new story, always parent it to the relevant epic:
-
-```bash
-gh api repos/{owner}/{repo}/issues/<epic-number>/sub_issues \
-  --method POST --field sub_issue_id=<story-number>
-```
+Create issues with the `issue-logger` skill script (`.agents/skills/issue-logger/scripts/gh_issue.py`); it handles parenting, labels and milestones.

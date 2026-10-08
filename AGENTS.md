@@ -110,17 +110,18 @@ Never mutate state/props in place. Use spread, `map`, `filter`, `toSorted`, etc.
 ```bash
 npm run lint
 npm run typecheck
-npm run test
+npm run test:coverage
 npm run format:check
 npm run build
 ```
 
-All must pass with zero errors.
+All must pass with zero errors. Coverage must not decrease: never lower the ratcheting thresholds in `vitest.config.mts`; commit them when `test:coverage` raises them. Agents never merge PRs.
 
 ### 12. Git & Branching
 
 - Branch model: `develop` → `staging` → `main`. Feature branches are cut from `develop`; **PRs target `develop` only**. Promotion to `staging`/`main` is done by maintainers.
 - Conventional commits with issue reference: `feat(orders): add status filters (#42)`.
+- Backlog: pick work with `python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type story|bug|all` (ask the user which type if unspecified and bugs are open) and follow `.agents/rules/github_issue.md`; create issues only via the `issue-logger` skill.
 
 ### 13. Architectural Separation
 
