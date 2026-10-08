@@ -191,16 +191,23 @@ def link_sub_issue(epic: int, child: int) -> None:
         print(f"  ! sub-issue link #{epic} ← #{child} failed: {result.stderr.strip()}")
 
 
+def add_child_line(body: str, number: int, title: str) -> str:
+    if f"#{number} " in body:
+        return body
+    head, marker, rest = body.partition("### Child Stories")
+    if not marker:
+        return body
+    current, nxt, tail = rest.partition("\n### ")
+    lines = [ln for ln in current.strip().splitlines() if ln.strip() not in (PLACEHOLDER, "_No response_")]
+    lines.append(f"- [ ] #{number} — {title}")
+    return head + marker + "\n\n" + "\n".join(lines) + "\n" + nxt + tail
+
+
 def append_child(epic: int, number: int, title: str, wave: int | None) -> None:
     body = gh("issue", "view", str(epic), "--json", "body", "--jq", ".body")
-    if f"#{number} " not in body:
-        head, marker, rest = body.partition("### Child Stories")
-        if marker:
-            current, nxt, tail = rest.partition("\n### ")
-            lines = [ln for ln in current.strip().splitlines() if ln.strip() not in (PLACEHOLDER, "_No response_")]
-            lines.append(f"- [ ] #{number} — {title}")
-            body = head + marker + "\n\n" + "\n".join(lines) + "\n" + nxt + tail
-            gh("issue", "edit", str(epic), "--body-file", "-", stdin=body)
+    updated = add_child_line(body, number, title)
+    if updated != body:
+        gh("issue", "edit", str(epic), "--body-file", "-", stdin=updated)
     if wave:
         gh("issue", "edit", str(epic), "--add-label", f"wave: {wave}")
 
@@ -279,19 +286,19 @@ def cmd_create(args: argparse.Namespace) -> None:
         print("\n(dry run — re-run with --apply to create)")
 
 
-def cmd_next(args: argparse.Namespace) -> None:
+def rank(issues: list[Spec], kind_filter: str, milestone: str | None) -> tuple[list[str], int]:
+    """Return ready issues as display lines in priority order, plus the count hidden by `kind_filter`."""
     ranked = []
     skipped = 0
-    for issue in open_issues():
+    for issue in issues:
         names = {lbl["name"] for lbl in issue["labels"]}
         if "type: epic" in names or names & NOT_READY:
             continue
         kind = "bug" if "type: bug" in names else "story"
-        if args.type not in ("all", kind):
-            skipped += 1
+        if kind == "story" and milestone and (issue.get("milestone") or {}).get("title") != milestone:
             continue
-        milestone = (issue.get("milestone") or {}).get("title")
-        if kind == "story" and not args.all and milestone != args.milestone:
+        if kind_filter not in ("all", kind):
+            skipped += 1
             continue
 
         def value(prefix: str, default: str) -> str:
@@ -299,9 +306,14 @@ def cmd_next(args: argparse.Namespace) -> None:
 
         priority, wave, gate = value("priority: ", "P3"), value("wave: ", "-"), value("gate: ", "standard")
         wave_rank = int(wave) if wave.isdigit() else 0
-        key = (priority, wave_rank, issue["number"]) if args.type == "all" else (wave_rank, priority, issue["number"])
+        key = (priority, wave_rank, issue["number"]) if kind_filter == "all" else (wave_rank, priority, issue["number"])
         ranked.append((key, f"#{issue['number']:<5}{kind:<6}{priority:<4}wave {wave:<3}{gate:<15}{issue['title']}"))
-    for _, line in sorted(ranked)[: args.n]:
+    return [line for _, line in sorted(ranked)], skipped
+
+
+def cmd_next(args: argparse.Namespace) -> None:
+    lines, skipped = rank(open_issues(), args.type, None if args.all else args.milestone)
+    for line in lines[: args.n]:
         print(line)
     if skipped:
         other = "bug(s)" if args.type == "story" else "story(ies)"

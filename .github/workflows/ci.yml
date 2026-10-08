@@ -47,6 +47,10 @@ jobs:
         id: test
         run: npm run test:coverage
 
+      - name: Tooling tests
+        id: tooling
+        run: npm run test:tooling
+
       - name: Audit production dependencies
         id: audit
         run: npm audit --audit-level=high --omit=dev

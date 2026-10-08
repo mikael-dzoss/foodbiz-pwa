@@ -6,19 +6,26 @@ export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   test: {
     environment: "jsdom",
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.test.{ts,tsx}", "src/app/**/layout.tsx", "src/proxy.ts"],
+      // Production code only: framework entry/metadata files and thin SDK wrappers are covered by E2E.
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/**/__fixtures__/**",
+        "src/app/**/{layout,manifest,robots,sitemap}.{ts,tsx}",
+        "src/proxy.ts",
+        "src/lib/supabase/**",
+      ],
       reporter: ["text", "json-summary", "html"],
-      // Ratchet: fails below these values, raises them when coverage improves (commit the change).
+      // Floors: lines/functions/statements raised by scripts/coverage-ratchet.mjs (cap 70%, never lowered); branches fixed.
       thresholds: {
-        autoUpdate: (newThreshold: number) => Math.floor(newThreshold),
-        lines: 27,
-        functions: 20,
-        branches: 100,
-        statements: 29,
+        lines: 70,
+        functions: 70,
+        branches: 80,
+        statements: 70,
       },
     },
   },

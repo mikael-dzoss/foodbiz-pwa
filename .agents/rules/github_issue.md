@@ -71,12 +71,17 @@ gh issue edit <number> --remove-label "status: planned" --remove-label "status: 
 ```bash
 npm run lint
 npm run typecheck
-npm run test:coverage   # tests + coverage thresholds
+npm run test:coverage   # tests + coverage floors + ratchet
+npm run test:tooling    # agent/CI tooling tests (Python)
 npm run format:check
 npm run build       # all must pass with zero errors
 ```
 
-**Coverage must not decrease.** `vitest.config.mts` holds ratcheting thresholds (`autoUpdate`): `test:coverage` fails below them and raises them when coverage improves — commit the updated config. Never lower thresholds, add coverage excludes, or skip tests to pass; if a change cannot keep coverage, stop and ask. Agents never merge PRs; merging is done by a maintainer.
+**Coverage must not decrease.** `vitest.config.mts` holds global coverage floors; `test:coverage` fails below them, then `scripts/coverage-ratchet.mjs` raises lines/functions/statements toward actual coverage (capped at 70%; branches fixed at 80%) — commit the updated config. Coverage counts production code only (see `coverage.exclude`). Never lower thresholds, add coverage excludes, or skip tests to pass; if a change cannot keep coverage, stop and ask. Agents never merge PRs; merging is done by a maintainer.
+
+Per-layer targets above the global floor (reported in the CI PR comment by `.github/.scripts/generate-ci-comments.js`, not enforced yet): Domain 85%, Features 80%, Config 80%, Lib 75%, Components 70%, App 70%. Aim for them and mention gaps in the PR.
+
+Core tooling (`scripts/`, `.github/.scripts/`, `.agents/skills/*/scripts/`) must have tests; changes to it update those tests.
 
 ## 6. Pull Request
 

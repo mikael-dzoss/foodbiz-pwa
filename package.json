@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/test-results.json",
+    "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/test-results.json && node scripts/coverage-ratchet.mjs",
+    "test:tooling": "python3 -B -m unittest discover -s .agents/skills/issue-logger/scripts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
