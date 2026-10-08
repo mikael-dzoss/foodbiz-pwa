@@ -1,0 +1,39 @@
+name: Promote
+
+# Opens a promotion PR: develop → staging (pre-production) or staging → main (production).
+# Promotions are merged with a merge commit so the three branches keep a shared history.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Environment to promote to"
+        required: true
+        type: choice
+        options:
+          - staging
+          - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-pr:
+    name: Open promotion PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          if [ "$TARGET" = "staging" ]; then SOURCE=develop; else SOURCE=staging; fi
+          EXISTING=$(gh pr list --repo "$REPO" --base "$TARGET" --head "$SOURCE" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "Promotion PR #$EXISTING already open."
+            exit 0
+          fi
+          gh pr create --repo "$REPO" --base "$TARGET" --head "$SOURCE" \
+            --title "chore(release): promote $SOURCE to $TARGET" \
+            --body "Automated promotion \`$SOURCE\` → \`$TARGET\`. Review the qualification checklist in docs/CONTRIBUTING.md before merging."

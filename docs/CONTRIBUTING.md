@@ -66,7 +66,7 @@ Use `npm run format` to fix formatting, and `npm run test:coverage` for coverage
 
 Promotions are PRs, not direct pushes. Hotfixes follow the same path unless the maintainers decide otherwise.
 
-> **Planned:** GitHub Actions CI (Phase 3 of [`migration_plan.md`](../migration_plan.md)) and Vercel preview deployments per PR. Until CI exists, the local validation commands are the gate.
+> **CI:** every PR and push runs `.github/workflows/ci.yml` (PR title, format, lint, typecheck, tests + coverage, build). The `Quality gate` check must be green to merge. Promotion PRs can be opened from **Actions → Promote**. See [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 ## Code standards
 

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [develop, staging, main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Format
+        id: format
+        run: npm run format:check
+
+      - name: Lint
+        id: lint
+        run: npm run lint
+
+      - name: Typecheck
+        id: typecheck
+        run: npm run typecheck
+
+      - name: Test with coverage
+        id: test
+        run: npm run test:coverage
+
+      - name: Audit production dependencies
+        id: audit
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.[jt]s', '**/*.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+
+      - name: Build
+        id: build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+        run: npm run build
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Post CI summary comment
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          FORMAT_STATUS: ${{ steps.format.outcome }}
+          LINT_STATUS: ${{ steps.lint.outcome }}
+          TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
+          TEST_STATUS: ${{ steps.test.outcome }}
+          AUDIT_STATUS: ${{ steps.audit.outcome }}
+          BUILD_STATUS: ${{ steps.build.outcome }}
+        run: node .github/.scripts/generate-ci-comments.js
