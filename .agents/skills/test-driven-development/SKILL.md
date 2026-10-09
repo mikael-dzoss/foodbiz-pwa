@@ -19,7 +19,11 @@ Focused run during the loop: `npx vitest run <path-or-pattern>`. Full gate once,
 
 ## Where tests go
 
-- Co-located `*.test.ts(x)` under `src/` (Vitest, jsdom, Testing Library).
+- Group tests into a `tests/` subdirectory at module level (e.g. `src/domain/tests/`, `src/features/<feature>/tests/`, `src/config/tests/`, `src/app/tests/`).
+- Suffix all test files with `*.test.ts(x)`.
+- **Grouping vs. Specializing in `tests/`**:
+  - Keep related, lightweight, stateless checks sharing fixtures grouped (e.g. `tests/schemas.test.ts`) to avoid runner overhead and boilerplate fragmentation (< 200–250 lines).
+  - Break into specialized test files when a capability has distinct lifecycle/setup requirements, complex state transitions, or exceeds ~250 lines (e.g. `tests/order-lifecycle.test.ts`, `tests/pricing.test.ts`).
 - `src/domain/`: pure unit tests, the bulk of the suite; no mocks needed.
 - Server Actions: test the zod parsing and auth rejection paths, not only the happy path.
 - Components: render and assert what the user sees. Query by role/label first; `getByTestId` when there is no accessible handle.

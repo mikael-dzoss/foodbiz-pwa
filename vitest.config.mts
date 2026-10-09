@@ -18,6 +18,7 @@ export default defineConfig({
       // Production code only: framework entry/metadata files and thin SDK wrappers are covered by E2E.
       exclude: [
         "src/**/*.test.{ts,tsx}",
+        "src/**/tests/**",
         "src/**/*.d.ts",
         "src/**/__fixtures__/**",
         "src/app/**/{layout,manifest,robots,sitemap}.{ts,tsx}",
