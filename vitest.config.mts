@@ -23,6 +23,7 @@ export default defineConfig({
         "src/**/*.d.ts",
         "src/**/__fixtures__/**",
         "src/app/**/{layout,manifest,robots,sitemap}.{ts,tsx}",
+        "src/app/patterns/**",
         "src/proxy.ts",
         "src/lib/supabase/**",
       ],
