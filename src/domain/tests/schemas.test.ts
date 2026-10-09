@@ -9,7 +9,7 @@ import {
   orderSchema,
   productCategorySchema,
   productSchema,
-} from "./index";
+} from "../index";
 
 const validUuid = "123e4567-e89b-12d3-a456-426614174000";
 const anotherUuid = "987fcdeb-51a2-43d7-9012-345678901234";
@@ -327,7 +327,7 @@ describe("Architectural boundaries", () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
 
-    const domainDir = path.resolve(__dirname);
+    const domainDir = path.resolve(__dirname, "..");
     const files = fs
       .readdirSync(domainDir)
       .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));

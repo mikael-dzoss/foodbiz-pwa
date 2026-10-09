@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePublicEnv } from "./env";
+import { parsePublicEnv } from "../env";
 
 describe("parsePublicEnv", () => {
   it("returns typed values when all variables are valid", () => {
