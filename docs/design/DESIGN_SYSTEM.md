@@ -18,74 +18,74 @@ Screen inventory and loop status: [`SCREENS.md`](SCREENS.md).
 
 Names follow shadcn/ui conventions so #28 can consume them directly. Hex values are the spec; components only use the Tailwind utilities (`bg-primary`, `text-muted-foreground`, …).
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `background` | `#f9f9ff` | `#0f1417` | App background |
-| `foreground` | `#171c22` | `#e5e9ee` | Body text |
-| `card` | `#ffffff` | `#171d20` | Cards, sheets, list surfaces |
-| `card-foreground` | `#171c22` | `#e5e9ee` | Text on cards |
-| `muted` | `#eef0f6` | `#232a2e` | Subtle fills, skeletons, "Soon" items |
-| `muted-foreground` | `#4f5662` | `#a4adb8` | Secondary text, captions |
-| `border` | `#dde0e8` | `#2c3439` | Dividers, card outlines (decorative) |
-| `input` | `#737a86` | `#7c8692` | Form control outlines (≥ 3:1) |
-| `ring` | `#006c49` | `#5cd6a3` | Focus ring (2 px, 2 px offset) |
-| `primary` | `#006c49` | `#5cd6a3` | Primary actions, profit, positive |
-| `primary-foreground` | `#ffffff` | `#00391f` | Text on primary |
-| `primary-soft` | `#d3efe1` | `#0f3d2c` | Selected nav item, READY status |
-| `primary-soft-foreground` | `#00402a` | `#b4f1d4` | Text on primary-soft |
-| `secondary` | `#855300` | `#ffb95c` | Sales highlight (legacy amber) |
-| `secondary-foreground` | `#ffffff` | `#462a00` | Text on secondary |
-| `warning-soft` | `#fbe7cc` | `#4a3510` | PREPARING, unpaid, low stock |
-| `warning-soft-foreground` | `#5e3a00` | `#ffddb0` | Text on warning-soft |
-| `info` | `#005ac2` | `#a9c7ff` | Links, NEW status, information |
-| `info-foreground` | `#ffffff` | `#002f68` | Text on info |
-| `destructive` | `#ba1a1a` | `#ffb4ab` | Errors, cancel, delete |
-| `destructive-foreground` | `#ffffff` | `#690005` | Text on destructive |
+| Token                     | Light     | Dark      | Use                                   |
+| ------------------------- | --------- | --------- | ------------------------------------- |
+| `background`              | `#f9f9ff` | `#0f1417` | App background                        |
+| `foreground`              | `#171c22` | `#e5e9ee` | Body text                             |
+| `card`                    | `#ffffff` | `#171d20` | Cards, sheets, list surfaces          |
+| `card-foreground`         | `#171c22` | `#e5e9ee` | Text on cards                         |
+| `muted`                   | `#eef0f6` | `#232a2e` | Subtle fills, skeletons, "Soon" items |
+| `muted-foreground`        | `#4f5662` | `#a4adb8` | Secondary text, captions              |
+| `border`                  | `#dde0e8` | `#2c3439` | Dividers, card outlines (decorative)  |
+| `input`                   | `#737a86` | `#7c8692` | Form control outlines (≥ 3:1)         |
+| `ring`                    | `#006c49` | `#5cd6a3` | Focus ring (2 px, 2 px offset)        |
+| `primary`                 | `#006c49` | `#5cd6a3` | Primary actions, profit, positive     |
+| `primary-foreground`      | `#ffffff` | `#00391f` | Text on primary                       |
+| `primary-soft`            | `#d3efe1` | `#0f3d2c` | Selected nav item, READY status       |
+| `primary-soft-foreground` | `#00402a` | `#b4f1d4` | Text on primary-soft                  |
+| `secondary`               | `#855300` | `#ffb95c` | Sales highlight (legacy amber)        |
+| `secondary-foreground`    | `#ffffff` | `#462a00` | Text on secondary                     |
+| `warning-soft`            | `#fbe7cc` | `#4a3510` | PREPARING, unpaid, low stock          |
+| `warning-soft-foreground` | `#5e3a00` | `#ffddb0` | Text on warning-soft                  |
+| `info`                    | `#005ac2` | `#a9c7ff` | Links, NEW status, information        |
+| `info-foreground`         | `#ffffff` | `#002f68` | Text on info                          |
+| `destructive`             | `#ba1a1a` | `#ffb4ab` | Errors, cancel, delete                |
+| `destructive-foreground`  | `#ffffff` | `#690005` | Text on destructive                   |
 
 ### Contrast (WCAG 2.2 AA, computed)
 
-| Pair | Light | Dark |
-| --- | --- | --- |
-| foreground / background | 16.34 | 15.20 |
-| muted-foreground / card | 7.39 | 7.50 |
-| muted-foreground / muted | 6.49 | 6.41 |
-| primary-foreground / primary | 6.48 | 7.23 |
-| primary / card (text, links) | 6.48 | 9.41 |
-| primary-soft-foreground / primary-soft | 9.74 | 9.55 |
-| secondary-foreground / secondary | 6.49 | 7.76 |
-| info-foreground / info | 6.48 | 7.66 |
-| destructive-foreground / destructive | 6.46 | 7.72 |
-| warning-soft-foreground / warning-soft | 8.36 | 8.97 |
-| input / card (non-text, 3:1) | 4.32 | 4.61 |
+| Pair                                   | Light | Dark  |
+| -------------------------------------- | ----- | ----- |
+| foreground / background                | 16.34 | 15.20 |
+| muted-foreground / card                | 7.39  | 7.50  |
+| muted-foreground / muted               | 6.49  | 6.41  |
+| primary-foreground / primary           | 6.48  | 7.23  |
+| primary / card (text, links)           | 6.48  | 9.41  |
+| primary-soft-foreground / primary-soft | 9.74  | 9.55  |
+| secondary-foreground / secondary       | 6.49  | 7.76  |
+| info-foreground / info                 | 6.48  | 7.66  |
+| destructive-foreground / destructive   | 6.46  | 7.72  |
+| warning-soft-foreground / warning-soft | 8.36  | 8.97  |
+| input / card (non-text, 3:1)           | 4.32  | 4.61  |
 
 Re-run the check whenever a value changes; text pairs must stay ≥ 4.5:1, control outlines ≥ 3:1.
 
 ### Order and payment status mapping
 
-| Status | Surface | Label |
-| --- | --- | --- |
-| NEW | `info` | "New" / "Nouvelle" |
-| CONFIRMED | `card` + `info` outline | "Confirmed" / "Confirmée" |
-| PREPARING | `warning-soft` | "Preparing" / "En préparation" |
-| READY | `primary-soft` | "Ready" / "Prête" |
-| COMPLETED | `muted` | "Completed" / "Terminée" |
-| CANCELLED | `card` + `destructive` outline, struck amount | "Cancelled" / "Annulée" |
-| Unpaid | `warning-soft` | "Unpaid" / "Non payée" |
-| Paid | `primary-soft` | "Paid" / "Payée" |
+| Status    | Surface                                       | Label                          |
+| --------- | --------------------------------------------- | ------------------------------ |
+| NEW       | `info`                                        | "New" / "Nouvelle"             |
+| CONFIRMED | `card` + `info` outline                       | "Confirmed" / "Confirmée"      |
+| PREPARING | `warning-soft`                                | "Preparing" / "En préparation" |
+| READY     | `primary-soft`                                | "Ready" / "Prête"              |
+| COMPLETED | `muted`                                       | "Completed" / "Terminée"       |
+| CANCELLED | `card` + `destructive` outline, struck amount | "Cancelled" / "Annulée"        |
+| Unpaid    | `warning-soft`                                | "Unpaid" / "Non payée"         |
+| Paid      | `primary-soft`                                | "Paid" / "Payée"               |
 
 ## 3. Typography
 
 Inter only (`next/font`, Latin + Latin Extended), `font-feature-settings: "tnum"` via `tabular-nums` on every amount, quantity, time and KPI. Body never below 16 px on inputs (prevents iOS zoom).
 
-| Token | Size / line | Weight | Use |
-| --- | --- | --- | --- |
-| `display` | 32 / 40 | 600 | KPI hero value |
-| `title-lg` | 22 / 28 | 600 | Screen title |
-| `title-md` | 18 / 24 | 600 | Section and card titles |
-| `body-md` | 16 / 24 | 400 | Body, inputs |
-| `body-sm` | 14 / 20 | 400 | Secondary text, list meta |
-| `label-md` | 14 / 20 | 500 | Buttons, tabs, form labels |
-| `label-sm` | 12 / 16 | 500 | Badges, captions, nav labels |
+| Token      | Size / line | Weight | Use                          |
+| ---------- | ----------- | ------ | ---------------------------- |
+| `display`  | 32 / 40     | 600    | KPI hero value               |
+| `title-lg` | 22 / 28     | 600    | Screen title                 |
+| `title-md` | 18 / 24     | 600    | Section and card titles      |
+| `body-md`  | 16 / 24     | 400    | Body, inputs                 |
+| `body-sm`  | 14 / 20     | 400    | Secondary text, list meta    |
+| `label-md` | 14 / 20     | 500    | Buttons, tabs, form labels   |
+| `label-sm` | 12 / 16     | 500    | Badges, captions, nav labels |
 
 Letter spacing 0 except `display` (−0.01em). Max two weights per screen besides 400.
 
@@ -112,27 +112,27 @@ lucide-react, 24 px in navigation and list leading positions, 20 px inline with 
 
 Every component exposes `data-testid` and supports light/dark. States to design and implement: **default, pressed (`active:`), focus-visible, disabled, loading, error**, plus **empty** for collections.
 
-| Component | Source | Notes |
-| --- | --- | --- |
-| Button (primary, secondary/outline, ghost, destructive) | shadcn | 48 px height; loading shows spinner + keeps label width |
-| Icon button | shadcn | 48 × 48 hit area, 24 px icon |
-| Input, Textarea, Select, Checkbox, Switch | shadcn | Label above, helper/error below, error = icon + text |
-| Money input | custom | EUR, `inputmode="decimal"`, tabular, locale separator |
-| Card | shadcn | Border, `md` radius, 16 px padding |
-| KPI card | custom | `label-sm` label, `display` value, delta with icon + sign |
-| List row | custom | Leading icon/thumb, title, meta, trailing value/chevron; ≥ 56 px |
-| Badge / status pill | shadcn | Uses status mapping, always text |
-| Tabs / segmented filter | shadcn | Horizontal scroll on mobile, count in label |
-| Sheet (bottom) | shadcn | Drag handle, title, sticky footer actions |
-| Dialog | shadcn | Confirmations only (cancel order, delete) |
-| Toast | shadcn | Bottom, above nav; auto-dismiss 4 s; action optional |
-| Skeleton | shadcn | Matches final layout; no shimmer under reduced motion |
-| Empty state | custom (#34) | Icon, one-line title, one-line hint, one action |
-| Error state | custom (#34) | Icon, message, retry action |
-| Bottom nav | custom (#29) | 5 items, center Add; active = soft fill + bold label + icon fill |
-| Sticky action bar | custom | Storefront cart/checkout, manager form save |
-| Quantity stepper | custom | − / value / +, 48 px buttons |
-| Soon badge + soon item | custom (#33) | See §8 |
+| Component                                               | Source       | Notes                                                            |
+| ------------------------------------------------------- | ------------ | ---------------------------------------------------------------- |
+| Button (primary, secondary/outline, ghost, destructive) | shadcn       | 48 px height; loading shows spinner + keeps label width          |
+| Icon button                                             | shadcn       | 48 × 48 hit area, 24 px icon                                     |
+| Input, Textarea, Select, Checkbox, Switch               | shadcn       | Label above, helper/error below, error = icon + text             |
+| Money input                                             | custom       | EUR, `inputmode="decimal"`, tabular, locale separator            |
+| Card                                                    | shadcn       | Border, `md` radius, 16 px padding                               |
+| KPI card                                                | custom       | `label-sm` label, `display` value, delta with icon + sign        |
+| List row                                                | custom       | Leading icon/thumb, title, meta, trailing value/chevron; ≥ 56 px |
+| Badge / status pill                                     | shadcn       | Uses status mapping, always text                                 |
+| Tabs / segmented filter                                 | shadcn       | Horizontal scroll on mobile, count in label                      |
+| Sheet (bottom)                                          | shadcn       | Drag handle, title, sticky footer actions                        |
+| Dialog                                                  | shadcn       | Confirmations only (cancel order, delete)                        |
+| Toast                                                   | shadcn       | Bottom, above nav; auto-dismiss 4 s; action optional             |
+| Skeleton                                                | shadcn       | Matches final layout; no shimmer under reduced motion            |
+| Empty state                                             | custom (#34) | Icon, one-line title, one-line hint, one action                  |
+| Error state                                             | custom (#34) | Icon, message, retry action                                      |
+| Bottom nav                                              | custom (#29) | 5 items, center Add; active = soft fill + bold label + icon fill |
+| Sticky action bar                                       | custom       | Storefront cart/checkout, manager form save                      |
+| Quantity stepper                                        | custom       | − / value / +, 48 px buttons                                     |
+| Soon badge + soon item                                  | custom (#33) | See §8                                                           |
 
 ## 8. "Coming soon" pattern
 
@@ -161,11 +161,11 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 
 ## 11. Stitch mirror
 
-| Item | Value |
-| --- | --- |
-| Project | FoodBiz PWA — `10916445985537244105` |
+| Item                  | Value                                         |
+| --------------------- | --------------------------------------------- |
+| Project               | FoodBiz PWA — `10916445985537244105`          |
 | Design system (light) | FoodBiz Light — `assets/14358508387441273017` |
-| Design system (dark) | FoodBiz Dark — `assets/14014574616527079101` |
+| Design system (dark)  | FoodBiz Dark — `assets/14014574616527079101`  |
 
 Active screen IDs live in [`SCREENS.md`](SCREENS.md#active-stitch-screens).
 
