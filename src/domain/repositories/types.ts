@@ -1,0 +1,172 @@
+import type { Business, BusinessMember, BusinessMemberRole, BusinessSettings } from "../business";
+import type { Expense } from "../expense";
+import type { Guest } from "../guest";
+import type { Order, OrderStatus } from "../order";
+import type { Product, ProductCategory } from "../product";
+
+export interface CreateProductInput {
+  readonly id?: string;
+  readonly categoryId: string;
+  readonly name: string;
+  readonly description?: string | null;
+  readonly price: number;
+  readonly unitCost?: number;
+  readonly stock?: number;
+  readonly visible?: boolean;
+  readonly imageUrl?: string | null;
+}
+
+export type UpdateProductInput = Partial<Omit<CreateProductInput, "id">>;
+
+export interface ProductFilter {
+  readonly categoryId?: string;
+  readonly visibleOnly?: boolean;
+}
+
+export interface ProductRepository {
+  findById(businessId: string, id: string): Promise<Product | null>;
+  list(businessId: string, filter?: ProductFilter): Promise<Product[]>;
+  create(businessId: string, input: CreateProductInput): Promise<Product>;
+  update(businessId: string, id: string, input: UpdateProductInput): Promise<Product>;
+  softDelete(businessId: string, id: string): Promise<Product>;
+}
+
+export interface CreateCategoryInput {
+  readonly id?: string;
+  readonly name: string;
+  readonly sortOrder?: number;
+}
+
+export type UpdateCategoryInput = Partial<Omit<CreateCategoryInput, "id">>;
+
+export interface CategoryRepository {
+  findById(businessId: string, id: string): Promise<ProductCategory | null>;
+  list(businessId: string): Promise<ProductCategory[]>;
+  create(businessId: string, input: CreateCategoryInput): Promise<ProductCategory>;
+  update(businessId: string, id: string, input: UpdateCategoryInput): Promise<ProductCategory>;
+  delete(businessId: string, id: string): Promise<void>;
+}
+
+export interface CreateOrderInput {
+  readonly id?: string;
+  readonly orderNumber?: number;
+  readonly guestId?: string | null;
+  readonly guestName: string;
+  readonly serviceType: Order["serviceType"];
+  readonly channel: Order["channel"];
+  readonly status: OrderStatus;
+  readonly paid: Order["paid"];
+  readonly paymentPreference: Order["paymentPreference"];
+  readonly paymentMethod?: Order["paymentMethod"];
+  readonly paidAt?: string | null;
+  readonly requestedDate: string;
+  readonly requestedTime?: string | null;
+  readonly items: Order["items"];
+  readonly totalAmount: number;
+  readonly cancellationReason?: string | null;
+  readonly notes?: string | null;
+}
+
+export type UpdateOrderInput = Partial<Omit<CreateOrderInput, "id">>;
+
+export interface OrderFilter {
+  readonly status?: OrderStatus;
+  readonly guestId?: string;
+  readonly fromDate?: string;
+  readonly toDate?: string;
+}
+
+export interface OrderRepository {
+  findById(businessId: string, id: string): Promise<Order | null>;
+  list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
+  create(businessId: string, input: CreateOrderInput): Promise<Order>;
+  update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;
+}
+
+export interface CreateGuestInput {
+  readonly id?: string;
+  readonly name: string;
+  readonly phone?: string | null;
+  readonly email?: string | null;
+  readonly address?: string | null;
+  readonly notes?: string | null;
+}
+
+export type UpdateGuestInput = Partial<Omit<CreateGuestInput, "id">>;
+
+export interface GuestRepository {
+  findById(businessId: string, id: string): Promise<Guest | null>;
+  findByPhone(businessId: string, phone: string): Promise<Guest | null>;
+  list(businessId: string): Promise<Guest[]>;
+  create(businessId: string, input: CreateGuestInput): Promise<Guest>;
+  update(businessId: string, id: string, input: UpdateGuestInput): Promise<Guest>;
+}
+
+export interface CreateExpenseInput {
+  readonly id?: string;
+  readonly amount: number;
+  readonly date: string;
+  readonly description: string;
+  readonly tags?: string[];
+}
+
+export type UpdateExpenseInput = Partial<Omit<CreateExpenseInput, "id">>;
+
+export interface ExpenseFilter {
+  readonly tag?: string;
+  readonly fromDate?: string;
+  readonly toDate?: string;
+}
+
+export interface ExpenseRepository {
+  findById(businessId: string, id: string): Promise<Expense | null>;
+  list(businessId: string, filter?: ExpenseFilter): Promise<Expense[]>;
+  create(businessId: string, input: CreateExpenseInput): Promise<Expense>;
+  update(businessId: string, id: string, input: UpdateExpenseInput): Promise<Expense>;
+  delete(businessId: string, id: string): Promise<void>;
+}
+
+export interface CreateBusinessInput {
+  readonly id?: string;
+  readonly name: string;
+  readonly slug: string;
+  readonly currency?: Business["currency"];
+}
+
+export type UpdateBusinessInput = Partial<Omit<CreateBusinessInput, "id">>;
+
+export type UpdateSettingsInput = Partial<Omit<BusinessSettings, "businessId" | "id">>;
+
+export interface BusinessRepository {
+  findById(id: string): Promise<Business | null>;
+  findBySlug(slug: string): Promise<Business | null>;
+  create(input: CreateBusinessInput): Promise<Business>;
+  update(id: string, input: UpdateBusinessInput): Promise<Business>;
+  getSettings(businessId: string): Promise<BusinessSettings | null>;
+  updateSettings(businessId: string, input: UpdateSettingsInput): Promise<BusinessSettings>;
+}
+
+export interface CreateMemberInput {
+  readonly id?: string;
+  readonly userId: string;
+  readonly role: BusinessMemberRole;
+}
+
+export interface MemberRepository {
+  list(businessId: string): Promise<BusinessMember[]>;
+  findById(businessId: string, id: string): Promise<BusinessMember | null>;
+  findByUserId(businessId: string, userId: string): Promise<BusinessMember | null>;
+  add(businessId: string, input: CreateMemberInput): Promise<BusinessMember>;
+  updateRole(businessId: string, id: string, role: BusinessMemberRole): Promise<BusinessMember>;
+  remove(businessId: string, id: string): Promise<void>;
+}
+
+export interface Repositories {
+  readonly products: ProductRepository;
+  readonly categories: CategoryRepository;
+  readonly orders: OrderRepository;
+  readonly guests: GuestRepository;
+  readonly expenses: ExpenseRepository;
+  readonly business: BusinessRepository;
+  readonly members: MemberRepository;
+}

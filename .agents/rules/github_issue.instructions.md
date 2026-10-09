@@ -16,7 +16,7 @@ python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type st
 "next N features/stories" → `story` (default); "next N bugs" → `bug`; plain "next N items" while ready bugs exist → ask which type. The script returns items in execution order (milestone `v0.9 MVP` by default; epics and `status: in-progress|in-review|blocked|completed` excluded). Take them in that order, one branch/PR per issue. Stop at the first gated item and present its plan.
 
 ### Grouping Small Related Stories
-Small related stories under the same parent epic (< 200 lines each) may be grouped into a single branch/PR as long as total lines stay within `2 × threshold` (≤ 400 lines). Maintenance issues (`type: bug`) are never grouped and must remain isolated.
+Small related stories under the same parent epic (< 400 production code lines each) may be grouped into a single branch/PR as long as total production code lines stay within `2 × threshold` (≤ 800 lines). Maintenance issues (`type: bug`) are never grouped and must remain isolated.
 To inspect open ready sibling stories under the same parent epic:
 ```bash
 python3 -B .agents/skills/issue-logger/scripts/gh_related_issues.py [<number>]
