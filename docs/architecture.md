@@ -1,8 +1,8 @@
 # Architecture: FoodBiz PWA
 
-One Next.js codebase serves two audiences: the **manager** (installable dashboard PWA) and the **customer** (SSR, SEO-friendly storefront). Rationale: see [`../migration_plan.md`](../migration_plan.md).
+One Next.js codebase serves two audiences: the **manager** (installable dashboard PWA) and the **customer** (SSR, SEO-friendly storefront). Why a PWA instead of the legacy Expo app: one codebase for both audiences, an indexable storefront, ordering from a URL without an app store, and an installable manager app.
 
-> Status legend: items marked **Planned** do not exist in the code yet. Currently implemented: the Phase 1 scaffold (home page, manifest, env parsing, Supabase clients, session-refresh proxy).
+> Status legend: items marked **Planned** do not exist in the code yet. Currently implemented: the initial scaffold (home page, manifest, env parsing, Supabase clients, session-refresh proxy).
 
 ## Stack
 
@@ -11,7 +11,7 @@ One Next.js codebase serves two audiences: the **manager** (installable dashboar
 | Framework  | Next.js 16.4 (App Router, Cache Components, Turbopack)      |
 | UI         | React 19.3                                                  |
 | Language   | TypeScript (strict)                                         |
-| Styling    | Tailwind CSS v4 (shadcn/ui **Planned**, Phase 5)            |
+| Styling    | Tailwind CSS v4 (shadcn/ui **Planned**)                     |
 | Backend    | Supabase (Postgres, Auth, Storage, RLS) via `@supabase/ssr` |
 | Validation | zod 4                                                       |
 | Testing    | Vitest + React Testing Library (jsdom)                      |
@@ -22,15 +22,7 @@ One Next.js codebase serves two audiences: the **manager** (installable dashboar
 
 ## Folder layout
 
-```text
-src/
-├── app/                 Routes, layouts, manifest.ts (PWA), globals.css
-├── config/              env.ts (zod-parsed public env), app.ts (APP_METADATA)
-├── lib/supabase/        client.ts (browser), server.ts (server), proxy.ts (session refresh)
-└── proxy.ts             Next.js proxy: runs updateSession on matched requests
-```
-
-Planned feature areas (not yet created), carried over from the mobile app: dashboard, orders, products, expenses, analytics, settings, plus the customer storefront. Domain schemas (zod) and KPI logic will live in a `domain/` layer so they stay separate from UI and data access.
+Target layout and conventions: [`AGENTS.md#project-layout`](../AGENTS.md#project-layout). Implemented today: `src/app/`, `src/config/`, `src/lib/supabase/`, `src/proxy.ts`. `src/domain/`, `src/features/`, `src/components/` and `supabase/migrations/` are **Planned**.
 
 ## Layers
 
@@ -53,11 +45,7 @@ Components are Server Components by default.
 | Reading cookies or headers                      | Supabase browser client usage                 |
 | Anything using secrets or `server-only` modules | Interactive forms, cart, charts               |
 
-Rules:
-
-- Keep `"use client"` boundaries as low in the tree as possible; pass server-fetched data down as props.
-- `src/lib/supabase/server.ts` imports `server-only` and must never be imported from a Client Component.
-- With `cacheComponents` enabled, runtime data (`cookies()`, `headers()`, uncached fetches) must sit under a `<Suspense>` boundary; cacheable work uses `"use cache"`. Reference: `node_modules/next/dist/docs/01-app/01-getting-started/08-caching.md`.
+Rules: [web.instructions.md#rendering--caching](../.agents/rules/web.instructions.md#rendering--caching). `src/lib/supabase/server.ts` imports `server-only` and must never be imported from a Client Component.
 
 ## Data flow with Supabase SSR clients
 
@@ -91,7 +79,7 @@ sequenceDiagram
 
 **Planned.** Only session refresh exists today; there are no sign-in routes, tables or policies yet.
 
-Intended design (from the migration plan): Supabase Auth plus Row Level Security segregate **manager** data from **customer** data.
+Intended design: Supabase Auth plus Row Level Security segregate **manager** data from **customer** data.
 
 - Managers manage the catalog, orders, expenses and analytics; their rows are protected by RLS so only authorised managers can read or write them.
 - Customers browse products and place orders; RLS limits them to public catalog reads and their own orders.
@@ -148,10 +136,10 @@ Each environment needs its own Supabase URL and publishable key. Branch flow: se
 
 ## Differences from the legacy mobile app
 
-| Legacy (Expo)                         | PWA                                           |
-| ------------------------------------- | --------------------------------------------- |
-| `@react-navigation` tabs/stack/drawer | App Router file-based routes                  |
-| `StoreContext` + AsyncStorage         | Supabase data via server/browser clients      |
-| `StyleSheet` + design tokens          | Tailwind CSS v4 (tokens defined with Phase 5) |
-| In-memory repositories + mock data    | Supabase (Planned schema)                     |
-| Single role (owner)                   | Manager and customer roles                    |
+| Legacy (Expo)                         | PWA                                      |
+| ------------------------------------- | ---------------------------------------- |
+| `@react-navigation` tabs/stack/drawer | App Router file-based routes             |
+| `StoreContext` + AsyncStorage         | Supabase data via server/browser clients |
+| `StyleSheet` + design tokens          | Tailwind CSS v4 + `@theme` tokens        |
+| In-memory repositories + mock data    | Supabase (Planned schema)                |
+| Single role (owner)                   | Manager and customer roles               |

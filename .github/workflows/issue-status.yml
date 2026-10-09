@@ -1,0 +1,32 @@
+name: Issue status
+
+# Issues closed by a merged PR ("Closes #N") get `status: completed`.
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  mark-completed:
+    name: Mark closed issues completed
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update status labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+            --jq '.closingIssuesReferences[].number' |
+          while read -r issue; do
+            gh issue edit "$issue" --repo "$REPO" \
+              --remove-label "status: planned" --remove-label "status: in-progress" \
+              --remove-label "status: in-review" --remove-label "status: blocked" \
+              --add-label "status: completed"
+          done

@@ -17,11 +17,15 @@
   "containerEnv": {
     "NEXT_TELEMETRY_DISABLED": "1"
   },
+  "remoteEnv": {
+    "STITCH_API_KEY": "${localEnv:STITCH_API_KEY}"
+  },
   "mounts": [
     "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
     "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/stitch-mcp.sh",
   "customizations": {
     "vscode": {
       "settings": {

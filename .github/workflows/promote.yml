@@ -36,4 +36,4 @@ jobs:
           fi
           gh pr create --repo "$REPO" --base "$TARGET" --head "$SOURCE" \
             --title "chore(release): promote $SOURCE to $TARGET" \
-            --body "Automated promotion \`$SOURCE\` → \`$TARGET\`. Review the qualification checklist in docs/CONTRIBUTING.md before merging."
+            --body "Automated promotion \`$SOURCE\` → \`$TARGET\`. Review the qualification steps in docs/DEPLOYMENT.md#releasing before merging."

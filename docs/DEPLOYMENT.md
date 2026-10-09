@@ -16,11 +16,12 @@ flowchart LR
 
 ## GitHub Actions
 
-| Workflow                                          | Trigger                                   | What it does                                                                                             |
-| ------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [`ci.yml`](../.github/workflows/ci.yml)           | PR / push on `develop`, `staging`, `main` | PR title check, `format:check`, `lint`, `typecheck`, `test:coverage`, `build`; uploads coverage artifact |
-| [`promote.yml`](../.github/workflows/promote.yml) | Manual (`workflow_dispatch`)              | Opens `develop → staging` or `staging → main` PR (skips if one is open)                                  |
-| [`dependabot.yml`](../.github/dependabot.yml)     | Weekly                                    | Grouped npm minor/patch updates and Actions updates, targeting `develop`                                 |
+| Workflow                                                    | Trigger                                   | What it does                                                                                         |
+| ----------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [`ci.yml`](../.github/workflows/ci.yml)                     | PR / push on `develop`, `staging`, `main` | [Validation gate](CONTRIBUTING.md#validation-gate) + `npm audit`; uploads coverage, posts PR comment |
+| [`promote.yml`](../.github/workflows/promote.yml)           | Manual (`workflow_dispatch`)              | Opens `develop → staging` or `staging → main` PR (skips if one is open)                              |
+| [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`                  | Sets `status: completed` on issues the PR closes (`Closes #N`)                                       |
+| [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                    | Grouped npm minor/patch updates and Actions updates, targeting `develop`                             |
 
 The build step uses placeholder Supabase values, so CI needs no secrets. Merged feature branches are deleted automatically (repository setting), so the legacy cleanup workflow was not ported.
 
@@ -41,5 +42,7 @@ Required status check: `Quality gate`. For `develop`, `staging` and `main`: requ
 
 ## Releasing
 
+Promotions are PRs (never direct pushes) opened and merged by maintainers; hotfixes follow the same path unless maintainers decide otherwise.
+
 1. Run **Actions → Promote → staging**, merge the PR with a **merge commit** (not squash) once CI is green, and qualify on staging.
-2. Run **Actions → Promote → main**, merge, and tag the release (`git tag -a vX.Y.Z`), following [`CONTRIBUTING.md`](CONTRIBUTING.md).
+2. Run **Actions → Promote → main**, merge, and tag the release (`git tag -a vX.Y.Z`, semantic versioning).

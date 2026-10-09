@@ -102,7 +102,7 @@ Letter spacing 0 except `display` (−0.01em). Max two weights per screen beside
 - `sm` ≥ 640: wider gutters; `lg` ≥ 1024: manager sidebar replaces bottom nav, content max-width 72 rem; storefront grid 2–4 columns, content max-width 64 rem.
 - Fixed top bars add `env(safe-area-inset-top)`; bottom nav, sticky action bars and toasts add `env(safe-area-inset-bottom)`.
 - Viewport `interactive-widget=resizes-content`; forms scroll, submit buttons are never covered by the keyboard.
-- Touch targets ≥ 48 × 48 px (`min-h-12 min-w-12`), ≥ 8 px apart.
+- Touch targets ≥ 44 × 44 px (`min-h-11 min-w-11`), ≥ 8 px apart.
 
 ## 6. Iconography
 
@@ -151,7 +151,7 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 ## 10. Accessibility checklist
 
 - [ ] Text contrast ≥ 4.5:1, controls and focus ring ≥ 3:1, in light and dark
-- [ ] Targets ≥ 48 px; visible focus on every interactive element
+- [ ] Targets ≥ 44 px; visible focus on every interactive element
 - [ ] Semantic landmarks (`header`, `nav`, `main`), one `h1` per screen
 - [ ] Labels on every control; errors linked via `aria-describedby`
 - [ ] Status never conveyed by colour alone

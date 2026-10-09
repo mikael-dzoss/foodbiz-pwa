@@ -1,6 +1,6 @@
 ---
 trigger: model_decision
-description: Should be used when implementing/updating sensitive logics from security point of view
+description: Use when touching auth, sessions, Server Action authorization, secrets/env, the proxy, security headers/CSP, redirects or user-supplied HTML
 ---
 
 You are an expert in Web Application Security (Next.js + Supabase).
@@ -19,12 +19,7 @@ Secrets & Environment:
 - Parse env with zod (`src/config/env.ts`); keep `.env.example` updated; `.env*.local` stays gitignored.
 - Consider React taint APIs as an extra layer only; always filter data in the data-access layer.
 
-Database & RLS (Supabase):
-
-- Enable RLS on every table in `public`; no table without explicit policies. Default deny.
-- Segregate manager vs customer data via policies keyed on `auth.uid()` / roles/claims; test policies with both roles and anon.
-- Never rely on client-side checks or hidden UI for authorization.
-- Storage buckets: explicit policies, restrict MIME types and sizes.
+Database & RLS: see [backend.instructions.md#row-level-security-mandatory](backend.instructions.md#row-level-security-mandatory). Never rely on client-side checks or hidden UI for authorization.
 
 Authentication & Sessions:
 
@@ -38,7 +33,7 @@ Browser Hardening:
 - Content-Security-Policy via proxy with per-request nonce (requires dynamic rendering; see `node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md`). Avoid `unsafe-inline`/`unsafe-eval` in production.
 - Add security headers: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`/`X-Frame-Options`.
 - Never use `dangerouslySetInnerHTML` with unsanitized content. Validate redirect targets (no open redirects).
-- HTTPS only; service worker must not cache authenticated responses or secrets.
+- HTTPS only.
 
 Hygiene:
 
