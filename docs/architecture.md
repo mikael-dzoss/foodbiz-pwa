@@ -136,10 +136,10 @@ Each environment needs its own Supabase URL and publishable key. Branch flow: se
 
 ## Differences from the legacy mobile app
 
-| Legacy (Expo)                         | PWA                                           |
-| ------------------------------------- | --------------------------------------------- |
-| `@react-navigation` tabs/stack/drawer | App Router file-based routes                  |
-| `StoreContext` + AsyncStorage         | Supabase data via server/browser clients      |
-| `StyleSheet` + design tokens          | Tailwind CSS v4 + `@theme` tokens             |
-| In-memory repositories + mock data    | Supabase (Planned schema)                     |
-| Single role (owner)                   | Manager and customer roles                    |
+| Legacy (Expo)                         | PWA                                      |
+| ------------------------------------- | ---------------------------------------- |
+| `@react-navigation` tabs/stack/drawer | App Router file-based routes             |
+| `StoreContext` + AsyncStorage         | Supabase data via server/browser clients |
+| `StyleSheet` + design tokens          | Tailwind CSS v4 + `@theme` tokens        |
+| In-memory repositories + mock data    | Supabase (Planned schema)                |
+| Single role (owner)                   | Manager and customer roles               |

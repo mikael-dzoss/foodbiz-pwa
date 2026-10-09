@@ -4,11 +4,11 @@ Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](
 
 ## Branches
 
-| Branch    | Purpose                                                    |
-| --------- | ---------------------------------------------------------- |
-| `develop` | Integration branch; all work PRs target it. Not deployed.  |
-| `staging` | Pre-production qualification (promoted from `develop`).    |
-| `main`    | Production (promoted from `staging`).                      |
+| Branch    | Purpose                                                   |
+| --------- | --------------------------------------------------------- |
+| `develop` | Integration branch; all work PRs target it. Not deployed. |
+| `staging` | Pre-production qualification (promoted from `develop`).   |
+| `main`    | Production (promoted from `staging`).                     |
 
 ```mermaid
 flowchart LR
