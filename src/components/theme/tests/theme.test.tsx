@@ -5,11 +5,12 @@ import { ThemeProvider, useTheme, THEME_STORAGE_KEY } from "../theme-provider";
 import { ThemeScript } from "../theme-script";
 
 function TestConsumer() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme, mounted } = useTheme();
   return (
     <div>
       <span data-testid="theme">{theme}</span>
       <span data-testid="resolved">{resolvedTheme}</span>
+      <span data-testid="mounted">{mounted ? "yes" : "no"}</span>
       <button data-testid="set-dark" onClick={() => setTheme("dark")}>
         Dark
       </button>
@@ -43,6 +44,7 @@ describe("ThemeProvider", () => {
 
     expect(screen.getByTestId("theme").textContent).toBe("light");
     expect(screen.getByTestId("resolved").textContent).toBe("light");
+    expect(screen.getByTestId("mounted").textContent).toBe("yes");
   });
 
   it("updates theme to dark and sets dark class on root document", () => {

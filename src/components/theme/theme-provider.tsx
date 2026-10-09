@@ -11,6 +11,7 @@ interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
+  mounted: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -57,6 +58,8 @@ function subscribeTheme(callback: () => void) {
   };
 }
 
+const emptySubscribe = () => () => {};
+
 export function ThemeProvider({
   children,
   defaultTheme = "system",
@@ -64,19 +67,26 @@ export function ThemeProvider({
   children: React.ReactNode;
   defaultTheme?: Theme;
 }) {
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
   const storedTheme = useSyncExternalStore(subscribeTheme, getStoredTheme, () => defaultTheme);
 
   const theme: Theme = storedTheme ?? defaultTheme;
-  const resolvedTheme: ResolvedTheme = theme === "system" ? getSystemTheme() : theme;
+  const resolvedTheme: ResolvedTheme =
+    mounted && theme === "system" ? getSystemTheme() : theme === "system" ? "light" : theme;
 
   useEffect(() => {
+    if (!mounted) return;
     const root = document.documentElement;
     if (resolvedTheme === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
-  }, [resolvedTheme]);
+  }, [resolvedTheme, mounted]);
 
   const setTheme = (nextTheme: Theme) => {
     try {
@@ -88,7 +98,7 @@ export function ThemeProvider({
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, mounted }}>
       {children}
     </ThemeContext.Provider>
   );

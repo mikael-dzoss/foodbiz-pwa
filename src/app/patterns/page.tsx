@@ -43,7 +43,7 @@ import {
 import { SoonItem, EmptyState, ErrorState } from "@/components/feedback";
 
 export default function PatternsPage() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme, mounted } = useTheme();
   const { showToast } = useToast();
 
   const [stepperVal, setStepperVal] = React.useState(2);
@@ -116,8 +116,9 @@ export default function PatternsPage() {
         <div className="border-border bg-card text-body-sm text-muted-foreground flex items-start gap-2.5 rounded-md border p-3">
           <Info className="text-primary mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Replicating Stitch reference screens in <strong>{resolvedTheme}</strong> mode. All touch
-            targets ≥ 44px, tabular figures, and WCAG AA contrast.
+            Replicating Stitch reference screens in{" "}
+            <strong suppressHydrationWarning>{mounted ? resolvedTheme : "system"}</strong> mode. All
+            touch targets ≥ 44px, tabular figures, and WCAG AA contrast.
           </p>
         </div>
 
