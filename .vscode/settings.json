@@ -1,0 +1,6 @@
+{
+  "chat.instructionsFilesLocations": {
+    ".agents/rules": true
+  },
+  "chat.useAgentsMdFile": true
+}

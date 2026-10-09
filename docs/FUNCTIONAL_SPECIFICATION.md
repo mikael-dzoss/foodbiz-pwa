@@ -1,6 +1,6 @@
 # FoodBiz PWA — Functional Specification
 
-Carried over from the legacy FoodBiz Manager mobile app and extended with the customer storefront. **Status:** the PWA is at the Phase 1 scaffold; every module below is **Planned** unless stated otherwise. Legacy status is noted for reference only.
+Carried over from the legacy FoodBiz Manager mobile app and extended with the customer storefront. **Status:** the PWA is at the initial scaffold; every module below is **Planned** unless stated otherwise. Legacy status is noted for reference only.
 
 ## 1. Product vision
 
@@ -8,7 +8,7 @@ A web app for small, part-time food business owners (home bakers, meal prep, foo
 
 **Design philosophy:** radical accessibility through minimal friction.
 
-- **Mobile-first:** single-hand workflows, 48px+ touch targets, clean layouts.
+- **Mobile-first:** single-hand workflows, 44px+ touch targets, clean layouts.
 - **One screen away:** the dashboard surfaces key metrics.
 - **Zero jargon:** "Revenue", "Costs", "Net Profit" — plain terms only.
 
@@ -76,7 +76,7 @@ Service types: Dine-in, Pickup, Takeaway, Delivery.
 ## 7. Non-functional requirements
 
 - **Performance:** fast first load; storefront pages server-rendered.
-- **Accessibility:** WCAG AA, 48px touch targets, high contrast.
+- **Accessibility:** WCAG AA, 44px touch targets, high contrast.
 - **Platform:** modern mobile and desktop browsers; manager dashboard installable as a PWA (manifest implemented; offline support **Planned**).
 - **Security:** authorisation enforced by RLS; no secrets in `NEXT_PUBLIC_*`.
 
@@ -97,13 +97,6 @@ Service types: Dine-in, Pickup, Takeaway, Delivery.
 
 ## 9. Roadmap
 
-PWA migration phases (see [`../migration_plan.md`](../migration_plan.md)):
-
-1. Project initialization — scaffold done
-2. Documentation and agentic setup — in progress
-3. CI/CD pipeline (GitHub Actions, Vercel previews) — Done (Phase 3; Vercel project linking is a manual step)
-4. Backlog and roadmap, towards a `v0.9` staging release — Planned
-5. Design system and design-MCP integration — Planned
-6. Iterative development of the backlog towards `v0.9` — Planned
+Delivery is tracked in GitHub: milestone `v0.9 MVP` (staging release), epics and stories ordered by `wave`.
 
 Functional features deferred beyond `v0.9` in the legacy roadmap: per-product margins, batch expense remapping, push notifications, receipt printing.

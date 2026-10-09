@@ -10,25 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # FoodBiz PWA — Agent Contract
 
-> Next.js 16 App Router PWA (storefront + manager dashboard) on Supabase. Successor to the legacy Expo app.
-> Before using any Next.js API, read the matching guide in `node_modules/next/dist/docs/01-app/` (e.g. `02-guides/progressive-web-apps.md`, `02-guides/forms.md`, `02-guides/data-security.md`, `02-guides/content-security-policy.md`, `02-guides/authentication-with-cache-components.md`, `03-api-reference/03-file-conventions/proxy.md`).
-> Architecture: [`docs/architecture.md`](docs/architecture.md) · Contributing: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) · Migration plan: [`migration_plan.md`](migration_plan.md)
-
----
-
-## Stack
-
-| Layer      | Technology                                         | Notes                                                            |
-| ---------- | -------------------------------------------------- | ---------------------------------------------------------------- |
-| Language   | TypeScript 5 (strict)                              | No `any`, no `const enum`                                        |
-| Framework  | Next.js 16.4 (App Router), React 19.3              | `cacheComponents: true`; `src/proxy.ts` replaces `middleware.ts` |
-| Styling    | Tailwind CSS v4                                    | Tokens in `src/app/globals.css` `@theme`; Prettier sorts classes |
-| Backend    | Supabase (Postgres, Auth, Storage, RLS)            | `@supabase/ssr` + `@supabase/supabase-js`                        |
-| Validation | `zod` v4                                           | Schemas in `src/domain/`; reused by Server Actions and forms     |
-| Mutations  | Server Actions                                     | Validate with zod, re-check auth in every action                 |
-| Testing    | `vitest` + Testing Library (jsdom)                 | `npm run test`                                                   |
-| PWA        | `src/app/manifest.ts`, service worker in `public/` | Installable manager experience                                   |
-| Deploy     | Vercel                                             | Preview per PR                                                   |
+Next.js 16.4 App Router PWA (customer storefront + installable manager dashboard) on Supabase, TypeScript strict, Tailwind v4, zod v4, Vitest, Vercel. Details: [architecture.md#stack](docs/architecture.md#stack).
 
 ## Project Layout
 
@@ -49,91 +31,27 @@ Create `domain/`, `features/`, `components/` as needed; keep to this separation.
 
 ## Rules
 
-### 1. Read-Before-Write (mandatory)
+1. **Read before write.** Read files before editing; never guess code. Read the matching Next.js guide (see [Where to look](#where-to-look)) before using an API.
+2. **Types.** Strict TypeScript: no `any`, no `const enum`, no unconstrained generics. Named imports, `@/` alias for `src/`. Derive types from zod schemas in `src/domain/` (`z.infer`).
+3. **Layers.** Presentation (JSX/Tailwind), data access (`src/lib/supabase/*`, Server Actions) and domain (types, zod, pure logic; no React/Next/Supabase imports) stay separate. Keep `layout.tsx` and `proxy.ts` thin. Keep seed/mock data swappable for Supabase queries.
+4. **Security non-negotiables.** Every Server Action parses input with zod and re-checks auth. Supabase only via `src/lib/supabase/*`, one server client per request. The service-role key is never `NEXT_PUBLIC_*`, never client-side, never committed. Every table has RLS; schema changes only in `supabase/migrations/`. Env is parsed in `src/config/env.ts`; update `.env.example` when adding variables.
+5. **Immutability.** Never mutate state/props in place (spread, `map`, `filter`, `toSorted`).
+6. **Done = validation gate green** ([CONTRIBUTING.md#validation-gate](docs/CONTRIBUTING.md#validation-gate)). Never lower coverage floors, add coverage excludes or skip tests to pass.
+7. **Git.** Never commit or push to `develop`, `staging` or `main`; work on a `feature/`, `bug/` or `utils/` branch and open the PR against `develop` ([CONTRIBUTING.md#branches](docs/CONTRIBUTING.md#branches)). Create issues only via the `issue-logger` skill.
 
-Read existing files before editing. Never guess code. Read the bundled Next.js docs before asserting an API.
+## Where to look
 
-### 2. Type Safety
+Read only the section you need.
 
-- Strict TypeScript. No `any`, no unconstrained generics, standard `enum` only.
-- Named imports; use the `@/` alias for `src/`.
-- Derive types from zod schemas (`z.infer`) instead of duplicating them.
-
-### 3. Styling — Tailwind + Tokens
-
-- Use Tailwind utility classes. Colors, spacing, radii, fonts come from tokens declared in `@theme` in `src/app/globals.css`.
-- No `style={{}}` props, no hardcoded hex/px values in components (arbitrary values like `w-[137px]` are a smell — add a token).
-- Mobile-first: base classes target phones, add `sm:`/`md:`/`lg:` for larger screens. Support dark mode via tokens.
-
-### 4. Server vs Client Components
-
-- Server Components by default. Add `'use client'` only at leaf components that need state, effects, or browser APIs.
-- Fetch data in Server Components; pass serializable props down. Never import `server-only` modules into client code.
-- `cacheComponents` is on: data is dynamic by default; opt in to caching with `use cache`. Anything reading `cookies()`/`headers()`/session must sit behind `<Suspense>` (see the cache-components auth guide).
-
-### 5. Mutations & Validation
-
-- Mutations are Server Actions (`'use server'`). Parse all input with a zod schema from `src/domain/`, and re-check the session/authorization inside every action — never trust the client.
-- Return typed results (`{ ok: true, data } | { ok: false, errors }`); no thrown strings.
-- Forms: progressive enhancement via `<form action>`; client-side validation reuses the same zod schema.
-
-### 6. Supabase
-
-- Access Supabase only through `src/lib/supabase/*` clients. Create a fresh server client per request.
-- **Never** expose the service-role key: no `NEXT_PUBLIC_` prefix, never in client code, never committed. Prefer RLS-protected user clients; service-role use must be server-only, isolated, and justified in the PR.
-- Every table has RLS enabled and explicit policies. Schema changes only via `supabase/migrations`.
-
-### 7. Identifiers (testing)
-
-Every interactive element and key region declares a unique, descriptive `data-testid`:
-
-```tsx
-<button data-testid="btn-order-confirm" onClick={...} />
-```
-
-### 8. Accessibility
-
-- WCAG 2.2 AA: semantic HTML, labelled controls, visible focus, sufficient contrast, keyboard operable.
-- Touch targets at least 44×44 px (`min-h-11 min-w-11`).
-- Respect `prefers-reduced-motion`; no information by color alone.
-
-### 9. Immutability
-
-Never mutate state/props in place. Use spread, `map`, `filter`, `toSorted`, etc.
-
-### 10. Environment
-
-- Parse env through `src/config/env.ts` (zod). `NEXT_PUBLIC_*` values are browser-visible: never put secrets there. Update `.env.example` when adding variables.
-
-### 11. Validation — Before a PR
-
-```bash
-npm run lint
-npm run typecheck
-npm run test:coverage
-npm run test:tooling
-npm run format:check
-npm run build
-```
-
-All must pass with zero errors. Coverage floors in `vitest.config.mts` must hold (production code only; raised by the ratchet up to 70%, branches fixed at 80%); a small drop is fine while floors pass. Never lower them; commit them when `test:coverage` raises them. Per-layer targets (Domain 85%, …) are reported in CI, not enforced yet. Core tooling must have tests (coverage target 60%, informative only). Agents never merge PRs.
-
-### 12. Git & Branching
-
-- Branch model: `develop` → `staging` → `main`. Feature branches are cut from `develop`; **PRs target `develop` only**. Promotion to `staging`/`main` is done by maintainers.
-- Conventional commits with issue reference: `feat(orders): add status filters (#42)`.
-- Backlog: pick work with `python3 -B .agents/skills/issue-logger/scripts/gh_issue.py next -n <N> --type story|bug|all` (ask the user which type if unspecified and bugs are open) and follow `.agents/rules/github_issue.md`; create issues only via the `issue-logger` skill.
-
-### 13. Architectural Separation
-
-- Presentation (JSX/Tailwind), data access (Supabase + Server Actions), and domain (types, zod, pure logic) stay separate. Domain code has no React/Next/Supabase imports.
-- Keep `layout.tsx`, `proxy.ts` thin; put logic in `lib/` or `features/`.
-- Keep seed/mock data modular so it can be swapped for Supabase queries.
-
-### 14. Design Reference
-
-Design system and tokens: `docs/design/DESIGN_SYSTEM.md`; screen inventory and design → implement loop: `docs/design/SCREENS.md`. Screens are designed in Google Stitch (MCP) in light and dark; Stitch output is a visual reference only — rebuild with project tokens and components. Code tokens are the source of truth.
-
-### 15. Knowledge Graph
-
-Use `graphify query` / `path` / `explain` before broad code exploration; run `graphify update .` after code changes (see `.agents/rules/graphify.md`).
+- **Pick up or implement an issue** ("next N items"): [github_issue.instructions.md](.agents/rules/github_issue.instructions.md)
+- **Break a need into an epic/stories:** `planning-and-task-breakdown` skill, then `issue-logger`
+- **Edit `src/`** (UI, routes, actions): [web.instructions.md](.agents/rules/web.instructions.md) (auto-applied)
+- **SQL, migrations, RLS:** [backend.instructions.md](.agents/rules/backend.instructions.md) (auto-applied on `supabase/**`)
+- **Auth, sessions, secrets, headers, CSP:** [security.instructions.md](.agents/rules/security.instructions.md)
+- **Explore or explain code:** [graphify.instructions.md](.agents/rules/graphify.instructions.md) (always on)
+- **Build a screen or component:** [DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) (§2 tokens, §7 components), the flow's brief in [SCREENS.md](docs/design/SCREENS.md#screens)
+- **Use Stitch (MCP):** [DESIGN_SYSTEM.md#working-with-stitch-agents](docs/design/DESIGN_SYSTEM.md#working-with-stitch-agents), [SCREENS.md#loop-per-flow](docs/design/SCREENS.md#loop-per-flow)
+- **Business rules, domain model:** [FUNCTIONAL_SPECIFICATION.md#5-core-business-rules](docs/FUNCTIONAL_SPECIFICATION.md#5-core-business-rules), [#6-domain-model](docs/FUNCTIONAL_SPECIFICATION.md#6-domain-model)
+- **Supabase clients, session refresh:** [architecture.md#data-flow-with-supabase-ssr-clients](docs/architecture.md#data-flow-with-supabase-ssr-clients)
+- **Port legacy Expo behaviour:** [LEGACY_EXPO_REFERENCE.md](docs/LEGACY_EXPO_REFERENCE.md)
+- **Next.js caching, auth, forms, CSP, PWA, proxy:** `node_modules/next/dist/docs/01-app/02-guides/` → `authentication-with-cache-components.md`, `forms.md`, `data-security.md`, `content-security-policy.md`, `progressive-web-apps.md`; `03-api-reference/03-file-conventions/proxy.md`
