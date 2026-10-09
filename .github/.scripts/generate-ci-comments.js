@@ -35,6 +35,33 @@ function parseJson(filePath) {
   }
 }
 
+function getUnformattedFiles() {
+  try {
+    const prettierBin = path.resolve(process.cwd(), "node_modules/.bin/prettier");
+    const cmd = fs.existsSync(prettierBin)
+      ? `"${prettierBin}" --list-different .`
+      : "npx --no-install prettier --list-different .";
+    const out = execSync(cmd, {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    return out
+      .split("\n")
+      .map((f) => f.trim())
+      .filter(Boolean);
+  } catch (error) {
+    if (error.stdout) {
+      return error.stdout
+        .toString()
+        .split("\n")
+        .map((f) => f.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+}
+
 function computeLayerCoverage(coverage, prefix) {
   const files = Object.keys(coverage).filter((k) => k !== "total" && k.includes(prefix));
   if (files.length === 0) return null;
@@ -150,10 +177,37 @@ function buildCommentBody(options = {}) {
   }
 
   if (formatStatus === "failure") {
-    body += `> [!WARNING]\n`;
-    body += `> **Code Formatting Check Failed**\n>\n`;
-    body += `> Code formatting does not match Prettier standards.\n`;
-    body += `> Run \`npm run format\` locally to format all files automatically.\n\n`;
+    const unformattedFiles =
+      options.unformattedFiles !== undefined
+        ? options.unformattedFiles
+        : process.env.UNFORMATTED_FILES !== undefined
+          ? process.env.UNFORMATTED_FILES.split("\n")
+              .map((f) => f.trim())
+              .filter(Boolean)
+          : getUnformattedFiles();
+
+    if (unformattedFiles && unformattedFiles.length > 0) {
+      const countLabel =
+        unformattedFiles.length === 1
+          ? "1 file needs formatting"
+          : `${unformattedFiles.length} files need formatting`;
+      body += `> [!WARNING]\n`;
+      body += `> **Code Formatting Check Failed (${countLabel})**\n>\n`;
+      body += `> The following files do not match Prettier standards:\n`;
+      const displayed = unformattedFiles.slice(0, 50);
+      for (const f of displayed) {
+        body += `> - ❌ \`${f}\`\n`;
+      }
+      if (unformattedFiles.length > 50) {
+        body += `> - ... and ${unformattedFiles.length - 50} more files\n`;
+      }
+      body += `>\n> Run \`npm run format\` locally to format all files automatically.\n\n`;
+    } else {
+      body += `> [!WARNING]\n`;
+      body += `> **Code Formatting Check Failed**\n>\n`;
+      body += `> Code formatting does not match Prettier standards.\n`;
+      body += `> Run \`npm run format\` locally to format all files automatically.\n\n`;
+    }
   }
 
   if (lintStatus === "failure") {
@@ -281,4 +335,5 @@ if (require.main === module) {
 module.exports = {
   buildCommentBody,
   publishComment,
+  getUnformattedFiles,
 };

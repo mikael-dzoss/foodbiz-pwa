@@ -76,4 +76,59 @@ describe("CI comment generator", () => {
   it("omits the tooling row without tooling coverage", () => {
     expect(ci.buildCommentBody({ ...passing, coverage: summary(90) })).not.toContain("Tooling");
   });
+
+  it("lists unformatted files when formatStatus is failure", () => {
+    const body = ci.buildCommentBody({
+      ...passing,
+      formatStatus: "failure",
+      unformattedFiles: [".mcp.json", "docs/design/DESIGN_SYSTEM.md"],
+    });
+    expect(body).toContain("Code Formatting Check Failed (2 files need formatting)");
+    expect(body).toContain("The following files do not match Prettier standards:");
+    expect(body).toContain("- ❌ `.mcp.json`");
+    expect(body).toContain("- ❌ `docs/design/DESIGN_SYSTEM.md`");
+    expect(body).toContain("Run `npm run format` locally to format all files automatically.");
+  });
+
+  it("handles singular wording when exactly 1 file needs formatting", () => {
+    const body = ci.buildCommentBody({
+      ...passing,
+      formatStatus: "failure",
+      unformattedFiles: [".mcp.json"],
+    });
+    expect(body).toContain("Code Formatting Check Failed (1 file needs formatting)");
+    expect(body).toContain("- ❌ `.mcp.json`");
+  });
+
+  it("falls back to generic warning when formatStatus is failure and no files are found", () => {
+    const body = ci.buildCommentBody({
+      ...passing,
+      formatStatus: "failure",
+      unformattedFiles: [],
+    });
+    expect(body).toContain("Code Formatting Check Failed");
+    expect(body).toContain("Code formatting does not match Prettier standards.");
+    expect(body).toContain("Run `npm run format` locally to format all files automatically.");
+    expect(body).not.toContain("The following files do not match Prettier standards:");
+  });
+
+  it("caps listed unformatted files if list exceeds 50", () => {
+    const manyFiles = Array.from({ length: 55 }, (_, i) => `file-${i}.ts`);
+    const body = ci.buildCommentBody({
+      ...passing,
+      formatStatus: "failure",
+      unformattedFiles: manyFiles,
+    });
+    expect(body).toContain("Code Formatting Check Failed (55 files need formatting)");
+    expect(body).toContain("- ❌ `file-0.ts`");
+    expect(body).toContain("- ❌ `file-49.ts`");
+    expect(body).toContain("- ... and 5 more files");
+    expect(body).not.toContain("- ❌ `file-50.ts`");
+  });
+
+  it("exports getUnformattedFiles which returns array of strings", () => {
+    expect(typeof ci.getUnformattedFiles).toBe("function");
+    const files = ci.getUnformattedFiles();
+    expect(Array.isArray(files)).toBe(true);
+  });
 });

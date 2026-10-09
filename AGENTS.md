@@ -132,7 +132,7 @@ All must pass with zero errors. Coverage floors in `vitest.config.mts` must hold
 
 ### 14. Design Reference
 
-UI specs live in the legacy repo (`backup-react-web-version/ui-templates/`) and, going forward, the design-system MCP (see Phase 5 of the migration plan). Document deviations in `STITCH_EVOLUTION.md`.
+Design system and tokens: `docs/design/DESIGN_SYSTEM.md`; screen inventory and design → implement loop: `docs/design/SCREENS.md`. Screens are designed in Google Stitch (MCP) in light and dark; Stitch output is a visual reference only — rebuild with project tokens and components. Code tokens are the source of truth.
 
 ### 15. Knowledge Graph
 
