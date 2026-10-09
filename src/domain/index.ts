@@ -5,4 +5,6 @@ export * from "./guest";
 export * from "./order";
 export * from "./order-lifecycle";
 export * from "./payment";
+export * from "./pricing";
 export * from "./product";
+export * from "./stock";
