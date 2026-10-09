@@ -43,6 +43,7 @@ Also stop and ask if AC are ambiguous, the issue depends on an unmerged item, or
 git switch develop && git pull origin develop
 git switch -c feature/<number>-<slug>   # bug/<number>-<slug> for bugs
 gh issue edit <number> --remove-label "status: planned" --add-label "status: in-progress"
+python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py <number> --set-in-progress
 ```
 
 ## 4. Implement
