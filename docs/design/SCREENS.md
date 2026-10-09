@@ -18,30 +18,30 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 
 ## Flows
 
-| Flow                   | Screens                                                                                                | Stories                      | Status   | Stitch       |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------- | -------- | ------------ |
-| F0 Patterns reference  | Components & states sheet                                                                              | #28, #33, #34                | designed | see registry |
-| F1 Manager shell       | Shell (bottom nav / sidebar), quick-add sheet                                                          | #29                          | brief    | —            |
-| F2 Storefront shell    | Shell (header, cart button, footer, language switch)                                                   | #30                          | brief    | —            |
-| F3 Auth                | Sign-in, no access                                                                                     | #36, #37, #38, #40           | brief    | —            |
-| F4 Dashboard           | Dashboard                                                                                              | #61, #62, #63                | brief    | —            |
-| F5 Orders              | Orders list, order detail, cancel dialog, payment sheet                                                | #49, #50, #52, #53, #54, #55 | brief    | —            |
-| F6 Manual order        | New order (items, customer, service, payment)                                                          | #51                          | brief    | —            |
-| F7 Catalog             | Products list, product form, categories, stock sheet                                                   | #42–#47                      | brief    | —            |
-| F8 Expenses            | Expenses list, expense sheet                                                                           | #58, #59                     | brief    | —            |
-| F9 Settings            | Settings hub, account, business, ordering, payment, inventory & finance, notifications/team/app, about | #68–#74                      | brief    | —            |
-| F10 Customers          | Customers list, customer detail                                                                        | #66                          | brief    | —            |
-| F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | brief    | —            |
-| F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | brief    | —            |
-| F13 Tracking           | Order tracking                                                                                         | #89                          | brief    | —            |
-| F14 Analytics          | Analytics (range, trend, top products, export)                                                         | #76, #77, #78                | brief    | —            |
-| F15 System             | 404, error, offline, legal, install prompt                                                             | #34, #97, #100, #101         | brief    | —            |
+| Flow                   | Screens                                                                                                | Stories                      | Status      | Stitch       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------- | ----------- | ------------ |
+| F0 Patterns reference  | Components & states sheet                                                                              | #28, #33, #34                | implemented | see registry |
+| F1 Manager shell       | Shell (bottom nav / sidebar), quick-add sheet                                                          | #29                          | brief       | —            |
+| F2 Storefront shell    | Shell (header, cart button, footer, language switch)                                                   | #30                          | brief       | —            |
+| F3 Auth                | Sign-in, no access                                                                                     | #36, #37, #38, #40           | brief       | —            |
+| F4 Dashboard           | Dashboard                                                                                              | #61, #62, #63                | brief       | —            |
+| F5 Orders              | Orders list, order detail, cancel dialog, payment sheet                                                | #49, #50, #52, #53, #54, #55 | brief       | —            |
+| F6 Manual order        | New order (items, customer, service, payment)                                                          | #51                          | brief       | —            |
+| F7 Catalog             | Products list, product form, categories, stock sheet                                                   | #42–#47                      | brief       | —            |
+| F8 Expenses            | Expenses list, expense sheet                                                                           | #58, #59                     | brief       | —            |
+| F9 Settings            | Settings hub, account, business, ordering, payment, inventory & finance, notifications/team/app, about | #68–#74                      | brief       | —            |
+| F10 Customers          | Customers list, customer detail                                                                        | #66                          | brief       | —            |
+| F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | brief       | —            |
+| F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | brief       | —            |
+| F13 Tracking           | Order tracking                                                                                         | #89                          | brief       | —            |
+| F14 Analytics          | Analytics (range, trend, top products, export)                                                         | #76, #77, #78                | brief       | —            |
+| F15 System             | 404, error, offline, legal, install prompt                                                             | #34, #97, #100, #101         | brief       | —            |
 
 ## Screens
 
 | ID      | Screen                 | Route                               | Purpose                                                                           | Primary action          | Key states                                                 | Flow |
 | ------- | ---------------------- | ----------------------------------- | --------------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------- | ---- |
-| P-01    | Patterns reference     | dev only                            | Anchor for every generation                                                       | —                       | all component states, light/dark                           | F0   |
+| P-01    | Patterns reference     | `/patterns` (dev only)              | Anchor for every generation                                                       | —                       | all component states, light/dark                           | F0   |
 | M-00    | Manager shell          | `/manage/*`                         | Navigate main areas one-handed                                                    | Add (center)            | active item, Soon items in More                            | F1   |
 | M-01    | Quick-add sheet        | sheet                               | Start order / product / expense                                                   | New order               | —                                                          | F1   |
 | S-00    | Storefront shell       | `/[locale]/*`                       | Brand, cart, language                                                             | Cart                    | cart empty / count                                         | F2   |
@@ -88,5 +88,5 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 
 ## Gaps
 
-- **Living style guide route** (dev-only, renders P-01 with real components + Playwright screenshot script): no backlog story yet — propose with the issue-logger script (dry run) before implementing.
-- **Theme switch** (system/light/dark): covered by #26 acceptance criteria; its control lives in M-60/M-61 and the storefront footer.
+- **Living style guide route**: Implemented at `/patterns` (dev-only) with reusable components inventory and documentation in [`COMPONENTS.md`](COMPONENTS.md).
+- **Theme switch** (system/light/dark): Implemented via `ThemeProvider`, `ThemeScript`, and `@theme` tokens in `src/app/globals.css`. Control integrated on `/patterns` toolbar.
