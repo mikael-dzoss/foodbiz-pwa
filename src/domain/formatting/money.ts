@@ -1,4 +1,4 @@
-export type SupportedLocale = "en" | "fr";
+import type { SupportedLocale } from "../i18n/types";
 
 /**
  * Formats a monetary amount given in EUR cents to a localized currency string.

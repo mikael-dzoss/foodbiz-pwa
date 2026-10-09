@@ -1,4 +1,4 @@
-import type { SupportedLocale } from "./money";
+import type { SupportedLocale } from "../i18n/types";
 
 function toDate(date: Date | string | number): Date {
   if (date instanceof Date) {
