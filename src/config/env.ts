@@ -26,3 +26,45 @@ export function getPublicEnv(): PublicEnv {
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   });
 }
+
+export const dataSourceSchema = z.enum(["mock", "supabase"]);
+export type DataSource = z.infer<typeof dataSourceSchema>;
+
+const serverEnvSchema = z
+  .object({
+    DATA_SOURCE: dataSourceSchema.default("mock"),
+    NODE_ENV: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      const nodeEnv = data.NODE_ENV ?? process.env.NODE_ENV;
+      if (nodeEnv === "production" && data.DATA_SOURCE === "mock") {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "DATA_SOURCE cannot be 'mock' in production",
+      path: ["DATA_SOURCE"],
+    },
+  );
+
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
+
+export function parseServerEnv(source: Record<string, string | undefined>): ServerEnv {
+  const result = serverEnvSchema.safeParse(source);
+  if (!result.success) {
+    const keys = result.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join(", ");
+    throw new Error(`Invalid server environment variables: ${keys}. See .env.example.`);
+  }
+  return result.data;
+}
+
+export function getServerEnv(): ServerEnv {
+  return parseServerEnv({
+    DATA_SOURCE: process.env.DATA_SOURCE,
+    NODE_ENV: process.env.NODE_ENV,
+  });
+}

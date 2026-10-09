@@ -1,0 +1,109 @@
+import type { Repositories } from "@/domain/repositories";
+import { describe, expect, it } from "vitest";
+
+export function describeOrderRepositoryContract(
+  getRepositories: () => Promise<Repositories> | Repositories,
+  businessId: string,
+): void {
+  describe("OrderRepository contract", () => {
+    it("list returns orders with status, guestId and date range filters", async () => {
+      const repos = await getRepositories();
+      const all = await repos.orders.list(businessId);
+      expect(all.length).toBeGreaterThan(0);
+
+      const completed = await repos.orders.list(businessId, { status: "COMPLETED" });
+      expect(completed.length).toBeGreaterThan(0);
+      expect(completed.every((o) => o.status === "COMPLETED")).toBe(true);
+
+      const withGuest = all.find((o) => Boolean(o.guestId));
+      if (withGuest && withGuest.guestId) {
+        const guestOrders = await repos.orders.list(businessId, { guestId: withGuest.guestId });
+        expect(guestOrders.length).toBeGreaterThan(0);
+        expect(guestOrders.every((o) => o.guestId === withGuest.guestId)).toBe(true);
+      }
+
+      const dateFiltered = await repos.orders.list(businessId, {
+        fromDate: "2026-09-01",
+        toDate: "2026-09-30",
+      });
+      expect(
+        dateFiltered.every(
+          (o) => o.requestedDate >= "2026-09-01" && o.requestedDate <= "2026-09-30",
+        ),
+      ).toBe(true);
+    });
+
+    it("findById returns order or null", async () => {
+      const repos = await getRepositories();
+      const first = (await repos.orders.list(businessId))[0];
+      const found = await repos.orders.findById(businessId, first.id);
+      expect(found).not.toBeNull();
+      expect(found?.id).toBe(first.id);
+
+      const notFound = await repos.orders.findById(
+        businessId,
+        "00000000-0000-4000-8000-000000000099",
+      );
+      expect(notFound).toBeNull();
+    });
+
+    it("create adds a new order with auto orderNumber and timestamps", async () => {
+      const repos = await getRepositories();
+      const product = (await repos.products.list(businessId))[0];
+
+      const created = await repos.orders.create(businessId, {
+        guestName: "Alice Dupont",
+        serviceType: "pickup",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: "on_handover",
+        requestedDate: "2026-10-15",
+        items: [
+          {
+            productId: product.id,
+            productName: product.name,
+            quantity: 2,
+            unitPrice: product.price,
+            totalPrice: product.price * 2,
+          },
+        ],
+        totalAmount: product.price * 2,
+      });
+
+      expect(created.id).toBeDefined();
+      expect(created.orderNumber).toBeGreaterThan(0);
+      expect(created.status).toBe("NEW");
+      expect(created.totalAmount).toBe(product.price * 2);
+
+      const found = await repos.orders.findById(businessId, created.id);
+      expect(found).not.toBeNull();
+      expect(found?.guestName).toBe("Alice Dupont");
+    });
+
+    it("update modifies order fields and updates updatedAt", async () => {
+      const repos = await getRepositories();
+      const existing = (await repos.orders.list(businessId))[0];
+
+      const updated = await repos.orders.update(businessId, existing.id, {
+        status: "CANCELLED",
+        cancellationReason: "Customer request",
+      });
+
+      expect(updated.status).toBe("CANCELLED");
+      expect(updated.cancellationReason).toBe("Customer request");
+
+      const fetched = await repos.orders.findById(businessId, existing.id);
+      expect(fetched?.status).toBe("CANCELLED");
+    });
+
+    it("update throws when order does not exist", async () => {
+      const repos = await getRepositories();
+      await expect(
+        repos.orders.update(businessId, "00000000-0000-4000-8000-000000000099", {
+          status: "READY",
+        }),
+      ).rejects.toThrow();
+    });
+  });
+}

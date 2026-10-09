@@ -1,0 +1,58 @@
+import type { Repositories } from "@/domain/repositories";
+import { describe, expect, it } from "vitest";
+
+export function describeMemberRepositoryContract(
+  getRepositories: () => Promise<Repositories> | Repositories,
+  businessId: string,
+): void {
+  describe("MemberRepository contract", () => {
+    it("list returns members for business", async () => {
+      const repos = await getRepositories();
+      const members = await repos.members.list(businessId);
+      expect(members.length).toBeGreaterThan(0);
+      expect(members.every((m) => m.businessId === businessId)).toBe(true);
+    });
+
+    it("findById and findByUserId return member or null", async () => {
+      const repos = await getRepositories();
+      const first = (await repos.members.list(businessId))[0];
+
+      const byId = await repos.members.findById(businessId, first.id);
+      expect(byId?.id).toBe(first.id);
+
+      const byUser = await repos.members.findByUserId(businessId, first.userId);
+      expect(byUser?.id).toBe(first.id);
+
+      const notFound = await repos.members.findById(
+        businessId,
+        "00000000-0000-4000-8000-000000000099",
+      );
+      expect(notFound).toBeNull();
+    });
+
+    it("add, updateRole and remove manage business membership", async () => {
+      const repos = await getRepositories();
+      const newUserId = "00000000-0000-4000-8000-000000000088";
+
+      const added = await repos.members.add(businessId, {
+        userId: newUserId,
+        role: "staff",
+      });
+      expect(added.id).toBeDefined();
+      expect(added.role).toBe("staff");
+
+      const promoted = await repos.members.updateRole(businessId, added.id, "manager");
+      expect(promoted.role).toBe("manager");
+
+      await expect(
+        repos.members.updateRole(businessId, "00000000-0000-4000-8000-000000000099", "staff"),
+      ).rejects.toThrow();
+
+      await repos.members.remove(businessId, added.id);
+      const afterRemove = await repos.members.findById(businessId, added.id);
+      expect(afterRemove).toBeNull();
+
+      await expect(repos.members.remove(businessId, added.id)).rejects.toThrow();
+    });
+  });
+}
