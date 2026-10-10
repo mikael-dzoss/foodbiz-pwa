@@ -85,4 +85,9 @@ Merge your own PR only when **all** hold; otherwise leave it for a maintainer an
 gh pr merge <pr> --merge --delete-branch
 ```
 
-The `Closes #<number>` keyword closes the issue on merge and the `Issue status` workflow sets `status: completed`; don't do either by hand.
+The `Closes #<number>` keyword closes the issue on merge and the `Issue status` workflow sets `status: completed`. When all child stories of a parent epic are done, the workflow automatically sets the epic to `status: completed` and closes it. Don't do either by hand.
+To manually sync an epic or scan all epics:
+```bash
+python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py <number> --sync
+python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py --sync-all
+```

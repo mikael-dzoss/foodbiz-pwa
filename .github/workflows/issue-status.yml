@@ -1,6 +1,7 @@
 name: Issue status
 
 # Issues closed by a merged PR ("Closes #N") get `status: completed`.
+# If all child stories of a parent epic are done, the epic is marked `status: completed` and closed.
 on:
   pull_request:
     types: [closed]
@@ -9,6 +10,7 @@ on:
 permissions:
   issues: write
   pull-requests: read
+  contents: read
 
 jobs:
   mark-completed:
@@ -16,17 +18,26 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Update status labels
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update status labels and sync parent epics
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
             --jq '.closingIssuesReferences[].number' |
           while read -r issue; do
+            [ -z "$issue" ] && continue
+            echo "Marking issue #$issue completed..."
             gh issue edit "$issue" --repo "$REPO" \
               --remove-label "status: planned" --remove-label "status: in-progress" \
               --remove-label "status: in-review" --remove-label "status: blocked" \
               --add-label "status: completed"
+
+            echo "Checking parent epic for issue #$issue..."
+            python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py "$issue" --close-completed || true
           done
