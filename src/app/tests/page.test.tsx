@@ -31,4 +31,10 @@ describe("Internationalized storefront pages", () => {
     expect(screen.getByRole("heading", { level: 1, name: "FoodBiz Manager" })).toBeDefined();
     expect(screen.getByText(/Heures d'ouverture · FR/i)).toBeDefined();
   });
+
+  it("generateStaticParams returns all supported locales", async () => {
+    const { generateStaticParams } = await import("../[locale]/page");
+    const params = await generateStaticParams();
+    expect(params).toEqual([{ locale: "en" }, { locale: "fr" }]);
+  });
 });

@@ -54,4 +54,26 @@ describe("Manager App Shell & Navigation (#29)", () => {
     expect(screen.getByText(enDictionary.quickAdd.newProduct)).toBeDefined();
     expect(screen.getByText(enDictionary.quickAdd.newExpense)).toBeDefined();
   });
+
+  it("handles desktop sidebar add button click", () => {
+    render(
+      <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>
+        <div>Dashboard View</div>
+      </ManagerShell>,
+    );
+
+    const desktopSidebar = screen.getByRole("complementary", { name: /Manager desktop sidebar/i });
+    const addButton =
+      screen.getAllByRole("button", { name: enDictionary.nav.add })[0] ?? desktopSidebar;
+    fireEvent.click(addButton);
+
+    expect(screen.getByRole("heading", { name: enDictionary.quickAdd.title })).toBeDefined();
+
+    // Click quick action link
+    const newOrderLink = screen.getByText(enDictionary.quickAdd.newOrder);
+    fireEvent.click(newOrderLink);
+  });
+
+  // TODO(#33, #34, #36): Add route navigation and active link tests for `/manage/orders`,
+  // `/manage/products`, and `/manage/settings` once those respective pages/screens are implemented.
 });
