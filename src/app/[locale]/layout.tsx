@@ -1,5 +1,16 @@
 import type { ReactNode } from "react";
-import { isSupportedLocale, DEFAULT_LOCALE, type SupportedLocale } from "@/domain/i18n";
+import {
+  isSupportedLocale,
+  DEFAULT_LOCALE,
+  SUPPORTED_LOCALES,
+  getDictionary,
+  type SupportedLocale,
+} from "@/domain/i18n";
+import { StorefrontShell } from "@/features/storefront";
+
+export async function generateStaticParams() {
+  return SUPPORTED_LOCALES.map((locale) => ({ locale }));
+}
 
 export interface LocaleLayoutProps {
   children: ReactNode;
@@ -12,9 +23,13 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     ? resolvedParams.locale
     : DEFAULT_LOCALE;
 
+  const dict = getDictionary(locale);
+
   return (
     <div lang={locale} className="flex min-h-full flex-1 flex-col">
-      {children}
+      <StorefrontShell locale={locale} dict={dict.storefront} cartCount={0}>
+        {children}
+      </StorefrontShell>
     </div>
   );
 }
