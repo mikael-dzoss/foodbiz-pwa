@@ -31,8 +31,8 @@ Work locally without pushing to remote until grouping finishes or stops, then pu
 
 | Label                 | Action                                                                     |
 | --------------------- | -------------------------------------------------------------------------- |
-| `gate: needs-review`  | Post a plan (scope, files, approach, risks); wait for approval              |
-| `gate: design-change` | Plan + UI proposal (screens/states, light & dark); wait for approval        |
+| `gate: needs-review`  | Post a plan (scope, files, approach, risks; interactive artifact when supported); wait for approval |
+| `gate: design-change` | Plan + UI proposal (screens/states, light & dark; interactive artifact when supported); wait for approval |
 | _(none)_              | Proceed autonomously                                                       |
 
 Also stop and ask if AC are ambiguous, the issue depends on an unmerged item, or the change needs a new dependency, secret, env var, migration on shared data or service-role usage.

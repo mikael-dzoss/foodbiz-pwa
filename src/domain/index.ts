@@ -10,3 +10,5 @@ export * from "./pricing";
 export * from "./product";
 export * from "./repositories";
 export * from "./stock";
+export * from "./formatting";
+export * from "./i18n";
