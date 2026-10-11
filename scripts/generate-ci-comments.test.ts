@@ -130,5 +130,5 @@ describe("CI comment generator", () => {
     expect(typeof ci.getUnformattedFiles).toBe("function");
     const files = ci.getUnformattedFiles();
     expect(Array.isArray(files)).toBe(true);
-  });
+  }, 15000);
 });

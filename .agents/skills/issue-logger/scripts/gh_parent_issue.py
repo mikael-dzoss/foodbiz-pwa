@@ -44,8 +44,10 @@ def is_epic(issue: Spec) -> bool:
     return "type: epic" in labels
 
 
-def get_sub_issues_stats(epic: Spec, allow_api_fallback: bool = False, runner: Any = gh) -> tuple[int, int]:
+def get_sub_issues_stats(epic: Spec, allow_api_fallback: bool = False, runner: Any = None) -> tuple[int, int]:
     """Return (total, completed) sub-issues for an epic."""
+    if runner is None:
+        runner = gh
     summary = epic.get("subIssuesSummary")
     if summary and isinstance(summary, dict) and summary.get("total", 0) > 0:
         return summary.get("total", 0), summary.get("completed", 0)
@@ -68,7 +70,9 @@ def get_sub_issues_stats(epic: Spec, allow_api_fallback: bool = False, runner: A
     return 0, 0
 
 
-def close_epic(epic_number: int, runner: Any = gh) -> None:
+def close_epic(epic_number: int, runner: Any = None) -> None:
+    if runner is None:
+        runner = gh
     runner(
         "issue",
         "edit",
@@ -99,8 +103,10 @@ def sync_parent_status(
     issue_number: int,
     set_in_progress: bool = False,
     close_completed: bool = False,
-    runner: Any = gh,
+    runner: Any = None,
 ) -> dict[str, Any]:
+    if runner is None:
+        runner = gh
     raw_issue = runner(
         "issue",
         "view",
@@ -178,7 +184,9 @@ def sync_parent_status(
     }
 
 
-def sync_all_epics(close_completed: bool = True, runner: Any = gh) -> list[dict[str, Any]]:
+def sync_all_epics(close_completed: bool = True, runner: Any = None) -> list[dict[str, Any]]:
+    if runner is None:
+        runner = gh
     raw = runner(
         "issue",
         "list",
