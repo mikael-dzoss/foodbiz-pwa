@@ -44,3 +44,9 @@ next-env.d.ts
 # knowledge graph
 /graphify-out
 
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+
+

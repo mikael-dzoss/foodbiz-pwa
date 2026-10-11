@@ -1,4 +1,10 @@
 {
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "eslint.useFlatConfig": true,
+  "files.autoSave": "onFocusChange",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
   "chat.instructionsFilesLocations": {
     ".agents/rules": true
   },

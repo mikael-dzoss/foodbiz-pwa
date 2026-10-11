@@ -22,20 +22,13 @@
   },
   "mounts": [
     "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
+    "source=foodbiz-pwa-antigravity-server,target=/home/node/.antigravity-ide-server,type=volume",
     "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "bash .devcontainer/stitch-mcp.sh",
   "customizations": {
     "vscode": {
-      "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.formatOnSave": true,
-        "eslint.useFlatConfig": true,
-        "files.autoSave": "off",
-        "js/ts.tsdk.path": "node_modules/typescript/lib"
-      },
       "extensions": [
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
