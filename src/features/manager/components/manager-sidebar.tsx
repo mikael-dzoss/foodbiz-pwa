@@ -11,10 +11,13 @@ import {
   BarChart3,
   Settings,
   Plus,
+  LogOut,
+  Folder,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavigationDictionary, QuickAddDictionary } from "@/domain/i18n";
 import { APP_METADATA } from "@/config/app";
+import { signOutAction } from "@/features/auth/actions";
 import { QuickAddSheet } from "./quick-add-sheet";
 import { useState } from "react";
 
@@ -38,6 +41,7 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
     { href: "/manage", label: navDict.dashboard, icon: LayoutDashboard },
     { href: "/manage/orders", label: navDict.orders, icon: ShoppingBag },
     { href: "/manage/products", label: navDict.products, icon: Package },
+    { href: "/manage/categories", label: "Categories", icon: Folder },
     { href: "/manage/expenses", label: navDict.expenses, icon: Receipt },
     { href: "/manage/customers", label: navDict.customers, icon: Users },
     { href: "/manage/analytics", label: navDict.analytics, icon: BarChart3 },
@@ -104,6 +108,19 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
           );
         })}
       </nav>
+
+      {/* Sign out */}
+      <div className="border-border mt-auto border-t pt-4">
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span>Sign out</span>
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

@@ -48,7 +48,7 @@ python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py <number> --set
 
 ## 4. Implement
 
-Simplest solution that works (ponytail). Commit each working slice. Run `npm run typecheck` after each logical change. Add or update tests for every behaviour change.
+Simplest solution that works (ponytail). If the issue introduces or modifies a user-facing screen ([SCREENS.md](../../docs/design/SCREENS.md)), apply [design.instructions.md](design.instructions.md) to inspect or generate the mobile Stitch canvas first before writing UI code. Commit each working slice. Run `npm run typecheck` after each logical change. Add or update tests for every behaviour change.
 
 ## 5. Verify
 

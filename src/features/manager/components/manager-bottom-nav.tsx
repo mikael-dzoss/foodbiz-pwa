@@ -6,6 +6,7 @@ import { LayoutDashboard, ShoppingBag, Plus, Package, MoreHorizontal } from "luc
 import { cn } from "@/lib/utils";
 import type { NavigationDictionary, QuickAddDictionary } from "@/domain/i18n";
 import { QuickAddSheet } from "./quick-add-sheet";
+import { MoreMenuSheet } from "./more-menu-sheet";
 import { useState } from "react";
 
 export interface ManagerBottomNavProps {
@@ -16,6 +17,7 @@ export interface ManagerBottomNavProps {
 export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProps) {
   const pathname = usePathname();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const isActive = (route: string) => {
     if (route === "/manage") {
@@ -118,26 +120,32 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
         </Link>
 
         {/* More */}
-        <Link
-          href="/manage/settings"
-          aria-current={isActive("/manage/settings") ? "page" : undefined}
-          className={cn(
-            "flex min-h-12 min-w-12 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors",
-            isActive("/manage/settings")
-              ? "text-primary font-medium"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <div
-            className={cn(
-              "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-              isActive("/manage/settings") && "bg-primary-soft text-primary-soft-foreground",
-            )}
-          >
-            <MoreHorizontal className="h-5 w-5" />
-          </div>
-          <span>{navDict.more}</span>
-        </Link>
+        <MoreMenuSheet
+          isOpen={moreOpen}
+          onOpenChange={setMoreOpen}
+          trigger={
+            <button
+              type="button"
+              aria-label={navDict.more}
+              className={cn(
+                "flex min-h-12 min-w-12 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors",
+                moreOpen
+                  ? "text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                  moreOpen && "bg-primary-soft text-primary-soft-foreground",
+                )}
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </div>
+              <span>{navDict.more}</span>
+            </button>
+          }
+        />
       </div>
     </nav>
   );
