@@ -11,6 +11,7 @@ export function getRepositories(sourceOverride?: DataSource): Repositories {
     case "mock":
       return getMockRepositories();
     case "supabase":
+      // TODO(supabase): Implement Supabase repository adapters backed by Supabase tables and RLS policies (Epic #18 / #117).
       throw new Error("Supabase repository adapter is not yet implemented (planned for E18)");
   }
 }

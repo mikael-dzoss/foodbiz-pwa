@@ -2,6 +2,8 @@ import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
 import { businessMemberRoleSchema } from "./business";
 
+export const MOCK_AUTH_COOKIE_NAME = "foodbiz_mock_session";
+
 export const managerUserSchema = z.object({
   id: uuidSchema,
   email: z.string().email(),

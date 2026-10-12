@@ -74,6 +74,18 @@ describe("Manager App Shell & Navigation (#29)", () => {
     fireEvent.click(newOrderLink);
   });
 
-  // TODO(#33, #34, #36): Add route navigation and active link tests for `/manage/orders`,
-  // `/manage/products`, and `/manage/settings` once those respective pages/screens are implemented.
+  it("opens more-menu sheet when More button is clicked on mobile", () => {
+    render(
+      <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>
+        <div>Dashboard View</div>
+      </ManagerShell>,
+    );
+
+    const moreButton = screen.getByRole("button", { name: enDictionary.nav.more });
+    fireEvent.click(moreButton);
+
+    expect(screen.getByRole("heading", { name: /More Options/i })).toBeDefined();
+    expect(screen.getByRole("link", { name: /Categories/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /Sign out/i })).toBeDefined();
+  });
 });

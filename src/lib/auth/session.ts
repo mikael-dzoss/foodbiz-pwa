@@ -3,10 +3,10 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerEnv } from "@/config/env";
-import { MOCK_MANAGER_SESSION, type ManagerSession } from "@/domain/auth";
+import { MOCK_AUTH_COOKIE_NAME, MOCK_MANAGER_SESSION, type ManagerSession } from "@/domain/auth";
 import { createClient } from "@/lib/supabase/server";
 
-export const MOCK_AUTH_COOKIE_NAME = "foodbiz_mock_session";
+export { MOCK_AUTH_COOKIE_NAME };
 
 /**
  * Retrieves the current manager session.
@@ -28,14 +28,17 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     const cookieStore = await cookies();
     const mockCookie = cookieStore.get(MOCK_AUTH_COOKIE_NAME)?.value;
 
-    if (mockCookie === "signed-out") {
+    if (mockCookie !== "active") {
       return null;
     }
 
     return MOCK_MANAGER_SESSION;
   }
 
-  // Supabase auth
+  // TODO(supabase): Complete Supabase auth integration when database schema & Auth provider are configured (#117, #38, #40):
+  // 1. Verify access token with Supabase Auth server via supabase.auth.getUser().
+  // 2. Query 'business_members' table for verified role (owner/manager) and associated business (#40).
+  // 3. Enforce dev/test allowed-email whitelist when configured (#39).
   const supabase = await createClient();
   const {
     data: { user },
