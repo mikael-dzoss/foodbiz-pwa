@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { X, Check, AlertTriangle, Package, Loader2 } from "lucide-react";
+import { Check, AlertTriangle, Package, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,24 +93,11 @@ export function StockAdjustmentSheet({
         data-testid="stock-adjustment-sheet"
       >
         {/* Header from Stitch M-43 Canvas */}
-        <SheetHeader className="border-border border-b px-5 pt-4 pb-3 text-left">
-          <div className="flex items-start justify-between">
-            <div>
-              <SheetTitle className="text-foreground text-lg font-bold">Adjust Stock</SheetTitle>
-              <p className="text-muted-foreground text-xs font-medium">
-                {product.name} · {product.categoryName}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="text-muted-foreground hover:text-foreground -mr-2 h-9 w-9"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+        <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
+          <SheetTitle className="text-foreground text-lg font-bold">Adjust Stock</SheetTitle>
+          <p className="text-muted-foreground text-xs font-medium">
+            {product.name} · {product.categoryName}
+          </p>
         </SheetHeader>
 
         <div className="space-y-4 px-5 py-4">
@@ -289,7 +276,7 @@ export function StockAdjustmentSheet({
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 flex-[2] font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 flex-2 font-semibold"
             data-testid="confirm-stock-update"
           >
             {isPending ? (

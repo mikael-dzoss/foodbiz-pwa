@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Camera, X, Check, Loader2, Trash2 } from "lucide-react";
+import { Camera, Check, Loader2, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,26 +204,13 @@ export function ProductFormSheet({
         className="mx-auto max-h-[92vh] max-w-lg overflow-y-auto p-0"
         data-testid="product-form-sheet"
       >
-        <SheetHeader className="border-border border-b px-5 pt-4 pb-3 text-left">
-          <div className="flex items-start justify-between">
-            <div>
-              <SheetTitle className="text-foreground text-lg font-bold">
-                {isEditing ? "Edit Product" : "Add Product"}
-              </SheetTitle>
-              <p className="text-muted-foreground text-xs font-medium">
-                Manage item details, pricing & stock
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="text-muted-foreground hover:text-foreground -mr-2 h-9 w-9"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+        <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
+          <SheetTitle className="text-foreground text-lg font-bold">
+            {isEditing ? "Edit Product" : "Add Product"}
+          </SheetTitle>
+          <p className="text-muted-foreground text-xs font-medium">
+            Manage item details, pricing & stock
+          </p>
         </SheetHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 px-5 py-4">
