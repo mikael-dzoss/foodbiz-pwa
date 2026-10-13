@@ -60,6 +60,7 @@ export const orderSchema = z.object({
   requestedTime: timeHHMMSchema.optional().nullable(),
   items: z.array(orderItemSchema).min(1),
   totalAmount: moneySchema,
+  trackingToken: z.string().trim().optional(),
   cancellationReason: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
   createdAt: isoDateTimeSchema,

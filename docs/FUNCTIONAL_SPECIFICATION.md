@@ -59,7 +59,7 @@ Rules 1–3 were found not fully enforced in the legacy code (hard delete, no `C
 
 ## 6. Domain model
 
-Carried over from the legacy app; the PWA database schema is not yet designed.
+Carried over from the legacy app; the PWA database schema is defined in [`docs/database/schema.md`](database/schema.md).
 
 | Entity              | Fields                                                                                       | Notes                                                             |
 | ------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |

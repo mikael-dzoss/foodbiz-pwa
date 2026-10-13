@@ -248,6 +248,34 @@ describe("Order and OrderItem schemas", () => {
     expect(orderSchema.safeParse(validOrder).success).toBe(true);
   });
 
+  it("validates Order with trackingToken", () => {
+    const validOrder = {
+      id: validUuid,
+      businessId: validUuid,
+      guestName: "Alice",
+      serviceType: "pickup" as const,
+      channel: "storefront" as const,
+      status: "NEW" as const,
+      paid: "unpaid" as const,
+      paymentPreference: "on_handover" as const,
+      requestedDate: "2026-10-10",
+      items: [
+        {
+          productId: validUuid,
+          productName: "Croissant",
+          quantity: 1,
+          unitPrice: 150,
+          totalPrice: 150,
+        },
+      ],
+      totalAmount: 150,
+      trackingToken: "a1b2c3d4e5f6789012345678abcdef01",
+      createdAt: isoNow,
+      updatedAt: isoNow,
+    };
+    expect(orderSchema.safeParse(validOrder).success).toBe(true);
+  });
+
   it("rejects Order with invalid status, empty items, or malformed requestedDate", () => {
     const base = {
       id: validUuid,

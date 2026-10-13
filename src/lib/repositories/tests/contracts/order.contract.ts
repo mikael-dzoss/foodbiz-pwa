@@ -75,6 +75,7 @@ export function describeOrderRepositoryContract(
       expect(created.orderNumber).toBeGreaterThan(0);
       expect(created.status).toBe("NEW");
       expect(created.totalAmount).toBe(product.price * 2);
+      expect(created.trackingToken).toBeDefined();
 
       const found = await repos.orders.findById(businessId, created.id);
       expect(found).not.toBeNull();
@@ -95,6 +96,75 @@ export function describeOrderRepositoryContract(
 
       const fetched = await repos.orders.findById(businessId, existing.id);
       expect(fetched?.status).toBe("CANCELLED");
+    });
+
+    it("findByTrackingToken returns order by token or null", async () => {
+      const repos = await getRepositories();
+      const product = (await repos.products.list(businessId))[0];
+      const created = await repos.orders.create(businessId, {
+        guestName: "Tracking Test",
+        serviceType: "pickup",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: "on_handover",
+        requestedDate: "2026-10-15",
+        items: [
+          {
+            productId: product.id,
+            productName: product.name,
+            quantity: 1,
+            unitPrice: product.price,
+            totalPrice: product.price,
+          },
+        ],
+        totalAmount: product.price,
+      });
+
+      expect(created.trackingToken).toBeDefined();
+      const found = await repos.orders.findByTrackingToken(created.trackingToken!);
+      expect(found).not.toBeNull();
+      expect(found?.id).toBe(created.id);
+
+      const notFound = await repos.orders.findByTrackingToken("non-existent-token");
+      expect(notFound).toBeNull();
+    });
+
+    it("findByTicketAndPhone validates ticket n° against guest phone", async () => {
+      const repos = await getRepositories();
+      const guests = await repos.guests.list(businessId);
+      const guestWithPhone = guests.find((g) => Boolean(g.phone));
+      expect(guestWithPhone).toBeDefined();
+
+      const orders = await repos.orders.list(businessId, { guestId: guestWithPhone!.id });
+      expect(orders.length).toBeGreaterThan(0);
+      const targetOrder = orders[0];
+      expect(targetOrder.orderNumber).toBeDefined();
+
+      // Successful lookup
+      const found = await repos.orders.findByTicketAndPhone(
+        businessId,
+        targetOrder.orderNumber!,
+        guestWithPhone!.phone!,
+      );
+      expect(found).not.toBeNull();
+      expect(found?.id).toBe(targetOrder.id);
+
+      // Wrong phone number fails
+      const wrongPhone = await repos.orders.findByTicketAndPhone(
+        businessId,
+        targetOrder.orderNumber!,
+        "+33699999999",
+      );
+      expect(wrongPhone).toBeNull();
+
+      // Wrong ticket number fails
+      const wrongTicket = await repos.orders.findByTicketAndPhone(
+        businessId,
+        999999,
+        guestWithPhone!.phone!,
+      );
+      expect(wrongTicket).toBeNull();
     });
 
     it("update throws when order does not exist", async () => {
