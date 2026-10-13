@@ -499,6 +499,7 @@ export function ProductFormSheet({
           )}
 
           {/* Action Footer */}
+          {/* TODO(design): scale down action buttons from h-12 to min-h-11 to align with Stitch mobile tokens */}
           <div className="border-border bg-card -mx-5 -mb-4 flex items-center gap-3 border-t px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <Button
               type="button"
