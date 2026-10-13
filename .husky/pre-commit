@@ -9,4 +9,4 @@ case "$branch" in
     ;;
 esac
 
-npm run format:check
+npx lint-staged
