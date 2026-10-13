@@ -94,25 +94,28 @@ flowchart LR
   RLSC --> DB
 ```
 
-## Data model (Planned)
+## Data model
 
-Carried over from the mobile app; the database schema is not yet defined. Names may change when the schema is designed.
+The relational database schema is defined in [`docs/database/schema.md`](database/schema.md) and derived from domain models in `src/domain/`.
 
 ```mermaid
 erDiagram
-  CUSTOMER ||--o{ ORDER : "places"
-  ORDER ||--|{ ORDER_ITEM : "contains"
-  PRODUCT ||--o{ ORDER_ITEM : "sold as"
-  PRODUCT_CATEGORY ||--o{ PRODUCT : "groups"
-  EXPENSE {
-    string id
-    number amount
-    date date
-    string description
-  }
+  BUSINESSES ||--o{ BUSINESS_MEMBERS : "has members"
+  BUSINESSES ||--|| BUSINESS_SETTINGS : "configures"
+  BUSINESSES ||--o{ PRODUCT_CATEGORIES : "organizes"
+  BUSINESSES ||--o{ PRODUCTS : "owns"
+  BUSINESSES ||--o{ GUESTS : "records"
+  BUSINESSES ||--o{ ORDERS : "receives"
+  BUSINESSES ||--o{ ORDER_ITEMS : "scopes"
+  BUSINESSES ||--o{ EXPENSES : "tracks"
+
+  PRODUCT_CATEGORIES ||--o{ PRODUCTS : "categorizes"
+  GUESTS ||--o{ ORDERS : "places"
+  ORDERS ||--|{ ORDER_ITEMS : "contains"
+  PRODUCTS ||--o{ ORDER_ITEMS : "sold as snapshot"
 ```
 
-See [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) for entity fields and business rules.
+See [`docs/database/schema.md`](database/schema.md) for full DDL, enums, indexes, and RLS policies, and [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) for entity fields and business rules.
 
 ## PWA
 

@@ -127,6 +127,30 @@ export function createMockRepositories(
       const o = fixtures.orders.find((x) => x.businessId === bId && x.id === id);
       return o ? structuredClone(o) : null;
     },
+    async findByTrackingToken(token) {
+      const o = fixtures.orders.find((x) => x.trackingToken === token);
+      return o ? structuredClone(o) : null;
+    },
+    async findByTicketAndPhone(bId, orderNumber, phone) {
+      let targetPhone: string;
+      try {
+        targetPhone = normalizePhoneNumber(phone);
+      } catch {
+        targetPhone = phone.trim();
+      }
+      const o = fixtures.orders.find((x) => {
+        if (x.businessId !== bId || x.orderNumber !== orderNumber) return false;
+        if (!x.guestId) return false;
+        const guest = fixtures.guests.find((g) => g.id === x.guestId);
+        if (!guest || !guest.phone) return false;
+        try {
+          return normalizePhoneNumber(guest.phone) === targetPhone;
+        } catch {
+          return guest.phone === targetPhone;
+        }
+      });
+      return o ? structuredClone(o) : null;
+    },
     async list(bId, filter) {
       let res = fixtures.orders.filter((o) => o.businessId === bId);
       if (filter?.status) res = res.filter((o) => o.status === filter.status);
@@ -157,6 +181,7 @@ export function createMockRepositories(
         requestedTime: input.requestedTime ?? null,
         items: input.items.map((it) => ({ ...it, id: it.id ?? crypto.randomUUID() })),
         totalAmount: input.totalAmount,
+        trackingToken: input.trackingToken ?? crypto.randomUUID().replace(/-/g, ""),
         cancellationReason: input.cancellationReason ?? null,
         notes: input.notes ?? null,
         createdAt: now,

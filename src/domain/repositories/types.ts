@@ -63,6 +63,7 @@ export interface CreateOrderInput {
   readonly requestedTime?: string | null;
   readonly items: Order["items"];
   readonly totalAmount: number;
+  readonly trackingToken?: string;
   readonly cancellationReason?: string | null;
   readonly notes?: string | null;
 }
@@ -78,6 +79,12 @@ export interface OrderFilter {
 
 export interface OrderRepository {
   findById(businessId: string, id: string): Promise<Order | null>;
+  findByTrackingToken(trackingToken: string): Promise<Order | null>;
+  findByTicketAndPhone(
+    businessId: string,
+    orderNumber: number,
+    phone: string,
+  ): Promise<Order | null>;
   list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
   create(businessId: string, input: CreateOrderInput): Promise<Order>;
   update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;
