@@ -86,7 +86,10 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | ----------------------- | ---------------------------------- | ---------------------------------- | ---------------------- |
 | P-01 Patterns reference | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                      |
 | A-01 Manager sign-in    | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                      |
+| M-40 Products list      | `b45ce7634bf84c92949a79411887e2bc` | `d85df903d3114fc6b1705a6cd8de2244` | —                      |
+| M-41 Product form       | `096f7f6b9222407caa87e483cc1de8bf` | `0dbc6481c8244d9a88b78fb8ef819124` | —                      |
 | M-42 Categories         | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                      |
+| M-43 Stock adjustment   | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                      |
 
 ## Gaps
 

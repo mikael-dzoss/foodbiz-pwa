@@ -156,3 +156,22 @@ export function restoreStock<T extends StockProduct>(
     updatedStock,
   };
 }
+
+export type StockLevelStatus = "out_of_stock" | "low_stock" | "in_stock";
+
+/**
+ * Determines product stock status relative to a low-stock threshold (default 5).
+ * Returns 'out_of_stock' when 0 or below, 'low_stock' when <= threshold, otherwise 'in_stock'.
+ */
+export function getStockStatus(stock: number, threshold = 5): StockLevelStatus {
+  if (stock <= 0) return "out_of_stock";
+  if (stock <= threshold) return "low_stock";
+  return "in_stock";
+}
+
+/**
+ * Calculates adjusted stock count from a delta, preventing stock from falling below 0.
+ */
+export function calculateStockAdjustment(currentStock: number, delta: number): number {
+  return Math.max(0, currentStock + delta);
+}
