@@ -20,6 +20,9 @@ export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export const paidStatusSchema = z.enum(["paid", "unpaid"]);
 export type PaidStatus = z.infer<typeof paidStatusSchema>;
 
+// Recommendation: While constrained strictly to 'pickup' and 'delivery' for current dark kitchen operations,
+// future evolutions can transition service types into a configurable inventory in manager settings (service type
+// toolkit: add, edit, delete, default 'undefined' fallback) with dynamic tenant-level custom fulfillment modes.
 export const serviceTypeSchema = z.enum(["pickup", "delivery"]);
 export type ServiceType = z.infer<typeof serviceTypeSchema>;
 
