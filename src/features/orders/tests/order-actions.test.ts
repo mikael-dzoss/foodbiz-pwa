@@ -244,7 +244,7 @@ describe("Order Server Actions", () => {
         orderNumber: 40,
         guestId: validGuestId,
         guestName: "Jean Dupont",
-        serviceType: "dine-in",
+        serviceType: "pickup",
         channel: "in-person",
         status: "CANCELLED",
         paid: "unpaid",

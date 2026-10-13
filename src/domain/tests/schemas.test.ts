@@ -227,7 +227,7 @@ describe("Order and OrderItem schemas", () => {
       id: validUuid,
       businessId: validUuid,
       guestName: "Bob",
-      serviceType: "dine-in" as const,
+      serviceType: "delivery" as const,
       channel: "in-person" as const,
       status: "CONFIRMED" as const,
       paid: "paid" as const,

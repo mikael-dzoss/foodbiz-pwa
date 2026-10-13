@@ -19,7 +19,7 @@ const STATUSES: readonly OrderStatus[] = [
 ];
 
 const CHANNELS: readonly Channel[] = ["storefront", "phone", "whatsapp", "in-person"];
-const SERVICES: readonly ServiceType[] = ["pickup", "delivery", "dine-in"];
+const SERVICES: readonly ServiceType[] = ["pickup", "delivery"];
 const PREFERENCES: readonly PaymentPreference[] = ["on_handover", "revolut", "wero"];
 
 const BASE_TIMESTAMP = Date.UTC(2026, 9, 9, 12, 0, 0); // 2026-10-09T12:00:00Z

@@ -20,7 +20,7 @@ export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export const paidStatusSchema = z.enum(["paid", "unpaid"]);
 export type PaidStatus = z.infer<typeof paidStatusSchema>;
 
-export const serviceTypeSchema = z.enum(["pickup", "delivery", "dine-in"]);
+export const serviceTypeSchema = z.enum(["pickup", "delivery"]);
 export type ServiceType = z.infer<typeof serviceTypeSchema>;
 
 export const channelSchema = z.enum(["storefront", "phone", "whatsapp", "in-person"]);

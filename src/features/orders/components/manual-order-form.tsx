@@ -3,11 +3,22 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Phone, User, MapPin, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Phone,
+  User,
+  MapPin,
+  AlertCircle,
+  CheckCircle2,
+  Check,
+  ShoppingBag,
+  Truck,
+  MessageSquare,
+  Store,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { formatMoney } from "@/domain";
 import type { Product, Guest } from "@/domain";
@@ -27,17 +38,15 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
   const [matchedGuest, setMatchedGuest] = React.useState<Guest | null>(null);
   const [isLookingUpGuest, setIsLookingUpGuest] = React.useState(false);
 
-  // Service & Timing State
-  const [serviceType, setServiceType] = React.useState<"pickup" | "delivery" | "dine-in">("pickup");
+  // Service & Timing State (strictly pickup and delivery)
+  const [serviceType, setServiceType] = React.useState<"pickup" | "delivery">("pickup");
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
   const [channel, setChannel] = React.useState<"phone" | "whatsapp" | "in-person">("phone");
   const [isAsap, setIsAsap] = React.useState(true);
   const [requestedDate, setRequestedDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [requestedTime, setRequestedTime] = React.useState("");
   const [notes, setNotes] = React.useState("");
-  const [paymentPreference, setPaymentPreference] = React.useState<
-    "on_handover" | "revolut" | "wero"
-  >("on_handover");
+  const [paymentPreference] = React.useState<"on_handover" | "revolut" | "wero">("on_handover");
 
   // Selected Product Quantities: Map productId -> quantity
   const [quantities, setQuantities] = React.useState<Record<string, number>>({});
@@ -83,13 +92,17 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
       }));
   }, [products, quantities]);
 
+  const totalItemCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = selectedItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
   // Filter products by search
   const displayedProducts = React.useMemo(() => {
-    if (!productSearch.trim()) return products.filter((p) => p.visible);
-    const q = productSearch.toLowerCase().trim();
-    return products.filter((p) => p.visible && p.name.toLowerCase().includes(q));
+    let list = products.filter((p) => p.visible);
+    if (productSearch.trim()) {
+      const q = productSearch.toLowerCase().trim();
+      list = list.filter((p) => p.name.toLowerCase().includes(q));
+    }
+    return list;
   }, [products, productSearch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,37 +152,51 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     }
   };
 
+  // Guest initials
+  const initials = guestName
+    ? guestName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "G";
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 pb-36"
+      className="flex flex-col gap-3.5 pb-36"
       data-testid="manual-order-form"
     >
-      {/* Top Header */}
-      <div className="flex items-center justify-between pt-1">
+      {/* Top Header: Matching Stitch M-30 */}
+      <header className="flex items-center justify-between pt-1">
         <Link
           href="/manage/orders"
-          className="text-primary hover:text-primary/80 flex items-center gap-1.5 text-sm font-semibold transition-colors"
-          data-testid="back-orders-link"
+          className="text-foreground hover:text-primary flex items-center gap-1 text-sm font-semibold transition-colors"
+          data-testid="cancel-header-link"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Orders</span>
         </Link>
-        <Badge variant="outline" className="text-xs uppercase">
-          Manual Order
-        </Badge>
-      </div>
 
-      <div>
-        <h1 className="text-display-sm text-foreground font-bold">New Order</h1>
-        <p className="text-body-sm text-muted-foreground">
-          Record customer phone, WhatsApp, or in-person order directly
-        </p>
-      </div>
+        <div className="flex flex-col items-center text-center">
+          <h1 className="text-foreground text-base leading-tight font-bold">New Order</h1>
+          <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+            Screen M-30 • Manual
+          </span>
+        </div>
+
+        <Link
+          href="/manage/orders"
+          className="text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
+        >
+          Cancel
+        </Link>
+      </header>
 
       {errorMessage && (
         <div
-          className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-sm"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-xs"
           role="alert"
           data-testid="manual-order-error"
         >
@@ -178,26 +205,30 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
         </div>
       )}
 
-      {/* Step 1: Guest Information Card */}
-      <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-            Step 1: Guest Information
-          </span>
+      {/* Step 1: Guest Information Card (Matching Stitch M-30) */}
+      <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
+        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+          <div className="flex items-center gap-2">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+              1
+            </span>
+            <h2 className="text-foreground text-sm font-semibold">Step 1: Guest Information</h2>
+          </div>
           {matchedGuest && (
-            <Badge variant="success" className="gap-1 text-xs" data-testid="guest-matched-badge">
-              <CheckCircle2 className="h-3 w-3" />
-              Existing Guest
-            </Badge>
+            <span className="text-primary flex items-center gap-1 text-xs font-medium">
+              <CheckCircle2 className="fill-primary text-card h-3.5 w-3.5" />
+              Verified
+            </span>
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="guestPhone" className="text-foreground text-xs font-semibold">
-            Phone Number <span className="text-destructive">*</span>
+        {/* Phone Input with Auto-lookup */}
+        <div className="space-y-1">
+          <label htmlFor="guestPhone" className="text-muted-foreground block text-xs font-medium">
+            Phone number (auto-lookup) <span className="text-destructive">*</span>
           </label>
-          <div className="relative">
-            <Phone className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <div className="relative flex items-center">
+            <Phone className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
             <Input
               id="guestPhone"
               type="tel"
@@ -205,98 +236,255 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
               onChange={(e) => setGuestPhone(e.target.value)}
               onBlur={handlePhoneBlur}
               placeholder="+33 6 12 34 56 78"
-              className="pl-9 text-base"
+              className="bg-card h-11 rounded-lg pr-9 pl-9 text-sm tabular-nums"
               required
               data-testid="guest-phone-input"
             />
+            {matchedGuest && (
+              <Check className="text-primary pointer-events-none absolute right-3 h-4 w-4" />
+            )}
           </div>
           {isLookingUpGuest && (
-            <span className="text-muted-foreground text-xs">Checking guest database...</span>
+            <span className="text-muted-foreground text-[11px]">Checking database...</span>
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="guestName" className="text-foreground text-xs font-semibold">
+        {/* Found Guest Profile Card (Stitch M-30) */}
+        {matchedGuest && (
+          <div className="bg-muted/40 border-border/80 flex items-center justify-between rounded-lg border p-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold">
+                {initials}
+              </div>
+              <div>
+                <div className="text-foreground text-xs font-bold">{matchedGuest.name}</div>
+                <div className="text-muted-foreground text-[11px]">
+                  {matchedGuest.phone ?? matchedGuest.email ?? "Returning guest"}
+                </div>
+              </div>
+            </div>
+            <span
+              data-testid="guest-matched-badge"
+              className="bg-primary-soft text-primary-soft-foreground border-primary/20 inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium"
+            >
+              Returning guest
+            </span>
+          </div>
+        )}
+
+        {/* Guest Name input */}
+        <div className="space-y-1">
+          <label htmlFor="guestName" className="text-muted-foreground block text-xs font-medium">
             Guest Name <span className="text-destructive">*</span>
           </label>
-          <div className="relative">
-            <User className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <div className="relative flex items-center">
+            <User className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
             <Input
               id="guestName"
               type="text"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="e.g. Jean Dupont"
-              className="pl-9 text-base"
+              className="bg-card h-11 rounded-lg pl-9 text-sm"
               required
               data-testid="guest-name-input"
             />
           </div>
         </div>
 
-        {/* Channel Selection */}
-        <div className="flex flex-col gap-1.5 pt-1">
-          <label className="text-foreground text-xs font-semibold">Channel</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(["phone", "whatsapp", "in-person"] as const).map((ch) => (
+        {/* Channel Selector Chips (Phone, WhatsApp, In-person with icons) */}
+        <div>
+          <label className="text-muted-foreground mb-1.5 block text-[11px] font-medium">
+            Intake channel
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(
+              [
+                { id: "phone", label: "Phone", icon: Phone },
+                { id: "whatsapp", label: "WhatsApp", icon: MessageSquare },
+                { id: "in-person", label: "In-person", icon: Store },
+              ] as const
+            ).map((ch) => (
               <button
-                key={ch}
+                key={ch.id}
                 type="button"
-                onClick={() => setChannel(ch)}
+                onClick={() => setChannel(ch.id)}
                 className={cn(
-                  "flex min-h-11 items-center justify-center rounded-lg border text-xs font-semibold capitalize transition-all",
-                  channel === ch
+                  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-all active:scale-95",
+                  channel === ch.id
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",
                 )}
-                data-testid={`channel-${ch}`}
+                data-testid={`channel-${ch.id}`}
               >
-                {ch.replace("-", " ")}
+                <ch.icon className="h-3.5 w-3.5" />
+                <span>{ch.label}</span>
               </button>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Step 2: Service & Timing Card */}
-      <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4">
-        <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-          Step 2: Service & Timing
-        </span>
-
-        {/* Service Type */}
-        <div className="grid grid-cols-3 gap-2">
-          {(["pickup", "delivery", "dine-in"] as const).map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setServiceType(st)}
-              className={cn(
-                "flex min-h-11 items-center justify-center rounded-lg border text-xs font-semibold capitalize transition-all",
-                serviceType === st
-                  ? "border-primary bg-primary-soft text-primary-soft-foreground"
-                  : "border-border bg-card text-foreground hover:bg-muted",
-              )}
-              data-testid={`service-type-${st}`}
-            >
-              {st}
-            </button>
-          ))}
+      {/* Step 2: Service & Timing Card (Matching Stitch M-30) */}
+      <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
+        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+          <div className="flex items-center gap-2">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+              2
+            </span>
+            <h2 className="text-foreground text-sm font-semibold">Step 2: Service &amp; Timing</h2>
+          </div>
+          <span className="text-muted-foreground text-xs capitalize">
+            {serviceType} fulfillment
+          </span>
         </div>
 
+        {/* Service Segmented Control: Strictly Pickup vs Delivery */}
+        <div className="bg-muted flex items-center rounded-lg p-0.5">
+          <button
+            type="button"
+            onClick={() => setServiceType("pickup")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-all",
+              serviceType === "pickup"
+                ? "bg-card text-primary font-bold shadow-xs"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            data-testid="service-type-pickup"
+          >
+            <ShoppingBag className="h-3.5 w-3.5" />
+            <span>Pickup</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setServiceType("delivery")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-all",
+              serviceType === "delivery"
+                ? "bg-card text-primary font-bold shadow-xs"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            data-testid="service-type-delivery"
+          >
+            <Truck className="h-3.5 w-3.5" />
+            <span>Delivery</span>
+          </button>
+        </div>
+
+        {/* Timing Options: ASAP vs Scheduled (2-card selector matching Stitch M-30) */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setIsAsap(true)}
+            className={cn(
+              "flex flex-col justify-between rounded-lg border p-2.5 text-left transition-all",
+              isAsap
+                ? "border-primary bg-primary-soft/40 border-2"
+                : "border-border bg-card hover:bg-muted/40",
+            )}
+            data-testid="timing-asap"
+          >
+            <div className="mb-1 flex w-full items-center justify-between">
+              <span
+                className={cn("text-xs font-bold", isAsap ? "text-primary" : "text-foreground")}
+              >
+                ASAP
+              </span>
+              <span
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full",
+                  isAsap ? "bg-primary" : "border-muted-foreground border",
+                )}
+              />
+            </div>
+            <span className="text-muted-foreground text-[11px] font-medium">Est. 20-25 min</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsAsap(false)}
+            className={cn(
+              "flex flex-col justify-between rounded-lg border p-2.5 text-left transition-all",
+              !isAsap
+                ? "border-primary bg-primary-soft/40 border-2"
+                : "border-border bg-card hover:bg-muted/40",
+            )}
+            data-testid="timing-scheduled"
+          >
+            <div className="mb-1 flex w-full items-center justify-between">
+              <span
+                className={cn("text-xs font-bold", !isAsap ? "text-primary" : "text-foreground")}
+              >
+                Scheduled
+              </span>
+              <span
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full",
+                  !isAsap ? "bg-primary" : "border-muted-foreground border",
+                )}
+              />
+            </div>
+            <span className="text-muted-foreground text-[11px] font-medium">
+              Select date &amp; time
+            </span>
+          </button>
+        </div>
+
+        {/* Date and Time pickers when Scheduled */}
+        {!isAsap && (
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="space-y-1">
+              <label
+                htmlFor="reqDate"
+                className="text-muted-foreground block text-[11px] font-medium"
+              >
+                Date
+              </label>
+              <Input
+                id="reqDate"
+                type="date"
+                value={requestedDate}
+                onChange={(e) => setRequestedDate(e.target.value)}
+                className="h-10 text-xs"
+                data-testid="requested-date-input"
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                htmlFor="reqTime"
+                className="text-muted-foreground block text-[11px] font-medium"
+              >
+                Time
+              </label>
+              <Input
+                id="reqTime"
+                type="time"
+                value={requestedTime}
+                onChange={(e) => setRequestedTime(e.target.value)}
+                className="h-10 text-xs"
+                data-testid="requested-time-input"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Delivery Address when Delivery is selected */}
         {serviceType === "delivery" && (
-          <div className="flex flex-col gap-1.5 pt-1">
-            <label htmlFor="deliveryAddress" className="text-foreground text-xs font-semibold">
+          <div className="space-y-1 pt-1">
+            <label
+              htmlFor="deliveryAddress"
+              className="text-muted-foreground block text-xs font-medium"
+            >
               Delivery Address <span className="text-destructive">*</span>
             </label>
             <div className="relative">
-              <MapPin className="text-muted-foreground pointer-events-none absolute top-3 left-3 h-4 w-4" />
+              <MapPin className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 h-4 w-4" />
               <Textarea
                 id="deliveryAddress"
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
-                placeholder="123 Rue de la Paix, Paris..."
-                className="min-h-20 pl-9"
+                placeholder="Street name, house number, floor..."
+                className="min-h-16 resize-none rounded-lg pl-8 text-xs"
                 required
                 data-testid="delivery-address-input"
               />
@@ -304,94 +492,48 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
           </div>
         )}
 
-        {/* Timing */}
-        <div className="flex flex-col gap-2 pt-1">
-          <label className="text-foreground text-xs font-semibold">Fulfillment Time</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setIsAsap(true)}
-              className={cn(
-                "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border text-xs font-semibold transition-all",
-                isAsap
-                  ? "border-primary bg-primary-soft text-primary-soft-foreground"
-                  : "border-border bg-card text-foreground hover:bg-muted",
-              )}
-              data-testid="timing-asap"
-            >
-              <Clock className="h-4 w-4" />
-              ASAP
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsAsap(false)}
-              className={cn(
-                "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border text-xs font-semibold transition-all",
-                !isAsap
-                  ? "border-primary bg-primary-soft text-primary-soft-foreground"
-                  : "border-border bg-card text-foreground hover:bg-muted",
-              )}
-              data-testid="timing-scheduled"
-            >
-              Scheduled
-            </button>
-          </div>
-
-          {!isAsap && (
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <Input
-                type="date"
-                value={requestedDate}
-                onChange={(e) => setRequestedDate(e.target.value)}
-                className="h-11"
-                data-testid="requested-date-input"
-              />
-              <Input
-                type="time"
-                value={requestedTime}
-                onChange={(e) => setRequestedTime(e.target.value)}
-                placeholder="19:30"
-                className="h-11"
-                data-testid="requested-time-input"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Notes */}
-        <div className="flex flex-col gap-1.5 pt-1">
-          <label htmlFor="notes" className="text-foreground text-xs font-semibold">
-            Special Requests & Notes (optional)
+        {/* Kitchen & Handover Notes */}
+        <div className="space-y-1">
+          <label htmlFor="orderNotes" className="text-muted-foreground block text-xs font-medium">
+            Kitchen &amp; Handover Notes
           </label>
           <Textarea
-            id="notes"
+            id="orderNotes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Allergies, sauces, instructions..."
-            className="min-h-16 text-sm"
+            placeholder="Special requests, allergies, sauce preferences..."
+            className="resize-none rounded-lg text-xs"
+            rows={2}
             data-testid="order-notes-input"
           />
         </div>
-      </div>
+      </section>
 
-      {/* Step 3: Product Selection & Quantities Card */}
-      <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-            Step 3: Product Selection
+      {/* Step 3: Product Selection & Quantities Card (Matching Stitch M-30) */}
+      <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
+        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+          <div className="flex items-center gap-2">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+              3
+            </span>
+            <h2 className="text-foreground text-sm font-semibold">Step 3: Product Selection</h2>
+          </div>
+          <span className="text-muted-foreground text-xs font-medium tabular-nums">
+            {totalItemCount} {totalItemCount === 1 ? "item" : "items"} selected
           </span>
-          <span className="text-muted-foreground text-xs">{selectedItems.length} selected</span>
         </div>
 
+        {/* Product Search */}
         <Input
           type="search"
           value={productSearch}
           onChange={(e) => setProductSearch(e.target.value)}
-          placeholder="Filter products..."
-          className="h-10 text-sm"
+          placeholder="Search menu items..."
+          className="h-10 rounded-lg text-xs"
         />
 
-        <div className="divide-border flex flex-col divide-y">
+        {/* Product List */}
+        <div className="divide-border/60 divide-y">
           {displayedProducts.map((product) => {
             const currentQty = quantities[product.id] ?? 0;
             const isOutOfStock = product.stock <= 0;
@@ -399,111 +541,67 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
             return (
               <div
                 key={product.id}
-                className="flex items-center justify-between py-3"
+                className="flex items-center justify-between gap-3 py-2.5"
                 data-testid={`product-row-${product.id}`}
               >
-                <div className="flex flex-col">
-                  <span className="text-foreground text-sm font-semibold">{product.name}</span>
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <span className="text-muted-foreground text-xs font-semibold tabular-nums">
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-foreground truncate text-sm font-semibold">
+                    {product.name}
+                  </span>
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <span className="text-foreground font-medium tabular-nums">
                       {formatMoney(product.price)}
                     </span>
-                    <Badge
-                      variant={
-                        isOutOfStock ? "destructive" : product.stock <= 5 ? "warning" : "outline"
-                      }
-                      className="py-0 text-[10px]"
-                    >
-                      {isOutOfStock ? "Out of stock" : `${product.stock} in stock`}
-                    </Badge>
+                    <span>•</span>
+                    {isOutOfStock ? (
+                      <span className="text-destructive font-medium">Out of stock</span>
+                    ) : (
+                      <span className="tabular-nums">{product.stock} in stock</span>
+                    )}
                   </div>
                 </div>
 
-                <QuantityStepper
-                  value={currentQty}
-                  min={0}
-                  max={product.stock}
-                  onChange={(val) => handleQuantityChange(product.id, val)}
-                  data-testid={`stepper-${product.id}`}
-                />
+                <div className="shrink-0">
+                  <QuantityStepper
+                    value={currentQty}
+                    min={0}
+                    max={isOutOfStock ? 0 : product.stock}
+                    onChange={(val) => handleQuantityChange(product.id, val)}
+                  />
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Step 4: Order Summary Card */}
-      <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4">
-        <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-          Step 4: Order Summary
-        </span>
-
-        {selectedItems.length === 0 ? (
-          <p className="text-muted-foreground py-2 text-center text-xs">
-            No items added yet. Pick quantities above.
-          </p>
-        ) : (
-          <div className="divide-border flex flex-col divide-y text-sm">
-            {selectedItems.map((it) => (
-              <div key={it.product.id} className="flex justify-between py-1.5">
-                <span className="text-foreground">
-                  {it.quantity}× {it.product.name}
-                </span>
-                <span className="text-foreground font-semibold tabular-nums">
-                  {formatMoney(it.lineTotal)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Payment preference */}
-        <div className="border-border flex flex-col gap-1.5 border-t pt-2">
-          <label className="text-foreground text-xs font-semibold">Payment Preference</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(["on_handover", "revolut", "wero"] as const).map((pref) => (
-              <button
-                key={pref}
-                type="button"
-                onClick={() => setPaymentPreference(pref)}
-                className={cn(
-                  "flex min-h-11 items-center justify-center rounded-lg border text-xs font-semibold uppercase transition-all",
-                  paymentPreference === pref
-                    ? "border-primary bg-primary-soft text-primary-soft-foreground"
-                    : "border-border bg-card text-foreground hover:bg-muted",
-                )}
-                data-testid={`preference-${pref}`}
-              >
-                {pref.replace("_", " ")}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="border-border flex items-center justify-between border-t pt-3">
-          <span className="text-muted-foreground text-sm font-medium">Total</span>
-          <span className="text-display-sm text-foreground font-bold tabular-nums">
+      {/* Sticky Bottom Order Summary Bar (Z-50) */}
+      <div
+        className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border-t p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur"
+        data-testid="manual-order-bottom-bar"
+      >
+        <span className="sr-only">Step 4: Order Summary</span>
+        <div className="flex flex-col">
+          <span className="text-muted-foreground text-[11px] font-medium">
+            {totalItemCount} {totalItemCount === 1 ? "item" : "items"}
+          </span>
+          <span className="text-foreground text-base font-bold tabular-nums">
             {formatMoney(totalAmount)}
           </span>
         </div>
-      </div>
 
-      {/* Sticky Bottom Action Bar */}
-      <div
-        className="border-border bg-card/95 fixed inset-x-0 bottom-0 z-30 flex flex-col gap-1.5 border-t p-4 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
-        data-testid="manual-order-bottom-bar"
-      >
         <Button
           type="submit"
-          disabled={isSubmitting || selectedItems.length === 0}
-          className="bg-primary text-primary-foreground min-h-12 w-full text-base font-semibold shadow-sm"
+          disabled={isSubmitting || totalItemCount === 0}
+          className="bg-primary text-primary-foreground min-h-11 rounded-lg px-5 text-xs font-semibold shadow-none active:scale-95"
           data-testid="create-order-submit-button"
         >
-          {isSubmitting ? "Creating order..." : `Create Order (${formatMoney(totalAmount)})`}
+          {isSubmitting
+            ? "Creating order..."
+            : totalAmount > 0
+              ? `Create order (${formatMoney(totalAmount)})`
+              : "Create order (CONFIRMED)"}
         </Button>
-        <p className="text-muted-foreground text-center text-[11px]">
-          Created as CONFIRMED • Stock decremented automatically
-        </p>
       </div>
     </form>
   );

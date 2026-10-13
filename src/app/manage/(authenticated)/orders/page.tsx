@@ -13,13 +13,21 @@ export const instant = false;
 
 export default async function OrdersPage() {
   await requireManagerSession();
-  const res = await listOrdersAction();
+  const res = await listOrdersAction({ statusTab: "all" });
 
   const initialData = res.success
     ? res.data
     : {
         orders: [],
-        counts: { active: 0, completed: 0, cancelled: 0, total: 0, unpaid: 0 },
+        counts: {
+          active: 0,
+          completed: 0,
+          cancelled: 0,
+          total: 0,
+          unpaid: 0,
+          pickup: 0,
+          delivery: 0,
+        },
       };
 
   return (

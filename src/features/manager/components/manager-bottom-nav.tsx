@@ -26,6 +26,11 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
     return pathname.startsWith(route);
   };
 
+  const isHiddenSubroute = pathname.startsWith("/manage/orders/");
+  if (isHiddenSubroute) {
+    return null;
+  }
+
   return (
     <nav
       aria-label="Manager mobile navigation"
