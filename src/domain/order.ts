@@ -32,6 +32,13 @@ export type PaymentPreference = z.infer<typeof paymentPreferenceSchema>;
 export const paymentMethodSchema = z.enum(["cash", "revolut", "wero"]);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
+export const orderStatusEventSchema = z.object({
+  status: orderStatusSchema,
+  timestamp: isoDateTimeSchema,
+  note: z.string().trim().optional().nullable(),
+});
+export type OrderStatusEvent = z.infer<typeof orderStatusEventSchema>;
+
 export const orderItemSchema = z.object({
   id: uuidSchema.optional(),
   productId: uuidSchema,
@@ -63,8 +70,38 @@ export const orderSchema = z.object({
   trackingToken: z.string().trim().optional(),
   cancellationReason: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
+  deliveryAddress: z.string().trim().optional().nullable(),
+  statusHistory: z.array(orderStatusEventSchema).optional(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 });
 
 export type Order = z.infer<typeof orderSchema>;
+
+export const manualOrderItemInputSchema = z.object({
+  productId: uuidSchema,
+  quantity: z.number().int().min(1),
+});
+export type ManualOrderItemInput = z.infer<typeof manualOrderItemInputSchema>;
+
+export const manualOrderInputSchema = z.object({
+  guestPhone: z.string().trim().min(1),
+  guestName: z.string().trim().min(1),
+  deliveryAddress: z.string().trim().optional().nullable(),
+  serviceType: serviceTypeSchema,
+  channel: channelSchema,
+  isAsap: z.boolean().default(true),
+  requestedDate: isoDateSchema.optional(),
+  requestedTime: timeHHMMSchema.optional().nullable(),
+  notes: z.string().trim().optional().nullable(),
+  paymentPreference: paymentPreferenceSchema.default("on_handover"),
+  items: z.array(manualOrderItemInputSchema).min(1),
+});
+export type ManualOrderInput = z.infer<typeof manualOrderInputSchema>;
+
+export const updateOrderStatusInputSchema = z.object({
+  orderId: uuidSchema,
+  nextStatus: orderStatusSchema,
+  reason: z.string().trim().optional().nullable(),
+});
+export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusInputSchema>;

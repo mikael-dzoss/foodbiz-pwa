@@ -66,6 +66,8 @@ export interface CreateOrderInput {
   readonly trackingToken?: string;
   readonly cancellationReason?: string | null;
   readonly notes?: string | null;
+  readonly deliveryAddress?: string | null;
+  readonly statusHistory?: Order["statusHistory"];
 }
 
 export type UpdateOrderInput = Partial<Omit<CreateOrderInput, "id">>;

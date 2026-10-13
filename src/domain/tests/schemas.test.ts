@@ -7,6 +7,9 @@ import {
   guestSchema,
   orderItemSchema,
   orderSchema,
+  orderStatusEventSchema,
+  manualOrderInputSchema,
+  updateOrderStatusInputSchema,
   productCategorySchema,
   productSchema,
 } from "../index";
@@ -319,6 +322,80 @@ describe("Order and OrderItem schemas", () => {
         requestedDate: "10-10-2026",
       }).success,
     ).toBe(false);
+  });
+
+  it("validates Order with deliveryAddress and statusHistory", () => {
+    const validWithHistory = {
+      id: validUuid,
+      businessId: validUuid,
+      guestName: "Alice Dupont",
+      serviceType: "delivery" as const,
+      channel: "phone" as const,
+      status: "PREPARING" as const,
+      paid: "paid" as const,
+      paymentPreference: "revolut" as const,
+      deliveryAddress: "123 Rue de Rivoli, Paris",
+      requestedDate: "2026-10-10",
+      items: [
+        {
+          productId: validUuid,
+          productName: "Burger",
+          quantity: 1,
+          unitPrice: 850,
+          totalPrice: 850,
+        },
+      ],
+      totalAmount: 850,
+      statusHistory: [
+        { status: "NEW" as const, timestamp: isoNow, note: null },
+        { status: "CONFIRMED" as const, timestamp: isoNow, note: "Confirmed" },
+        { status: "PREPARING" as const, timestamp: isoNow, note: null },
+      ],
+      createdAt: isoNow,
+      updatedAt: isoNow,
+    };
+    expect(orderSchema.safeParse(validWithHistory).success).toBe(true);
+  });
+
+  it("validates orderStatusEventSchema", () => {
+    const validEvent = {
+      status: "READY" as const,
+      timestamp: isoNow,
+      note: "Packaging done",
+    };
+    expect(orderStatusEventSchema.safeParse(validEvent).success).toBe(true);
+  });
+
+  it("validates manualOrderInputSchema and rejects invalid input", () => {
+    const valid = {
+      guestPhone: "+33612345678",
+      guestName: "Jean Dupont",
+      serviceType: "pickup" as const,
+      channel: "phone" as const,
+      isAsap: true,
+      items: [{ productId: validUuid, quantity: 2 }],
+    };
+    expect(manualOrderInputSchema.safeParse(valid).success).toBe(true);
+
+    // Rejects empty items
+    expect(manualOrderInputSchema.safeParse({ ...valid, items: [] }).success).toBe(false);
+
+    // Rejects non-positive quantity
+    expect(
+      manualOrderInputSchema.safeParse({
+        ...valid,
+        items: [{ productId: validUuid, quantity: 0 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("validates updateOrderStatusInputSchema", () => {
+    const valid = {
+      orderId: validUuid,
+      nextStatus: "READY" as const,
+      reason: null,
+    };
+    expect(updateOrderStatusInputSchema.safeParse(valid).success).toBe(true);
   });
 });
 
