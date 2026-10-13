@@ -184,6 +184,10 @@ export function createMockRepositories(
         trackingToken: input.trackingToken ?? crypto.randomUUID().replace(/-/g, ""),
         cancellationReason: input.cancellationReason ?? null,
         notes: input.notes ?? null,
+        deliveryAddress: input.deliveryAddress ?? null,
+        statusHistory: input.statusHistory ?? [
+          { status: input.status, timestamp: now, note: null },
+        ],
         createdAt: now,
         updatedAt: now,
       };
