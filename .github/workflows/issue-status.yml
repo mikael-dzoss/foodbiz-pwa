@@ -28,16 +28,59 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
-            --jq '.closingIssuesReferences[].number' |
+          set -euo pipefail
+
+          retry_cmd() {
+            local max=5
+            local attempt=1
+            while true; do
+              if "$@"; then
+                return 0
+              fi
+              local exit_code=$?
+              if [ "$attempt" -ge "$max" ]; then
+                echo "Command failed (exit $exit_code) after $max attempts: $*" >&2
+                return "$exit_code"
+              fi
+              local sleep_sec=$((attempt * 2))
+              echo "Command failed (exit $exit_code). Retrying in ${sleep_sec}s ($attempt/$max)..." >&2
+              sleep "$sleep_sec"
+              attempt=$((attempt + 1))
+            done
+          }
+
+          echo "Fetching closing issues for PR #$PR..."
+          if ! closing_issues="$(retry_cmd gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences --jq '.closingIssuesReferences[].number')"; then
+            echo "Error: Failed to fetch closing issues for PR #$PR after retries." >&2
+            exit 1
+          fi
+
+          if [ -z "$closing_issues" ]; then
+            echo "No closing issues found for PR #$PR."
+            exit 0
+          fi
+
+          has_errors=0
           while read -r issue; do
             [ -z "$issue" ] && continue
             echo "Marking issue #$issue completed..."
-            gh issue edit "$issue" --repo "$REPO" \
-              --remove-label "status: planned" --remove-label "status: in-progress" \
-              --remove-label "status: in-review" --remove-label "status: blocked" \
-              --add-label "status: completed"
+
+            if ! retry_cmd gh issue edit "$issue" --repo "$REPO" \
+                --remove-label "status: planned" --remove-label "status: in-progress" \
+                --remove-label "status: in-review" --remove-label "status: blocked" \
+                --add-label "status: completed"; then
+              echo "Error: Failed to update labels for issue #$issue after retries." >&2
+              has_errors=1
+              continue
+            fi
 
             echo "Checking parent epic for issue #$issue..."
-            python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py "$issue" --close-completed || true
-          done
+            if ! retry_cmd python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py "$issue" --close-completed; then
+              echo "Warning: Parent-issue sync script failed for #$issue after retries." >&2
+            fi
+          done <<< "$closing_issues"
+
+          if [ "$has_errors" -ne 0 ]; then
+            echo "One or more issues failed to update." >&2
+            exit 1
+          fi

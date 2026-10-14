@@ -44,6 +44,15 @@ def is_epic(issue: Spec) -> bool:
     return "type: epic" in labels
 
 
+MAINTENANCE_TITLE = "Epic: Maintenance"
+
+
+def is_maintenance_epic(issue: Spec) -> bool:
+    title = issue.get("title", "")
+    return title.strip().lower() == MAINTENANCE_TITLE.lower()
+
+
+
 def get_sub_issues_stats(epic: Spec, allow_api_fallback: bool = False, runner: Any = None) -> tuple[int, int]:
     """Return (total, completed) sub-issues for an epic."""
     if runner is None:
@@ -151,7 +160,7 @@ def sync_parent_status(
     closed = False
     previous_status = None
 
-    if close_completed and all_closed and is_open:
+    if close_completed and all_closed and is_open and not is_maintenance_epic(parent):
         close_epic(parent_num, runner=runner)
         updated = True
         closed = True
@@ -203,6 +212,8 @@ def sync_all_epics(close_completed: bool = True, runner: Any = None) -> list[dic
     results: list[dict[str, Any]] = []
 
     for epic in epics:
+        if is_maintenance_epic(epic):
+            continue
         num = epic["number"]
         title = epic.get("title", "")
         status = extract_issue_status(epic)
