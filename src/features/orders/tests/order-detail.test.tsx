@@ -188,4 +188,71 @@ describe("OrderDetail Component", () => {
       });
     });
   });
+
+  it("shows Refund Due badge and records refund when cancelled paid order is viewed", async () => {
+    const refundSpy = vi.spyOn(actions, "recordRefundAction").mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...mockOrder,
+        status: "CANCELLED",
+        paid: "refunded",
+        refundedAt: "2026-10-13T19:00:00.000Z",
+      },
+    });
+
+    const cancelledPaidOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "CANCELLED",
+      paid: "paid",
+      paymentMethod: "revolut",
+      paidAt: "2026-10-13T18:46:00.000Z",
+    };
+
+    render(<OrderDetail order={cancelledPaidOrder} />);
+
+    expect(screen.getByTestId("refund-due-badge")).toBeDefined();
+    expect(screen.getByTestId("record-refund-cta")).toBeDefined();
+
+    fireEvent.click(screen.getByTestId("record-refund-cta"));
+    expect(screen.getByTestId("record-refund-dialog")).toBeDefined();
+
+    const reasonInput = screen.getByTestId("refund-reason-input");
+    fireEvent.change(reasonInput, { target: { value: "Full refund to Revolut" } });
+
+    fireEvent.click(screen.getByTestId("confirm-refund-button"));
+
+    await waitFor(() => {
+      expect(refundSpy).toHaveBeenCalledWith({
+        orderId: "ord-1",
+        reason: "Full refund to Revolut",
+      });
+    });
+  });
+
+  it("renders Refunded badge and timestamp when order is refunded", () => {
+    const refundedOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "CANCELLED",
+      paid: "refunded",
+      refundedAt: "2026-10-13T19:00:00.000Z",
+    };
+
+    render(<OrderDetail order={refundedOrder} />);
+
+    expect(screen.getByTestId("refunded-badge")).toBeDefined();
+    expect(screen.getByTestId("payment-card").textContent).toContain("Refunded");
+  });
+
+  it("disables complete action when order is READY and refunded", () => {
+    const readyRefundedOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "READY",
+      paid: "refunded",
+    };
+
+    render(<OrderDetail order={readyRefundedOrder} />);
+    const nextBtn = screen.getByTestId("next-status-action-button") as HTMLButtonElement;
+    expect(nextBtn.disabled).toBe(true);
+    expect(screen.getByText(/Payment required before completing order handover/i)).toBeDefined();
+  });
 });

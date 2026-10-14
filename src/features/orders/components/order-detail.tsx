@@ -34,8 +34,12 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, formatDate, formatTime, type OrderStatus } from "@/domain";
-import type { EnrichedOrder } from "../order-actions";
-import { progressOrderStatusAction, recordPaymentAction } from "../order-actions";
+import {
+  type EnrichedOrder,
+  progressOrderStatusAction,
+  recordPaymentAction,
+  recordRefundAction,
+} from "../order-actions";
 import { cn } from "@/lib/utils";
 
 export interface OrderDetailProps {
@@ -101,16 +105,20 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
     "cash" | "revolut" | "wero"
   >("cash");
+  const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
+  const [refundReason, setRefundReason] = React.useState("");
 
   const nextStep = getNextStep(currentOrder.status);
-  const isUnpaid = currentOrder.paid === "unpaid";
-  const isReadyUnpaid = currentOrder.status === "READY" && isUnpaid;
+  const isNotPaid = currentOrder.paid !== "paid";
+  const isReadyNotPaid = currentOrder.status === "READY" && isNotPaid;
 
   // Handle Next Status Progression
   const handleProgressStatus = async () => {
     if (!nextStep) return;
-    if (nextStep.nextStatus === "COMPLETED" && isUnpaid) {
-      setErrorMessage("Cannot complete order while it is unpaid. Please record payment first.");
+    if (nextStep.nextStatus === "COMPLETED" && isNotPaid) {
+      setErrorMessage(
+        "Cannot complete order while payment is not marked as paid. Please record payment first.",
+      );
       return;
     }
 
@@ -174,6 +182,30 @@ export function OrderDetail({ order }: OrderDetailProps) {
 
     if (res.success) {
       setPaymentDialogOpen(false);
+      setCurrentOrder({
+        ...currentOrder,
+        ...res.data,
+      });
+      router.refresh();
+    } else {
+      setErrorMessage(res.error);
+    }
+  };
+
+  // Handle Refund Recording
+  const handleRecordRefund = async () => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const res = await recordRefundAction({
+      orderId: currentOrder.id,
+      reason: refundReason.trim() || undefined,
+    });
+
+    setIsSubmitting(false);
+
+    if (res.success) {
+      setRefundDialogOpen(false);
       setCurrentOrder({
         ...currentOrder,
         ...res.data,
@@ -521,13 +553,31 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
             Payment
           </span>
-          {currentOrder.paid === "paid" ? (
+          {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" ? (
+            <Badge
+              variant="warning"
+              className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
+              data-testid="refund-due-badge"
+            >
+              <AlertCircle className="h-3 w-3" />
+              Refund Due
+            </Badge>
+          ) : currentOrder.paid === "paid" ? (
             <Badge
               variant="paid"
               className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
             >
               <CheckCircle2 className="h-3 w-3" />
               Paid
+            </Badge>
+          ) : currentOrder.paid === "refunded" ? (
+            <Badge
+              variant="refunded"
+              className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
+              data-testid="refunded-badge"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              Refunded
             </Badge>
           ) : (
             <Badge
@@ -560,7 +610,53 @@ export function OrderDetail({ order }: OrderDetailProps) {
             </div>
           )}
 
-          {currentOrder.paid === "unpaid" && (
+          {currentOrder.paid === "refunded" && (
+            <div className="text-muted-foreground flex items-center justify-between text-xs">
+              <span>Settlement</span>
+              <span className="text-foreground font-medium capitalize">
+                Refunded
+                {currentOrder.refundedAt &&
+                  ` on ${formatDate(currentOrder.refundedAt, "en", "short")} at ${formatTime(currentOrder.refundedAt, "en")}`}
+              </span>
+            </div>
+          )}
+
+          {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" && (
+            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex flex-col gap-2 rounded-lg border p-2.5 text-xs">
+              <div className="flex items-center gap-1.5 font-semibold">
+                <AlertCircle className="text-warning h-4 w-4 shrink-0" />
+                <span>Order was paid before cancellation. Refund required.</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRefundDialogOpen(true)}
+                className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-[40px] w-full gap-1.5 text-xs font-semibold"
+                data-testid="record-refund-cta"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span>Record refund ({formatMoney(currentOrder.totalAmount)})</span>
+              </Button>
+            </div>
+          )}
+
+          {currentOrder.status === "COMPLETED" && currentOrder.paid === "paid" && (
+            <div className="border-border/60 border-t pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRefundDialogOpen(true)}
+                className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-[36px] w-full gap-1.5 text-xs font-semibold"
+                data-testid="post-completion-refund-button"
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                <span>Record refund (customer dispute)</span>
+              </Button>
+            </div>
+          )}
+
+          {currentOrder.paid === "unpaid" && currentOrder.status !== "CANCELLED" && (
             <Button
               type="button"
               variant="outline"
@@ -674,7 +770,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
           className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-col gap-2 border-t p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur"
           data-testid="order-actions-bar"
         >
-          {isReadyUnpaid && (
+          {isReadyNotPaid && (
             <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
               <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
               <span>Payment required before completing order handover</span>
@@ -686,7 +782,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
               <Button
                 type="button"
                 onClick={handleProgressStatus}
-                disabled={isSubmitting || (nextStep.nextStatus === "COMPLETED" && isUnpaid)}
+                disabled={isSubmitting || (nextStep.nextStatus === "COMPLETED" && isNotPaid)}
                 className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
                 data-testid="next-status-action-button"
               >
@@ -803,6 +899,51 @@ export function OrderDetail({ order }: OrderDetailProps) {
               data-testid="confirm-payment-button"
             >
               Confirm payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Refund Dialog */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent data-testid="record-refund-dialog">
+          <DialogHeader>
+            <DialogTitle>Record Refund for Order #{currentOrder.orderNumber}</DialogTitle>
+            <DialogDescription>
+              Confirm refund of {formatMoney(currentOrder.totalAmount)} returned to customer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2 py-2">
+            <label className="text-foreground text-xs font-semibold">
+              Refund Reason (optional)
+            </label>
+            <Textarea
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="e.g. Order cancelled, quality dispute, item missing..."
+              className="text-xs"
+              data-testid="refund-reason-input"
+            />
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRefundDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-primary text-primary-foreground"
+              onClick={handleRecordRefund}
+              disabled={isSubmitting}
+              data-testid="confirm-refund-button"
+            >
+              {isSubmitting ? "Recording..." : "Confirm refund"}
             </Button>
           </DialogFooter>
         </DialogContent>

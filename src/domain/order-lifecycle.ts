@@ -63,6 +63,12 @@ export function validateOrderTransition(
   }
 
   if (nextStatus === "COMPLETED") {
+    if (paid === "refunded") {
+      return {
+        ok: false,
+        error: "Cannot transition to COMPLETED while order is refunded.",
+      };
+    }
     if (paid !== "paid") {
       return {
         ok: false,

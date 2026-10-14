@@ -47,6 +47,14 @@ describe("Order lifecycle state machine", () => {
       }
     });
 
+    it("rejects READY -> COMPLETED when paid is refunded", () => {
+      const res = validateOrderTransition("READY", "COMPLETED", { paid: "refunded" });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error).toMatch(/refunded/i);
+      }
+    });
+
     it("rejects READY -> COMPLETED when paid status is missing", () => {
       const res = validateOrderTransition("READY", "COMPLETED");
       expect(res.ok).toBe(false);

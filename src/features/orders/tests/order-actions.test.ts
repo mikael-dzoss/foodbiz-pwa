@@ -6,6 +6,7 @@ import {
   createManualOrderAction,
   progressOrderStatusAction,
   recordPaymentAction,
+  recordRefundAction,
   lookupGuestByPhoneAction,
 } from "../order-actions";
 
@@ -581,6 +582,86 @@ describe("Order Server Actions", () => {
       expect(compRes.success).toBe(true);
       if (compRes.success) {
         expect(compRes.data.status).toBe("COMPLETED");
+      }
+    });
+  });
+
+  describe("recordRefundAction", () => {
+    it("records refund for a cancelled paid order, setting paid to 'refunded' and recording refundedAt", async () => {
+      mockOrders[0].status = "CANCELLED";
+      mockOrders[0].paid = "paid";
+      mockOrders[0].paidAt = new Date().toISOString();
+
+      const res = await recordRefundAction({
+        orderId: validOrderId,
+        reason: "Customer cancelled and payment was returned via Revolut",
+      });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.paid).toBe("refunded");
+        expect(res.data.refundedAt).toBeDefined();
+        const lastHistory = res.data.statusHistory?.[res.data.statusHistory.length - 1];
+        expect(lastHistory?.note).toContain("Refund recorded");
+      }
+    });
+
+    it("allows recording refund on COMPLETED order for post-delivery dispute", async () => {
+      mockOrders[1].status = "COMPLETED";
+      mockOrders[1].paid = "paid";
+
+      const res = await recordRefundAction({
+        orderId: completedOrderId,
+        reason: "Cold food complaint refund",
+      });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.paid).toBe("refunded");
+        expect(res.data.status).toBe("COMPLETED");
+        expect(res.data.refundedAt).toBeDefined();
+      }
+    });
+
+    it("rejects refund when order is unpaid", async () => {
+      mockOrders[0].status = "CANCELLED";
+      mockOrders[0].paid = "unpaid";
+
+      const res = await recordRefundAction({
+        orderId: validOrderId,
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/unpaid/i);
+      }
+    });
+
+    it("rejects refund when order is already refunded", async () => {
+      mockOrders[0].paid = "refunded";
+
+      const res = await recordRefundAction({
+        orderId: validOrderId,
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/already/i);
+      }
+    });
+
+    it("prevents transitioning a refunded order to COMPLETED", async () => {
+      mockOrders[0].status = "READY";
+      mockOrders[0].paid = "refunded";
+
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "COMPLETED",
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/refunded/i);
       }
     });
   });

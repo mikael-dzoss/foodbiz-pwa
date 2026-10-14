@@ -11,6 +11,7 @@ import {
   type Product,
   manualOrderInputSchema,
   updateOrderStatusInputSchema,
+  recordRefundInputSchema,
   validateOrderTransition,
   validateOrderLineStock,
   reserveStock,
@@ -500,6 +501,62 @@ export async function lookupGuestByPhoneAction(
     return { success: true, data: guest };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Guest lookup failed";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Records a refund for an order, transitioning paid status to 'refunded' and capturing refundedAt.
+ */
+export async function recordRefundAction(input: unknown): Promise<OrderActionResult<Order>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = recordRefundInputSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return { success: false, error: "Invalid refund parameters." };
+    }
+
+    const { orderId, reason } = parsed.data;
+    const repos = getRepositories();
+
+    const order = await repos.orders.findById(businessId, orderId);
+    if (!order) {
+      return { success: false, error: "Order not found" };
+    }
+
+    if (order.paid === "refunded") {
+      return { success: false, error: "Order is already marked as refunded." };
+    }
+
+    if (order.paid === "unpaid") {
+      return { success: false, error: "Cannot refund an unpaid order." };
+    }
+
+    const now = new Date().toISOString();
+    const history = [
+      ...(order.statusHistory ?? [
+        { status: order.status, timestamp: order.createdAt, note: null },
+      ]),
+      {
+        status: order.status,
+        timestamp: now,
+        note: reason ? `Refund recorded: ${reason}` : "Refund recorded",
+      },
+    ];
+
+    const updated = await repos.orders.update(businessId, orderId, {
+      paid: "refunded",
+      refundedAt: now,
+      statusHistory: history,
+    });
+
+    revalidatePath("/manage/orders");
+    revalidatePath(`/manage/orders/${orderId}`);
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to record refund";
     return { success: false, error: message };
   }
 }
