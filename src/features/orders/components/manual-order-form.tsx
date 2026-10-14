@@ -15,10 +15,19 @@ import {
   Truck,
   MessageSquare,
   Store,
+  Eye,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { formatMoney } from "@/domain";
 import type { Product, Guest } from "@/domain";
@@ -31,6 +40,7 @@ export interface ManualOrderFormProps {
 
 export function ManualOrderForm({ products }: ManualOrderFormProps) {
   const router = useRouter();
+  const [previewOpen, setPreviewOpen] = React.useState(false);
 
   // Guest State
   const [guestPhone, setGuestPhone] = React.useState("");
@@ -186,12 +196,18 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
           </span>
         </div>
 
-        <Link
-          href="/manage/orders"
-          className="text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setPreviewOpen(true)}
+          aria-label="Preview order"
+          className="border-border bg-card text-foreground hover:bg-muted flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold"
+          data-testid="preview-order-button"
         >
-          Cancel
-        </Link>
+          <Eye className="h-3.5 w-3.5" />
+          <span>Preview</span>
+        </Button>
       </header>
 
       {errorMessage && (
@@ -545,18 +561,31 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
                 data-testid={`product-row-${product.id}`}
               >
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-foreground truncate text-sm font-semibold">
+                  <span
+                    className={cn(
+                      "truncate text-sm font-semibold transition-colors",
+                      currentQty > 0 ? "text-primary font-bold" : "text-foreground",
+                    )}
+                  >
                     {product.name}
                   </span>
-                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                  <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
                     <span className="text-foreground font-medium tabular-nums">
                       {formatMoney(product.price)}
                     </span>
                     <span>•</span>
                     {isOutOfStock ? (
-                      <span className="text-destructive font-medium">Out of stock</span>
+                      <span className="bg-destructive/15 text-destructive border-destructive/25 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold">
+                        Out of stock
+                      </span>
+                    ) : product.stock <= 5 ? (
+                      <span className="bg-warning-soft text-warning-soft-foreground border-warning/30 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums">
+                        {product.stock} in stock (low)
+                      </span>
                     ) : (
-                      <span className="tabular-nums">{product.stock} in stock</span>
+                      <span className="bg-primary-soft text-primary-soft-foreground border-primary/20 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums">
+                        {product.stock} in stock
+                      </span>
                     )}
                   </div>
                 </div>
@@ -603,6 +632,110 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
               : "Create order (CONFIRMED)"}
         </Button>
       </div>
+
+      {/* Read-Only Order Preview Modal Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent
+          className="max-h-[85vh] max-w-md overflow-y-auto"
+          data-testid="order-preview-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>Order Preview</DialogTitle>
+            <DialogDescription>
+              Review manual order details before submission to kitchen.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 text-xs">
+            {/* Guest Details */}
+            <div className="bg-muted/60 space-y-1 rounded-lg p-3">
+              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                Guest &amp; Channel
+              </span>
+              <p className="text-foreground text-sm font-semibold">
+                {guestName || "No guest name specified"}
+              </p>
+              <p className="text-muted-foreground">
+                {guestPhone || "No phone number"} • via {channel}
+              </p>
+            </div>
+
+            {/* Service & Timing */}
+            <div className="bg-muted/60 space-y-1 rounded-lg p-3">
+              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                Fulfillment
+              </span>
+              <p className="text-foreground font-semibold capitalize">
+                {serviceType}{" "}
+                {isAsap
+                  ? "(ASAP • Est. 20-25 min)"
+                  : `(Scheduled for ${requestedDate} at ${requestedTime || "anytime"})`}
+              </p>
+              {serviceType === "delivery" && (
+                <p className="text-muted-foreground">
+                  Address: {deliveryAddress || "No address provided"}
+                </p>
+              )}
+            </div>
+
+            {/* Notes */}
+            {notes.trim() && (
+              <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-lg border p-2.5">
+                <span className="font-bold">Kitchen note:</span> {notes}
+              </div>
+            )}
+
+            {/* Itemized summary */}
+            <div className="border-border space-y-1.5 border-t pt-2">
+              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                Selected Products ({totalItemCount})
+              </span>
+              {selectedItems.length === 0 ? (
+                <p className="text-muted-foreground py-1 italic">No items selected yet.</p>
+              ) : (
+                <div className="divide-border/60 divide-y">
+                  {selectedItems.map((it) => (
+                    <div key={it.product.id} className="flex items-center justify-between py-1.5">
+                      <span>
+                        <strong className="text-primary font-bold">{it.quantity}×</strong>{" "}
+                        {it.product.name}
+                      </span>
+                      <span className="font-bold tabular-nums">{formatMoney(it.lineTotal)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Total */}
+            <div className="border-border flex items-center justify-between border-t pt-2 text-sm font-bold">
+              <span>Total Amount</span>
+              <span className="text-primary text-base tabular-nums">
+                {formatMoney(totalAmount)}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setPreviewOpen(false)}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                isSubmitting || totalItemCount === 0 || !guestName.trim() || !guestPhone.trim()
+              }
+              onClick={(e) => {
+                setPreviewOpen(false);
+                handleSubmit(e);
+              }}
+              className="bg-primary text-primary-foreground font-semibold"
+            >
+              Confirm &amp; Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

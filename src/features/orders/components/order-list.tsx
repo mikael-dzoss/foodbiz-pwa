@@ -51,24 +51,72 @@ interface NextActionStep {
   status: "CONFIRMED" | "PREPARING" | "READY" | "COMPLETED";
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  buttonClass: string;
 }
 
 function getNextAction(order: EnrichedOrder): NextActionStep | null {
   switch (order.status) {
     case "NEW":
-      return { status: "CONFIRMED", label: "Confirm", icon: CheckCircle2 };
+      return {
+        status: "CONFIRMED",
+        label: "Confirm",
+        icon: CheckCircle2,
+        buttonClass: "bg-primary text-primary-foreground hover:bg-primary/90",
+      };
     case "CONFIRMED":
-      return { status: "PREPARING", label: "Start preparing", icon: ChefHat };
+      return {
+        status: "PREPARING",
+        label: "Start preparing",
+        icon: ChefHat,
+        buttonClass: "bg-secondary text-secondary-foreground hover:bg-secondary/90",
+      };
     case "PREPARING":
-      return { status: "READY", label: "Mark ready", icon: PackageCheck };
+      return {
+        status: "READY",
+        label: "Mark ready",
+        icon: PackageCheck,
+        buttonClass: "bg-emerald-600 text-white hover:bg-emerald-700",
+      };
     case "READY":
       return {
         status: "COMPLETED",
         label: order.paid === "unpaid" ? "Pay & Complete" : "Complete order",
         icon: Check,
+        buttonClass:
+          order.paid === "unpaid"
+            ? "bg-warning-soft text-warning-soft-foreground border border-warning/40 hover:bg-warning-soft/80"
+            : "bg-primary text-primary-foreground hover:bg-primary/90",
       };
     default:
       return null;
+  }
+}
+
+function getDueTimeDiff(requestedDate?: string | null, requestedTime?: string | null) {
+  if (!requestedDate) return null;
+  const now = new Date();
+  const [y, m, d] = requestedDate.split("-").map(Number);
+  if (!y || !m || !d) return null;
+
+  const dueDate = new Date(y, m - 1, d);
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diffDays = Math.round((dueDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays > 0) {
+    return { text: `(+${diffDays}d)`, isOverdue: false };
+  } else if (diffDays === 0) {
+    if (requestedTime) {
+      const [dueH, dueM] = requestedTime.split(":").map(Number);
+      const currentH = now.getHours();
+      const currentM = now.getMinutes();
+      if (dueH < currentH || (dueH === currentH && dueM < currentM)) {
+        return { text: "(-overdue)", isOverdue: true };
+      }
+    }
+    return null;
+  } else {
+    return { text: `(${diffDays}d)`, isOverdue: true };
   }
 }
 
@@ -93,18 +141,31 @@ export function OrderList({ initialData }: OrderListProps) {
     });
   }, [initialData.orders, localStatusUpdates]);
 
-  // Dynamic live counts derived from all loaded orders
+  // Orders belonging to the currently selected lifecycle tab
+  const currentTabOrders = React.useMemo(() => {
+    return orders.filter((o) => {
+      if (activeTab === "active") {
+        return ["NEW", "CONFIRMED", "PREPARING", "READY"].includes(o.status);
+      } else if (activeTab === "completed") {
+        return o.status === "COMPLETED";
+      } else {
+        return o.status === "CANCELLED";
+      }
+    });
+  }, [orders, activeTab]);
+
+  // Dynamic live counts: tab totals for segmented header, sub-counts scoped to current tab
   const liveCounts = React.useMemo(() => {
     return {
       active: orders.filter((o) => ["NEW", "CONFIRMED", "PREPARING", "READY"].includes(o.status))
         .length,
       completed: orders.filter((o) => o.status === "COMPLETED").length,
       cancelled: orders.filter((o) => o.status === "CANCELLED").length,
-      unpaid: orders.filter((o) => o.paid === "unpaid").length,
-      pickup: orders.filter((o) => o.serviceType === "pickup").length,
-      delivery: orders.filter((o) => o.serviceType === "delivery").length,
+      unpaid: currentTabOrders.filter((o) => o.paid === "unpaid").length,
+      pickup: currentTabOrders.filter((o) => o.serviceType === "pickup").length,
+      delivery: currentTabOrders.filter((o) => o.serviceType === "delivery").length,
     };
-  }, [orders]);
+  }, [orders, currentTabOrders]);
 
   // Reactive client-side filtering for immediate responsiveness
   const filteredOrders = React.useMemo(() => {
@@ -387,13 +448,17 @@ export function OrderList({ initialData }: OrderListProps) {
               .join(", ");
             const hasMoreItems = order.items.length > 2;
             const nextAction = getNextAction(order);
+            const dueDiff =
+              activeTab === "active"
+                ? getDueTimeDiff(order.requestedDate, order.requestedTime)
+                : null;
 
             return (
               <article
                 key={order.id}
                 className={cn(
                   "bg-card border-divider relative space-y-2.5 rounded-xl border p-3.5 shadow-none transition-all",
-                  isNew && "border-info bg-info/5 border-2",
+                  isNew && "border-info border-2",
                 )}
                 data-testid={`order-card-${order.id}`}
               >
@@ -408,26 +473,44 @@ export function OrderList({ initialData }: OrderListProps) {
                     </Badge>
                   </div>
 
-                  <div className="text-muted-foreground bg-muted/60 flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
+                  <div className="text-foreground bg-muted flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold">
                     <Clock className="text-muted-foreground h-3 w-3" />
                     <span className="tabular-nums">
                       {order.requestedTime
                         ? `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} at ${order.requestedTime}`
                         : `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} ASAP`}
                     </span>
+                    {dueDiff && (
+                      <span
+                        className={cn(
+                          "ml-1 font-bold",
+                          dueDiff.isOverdue ? "text-destructive" : "text-muted-foreground",
+                        )}
+                      >
+                        {dueDiff.text}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Guest & Contact row with dedicated Chevron button */}
                 <div className="flex items-center justify-between gap-2 pt-0.5">
-                  <div className="flex flex-col">
-                    <span className="text-foreground text-sm font-semibold">{order.guestName}</span>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-foreground truncate text-sm font-semibold">
+                      {order.guestName}
+                    </span>
                     <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                      {order.guestPhone && <span className="tabular-nums">{order.guestPhone}</span>}
                       {order.guestPhone && (
-                        <span className="bg-border inline-block h-1 w-1 rounded-full" />
+                        <span className="shrink-0 tabular-nums">{order.guestPhone}</span>
                       )}
-                      <span className="capitalize">{order.serviceType}</span>
+                      {order.guestPhone && (
+                        <span className="bg-border inline-block h-1 w-1 shrink-0 rounded-full" />
+                      )}
+                      <span className="truncate">
+                        {order.serviceType === "delivery"
+                          ? (order.deliveryAddress ?? "Delivery address pending")
+                          : "Store Pickup"}
+                      </span>
                     </div>
                   </div>
 
@@ -435,7 +518,7 @@ export function OrderList({ initialData }: OrderListProps) {
                   <Link
                     href={`/manage/orders/${order.id}`}
                     aria-label={`View order details for #${order.orderNumber}`}
-                    className="bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-95"
+                    className="bg-muted hover:bg-border text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95"
                     data-testid={`view-order-${order.id}`}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -443,11 +526,11 @@ export function OrderList({ initialData }: OrderListProps) {
                 </div>
 
                 {/* Items Ordered Preview Box */}
-                <div className="bg-muted/40 text-muted-foreground rounded-lg px-2.5 py-1.5 text-xs leading-relaxed">
-                  <span className="text-foreground font-semibold">
+                <div className="bg-muted text-foreground rounded-lg px-2.5 py-1.5 text-xs leading-relaxed">
+                  <span className="font-semibold">
                     {itemCount} {itemCount === 1 ? "item" : "items"}:
                   </span>{" "}
-                  {itemsSummary}
+                  <span className="text-muted-foreground">{itemsSummary}</span>
                   {hasMoreItems ? "..." : ""}
                 </div>
 
@@ -477,7 +560,10 @@ export function OrderList({ initialData }: OrderListProps) {
                       size="sm"
                       onClick={(e) => handleQuickProgress(e, order)}
                       disabled={transitioningId === order.id}
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold shadow-none active:scale-95"
+                      className={cn(
+                        "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold shadow-none active:scale-95",
+                        nextAction.buttonClass,
+                      )}
                       data-testid={`quick-progress-${order.id}`}
                     >
                       <nextAction.icon className="h-3.5 w-3.5" />

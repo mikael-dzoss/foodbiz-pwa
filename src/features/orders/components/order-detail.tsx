@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   Truck,
   PhoneCall,
+  CircleDot,
 } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney, formatDate, formatTime } from "@/domain";
+import { formatMoney, formatDate, formatTime, type OrderStatus } from "@/domain";
 import type { EnrichedOrder } from "../order-actions";
 import { progressOrderStatusAction, recordPaymentAction } from "../order-actions";
 import { cn } from "@/lib/utils";
@@ -181,6 +182,91 @@ export function OrderDetail({ order }: OrderDetailProps) {
   // Tax calculation for breakdown (10% VAT on food)
   const includedTax = Math.round(currentOrder.totalAmount * 0.1 * 100) / 100;
   const subtotal = currentOrder.totalAmount - includedTax;
+
+  // Predictive Full Journey Timeline
+  const timelineSteps = React.useMemo(() => {
+    if (currentOrder.status === "CANCELLED") {
+      const history = currentOrder.statusHistory ?? [
+        { status: "NEW", timestamp: currentOrder.createdAt, note: "Order placed" },
+        {
+          status: "CANCELLED",
+          timestamp: currentOrder.updatedAt,
+          note: currentOrder.cancellationReason,
+        },
+      ];
+      return history.map((ev) => {
+        const isCancelled = ev.status === "CANCELLED";
+        return {
+          status: ev.status,
+          label: isCancelled ? "Order Cancelled" : ev.status,
+          state: isCancelled ? ("ongoing" as const) : ("validated" as const),
+          timestampText: `${formatDate(ev.timestamp, "en", "short")} • ${formatTime(ev.timestamp, "en")}`,
+          note: ev.note ?? (isCancelled ? currentOrder.cancellationReason : null),
+        };
+      });
+    }
+
+    const STANDARD_STEPS: { status: OrderStatus; label: string; defaultNote: string }[] = [
+      { status: "NEW", label: "Order Placed", defaultNote: `Received via ${currentOrder.channel}` },
+      { status: "CONFIRMED", label: "Confirmed", defaultNote: "Confirmed by kitchen" },
+      { status: "PREPARING", label: "Preparing", defaultNote: "Kitchen preparing items" },
+      {
+        status: "READY",
+        label: currentOrder.serviceType === "pickup" ? "Ready for Pickup" : "Out for Delivery",
+        defaultNote:
+          currentOrder.serviceType === "pickup" ? "Packed at counter" : "Dispatched with driver",
+      },
+      { status: "COMPLETED", label: "Completed", defaultNote: "Handed over to customer" },
+    ];
+
+    const ORDER_RANKS: Record<OrderStatus, number> = {
+      NEW: 0,
+      CONFIRMED: 1,
+      PREPARING: 2,
+      READY: 3,
+      COMPLETED: 4,
+      CANCELLED: -1,
+    };
+
+    const currentRank = ORDER_RANKS[currentOrder.status] ?? 0;
+
+    return STANDARD_STEPS.map((step) => {
+      const stepRank = ORDER_RANKS[step.status];
+      const historyEv = currentOrder.statusHistory?.find((h) => h.status === step.status);
+
+      if (stepRank < currentRank) {
+        return {
+          status: step.status,
+          label: step.label,
+          state: "validated" as const,
+          timestampText: historyEv
+            ? `${formatDate(historyEv.timestamp, "en", "short")} • ${formatTime(historyEv.timestamp, "en")}`
+            : "Completed",
+          note: historyEv?.note ?? step.defaultNote,
+        };
+      }
+
+      if (stepRank === currentRank) {
+        return {
+          status: step.status,
+          label: step.label,
+          state: "ongoing" as const,
+          timestampText: historyEv
+            ? `${formatDate(historyEv.timestamp, "en", "short")} • ${formatTime(historyEv.timestamp, "en")}`
+            : "Now",
+          note: historyEv?.note ?? step.defaultNote,
+        };
+      }
+
+      return {
+        status: step.status,
+        label: step.label,
+        state: "future" as const,
+        timestampText: "Upcoming",
+        note: step.defaultNote,
+      };
+    });
+  }, [currentOrder]);
 
   return (
     <div className="flex flex-col gap-3 pb-36" data-testid="order-detail-screen">
@@ -453,7 +539,8 @@ export function OrderDetail({ order }: OrderDetailProps) {
               <span>Settled via</span>
               <span className="text-foreground font-medium capitalize">
                 {currentOrder.paymentMethod}
-                {currentOrder.paidAt && ` at ${formatTime(currentOrder.paidAt)}`}
+                {currentOrder.paidAt &&
+                  ` on ${formatDate(currentOrder.paidAt, "en", "short")} at ${formatTime(currentOrder.paidAt, "en")}`}
               </span>
             </div>
           )}
@@ -473,7 +560,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
         </div>
       </section>
 
-      {/* 4. Status History Timeline (Matching Stitch M-21) */}
+      {/* 4. Status History Timeline (Predictive Full Journey Matching Stitch M-21) */}
       <section
         className="bg-card border-border rounded-xl border p-3.5 shadow-none"
         data-testid="order-timeline-card"
@@ -485,40 +572,70 @@ export function OrderDetail({ order }: OrderDetailProps) {
           </span>
         </div>
 
-        <div className="before:bg-border/60 relative space-y-3.5 pl-6 before:absolute before:top-2 before:bottom-2 before:left-2 before:w-[2px]">
-          {(currentOrder.statusHistory && currentOrder.statusHistory.length > 0
-            ? currentOrder.statusHistory
-            : [{ status: currentOrder.status, timestamp: currentOrder.createdAt, note: null }]
-          ).map((event, idx) => {
-            const isCurrent = idx === (currentOrder.statusHistory?.length ?? 1) - 1;
-
+        <div className="before:bg-border/60 relative space-y-4 pl-6 before:absolute before:top-2.5 before:bottom-2.5 before:left-2 before:w-[2px]">
+          {timelineSteps.map((step, idx) => {
             return (
               <div key={idx} className="relative flex flex-col gap-0.5">
-                <div
-                  className={cn(
-                    "border-card absolute top-0.5 -left-6 flex h-4 w-4 items-center justify-center rounded-full border-2",
-                    isCurrent
-                      ? "bg-primary text-primary-foreground ring-primary/40 ring-2"
-                      : "bg-muted text-muted-foreground",
+                {/* Step Icon */}
+                <div className="absolute top-0.5 -left-6 flex h-4 w-4 items-center justify-center">
+                  {step.state === "validated" && (
+                    <CheckCircle2 className="bg-card h-4 w-4 rounded-full text-emerald-600 dark:text-emerald-400" />
                   )}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {step.state === "ongoing" && (
+                    <CircleDot
+                      className={cn(
+                        "bg-card h-4 w-4 rounded-full",
+                        step.status === "NEW" && "text-info",
+                        step.status === "CONFIRMED" && "text-primary",
+                        step.status === "PREPARING" && "text-warning",
+                        step.status === "READY" && "text-emerald-600 dark:text-emerald-400",
+                        step.status === "COMPLETED" && "text-emerald-600 dark:text-emerald-400",
+                        step.status === "CANCELLED" && "text-destructive",
+                      )}
+                    />
+                  )}
+                  {step.state === "future" && (
+                    <CircleDot className="text-muted-foreground/30 bg-card h-4 w-4 rounded-full" />
+                  )}
                 </div>
 
-                <div className="flex items-baseline justify-between">
+                <div className="flex items-baseline justify-between gap-2">
                   <p
                     className={cn(
                       "text-xs font-bold",
-                      isCurrent ? "text-primary" : "text-foreground",
+                      step.state === "validated" && "text-foreground",
+                      step.state === "ongoing" && "text-primary",
+                      step.state === "future" && "text-muted-foreground/60 font-medium",
                     )}
                   >
-                    {event.status}
+                    <span>{step.label}</span>
+                    <span className="text-muted-foreground ml-1 text-[10px] font-semibold uppercase">
+                      ({step.status})
+                    </span>
                   </p>
-                  <span className="text-muted-foreground text-[11px] font-medium tabular-nums">
-                    {formatTime(event.timestamp)}
+                  <span
+                    className={cn(
+                      "shrink-0 text-[11px] tabular-nums",
+                      step.state === "future"
+                        ? "text-muted-foreground/50 italic"
+                        : "text-muted-foreground font-medium",
+                    )}
+                  >
+                    {step.timestampText}
                   </span>
                 </div>
-                {event.note && <p className="text-muted-foreground text-[11px]">{event.note}</p>}
+                {step.note && (
+                  <p
+                    className={cn(
+                      "text-[11px]",
+                      step.state === "future"
+                        ? "text-muted-foreground/50"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {step.note}
+                  </p>
+                )}
               </div>
             );
           })}

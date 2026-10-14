@@ -60,9 +60,18 @@ describe("ManualOrderForm Component", () => {
     expect(screen.getByText("Step 4: Order Summary")).toBeDefined();
 
     expect(screen.getByText("Burger Maison")).toBeDefined();
-    expect(screen.getByText("5 in stock")).toBeDefined();
+    expect(screen.getByText(/5 in stock/)).toBeDefined();
     expect(screen.getByText("Frites Maison")).toBeDefined();
     expect(screen.getByText("Out of stock")).toBeDefined();
+  });
+
+  it("opens order preview modal when clicking preview button", () => {
+    render(<ManualOrderForm products={mockProducts} />);
+    const previewBtn = screen.getByTestId("preview-order-button");
+    fireEvent.click(previewBtn);
+
+    expect(screen.getByTestId("order-preview-dialog")).toBeDefined();
+    expect(screen.getByText("Order Preview")).toBeDefined();
   });
 
   it("looks up existing guest on phone blur and auto-fills name", async () => {
