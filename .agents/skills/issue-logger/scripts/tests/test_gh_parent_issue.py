@@ -5,6 +5,7 @@ from unittest import mock
 from gh_parent_issue import (
     extract_issue_status,
     extract_parent_epic_number,
+    is_maintenance_epic,
     main,
     sync_parent_status,
 )
@@ -55,6 +56,16 @@ class GhParentIssueTest(unittest.TestCase):
         self.assertEqual(extract_issue_status(planned), "planned")
         self.assertEqual(extract_issue_status(in_progress), "in-progress")
         self.assertEqual(extract_issue_status(no_status), "unknown")
+
+    def test_is_maintenance_epic(self) -> None:
+        maintenance = make_issue(138, "type: epic", title="Epic: Maintenance")
+        maintenance_case = make_issue(138, "type: epic", title="epic: maintenance ")
+        other_epic = make_issue(14, "type: epic", title="Epic: Order management")
+
+        self.assertTrue(is_maintenance_epic(maintenance))
+        self.assertTrue(is_maintenance_epic(maintenance_case))
+        self.assertFalse(is_maintenance_epic(other_epic))
+
 
     def test_sync_parent_status_no_parent(self) -> None:
         story = make_issue(20, "type: story")
@@ -290,6 +301,33 @@ class GhParentIssueTest(unittest.TestCase):
         self.assertEqual(res["parent_status"], "completed")
         self.assertTrue(res["closed"])
 
+    def test_sync_parent_status_does_not_close_maintenance_epic(self) -> None:
+        bug = make_issue(50, "type: bug", parent=138)
+        maintenance = make_issue(
+            138,
+            "type: epic",
+            "status: in-progress",
+            title="Epic: Maintenance",
+            sub_issues_summary={"total": 3, "completed": 3, "percentCompleted": 100},
+            state="OPEN",
+        )
+        calls = []
+
+        def mock_runner(*args: str, **kwargs: object) -> str:
+            calls.append(args)
+            if args[1] == "view" and args[2] == "50":
+                return json.dumps(bug)
+            if args[1] == "view" and args[2] == "138":
+                return json.dumps(maintenance)
+            raise AssertionError(f"Unexpected call: {args}")
+
+        res = sync_parent_status(50, close_completed=True, runner=mock_runner)
+        self.assertEqual(res["parent_number"], 138)
+        self.assertEqual(res["parent_status"], "in-progress")
+        self.assertFalse(res["updated"])
+        self.assertFalse(res["closed"])
+        self.assertEqual(len(calls), 2)
+
     def test_sync_all_epics(self) -> None:
         epics = [
             make_issue(
@@ -312,6 +350,13 @@ class GhParentIssueTest(unittest.TestCase):
                 "status: planned",
                 title="Zero sub-issues Epic",
                 sub_issues_summary={"total": 0, "completed": 0},
+            ),
+            make_issue(
+                138,
+                "type: epic",
+                "status: in-progress",
+                title="Epic: Maintenance",
+                sub_issues_summary={"total": 5, "completed": 5},
             ),
         ]
         calls = []
