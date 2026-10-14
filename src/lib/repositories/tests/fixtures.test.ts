@@ -84,9 +84,10 @@ describe("Demo fixtures validity", () => {
       expect(statusesSeen.has(status)).toBe(true);
     }
 
-    // Must cover paid and unpaid
+    // Must cover paid, unpaid, and refunded
     expect(paidSeen.has("paid")).toBe(true);
     expect(paidSeen.has("unpaid")).toBe(true);
+    expect(paidSeen.has("refunded")).toBe(true);
 
     // Verify orders span over 50 days (approx 60 days)
     const dates = demoOrders.map((o) => new Date(o.requestedDate).getTime());

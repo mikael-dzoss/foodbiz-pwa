@@ -10,6 +10,8 @@ import {
   orderStatusEventSchema,
   manualOrderInputSchema,
   updateOrderStatusInputSchema,
+  recordRefundInputSchema,
+  paidStatusSchema,
   productCategorySchema,
   productSchema,
 } from "../index";
@@ -389,13 +391,59 @@ describe("Order and OrderItem schemas", () => {
     ).toBe(false);
   });
 
-  it("validates updateOrderStatusInputSchema", () => {
+  it("validates paidStatusSchema with paid, unpaid, and refunded", () => {
+    expect(paidStatusSchema.safeParse("paid").success).toBe(true);
+    expect(paidStatusSchema.safeParse("unpaid").success).toBe(true);
+    expect(paidStatusSchema.safeParse("refunded").success).toBe(true);
+    expect(paidStatusSchema.safeParse("partial").success).toBe(false);
+  });
+
+  it("validates Order with paid: 'refunded' and optional refundedAt", () => {
+    const refundedOrder = {
+      id: validUuid,
+      businessId: validUuid,
+      guestName: "Alice",
+      serviceType: "pickup" as const,
+      channel: "storefront" as const,
+      status: "CANCELLED" as const,
+      paid: "refunded" as const,
+      paymentPreference: "revolut" as const,
+      paymentMethod: "revolut" as const,
+      paidAt: isoNow,
+      refundedAt: isoNow,
+      requestedDate: "2026-10-10",
+      items: [
+        {
+          productId: validUuid,
+          productName: "Croissant",
+          quantity: 2,
+          unitPrice: 150,
+          totalPrice: 300,
+        },
+      ],
+      totalAmount: 300,
+      createdAt: isoNow,
+      updatedAt: isoNow,
+    };
+    expect(orderSchema.safeParse(refundedOrder).success).toBe(true);
+  });
+
+  it("validates recordRefundInputSchema", () => {
     const valid = {
       orderId: validUuid,
-      nextStatus: "READY" as const,
-      reason: null,
+      reason: "Customer cancelled prior to preparation",
     };
-    expect(updateOrderStatusInputSchema.safeParse(valid).success).toBe(true);
+    expect(recordRefundInputSchema.safeParse(valid).success).toBe(true);
+
+    const validNoReason = {
+      orderId: validUuid,
+    };
+    expect(recordRefundInputSchema.safeParse(validNoReason).success).toBe(true);
+
+    const invalidUuid = {
+      orderId: "invalid-id",
+    };
+    expect(recordRefundInputSchema.safeParse(invalidUuid).success).toBe(false);
   });
 });
 

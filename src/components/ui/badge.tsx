@@ -17,7 +17,8 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
     | "completed"
     | "cancelled"
     | "paid"
-    | "unpaid";
+    | "unpaid"
+    | "refunded";
   "data-testid"?: string;
 }
 
@@ -37,6 +38,7 @@ const badgeVariants: Record<NonNullable<BadgeProps["variant"]>, string> = {
   cancelled: "border border-destructive text-destructive bg-card",
   paid: "bg-primary-soft text-primary-soft-foreground",
   unpaid: "bg-warning-soft text-warning-soft-foreground",
+  refunded: "border border-border bg-muted text-muted-foreground font-medium",
 };
 
 export function Badge({

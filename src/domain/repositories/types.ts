@@ -59,6 +59,7 @@ export interface CreateOrderInput {
   readonly paymentPreference: Order["paymentPreference"];
   readonly paymentMethod?: Order["paymentMethod"];
   readonly paidAt?: string | null;
+  readonly refundedAt?: string | null;
   readonly requestedDate: string;
   readonly requestedTime?: string | null;
   readonly items: Order["items"];

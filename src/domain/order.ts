@@ -17,7 +17,7 @@ export const orderStatusSchema = z.enum([
 ]);
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 
-export const paidStatusSchema = z.enum(["paid", "unpaid"]);
+export const paidStatusSchema = z.enum(["paid", "unpaid", "refunded"]);
 export type PaidStatus = z.infer<typeof paidStatusSchema>;
 
 // Recommendation: While constrained strictly to 'pickup' and 'delivery' for current dark kitchen operations,
@@ -66,6 +66,7 @@ export const orderSchema = z.object({
   paymentPreference: paymentPreferenceSchema,
   paymentMethod: paymentMethodSchema.optional().nullable(),
   paidAt: isoDateTimeSchema.optional().nullable(),
+  refundedAt: isoDateTimeSchema.optional().nullable(),
   requestedDate: isoDateSchema,
   requestedTime: timeHHMMSchema.optional().nullable(),
   items: z.array(orderItemSchema).min(1),
@@ -108,3 +109,9 @@ export const updateOrderStatusInputSchema = z.object({
   reason: z.string().trim().optional().nullable(),
 });
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusInputSchema>;
+
+export const recordRefundInputSchema = z.object({
+  orderId: uuidSchema,
+  reason: z.string().trim().optional().nullable(),
+});
+export type RecordRefundInput = z.infer<typeof recordRefundInputSchema>;

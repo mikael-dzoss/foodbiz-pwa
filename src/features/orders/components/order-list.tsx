@@ -85,7 +85,7 @@ function getNextAction(order: EnrichedOrder): NextActionStep | null {
     case "READY":
       return {
         status: "COMPLETED",
-        label: order.paid === "unpaid" ? "Pay & Complete" : "Complete order",
+        label: order.paid !== "paid" ? "Pay & Complete" : "Complete order",
         icon: Check,
         buttonClass: commonButtonClass,
       };
@@ -218,7 +218,7 @@ export function OrderList({ initialData }: OrderListProps) {
     const next = getNextAction(order);
     if (!next) return;
 
-    if (next.status === "COMPLETED" && order.paid === "unpaid") {
+    if (next.status === "COMPLETED" && order.paid !== "paid") {
       router.push(`/manage/orders/${order.id}`);
       return;
     }
@@ -554,10 +554,27 @@ export function OrderList({ initialData }: OrderListProps) {
                     <span className="text-foreground text-sm font-bold tabular-nums">
                       {formatMoney(order.totalAmount)}
                     </span>
-                    {order.paid === "paid" ? (
+                    {order.status === "CANCELLED" && order.paid === "paid" ? (
+                      <Badge
+                        variant="warning"
+                        className="gap-0.5 px-1.5 py-0 text-[10px] font-bold"
+                        data-testid="refund-due-badge"
+                      >
+                        <AlertCircle className="h-2.5 w-2.5" />
+                        Refund Due
+                      </Badge>
+                    ) : order.paid === "paid" ? (
                       <Badge variant="paid" className="gap-0.5 px-1.5 py-0 text-[10px]">
                         <CheckCircle2 className="h-2.5 w-2.5" />
                         Paid
+                      </Badge>
+                    ) : order.paid === "refunded" ? (
+                      <Badge
+                        variant="refunded"
+                        className="gap-0.5 px-1.5 py-0 text-[10px]"
+                        data-testid="refunded-badge"
+                      >
+                        Refunded
                       </Badge>
                     ) : (
                       <Badge variant="unpaid" className="gap-0.5 px-1.5 py-0 text-[10px]">

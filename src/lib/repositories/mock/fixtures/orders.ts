@@ -39,10 +39,16 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     idx < 30 ? (idx % 7 === 4 ? "CANCELLED" : "COMPLETED") : STATUSES[idx % STATUSES.length];
   const isCompleted = status === "COMPLETED";
   const isCancelled = status === "CANCELLED";
-  const paid: "paid" | "unpaid" = isCompleted
-    ? "paid"
-    : isCancelled
-      ? "unpaid"
+  const paid: "paid" | "unpaid" | "refunded" = isCancelled
+    ? idx % 3 === 0
+      ? "paid"
+      : idx % 3 === 1
+        ? "refunded"
+        : "unpaid"
+    : isCompleted
+      ? idx === 6
+        ? "refunded"
+        : "paid"
       : idx % 2 === 1
         ? "unpaid"
         : "paid";
@@ -51,7 +57,11 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
   const channel = CHANNELS[idx % CHANNELS.length];
   const paymentPreference = PREFERENCES[idx % PREFERENCES.length];
   const paymentMethod =
-    paid === "paid" ? (paymentPreference === "on_handover" ? "cash" : paymentPreference) : null;
+    paid === "paid" || paid === "refunded"
+      ? paymentPreference === "on_handover"
+        ? "cash"
+        : paymentPreference
+      : null;
 
   const orderMs = BASE_TIMESTAMP - dayOffset * 86_400_000;
   const orderDate = new Date(orderMs);
@@ -97,7 +107,7 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     if (status === "READY") return [baseNew, baseConfirmed, basePreparing, baseReady];
 
     if (status === "COMPLETED") {
-      return [
+      const completedEvents = [
         baseNew,
         baseConfirmed,
         basePreparing,
@@ -108,10 +118,22 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
           note: "Order handed over to customer",
         },
       ];
+      if (paid === "refunded") {
+        completedEvents.push({
+          status: "COMPLETED" as const,
+          timestamp: toIso(t0 + 60 * 60_000),
+          note: "Post-delivery refund issued for dispute",
+        });
+      }
+      return completedEvents;
     }
 
     // CANCELLED
-    return [
+    const cancelledEvents: {
+      status: "NEW" | "CANCELLED";
+      timestamp: string;
+      note: string | null;
+    }[] = [
       baseNew,
       {
         status: "CANCELLED" as const,
@@ -119,6 +141,14 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
         note: "Customer requested cancellation",
       },
     ];
+    if (paid === "refunded") {
+      cancelledEvents.push({
+        status: "CANCELLED" as const,
+        timestamp: toIso(t0 + 15 * 60_000),
+        note: "Refund issued to customer",
+      });
+    }
+    return cancelledEvents;
   })();
 
   const p1 = demoProducts[idx % demoProducts.length];
@@ -154,7 +184,10 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     paid,
     paymentPreference,
     paymentMethod,
-    paidAt: paid === "paid" ? toIso(isCompleted ? t0 + 45 * 60_000 : t0) : null,
+    paidAt:
+      paid === "paid" || paid === "refunded" ? toIso(isCompleted ? t0 + 45 * 60_000 : t0) : null,
+    refundedAt:
+      paid === "refunded" ? toIso(isCompleted ? t0 + 60 * 60_000 : t0 + 15 * 60_000) : null,
     requestedDate,
     requestedTime,
     items,

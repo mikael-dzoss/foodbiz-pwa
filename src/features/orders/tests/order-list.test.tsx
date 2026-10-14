@@ -19,10 +19,10 @@ const mockInitialData: ListOrdersResult = {
   counts: {
     active: 2,
     completed: 1,
-    cancelled: 1,
-    total: 4,
+    cancelled: 3,
+    total: 6,
     unpaid: 2,
-    pickup: 2,
+    pickup: 4,
     delivery: 2,
   },
   orders: [
@@ -153,6 +153,57 @@ const mockInitialData: ListOrdersResult = {
       createdAt: "2026-10-12T18:00:00.000Z",
       updatedAt: "2026-10-12T18:30:00.000Z",
     },
+    {
+      id: "ord-5",
+      businessId: "biz-1",
+      orderNumber: 38,
+      guestId: "g-5",
+      guestName: "Emma Stone",
+      guestPhone: "+33611112222",
+      serviceType: "pickup",
+      channel: "storefront",
+      status: "CANCELLED",
+      paid: "paid",
+      paymentPreference: "revolut",
+      paymentMethod: "revolut",
+      paidAt: "2026-10-12T17:00:00.000Z",
+      requestedDate: "2026-10-12",
+      requestedTime: null,
+      items: [],
+      totalAmount: 1200,
+      trackingToken: "tk-38",
+      cancellationReason: "Kitchen issue",
+      notes: null,
+      deliveryAddress: null,
+      createdAt: "2026-10-12T17:00:00.000Z",
+      updatedAt: "2026-10-12T17:15:00.000Z",
+    },
+    {
+      id: "ord-6",
+      businessId: "biz-1",
+      orderNumber: 37,
+      guestId: "g-6",
+      guestName: "Arthur Dent",
+      guestPhone: "+33633334444",
+      serviceType: "pickup",
+      channel: "whatsapp",
+      status: "CANCELLED",
+      paid: "refunded",
+      paymentPreference: "wero",
+      paymentMethod: "wero",
+      paidAt: "2026-10-12T16:00:00.000Z",
+      refundedAt: "2026-10-12T16:30:00.000Z",
+      requestedDate: "2026-10-12",
+      requestedTime: null,
+      items: [],
+      totalAmount: 800,
+      trackingToken: "tk-37",
+      cancellationReason: "Out of stock item",
+      notes: null,
+      deliveryAddress: null,
+      createdAt: "2026-10-12T16:00:00.000Z",
+      updatedAt: "2026-10-12T16:30:00.000Z",
+    },
   ],
 };
 
@@ -164,7 +215,7 @@ describe("OrderList Component", () => {
     expect(screen.getByTestId("tab-completed").textContent).toContain("Completed");
     expect(screen.getByTestId("tab-completed").textContent).toContain("1");
     expect(screen.getByTestId("tab-cancelled").textContent).toContain("Cancelled");
-    expect(screen.getByTestId("tab-cancelled").textContent).toContain("1");
+    expect(screen.getByTestId("tab-cancelled").textContent).toContain("3");
   });
 
   it("shows active orders by default and highlights NEW orders", () => {
@@ -191,11 +242,23 @@ describe("OrderList Component", () => {
     expect(screen.queryByTestId("order-card-ord-1")).toBeNull();
   });
 
-  it("switches to cancelled tab and displays cancelled orders", () => {
+  it("switches to cancelled tab and displays cancelled orders with refund due and refunded badges", () => {
     render(<OrderList initialData={mockInitialData} />);
     fireEvent.click(screen.getByTestId("tab-cancelled"));
 
     expect(screen.getByTestId("order-card-ord-4")).toBeDefined();
+    expect(screen.getByTestId("order-card-ord-5")).toBeDefined();
+    expect(screen.getByTestId("order-card-ord-6")).toBeDefined();
+
+    // ord-5 is CANCELLED and paid -> shows Refund Due
+    expect(screen.getByTestId("order-card-ord-5").textContent).toContain("Refund Due");
+
+    // ord-6 is CANCELLED and refunded -> shows Refunded
+    expect(screen.getByTestId("order-card-ord-6").textContent).toContain("Refunded");
+
+    // ord-4 is CANCELLED and unpaid -> shows Unpaid
+    expect(screen.getByTestId("order-card-ord-4").textContent).toContain("Unpaid");
+
     expect(screen.queryByTestId("order-card-ord-1")).toBeNull();
   });
 
