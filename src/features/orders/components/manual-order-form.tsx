@@ -15,7 +15,6 @@ import {
   Truck,
   MessageSquare,
   Store,
-  Eye,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,8 +114,29 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     return list;
   }, [products, productSearch]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOpenPreview = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (selectedItems.length === 0) {
+      setErrorMessage("Please select at least one product with a quantity.");
+      return;
+    }
+
+    if (!guestName.trim()) {
+      setErrorMessage("Please provide guest name.");
+      return;
+    }
+
+    if (!guestPhone.trim()) {
+      setErrorMessage("Please provide guest phone number.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setPreviewOpen(true);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     if (selectedItems.length === 0) {
       setErrorMessage("Please select at least one product with a quantity.");
       return;
@@ -156,6 +176,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     setIsSubmitting(false);
 
     if (res.success) {
+      setPreviewOpen(false);
       router.push(`/manage/orders/${res.data.id}`);
     } else {
       setErrorMessage(res.error);
@@ -174,7 +195,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={handleOpenPreview}
       className="flex flex-col gap-3.5 pb-36"
       data-testid="manual-order-form"
     >
@@ -196,18 +217,17 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
           </span>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setPreviewOpen(true)}
-          aria-label="Preview order"
-          className="border-border bg-card text-foreground hover:bg-muted flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold"
-          data-testid="preview-order-button"
-        >
-          <Eye className="h-3.5 w-3.5" />
-          <span>Preview</span>
-        </Button>
+        <Link href="/manage/orders">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-border bg-card text-foreground hover:bg-muted h-8 rounded-lg px-3 text-xs font-semibold"
+            data-testid="cancel-header-button"
+          >
+            Cancel
+          </Button>
+        </Link>
       </header>
 
       {errorMessage && (
@@ -549,7 +569,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
         />
 
         {/* Product List */}
-        <div className="divide-border/60 divide-y">
+        <div className="space-y-1.5">
           {displayedProducts.map((product) => {
             const currentQty = quantities[product.id] ?? 0;
             const isOutOfStock = product.stock <= 0;
@@ -557,16 +577,16 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
             return (
               <div
                 key={product.id}
-                className="flex items-center justify-between gap-3 py-2.5"
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-lg border p-2.5 transition-all",
+                  currentQty > 0
+                    ? "bg-primary-soft/50 border-primary/30"
+                    : "border-border/60 bg-card hover:bg-muted/30",
+                )}
                 data-testid={`product-row-${product.id}`}
               >
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span
-                    className={cn(
-                      "truncate text-sm font-semibold transition-colors",
-                      currentQty > 0 ? "text-primary font-bold" : "text-foreground",
-                    )}
-                  >
+                  <span className="text-foreground truncate text-sm font-semibold">
                     {product.name}
                   </span>
                   <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
@@ -620,16 +640,15 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
         </div>
 
         <Button
-          type="submit"
+          type="button"
+          onClick={handleOpenPreview}
           disabled={isSubmitting || totalItemCount === 0}
           className="bg-primary text-primary-foreground min-h-11 rounded-lg px-5 text-xs font-semibold shadow-none active:scale-95"
           data-testid="create-order-submit-button"
         >
-          {isSubmitting
-            ? "Creating order..."
-            : totalAmount > 0
-              ? `Create order (${formatMoney(totalAmount)})`
-              : "Create order (CONFIRMED)"}
+          {totalAmount > 0
+            ? `Preview & Create order (${formatMoney(totalAmount)})`
+            : "Preview & Create order"}
         </Button>
       </div>
 
@@ -718,7 +737,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setPreviewOpen(false)}>
-              Close
+              Back to edit
             </Button>
             <Button
               type="button"
@@ -726,12 +745,12 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
                 isSubmitting || totalItemCount === 0 || !guestName.trim() || !guestPhone.trim()
               }
               onClick={(e) => {
-                setPreviewOpen(false);
                 handleSubmit(e);
               }}
               className="bg-primary text-primary-foreground font-semibold"
+              data-testid="confirm-create-order-button"
             >
-              Confirm &amp; Create
+              {isSubmitting ? "Creating order..." : "Confirm & Create order"}
             </Button>
           </DialogFooter>
         </DialogContent>

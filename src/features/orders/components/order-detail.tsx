@@ -72,6 +72,21 @@ function getNextStep(status: string): NextStepConfig | null {
   }
 }
 
+function formatRequestedDateTime(requestedDate?: string | null, requestedTime?: string | null) {
+  if (!requestedDate) {
+    return requestedTime ? `Today at ${requestedTime}` : "ASAP";
+  }
+
+  const [y, m, d] = requestedDate.split("-").map(Number);
+  const dateObj = y && m && d ? new Date(y, m - 1, d) : new Date(requestedDate);
+  const formattedDate = formatDate(dateObj, "en", "medium");
+
+  if (requestedTime) {
+    return `${formattedDate} at ${requestedTime}`;
+  }
+  return `${formattedDate} (ASAP)`;
+}
+
 export function OrderDetail({ order }: OrderDetailProps) {
   const router = useRouter();
   const [currentOrder, setCurrentOrder] = React.useState<EnrichedOrder>(order);
@@ -389,10 +404,10 @@ export function OrderDetail({ order }: OrderDetailProps) {
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
                 <Clock className="h-3.5 w-3.5" />
-                <span>Requested time</span>
+                <span>Deadline</span>
               </span>
               <span className="text-foreground font-bold tabular-nums">
-                {currentOrder.requestedTime ? currentOrder.requestedTime : "ASAP"}
+                {formatRequestedDateTime(currentOrder.requestedDate, currentOrder.requestedTime)}
               </span>
             </div>
 
@@ -585,12 +600,9 @@ export function OrderDetail({ order }: OrderDetailProps) {
                     <CircleDot
                       className={cn(
                         "bg-card h-4 w-4 rounded-full",
-                        step.status === "NEW" && "text-info",
-                        step.status === "CONFIRMED" && "text-primary",
-                        step.status === "PREPARING" && "text-warning",
-                        step.status === "READY" && "text-emerald-600 dark:text-emerald-400",
-                        step.status === "COMPLETED" && "text-emerald-600 dark:text-emerald-400",
-                        step.status === "CANCELLED" && "text-destructive",
+                        step.status === "CANCELLED"
+                          ? "text-destructive"
+                          : "text-warning-soft-foreground",
                       )}
                     />
                   )}
@@ -604,21 +616,35 @@ export function OrderDetail({ order }: OrderDetailProps) {
                     className={cn(
                       "text-xs font-bold",
                       step.state === "validated" && "text-foreground",
-                      step.state === "ongoing" && "text-primary",
+                      step.state === "ongoing" &&
+                        (step.status === "CANCELLED"
+                          ? "text-destructive"
+                          : "text-warning-soft-foreground"),
                       step.state === "future" && "text-muted-foreground/60 font-medium",
                     )}
                   >
                     <span>{step.label}</span>
-                    <span className="text-muted-foreground ml-1 text-[10px] font-semibold uppercase">
+                    <span
+                      className={cn(
+                        "ml-1 text-[10px] font-semibold uppercase",
+                        step.state === "ongoing" && step.status !== "CANCELLED"
+                          ? "text-warning-soft-foreground/80"
+                          : "text-muted-foreground",
+                      )}
+                    >
                       ({step.status})
                     </span>
                   </p>
                   <span
                     className={cn(
                       "shrink-0 text-[11px] tabular-nums",
-                      step.state === "future"
-                        ? "text-muted-foreground/50 italic"
-                        : "text-muted-foreground font-medium",
+                      step.state === "ongoing"
+                        ? step.status === "CANCELLED"
+                          ? "text-destructive font-bold"
+                          : "text-warning-soft-foreground font-bold"
+                        : step.state === "future"
+                          ? "text-muted-foreground/50 italic"
+                          : "text-muted-foreground font-medium",
                     )}
                   >
                     {step.timestampText}

@@ -11,10 +11,12 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  ChevronRight,
+  Eye,
   ChefHat,
   PackageCheck,
   Check,
+  Store,
+  MapPin,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -55,37 +57,37 @@ interface NextActionStep {
 }
 
 function getNextAction(order: EnrichedOrder): NextActionStep | null {
+  const commonButtonClass =
+    "border border-primary/30 bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80";
+
   switch (order.status) {
     case "NEW":
       return {
         status: "CONFIRMED",
         label: "Confirm",
         icon: CheckCircle2,
-        buttonClass: "bg-primary text-primary-foreground hover:bg-primary/90",
+        buttonClass: commonButtonClass,
       };
     case "CONFIRMED":
       return {
         status: "PREPARING",
         label: "Start preparing",
         icon: ChefHat,
-        buttonClass: "bg-secondary text-secondary-foreground hover:bg-secondary/90",
+        buttonClass: commonButtonClass,
       };
     case "PREPARING":
       return {
         status: "READY",
         label: "Mark ready",
         icon: PackageCheck,
-        buttonClass: "bg-emerald-600 text-white hover:bg-emerald-700",
+        buttonClass: commonButtonClass,
       };
     case "READY":
       return {
         status: "COMPLETED",
         label: order.paid === "unpaid" ? "Pay & Complete" : "Complete order",
         icon: Check,
-        buttonClass:
-          order.paid === "unpaid"
-            ? "bg-warning-soft text-warning-soft-foreground border border-warning/40 hover:bg-warning-soft/80"
-            : "bg-primary text-primary-foreground hover:bg-primary/90",
+        buttonClass: commonButtonClass,
       };
     default:
       return null;
@@ -473,8 +475,8 @@ export function OrderList({ initialData }: OrderListProps) {
                     </Badge>
                   </div>
 
-                  <div className="text-foreground bg-muted flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold">
-                    <Clock className="text-muted-foreground h-3 w-3" />
+                  <div className="text-foreground flex items-center gap-1 text-xs font-semibold">
+                    <Clock className="text-muted-foreground h-3.5 w-3.5" />
                     <span className="tabular-nums">
                       {order.requestedTime
                         ? `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} at ${order.requestedTime}`
@@ -493,35 +495,47 @@ export function OrderList({ initialData }: OrderListProps) {
                   </div>
                 </div>
 
-                {/* Guest & Contact row with dedicated Chevron button */}
+                {/* Guest & Contact row with dedicated Eye button */}
                 <div className="flex items-center justify-between gap-2 pt-0.5">
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-foreground truncate text-sm font-semibold">
-                      {order.guestName}
-                    </span>
-                    <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                      {order.guestPhone && (
-                        <span className="shrink-0 tabular-nums">{order.guestPhone}</span>
-                      )}
-                      {order.guestPhone && (
-                        <span className="bg-border inline-block h-1 w-1 shrink-0 rounded-full" />
-                      )}
-                      <span className="truncate">
-                        {order.serviceType === "delivery"
-                          ? (order.deliveryAddress ?? "Delivery address pending")
-                          : "Store Pickup"}
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="text-foreground truncate text-sm font-semibold">
+                        {order.guestName}
                       </span>
+                      {order.guestPhone && (
+                        <>
+                          <span className="text-muted-foreground/60 text-xs">•</span>
+                          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                            {order.guestPhone}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
+                      {order.serviceType === "delivery" ? (
+                        <>
+                          <MapPin className="text-muted-foreground h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {order.deliveryAddress ?? "Delivery address pending"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Store className="text-muted-foreground h-3 w-3 shrink-0" />
+                          <span className="truncate">Store Pickup</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* Dedicated Chevron button mapping to details view */}
+                  {/* Dedicated Eye button mapping to details view */}
                   <Link
                     href={`/manage/orders/${order.id}`}
                     aria-label={`View order details for #${order.orderNumber}`}
                     className="bg-muted hover:bg-border text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95"
                     data-testid={`view-order-${order.id}`}
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <Eye className="h-4 w-4" />
                   </Link>
                 </div>
 
@@ -558,6 +572,7 @@ export function OrderList({ initialData }: OrderListProps) {
                     <Button
                       type="button"
                       size="sm"
+                      variant="outline"
                       onClick={(e) => handleQuickProgress(e, order)}
                       disabled={transitioningId === order.id}
                       className={cn(
