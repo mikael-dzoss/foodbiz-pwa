@@ -3,6 +3,13 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { OrderList } from "../components/order-list";
 import type { ListOrdersResult } from "../order-actions";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -15,6 +22,8 @@ const mockInitialData: ListOrdersResult = {
     cancelled: 1,
     total: 4,
     unpaid: 2,
+    pickup: 2,
+    delivery: 2,
   },
   orders: [
     {
@@ -92,7 +101,7 @@ const mockInitialData: ListOrdersResult = {
       guestId: "g-3",
       guestName: "Marc Leroy",
       guestPhone: null,
-      serviceType: "dine-in",
+      serviceType: "delivery",
       channel: "in-person",
       status: "COMPLETED",
       paid: "paid",

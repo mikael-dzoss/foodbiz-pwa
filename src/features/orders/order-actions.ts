@@ -36,6 +36,8 @@ export interface ListOrdersResult {
     cancelled: number;
     total: number;
     unpaid: number;
+    pickup: number;
+    delivery: number;
   };
 }
 
@@ -84,17 +86,21 @@ export async function listOrdersAction(
     const completedCount = enrichedOrders.filter((o) => o.status === "COMPLETED").length;
     const cancelledCount = enrichedOrders.filter((o) => o.status === "CANCELLED").length;
     const unpaidCount = enrichedOrders.filter((o) => o.paid === "unpaid").length;
+    const pickupCount = enrichedOrders.filter((o) => o.serviceType === "pickup").length;
+    const deliveryCount = enrichedOrders.filter((o) => o.serviceType === "delivery").length;
 
     let filtered = enrichedOrders;
 
-    // Filter by tab: active | completed | cancelled
+    // Filter by tab: active (default) | completed | cancelled | all
     const tab = filter?.statusTab ?? "active";
-    if (tab === "active") {
-      filtered = filtered.filter((o) => ACTIVE_STATUSES.includes(o.status));
-    } else if (tab === "completed") {
-      filtered = filtered.filter((o) => o.status === "COMPLETED");
-    } else if (tab === "cancelled") {
-      filtered = filtered.filter((o) => o.status === "CANCELLED");
+    if (tab !== "all") {
+      if (tab === "active") {
+        filtered = filtered.filter((o) => ACTIVE_STATUSES.includes(o.status));
+      } else if (tab === "completed") {
+        filtered = filtered.filter((o) => o.status === "COMPLETED");
+      } else if (tab === "cancelled") {
+        filtered = filtered.filter((o) => o.status === "CANCELLED");
+      }
     }
 
     // Filter by unpaid only
@@ -167,6 +173,8 @@ export async function listOrdersAction(
           cancelled: cancelledCount,
           total: enrichedOrders.length,
           unpaid: unpaidCount,
+          pickup: pickupCount,
+          delivery: deliveryCount,
         },
       },
     };

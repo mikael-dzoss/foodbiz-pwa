@@ -2,22 +2,32 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Plus,
   Clock,
-  Phone,
   ShoppingBag,
   CheckCircle2,
   AlertCircle,
   X,
+  Eye,
+  ChefHat,
+  PackageCheck,
+  Check,
+  Store,
+  MapPin,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { formatMoney } from "@/domain";
-import type { ListOrdersResult } from "../order-actions";
+import { formatMoney, type OrderStatus } from "@/domain";
+import {
+  type ListOrdersResult,
+  type EnrichedOrder,
+  progressOrderStatusAction,
+} from "../order-actions";
 import { cn } from "@/lib/utils";
 
 export interface OrderListProps {
@@ -39,15 +49,127 @@ const STATUS_BADGE_MAP: Record<string, NonNullable<BadgeProps["variant"]>> = {
   CANCELLED: "cancelled",
 };
 
+interface NextActionStep {
+  status: "CONFIRMED" | "PREPARING" | "READY" | "COMPLETED";
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  buttonClass: string;
+}
+
+function getNextAction(order: EnrichedOrder): NextActionStep | null {
+  const commonButtonClass =
+    "border border-primary/30 bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80";
+
+  switch (order.status) {
+    case "NEW":
+      return {
+        status: "CONFIRMED",
+        label: "Confirm",
+        icon: CheckCircle2,
+        buttonClass: commonButtonClass,
+      };
+    case "CONFIRMED":
+      return {
+        status: "PREPARING",
+        label: "Start preparing",
+        icon: ChefHat,
+        buttonClass: commonButtonClass,
+      };
+    case "PREPARING":
+      return {
+        status: "READY",
+        label: "Mark ready",
+        icon: PackageCheck,
+        buttonClass: commonButtonClass,
+      };
+    case "READY":
+      return {
+        status: "COMPLETED",
+        label: order.paid === "unpaid" ? "Pay & Complete" : "Complete order",
+        icon: Check,
+        buttonClass: commonButtonClass,
+      };
+    default:
+      return null;
+  }
+}
+
+function getDueTimeDiff(requestedDate?: string | null, requestedTime?: string | null) {
+  if (!requestedDate) return null;
+  const now = new Date();
+  const [y, m, d] = requestedDate.split("-").map(Number);
+  if (!y || !m || !d) return null;
+
+  const dueDate = new Date(y, m - 1, d);
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diffDays = Math.round((dueDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays > 0) {
+    return { text: `(+${diffDays}d)`, isOverdue: false };
+  } else if (diffDays === 0) {
+    if (requestedTime) {
+      const [dueH, dueM] = requestedTime.split(":").map(Number);
+      const currentH = now.getHours();
+      const currentM = now.getMinutes();
+      if (dueH < currentH || (dueH === currentH && dueM < currentM)) {
+        return { text: "(-overdue)", isOverdue: true };
+      }
+    }
+    return null;
+  } else {
+    return { text: `(${diffDays}d)`, isOverdue: true };
+  }
+}
+
 export function OrderList({ initialData }: OrderListProps) {
+  const router = useRouter();
+  const [localStatusUpdates, setLocalStatusUpdates] = React.useState<Record<string, OrderStatus>>(
+    {},
+  );
   const [activeTab, setActiveTab] = React.useState<"active" | "completed" | "cancelled">("active");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [unpaidOnly, setUnpaidOnly] = React.useState(false);
-  const [selectedServiceType, setSelectedServiceType] = React.useState<string>("all");
+  const [selectedServiceType, setSelectedServiceType] = React.useState<
+    "all" | "pickup" | "delivery"
+  >("all");
+  const [transitioningId, setTransitioningId] = React.useState<string | null>(null);
 
-  const orders = initialData.orders;
+  // Derive orders with any local quick transitions
+  const orders = React.useMemo(() => {
+    return initialData.orders.map((o) => {
+      const updated = localStatusUpdates[o.id];
+      return updated ? { ...o, status: updated } : o;
+    });
+  }, [initialData.orders, localStatusUpdates]);
 
-  // Filter client-side for immediate responsiveness
+  // Orders belonging to the currently selected lifecycle tab
+  const currentTabOrders = React.useMemo(() => {
+    return orders.filter((o) => {
+      if (activeTab === "active") {
+        return ["NEW", "CONFIRMED", "PREPARING", "READY"].includes(o.status);
+      } else if (activeTab === "completed") {
+        return o.status === "COMPLETED";
+      } else {
+        return o.status === "CANCELLED";
+      }
+    });
+  }, [orders, activeTab]);
+
+  // Dynamic live counts: tab totals for segmented header, sub-counts scoped to current tab
+  const liveCounts = React.useMemo(() => {
+    return {
+      active: orders.filter((o) => ["NEW", "CONFIRMED", "PREPARING", "READY"].includes(o.status))
+        .length,
+      completed: orders.filter((o) => o.status === "COMPLETED").length,
+      cancelled: orders.filter((o) => o.status === "CANCELLED").length,
+      unpaid: currentTabOrders.filter((o) => o.paid === "unpaid").length,
+      pickup: currentTabOrders.filter((o) => o.serviceType === "pickup").length,
+      delivery: currentTabOrders.filter((o) => o.serviceType === "delivery").length,
+    };
+  }, [orders, currentTabOrders]);
+
+  // Reactive client-side filtering for immediate responsiveness
   const filteredOrders = React.useMemo(() => {
     return orders.filter((order) => {
       // 1. Tab filter
@@ -64,7 +186,7 @@ export function OrderList({ initialData }: OrderListProps) {
         return false;
       }
 
-      // 3. Service type filter
+      // 3. Service type filter (only pickup and delivery supported)
       if (selectedServiceType !== "all" && order.serviceType !== selectedServiceType) {
         return false;
       }
@@ -89,34 +211,66 @@ export function OrderList({ initialData }: OrderListProps) {
     });
   }, [orders, activeTab, unpaidOnly, selectedServiceType, searchQuery]);
 
-  // Counts based on initial data
-  const counts = initialData.counts;
+  const handleQuickProgress = async (e: React.MouseEvent, order: EnrichedOrder) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const next = getNextAction(order);
+    if (!next) return;
+
+    if (next.status === "COMPLETED" && order.paid === "unpaid") {
+      router.push(`/manage/orders/${order.id}`);
+      return;
+    }
+
+    setTransitioningId(order.id);
+    try {
+      const res = await progressOrderStatusAction({
+        orderId: order.id,
+        nextStatus: next.status,
+      });
+
+      if (res.success) {
+        setLocalStatusUpdates((prev) => ({
+          ...prev,
+          [order.id]: next.status,
+        }));
+      }
+    } finally {
+      setTransitioningId(null);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-4 pb-24" data-testid="orders-list-screen">
-      {/* Top Header */}
+    <div className="flex flex-col gap-3.5 pb-24" data-testid="orders-list-screen">
+      {/* Top Header: Matching Stitch M-20 */}
       <div className="flex items-center justify-between pt-1">
-        <div>
-          <h1 className="text-display-sm text-foreground font-bold">Orders</h1>
-          <p className="text-body-sm text-muted-foreground">
-            Manage incoming orders and delivery fulfillment
-          </p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-foreground text-xl font-bold tracking-tight">Orders</h1>
+          {/* POS Live Status Beacon */}
+          <div className="bg-primary-soft text-primary-soft-foreground flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium">
+            <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
+            POS Live
+          </div>
         </div>
+
+        {/* Single-line New Order action button */}
         <Link href="/manage/orders/new">
           <Button
             type="button"
-            className="bg-primary text-primary-foreground min-h-11 shadow-sm"
+            size="sm"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 gap-1 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shadow-none"
             data-testid="create-order-button"
           >
-            <Plus className="mr-1.5 h-4 w-4 stroke-[2.5]" />
-            New order
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            <span>New order</span>
           </Button>
         </Link>
       </div>
 
-      {/* Segmented Status Tabs */}
+      {/* Segmented Status Tabs (3 columns matching Stitch M-20) */}
       <div
-        className="border-border bg-muted/60 grid grid-cols-3 rounded-xl border p-1"
+        className="bg-muted/80 grid grid-cols-3 gap-1 rounded-xl p-1 text-center text-xs"
         role="tablist"
         aria-label="Order Status Tabs"
       >
@@ -126,23 +280,16 @@ export function OrderList({ initialData }: OrderListProps) {
           aria-selected={activeTab === "active"}
           onClick={() => setActiveTab("active")}
           className={cn(
-            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all",
+            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
             activeTab === "active"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-primary-soft text-primary-soft-foreground font-bold shadow-xs"
+              : "text-muted-foreground hover:text-foreground font-medium",
           )}
           data-testid="tab-active"
         >
           <span>Active</span>
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs",
-              activeTab === "active"
-                ? "bg-primary-soft text-primary-soft-foreground"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {counts.active}
+          <span className="py-0.2 bg-card text-primary-soft-foreground inline-flex items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums">
+            {liveCounts.active}
           </span>
         </button>
 
@@ -152,23 +299,16 @@ export function OrderList({ initialData }: OrderListProps) {
           aria-selected={activeTab === "completed"}
           onClick={() => setActiveTab("completed")}
           className={cn(
-            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all",
+            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
             activeTab === "completed"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-card text-foreground font-semibold shadow-xs"
+              : "text-muted-foreground hover:text-foreground font-medium",
           )}
           data-testid="tab-completed"
         >
           <span>Completed</span>
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs",
-              activeTab === "completed"
-                ? "bg-primary-soft text-primary-soft-foreground"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {counts.completed}
+          <span className="text-muted-foreground text-[10px] tabular-nums">
+            ({liveCounts.completed})
           </span>
         </button>
 
@@ -178,37 +318,30 @@ export function OrderList({ initialData }: OrderListProps) {
           aria-selected={activeTab === "cancelled"}
           onClick={() => setActiveTab("cancelled")}
           className={cn(
-            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all",
+            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
             activeTab === "cancelled"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-card text-foreground font-semibold shadow-xs"
+              : "text-muted-foreground hover:text-foreground font-medium",
           )}
           data-testid="tab-cancelled"
         >
           <span>Cancelled</span>
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs",
-              activeTab === "cancelled"
-                ? "bg-muted text-foreground"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {counts.cancelled}
+          <span className="text-muted-foreground text-[10px] tabular-nums">
+            ({liveCounts.cancelled})
           </span>
         </button>
       </div>
 
-      {/* Search Input & Quick Filters */}
-      <div className="flex flex-col gap-2.5">
+      {/* Search & Filters Section */}
+      <div className="flex flex-col gap-2">
         <div className="relative">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
           <Input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, phone, or order reference..."
-            className="border-input bg-card h-12 pr-10 pl-10 text-base"
+            placeholder="Search guest name, phone, or order #..."
+            className="border-input bg-card h-11 rounded-xl pr-9 pl-10 text-xs"
             data-testid="order-search-input"
           />
           {searchQuery && (
@@ -223,76 +356,66 @@ export function OrderList({ initialData }: OrderListProps) {
           )}
         </div>
 
-        {/* Filter Chips Horizontal Row */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Filter Chips Horizontal Row (Only All, Unpaid, Pickup, Delivery) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+          <Button
+            type="button"
+            size="sm"
+            variant={selectedServiceType === "all" && !unpaidOnly ? "default" : "outline"}
+            onClick={() => {
+              setSelectedServiceType("all");
+              setUnpaidOnly(false);
+            }}
+            className="h-8 rounded-full px-3 text-xs font-semibold whitespace-nowrap"
+            data-testid="filter-service-all"
+          >
+            All
+          </Button>
+
           <Button
             type="button"
             size="sm"
             variant={unpaidOnly ? "default" : "outline"}
             onClick={() => setUnpaidOnly(!unpaidOnly)}
             className={cn(
-              "min-h-9 rounded-full text-xs font-semibold",
-              unpaidOnly && "bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/90",
+              "flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap",
+              unpaidOnly && "bg-destructive text-destructive-foreground",
             )}
             data-testid="filter-unpaid"
           >
-            <AlertCircle className="mr-1 h-3.5 w-3.5" />
-            Unpaid only ({counts.unpaid})
+            <span className="bg-destructive h-1.5 w-1.5 rounded-full" />
+            Unpaid only ({liveCounts.unpaid})
           </Button>
 
           <Button
             type="button"
             size="sm"
-            variant={selectedServiceType === "all" ? "secondary" : "outline"}
-            onClick={() => setSelectedServiceType("all")}
-            className="min-h-9 rounded-full text-xs font-medium"
-            data-testid="filter-service-all"
-          >
-            All services
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedServiceType === "pickup" ? "secondary" : "outline"}
+            variant={selectedServiceType === "pickup" ? "default" : "outline"}
             onClick={() =>
               setSelectedServiceType(selectedServiceType === "pickup" ? "all" : "pickup")
             }
-            className="min-h-9 rounded-full text-xs font-medium"
+            className="h-8 rounded-full px-3 text-xs font-medium whitespace-nowrap"
             data-testid="filter-service-pickup"
           >
-            Pickup
+            Pickup ({liveCounts.pickup})
           </Button>
 
           <Button
             type="button"
             size="sm"
-            variant={selectedServiceType === "delivery" ? "secondary" : "outline"}
+            variant={selectedServiceType === "delivery" ? "default" : "outline"}
             onClick={() =>
               setSelectedServiceType(selectedServiceType === "delivery" ? "all" : "delivery")
             }
-            className="min-h-9 rounded-full text-xs font-medium"
+            className="h-8 rounded-full px-3 text-xs font-medium whitespace-nowrap"
             data-testid="filter-service-delivery"
           >
-            Delivery
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedServiceType === "dine-in" ? "secondary" : "outline"}
-            onClick={() =>
-              setSelectedServiceType(selectedServiceType === "dine-in" ? "all" : "dine-in")
-            }
-            className="min-h-9 rounded-full text-xs font-medium"
-            data-testid="filter-service-dine-in"
-          >
-            Dine-in
+            Delivery ({liveCounts.delivery})
           </Button>
         </div>
       </div>
 
-      {/* Orders List */}
+      {/* Orders Triage Stream */}
       {filteredOrders.length === 0 ? (
         <EmptyState
           icon={<ShoppingBag className="h-6 w-6" />}
@@ -313,30 +436,38 @@ export function OrderList({ initialData }: OrderListProps) {
           data-testid="orders-empty-state"
         />
       ) : (
-        <div className="flex flex-col gap-3" data-testid="orders-list">
+        <section
+          aria-label="Order triage list"
+          className="flex flex-col gap-3"
+          data-testid="orders-list"
+        >
           {filteredOrders.map((order) => {
             const isNew = order.status === "NEW";
             const itemCount = order.items.reduce((sum, it) => sum + it.quantity, 0);
             const itemsSummary = order.items
               .slice(0, 2)
-              .map((it) => `${it.quantity}x ${it.productName}`)
+              .map((it) => `${it.quantity}× ${it.productName}`)
               .join(", ");
             const hasMoreItems = order.items.length > 2;
+            const nextAction = getNextAction(order);
+            const dueDiff =
+              activeTab === "active"
+                ? getDueTimeDiff(order.requestedDate, order.requestedTime)
+                : null;
 
             return (
-              <Link
+              <article
                 key={order.id}
-                href={`/manage/orders/${order.id}`}
                 className={cn(
-                  "border-border bg-card hover:border-primary/50 focus-visible:ring-primary relative flex flex-col gap-2.5 rounded-xl border p-4 transition-all focus-visible:ring-2 focus-visible:outline-none",
-                  isNew && "border-info/60 ring-info/30 bg-info/5 ring-2",
+                  "bg-card border-divider relative space-y-2.5 rounded-xl border p-3.5 shadow-none transition-all",
+                  isNew && "border-info border-2",
                 )}
                 data-testid={`order-card-${order.id}`}
               >
-                {/* Header row: Order #, Status, Timing badge */}
-                <div className="flex items-center justify-between gap-2">
+                {/* Top Row: ID, Status Badge, Timing pill */}
+                <div className="border-border/60 flex items-center justify-between gap-2 border-b pb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-foreground text-base font-bold tabular-nums">
+                    <span className="text-foreground text-sm font-bold tabular-nums">
                       #{order.orderNumber ?? "—"}
                     </span>
                     <Badge variant={STATUS_BADGE_MAP[order.status] ?? "default"}>
@@ -344,70 +475,121 @@ export function OrderList({ initialData }: OrderListProps) {
                     </Badge>
                   </div>
 
-                  <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                    <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span className="font-medium">
+                  <div className="text-foreground flex items-center gap-1 text-xs font-semibold">
+                    <Clock className="text-muted-foreground h-3.5 w-3.5" />
+                    <span className="tabular-nums">
                       {order.requestedTime
                         ? `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} at ${order.requestedTime}`
                         : `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} ASAP`}
                     </span>
-                  </div>
-                </div>
-
-                {/* Guest details row */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-foreground text-sm font-semibold">{order.guestName}</span>
-                    {order.guestPhone && (
-                      <span className="text-body-sm text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {order.guestPhone}
+                    {dueDiff && (
+                      <span
+                        className={cn(
+                          "ml-1 font-bold",
+                          dueDiff.isOverdue ? "text-destructive" : "text-muted-foreground",
+                        )}
+                      >
+                        {dueDiff.text}
                       </span>
                     )}
                   </div>
-                  <span className="text-body-sm text-muted-foreground capitalize">
-                    {order.serviceType}
-                  </span>
                 </div>
 
-                {/* Items summary */}
-                <div className="bg-muted/40 text-muted-foreground rounded-lg p-2 text-xs">
-                  <span className="text-foreground mr-1.5 font-medium">
+                {/* Guest & Contact row with dedicated Eye button */}
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="text-foreground truncate text-sm font-semibold">
+                        {order.guestName}
+                      </span>
+                      {order.guestPhone && (
+                        <>
+                          <span className="text-muted-foreground/60 text-xs">•</span>
+                          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                            {order.guestPhone}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
+                      {order.serviceType === "delivery" ? (
+                        <>
+                          <MapPin className="text-muted-foreground h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {order.deliveryAddress ?? "Delivery address pending"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Store className="text-muted-foreground h-3 w-3 shrink-0" />
+                          <span className="truncate">Store Pickup</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dedicated Eye button mapping to details view */}
+                  <Link
+                    href={`/manage/orders/${order.id}`}
+                    aria-label={`View order details for #${order.orderNumber}`}
+                    className="bg-muted hover:bg-border text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95"
+                    data-testid={`view-order-${order.id}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Link>
+                </div>
+
+                {/* Items Ordered Preview Box */}
+                <div className="bg-muted text-foreground rounded-lg px-2.5 py-1.5 text-xs leading-relaxed">
+                  <span className="font-semibold">
                     {itemCount} {itemCount === 1 ? "item" : "items"}:
-                  </span>
-                  <span>
-                    {itemsSummary}
-                    {hasMoreItems ? "..." : ""}
-                  </span>
+                  </span>{" "}
+                  <span className="text-muted-foreground">{itemsSummary}</span>
+                  {hasMoreItems ? "..." : ""}
                 </div>
 
-                {/* Footer row: Total and Payment status badge */}
-                <div className="border-border flex items-center justify-between border-t pt-2.5">
+                {/* Footer: Financials & Dynamic Next Status Action Button */}
+                <div className="border-border/60 flex items-center justify-between gap-2 border-t pt-2">
                   <div className="flex items-center gap-2">
+                    <span className="text-foreground text-sm font-bold tabular-nums">
+                      {formatMoney(order.totalAmount)}
+                    </span>
                     {order.paid === "paid" ? (
-                      <Badge variant="paid" className="gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <Badge variant="paid" className="gap-0.5 px-1.5 py-0 text-[10px]">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
                         Paid
                       </Badge>
                     ) : (
-                      <Badge variant="unpaid" className="gap-1">
-                        <AlertCircle className="h-3 w-3" />
+                      <Badge variant="unpaid" className="gap-0.5 px-1.5 py-0 text-[10px]">
+                        <AlertCircle className="h-2.5 w-2.5" />
                         Unpaid
                       </Badge>
                     )}
-                    <span className="text-muted-foreground text-xs uppercase">
-                      {order.paymentPreference.replace("_", " ")}
-                    </span>
                   </div>
 
-                  <span className="text-foreground text-base font-bold tabular-nums">
-                    {formatMoney(order.totalAmount)}
-                  </span>
+                  {/* Right bottom button dynamically indicating next valid state */}
+                  {nextAction && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => handleQuickProgress(e, order)}
+                      disabled={transitioningId === order.id}
+                      className={cn(
+                        "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold shadow-none active:scale-95",
+                        nextAction.buttonClass,
+                      )}
+                      data-testid={`quick-progress-${order.id}`}
+                    >
+                      <nextAction.icon className="h-3.5 w-3.5" />
+                      <span>{transitioningId === order.id ? "Updating..." : nextAction.label}</span>
+                    </Button>
+                  )}
                 </div>
-              </Link>
+              </article>
             );
           })}
-        </div>
+        </section>
       )}
     </div>
   );

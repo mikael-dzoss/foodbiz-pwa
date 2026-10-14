@@ -60,9 +60,31 @@ describe("ManualOrderForm Component", () => {
     expect(screen.getByText("Step 4: Order Summary")).toBeDefined();
 
     expect(screen.getByText("Burger Maison")).toBeDefined();
-    expect(screen.getByText("5 in stock")).toBeDefined();
+    expect(screen.getByText(/5 in stock/)).toBeDefined();
     expect(screen.getByText("Frites Maison")).toBeDefined();
     expect(screen.getByText("Out of stock")).toBeDefined();
+  });
+
+  it("renders boxed cancel button in header and opens order preview modal via preview & create", () => {
+    render(<ManualOrderForm products={mockProducts} />);
+    expect(screen.getByTestId("cancel-header-button")).toBeDefined();
+
+    // Select 1 burger, fill guest name & phone
+    fireEvent.change(screen.getByTestId("guest-phone-input"), {
+      target: { value: "+33612345678" },
+    });
+    fireEvent.change(screen.getByTestId("guest-name-input"), {
+      target: { value: "Jean Dupont" },
+    });
+    const burgerRow = screen.getByTestId("product-row-p-1");
+    const incrementBtn = burgerRow.querySelector('button[aria-label="Increase quantity"]')!;
+    fireEvent.click(incrementBtn);
+
+    const previewBtn = screen.getByTestId("create-order-submit-button");
+    fireEvent.click(previewBtn);
+
+    expect(screen.getByTestId("order-preview-dialog")).toBeDefined();
+    expect(screen.getByText("Order Preview")).toBeDefined();
   });
 
   it("looks up existing guest on phone blur and auto-fills name", async () => {
@@ -127,7 +149,7 @@ describe("ManualOrderForm Component", () => {
     expect(screen.getByTestId("delivery-address-input")).toBeDefined();
   });
 
-  it("submits manual order and redirects on success", async () => {
+  it("submits manual order through preview confirmation and redirects on success", async () => {
     const createSpy = vi.spyOn(actions, "createManualOrderAction").mockResolvedValueOnce({
       success: true,
       data: {
@@ -167,8 +189,14 @@ describe("ManualOrderForm Component", () => {
     const incrementBtn = burgerRow.querySelector('button[aria-label="Increase quantity"]')!;
     fireEvent.click(incrementBtn);
 
-    // Submit
+    // Open Preview via bottom bar button
     fireEvent.click(screen.getByTestId("create-order-submit-button"));
+
+    // Modal appears
+    expect(screen.getByTestId("order-preview-dialog")).toBeDefined();
+
+    // Confirm & Create in dialog
+    fireEvent.click(screen.getByTestId("confirm-create-order-button"));
 
     await waitFor(() => {
       expect(createSpy).toHaveBeenCalledWith(

@@ -16,6 +16,11 @@ import {
   ChefHat,
   PackageCheck,
   Check,
+  Printer,
+  ShoppingBag,
+  Truck,
+  PhoneCall,
+  CircleDot,
 } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +33,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney, formatDate, formatTime } from "@/domain";
+import { formatMoney, formatDate, formatTime, type OrderStatus } from "@/domain";
 import type { EnrichedOrder } from "../order-actions";
 import { progressOrderStatusAction, recordPaymentAction } from "../order-actions";
 import { cn } from "@/lib/utils";
@@ -67,11 +72,27 @@ function getNextStep(status: string): NextStepConfig | null {
   }
 }
 
+function formatRequestedDateTime(requestedDate?: string | null, requestedTime?: string | null) {
+  if (!requestedDate) {
+    return requestedTime ? `Today at ${requestedTime}` : "ASAP";
+  }
+
+  const [y, m, d] = requestedDate.split("-").map(Number);
+  const dateObj = y && m && d ? new Date(y, m - 1, d) : new Date(requestedDate);
+  const formattedDate = formatDate(dateObj, "en", "medium");
+
+  if (requestedTime) {
+    return `${formattedDate} at ${requestedTime}`;
+  }
+  return `${formattedDate} (ASAP)`;
+}
+
 export function OrderDetail({ order }: OrderDetailProps) {
   const router = useRouter();
   const [currentOrder, setCurrentOrder] = React.useState<EnrichedOrder>(order);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [printNotice, setPrintNotice] = React.useState(false);
 
   // Dialogs
   const [cancelDialogOpen, setCancelDialogOpen] = React.useState(false);
@@ -163,32 +184,154 @@ export function OrderDetail({ order }: OrderDetailProps) {
     }
   };
 
+  // Handle Receipt Print (TODO Signal from Stitch M-21)
+  const handlePrint = () => {
+    setPrintNotice(true);
+    setTimeout(() => setPrintNotice(false), 3000);
+  };
+
   // WhatsApp link generator
   const cleanPhone = currentOrder.guestPhone?.replace(/\D/g, "");
   const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : null;
 
+  // Tax calculation for breakdown (10% VAT on food)
+  const includedTax = Math.round(currentOrder.totalAmount * 0.1 * 100) / 100;
+  const subtotal = currentOrder.totalAmount - includedTax;
+
+  // Predictive Full Journey Timeline
+  const timelineSteps = React.useMemo(() => {
+    if (currentOrder.status === "CANCELLED") {
+      const history = currentOrder.statusHistory ?? [
+        { status: "NEW", timestamp: currentOrder.createdAt, note: "Order placed" },
+        {
+          status: "CANCELLED",
+          timestamp: currentOrder.updatedAt,
+          note: currentOrder.cancellationReason,
+        },
+      ];
+      return history.map((ev) => {
+        const isCancelled = ev.status === "CANCELLED";
+        return {
+          status: ev.status,
+          label: isCancelled ? "Order Cancelled" : ev.status,
+          state: isCancelled ? ("ongoing" as const) : ("validated" as const),
+          timestampText: `${formatDate(ev.timestamp, "en", "short")} • ${formatTime(ev.timestamp, "en")}`,
+          note: ev.note ?? (isCancelled ? currentOrder.cancellationReason : null),
+        };
+      });
+    }
+
+    const STANDARD_STEPS: { status: OrderStatus; label: string; defaultNote: string }[] = [
+      { status: "NEW", label: "Order Placed", defaultNote: `Received via ${currentOrder.channel}` },
+      { status: "CONFIRMED", label: "Confirmed", defaultNote: "Confirmed by kitchen" },
+      { status: "PREPARING", label: "Preparing", defaultNote: "Kitchen preparing items" },
+      {
+        status: "READY",
+        label: currentOrder.serviceType === "pickup" ? "Ready for Pickup" : "Out for Delivery",
+        defaultNote:
+          currentOrder.serviceType === "pickup" ? "Packed at counter" : "Dispatched with driver",
+      },
+      { status: "COMPLETED", label: "Completed", defaultNote: "Handed over to customer" },
+    ];
+
+    const ORDER_RANKS: Record<OrderStatus, number> = {
+      NEW: 0,
+      CONFIRMED: 1,
+      PREPARING: 2,
+      READY: 3,
+      COMPLETED: 4,
+      CANCELLED: -1,
+    };
+
+    const currentRank = ORDER_RANKS[currentOrder.status] ?? 0;
+
+    return STANDARD_STEPS.map((step) => {
+      const stepRank = ORDER_RANKS[step.status];
+      const historyEv = currentOrder.statusHistory?.find((h) => h.status === step.status);
+
+      if (stepRank < currentRank) {
+        return {
+          status: step.status,
+          label: step.label,
+          state: "validated" as const,
+          timestampText: historyEv
+            ? `${formatDate(historyEv.timestamp, "en", "short")} • ${formatTime(historyEv.timestamp, "en")}`
+            : "Completed",
+          note: historyEv?.note ?? step.defaultNote,
+        };
+      }
+
+      if (stepRank === currentRank) {
+        return {
+          status: step.status,
+          label: step.label,
+          state: "ongoing" as const,
+          timestampText: historyEv
+            ? `${formatDate(historyEv.timestamp, "en", "short")} • ${formatTime(historyEv.timestamp, "en")}`
+            : "Now",
+          note: historyEv?.note ?? step.defaultNote,
+        };
+      }
+
+      return {
+        status: step.status,
+        label: step.label,
+        state: "future" as const,
+        timestampText: "Upcoming",
+        note: step.defaultNote,
+      };
+    });
+  }, [currentOrder]);
+
   return (
-    <div className="flex flex-col gap-4 pb-36" data-testid="order-detail-screen">
-      {/* Top Header */}
+    <div className="flex flex-col gap-3 pb-36" data-testid="order-detail-screen">
+      {/* Top Header with Back link and Print action (Stitch M-21) */}
       <div className="flex items-center justify-between pt-1">
         <Link
           href="/manage/orders"
-          className="text-primary hover:text-primary/80 flex items-center gap-1.5 text-sm font-semibold transition-colors"
+          className="text-foreground hover:text-primary flex items-center gap-1.5 text-sm font-semibold transition-colors"
           data-testid="back-to-orders-link"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Orders</span>
         </Link>
-        <Badge variant={STATUS_BADGE_MAP[currentOrder.status] ?? "default"} className="text-sm">
-          {currentOrder.status}
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_BADGE_MAP[currentOrder.status] ?? "default"} className="text-xs">
+            {currentOrder.status}
+          </Badge>
+          {/* TODO(print): wire to thermal receipt printer (#48) */}
+          <button
+            type="button"
+            onClick={handlePrint}
+            aria-label="Print kitchen ticket"
+            className="border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted flex h-9 w-9 items-center justify-center rounded-lg border transition-colors active:scale-95"
+            data-testid="print-ticket-button"
+          >
+            <Printer className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
+      {printNotice && (
+        <div className="bg-primary-soft text-primary-soft-foreground flex items-center justify-between rounded-lg p-2.5 text-xs font-medium">
+          <span>Kitchen ticket print job queued (mock printer).</span>
+          <button
+            type="button"
+            onClick={() => setPrintNotice(false)}
+            className="text-xs font-bold underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Title & Metadata */}
       <div>
-        <h1 className="text-display-sm text-foreground font-bold">
+        <h1 className="text-foreground text-xl font-bold tracking-tight">
           Order #{currentOrder.orderNumber ?? "—"}
         </h1>
-        <p className="text-body-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-0.5 text-xs">
           Created on {formatDate(currentOrder.createdAt, "en", "long")} at{" "}
           {formatTime(currentOrder.createdAt, "en")} • via {currentOrder.channel}
         </p>
@@ -205,229 +348,350 @@ export function OrderDetail({ order }: OrderDetailProps) {
         </div>
       )}
 
-      {/* Guest & Service Card */}
-      <div
-        className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4"
+      {/* 1. Guest & Service Card (Matching Stitch M-21) */}
+      <section
+        className="bg-card border-border rounded-xl border p-3.5 shadow-none"
         data-testid="guest-service-card"
       >
-        <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-          Guest & Service
-        </span>
-
-        <div className="flex flex-col gap-1">
-          <span className="text-foreground text-lg font-semibold">{currentOrder.guestName}</span>
-          {currentOrder.guestPhone && (
-            <span className="text-body-sm text-muted-foreground flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5" />
-              {currentOrder.guestPhone}
-            </span>
-          )}
-        </div>
-
-        {/* Contact Quick Actions */}
-        {currentOrder.guestPhone && (
-          <div className="flex gap-2 pt-1">
-            <a
-              href={`tel:${currentOrder.guestPhone}`}
-              className="border-border hover:bg-muted text-foreground flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors"
-              data-testid="call-guest-button"
-            >
-              <Phone className="h-4 w-4" />
-              Call
-            </a>
-            {whatsappUrl && (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="border-border hover:bg-muted text-foreground flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors"
-                data-testid="whatsapp-guest-button"
-              >
-                <MessageSquare className="h-4 w-4" />
-                WhatsApp
-              </a>
+        <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
+          <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
+            Guest &amp; Service
+          </span>
+          <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold capitalize">
+            {currentOrder.serviceType === "pickup" ? (
+              <ShoppingBag className="h-3 w-3" />
+            ) : (
+              <Truck className="h-3 w-3" />
             )}
-          </div>
-        )}
-
-        <div className="border-border grid grid-cols-2 gap-3 border-t pt-3 text-xs">
-          <div>
-            <span className="text-muted-foreground">Service Type</span>
-            <p className="text-foreground font-semibold capitalize">{currentOrder.serviceType}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Requested Timing</span>
-            <p className="text-foreground flex items-center gap-1 font-semibold">
-              <Clock className="h-3.5 w-3.5" />
-              {currentOrder.requestedTime ? currentOrder.requestedTime : "ASAP"}
-            </p>
-          </div>
-        </div>
-
-        {currentOrder.deliveryAddress && (
-          <div className="border-border border-t pt-2.5 text-xs">
-            <span className="text-muted-foreground">Delivery Address</span>
-            <p className="text-foreground flex items-start gap-1 pt-0.5 font-semibold">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {currentOrder.deliveryAddress}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Order Items & Totals Card */}
-      <div
-        className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4"
-        data-testid="order-items-card"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-            Order Items ({currentOrder.items.reduce((s, it) => s + it.quantity, 0)})
+            <span>{currentOrder.serviceType}</span>
           </span>
         </div>
 
-        <div className="divide-border flex flex-col divide-y">
+        <div className="pt-2.5">
+          <h2 className="text-foreground mb-0.5 text-base font-bold">{currentOrder.guestName}</h2>
+          <p className="text-muted-foreground mb-3 text-xs font-medium tabular-nums">
+            {currentOrder.guestPhone ?? "No phone recorded"}
+          </p>
+
+          {/* Quick Contact Actions: 2-column Call & WhatsApp */}
+          {currentOrder.guestPhone && (
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <a
+                href={`tel:${currentOrder.guestPhone}`}
+                className="border-border bg-card text-foreground hover:bg-muted flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all active:scale-95"
+                data-testid="call-guest-button"
+              >
+                <Phone className="text-primary h-4 w-4" />
+                <span>Call</span>
+              </a>
+              {whatsappUrl && (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border-border bg-card text-foreground hover:bg-muted flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all active:scale-95"
+                  data-testid="whatsapp-guest-button"
+                >
+                  <MessageSquare className="text-primary h-4 w-4" />
+                  <span>WhatsApp</span>
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Service Metadata Details Box */}
+          <div className="bg-muted/40 border-border/60 space-y-2 rounded-lg border p-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
+                <Clock className="h-3.5 w-3.5" />
+                <span>Deadline</span>
+              </span>
+              <span className="text-foreground font-bold tabular-nums">
+                {formatRequestedDateTime(currentOrder.requestedDate, currentOrder.requestedTime)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
+                <PhoneCall className="h-3.5 w-3.5" />
+                <span>Channel</span>
+              </span>
+              <span className="text-foreground font-semibold capitalize">
+                {currentOrder.channel} order
+              </span>
+            </div>
+
+            {/* Delivery address directly below when delivery */}
+            {currentOrder.deliveryAddress && (
+              <div className="border-border/60 flex items-start justify-between gap-2 border-t pt-1">
+                <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1.5 font-medium">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>Address</span>
+                </span>
+                <span className="text-foreground text-right font-semibold">
+                  {currentOrder.deliveryAddress}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 2. Order Items & Totals Card (Matching Stitch M-21) */}
+      <section
+        className="bg-card border-border rounded-xl border p-3.5 shadow-none"
+        data-testid="order-items-card"
+      >
+        <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-foreground text-sm font-bold">Order Items</h2>
+            <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
+              {currentOrder.items.reduce((s, it) => s + it.quantity, 0)} items
+            </span>
+          </div>
+          <span className="text-muted-foreground text-xs font-medium">
+            Ticket #{currentOrder.orderNumber ?? "—"}
+          </span>
+        </div>
+
+        {/* Itemized List */}
+        <div className="divide-border/60 divide-y">
           {currentOrder.items.map((item) => (
             <div
               key={item.id ?? item.productId}
-              className="flex items-center justify-between py-2.5"
+              className="flex items-start justify-between gap-2 py-2.5"
             >
-              <div className="flex flex-col">
-                <span className="text-foreground text-sm font-medium">
-                  {item.quantity}× {item.productName}
+              <div className="flex items-start gap-2">
+                <span className="bg-primary-soft text-primary-soft-foreground rounded px-1.5 py-0.5 text-xs font-bold tabular-nums">
+                  {item.quantity}×
                 </span>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {formatMoney(item.unitPrice)} each
-                </span>
+                <div>
+                  <p className="text-foreground text-sm font-semibold">{item.productName}</p>
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    Unit {formatMoney(item.unitPrice)}
+                  </p>
+                </div>
               </div>
-              <span className="text-foreground text-sm font-semibold tabular-nums">
+              <span className="text-foreground text-sm font-bold tabular-nums">
                 {formatMoney(item.totalPrice)}
               </span>
             </div>
           ))}
         </div>
 
+        {/* Special Instructions Pill BEFORE Subtotal (per user instruction) */}
         {currentOrder.notes && (
-          <div className="bg-warning-soft/40 border-warning-soft text-warning-soft-foreground rounded-lg border p-3 text-xs">
-            <span className="font-semibold">Special Notes:</span> {currentOrder.notes}
+          <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 my-2.5 flex items-center gap-2 rounded-lg border p-2 text-xs">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>
+              <strong className="font-semibold">Kitchen note:</strong> {currentOrder.notes}
+            </span>
           </div>
         )}
 
-        <div className="border-border flex items-center justify-between border-t pt-3">
-          <span className="text-muted-foreground text-sm font-medium">Total</span>
-          <span className="text-display-sm text-foreground font-bold tabular-nums">
-            {formatMoney(currentOrder.totalAmount)}
-          </span>
-        </div>
-      </div>
-
-      {/* Payment Card */}
-      <div
-        className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4"
-        data-testid="payment-card"
-      >
-        <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-          Payment
-        </span>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {currentOrder.paid === "paid" ? (
-              <Badge variant="paid" className="gap-1.5 py-1 text-sm font-semibold">
-                <CheckCircle2 className="h-4 w-4" />
-                Paid
-              </Badge>
-            ) : (
-              <Badge variant="unpaid" className="gap-1.5 py-1 text-sm font-semibold">
-                <AlertCircle className="h-4 w-4" />
-                Unpaid
-              </Badge>
-            )}
-            <span className="text-muted-foreground text-xs uppercase">
-              Preference: {currentOrder.paymentPreference.replace("_", " ")}
+        {/* Price Breakdown with Subtotal, VAT tax, and Total */}
+        <div className="border-border/60 space-y-1.5 border-t pt-2.5 text-xs">
+          <div className="text-muted-foreground flex items-center justify-between">
+            <span>Subtotal</span>
+            <span className="text-foreground font-medium tabular-nums">
+              {formatMoney(subtotal)}
             </span>
           </div>
+          <div className="text-muted-foreground flex items-center justify-between">
+            <span>Tax (incl. VAT)</span>
+            <span className="text-foreground font-medium tabular-nums">
+              {formatMoney(includedTax)}
+            </span>
+          </div>
+          <div className="border-border/60 flex items-center justify-between border-t pt-2">
+            <span className="text-foreground text-sm font-bold">Total</span>
+            <span className="text-foreground text-base font-bold tabular-nums">
+              {formatMoney(currentOrder.totalAmount)}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Payment Status Card (Matching Stitch M-21) */}
+      <section
+        className="bg-card border-border rounded-xl border p-3.5 shadow-none"
+        data-testid="payment-card"
+      >
+        <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
+          <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
+            Payment
+          </span>
+          {currentOrder.paid === "paid" ? (
+            <Badge
+              variant="paid"
+              className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              Paid
+            </Badge>
+          ) : (
+            <Badge
+              variant="unpaid"
+              className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
+            >
+              <AlertCircle className="h-3 w-3" />
+              Unpaid
+            </Badge>
+          )}
+        </div>
+
+        <div className="space-y-2.5 pt-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground font-medium">Method requested</span>
+            <div className="text-foreground inline-flex items-center gap-1.5 font-semibold uppercase">
+              <CreditCard className="text-primary h-3.5 w-3.5" />
+              <span>{currentOrder.paymentPreference.replace("_", " ")}</span>
+            </div>
+          </div>
+
+          {currentOrder.paid === "paid" && currentOrder.paymentMethod && (
+            <div className="text-muted-foreground flex items-center justify-between text-xs">
+              <span>Settled via</span>
+              <span className="text-foreground font-medium capitalize">
+                {currentOrder.paymentMethod}
+                {currentOrder.paidAt &&
+                  ` on ${formatDate(currentOrder.paidAt, "en", "short")} at ${formatTime(currentOrder.paidAt, "en")}`}
+              </span>
+            </div>
+          )}
 
           {currentOrder.paid === "unpaid" && (
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setPaymentDialogOpen(true)}
-              className="text-primary hover:bg-primary-soft/50 font-semibold"
+              className="border-primary text-primary hover:bg-primary-soft/50 min-h-[44px] w-full gap-1.5 text-xs font-semibold"
               data-testid="record-payment-button"
             >
-              <CreditCard className="mr-1.5 h-3.5 w-3.5" />
-              Record payment
+              <CreditCard className="h-4 w-4" />
+              <span>Record payment ({formatMoney(currentOrder.totalAmount)})</span>
             </Button>
           )}
         </div>
+      </section>
 
-        {currentOrder.paid === "paid" && currentOrder.paymentMethod && (
-          <p className="text-muted-foreground text-xs">
-            Method: <strong className="capitalize">{currentOrder.paymentMethod}</strong>
-            {currentOrder.paidAt && ` • Paid at ${formatTime(currentOrder.paidAt)}`}
-          </p>
-        )}
-      </div>
-
-      {/* Status History Timeline Card */}
-      <div
-        className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4"
+      {/* 4. Status History Timeline (Predictive Full Journey Matching Stitch M-21) */}
+      <section
+        className="bg-card border-border rounded-xl border p-3.5 shadow-none"
         data-testid="order-timeline-card"
       >
-        <span className="text-caption text-muted-foreground font-semibold tracking-wider uppercase">
-          Status History Timeline
-        </span>
-
-        <div className="before:bg-border relative space-y-4 pl-6 before:absolute before:top-2 before:bottom-2 before:left-2 before:w-0.5">
-          {(currentOrder.statusHistory && currentOrder.statusHistory.length > 0
-            ? currentOrder.statusHistory
-            : [{ status: currentOrder.status, timestamp: currentOrder.createdAt, note: null }]
-          ).map((event, idx) => (
-            <div key={idx} className="relative flex flex-col gap-0.5">
-              <div
-                className={cn(
-                  "border-card absolute top-1 -left-6 h-3.5 w-3.5 rounded-full border-2",
-                  event.status === currentOrder.status ? "bg-primary" : "bg-muted-foreground/60",
-                )}
-              />
-              <div className="flex items-center gap-2">
-                <Badge variant={STATUS_BADGE_MAP[event.status] ?? "default"}>{event.status}</Badge>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {formatTime(event.timestamp)} • {formatDate(event.timestamp, "en", "short")}
-                </span>
-              </div>
-              {event.note && <p className="text-muted-foreground pt-0.5 text-xs">{event.note}</p>}
-            </div>
-          ))}
+        <div className="border-border/60 mb-2.5 flex items-center justify-between border-b pb-2.5">
+          <h2 className="text-foreground text-sm font-bold">Order Timeline</h2>
+          <span className="text-muted-foreground text-xs font-medium tabular-nums">
+            Status: {currentOrder.status}
+          </span>
         </div>
-      </div>
 
-      {/* Sticky Bottom Action Bar */}
+        <div className="before:bg-border/60 relative space-y-4 pl-6 before:absolute before:top-2.5 before:bottom-2.5 before:left-2 before:w-[2px]">
+          {timelineSteps.map((step, idx) => {
+            return (
+              <div key={idx} className="relative flex flex-col gap-0.5">
+                {/* Step Icon */}
+                <div className="absolute top-0.5 -left-6 flex h-4 w-4 items-center justify-center">
+                  {step.state === "validated" && (
+                    <CheckCircle2 className="bg-card h-4 w-4 rounded-full text-emerald-600 dark:text-emerald-400" />
+                  )}
+                  {step.state === "ongoing" && (
+                    <CircleDot
+                      className={cn(
+                        "bg-card h-4 w-4 rounded-full",
+                        step.status === "CANCELLED"
+                          ? "text-destructive"
+                          : "text-warning-soft-foreground",
+                      )}
+                    />
+                  )}
+                  {step.state === "future" && (
+                    <CircleDot className="text-muted-foreground/30 bg-card h-4 w-4 rounded-full" />
+                  )}
+                </div>
+
+                <div className="flex items-baseline justify-between gap-2">
+                  <p
+                    className={cn(
+                      "text-xs font-bold",
+                      step.state === "validated" && "text-foreground",
+                      step.state === "ongoing" &&
+                        (step.status === "CANCELLED"
+                          ? "text-destructive"
+                          : "text-warning-soft-foreground"),
+                      step.state === "future" && "text-muted-foreground/60 font-medium",
+                    )}
+                  >
+                    <span>{step.label}</span>
+                    <span
+                      className={cn(
+                        "ml-1 text-[10px] font-semibold uppercase",
+                        step.state === "ongoing" && step.status !== "CANCELLED"
+                          ? "text-warning-soft-foreground/80"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      ({step.status})
+                    </span>
+                  </p>
+                  <span
+                    className={cn(
+                      "shrink-0 text-[11px] tabular-nums",
+                      step.state === "ongoing"
+                        ? step.status === "CANCELLED"
+                          ? "text-destructive font-bold"
+                          : "text-warning-soft-foreground font-bold"
+                        : step.state === "future"
+                          ? "text-muted-foreground/50 italic"
+                          : "text-muted-foreground font-medium",
+                    )}
+                  >
+                    {step.timestampText}
+                  </span>
+                </div>
+                {step.note && (
+                  <p
+                    className={cn(
+                      "text-[11px]",
+                      step.state === "future"
+                        ? "text-muted-foreground/50"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {step.note}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 5. Sticky Bottom Action Bar (Z-50, Full-width clearance) */}
       {currentOrder.status !== "COMPLETED" && currentOrder.status !== "CANCELLED" && (
         <div
-          className="border-border bg-card/95 fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t p-4 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+          className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-col gap-2 border-t p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur"
           data-testid="order-actions-bar"
         >
           {isReadyUnpaid && (
-            <div className="bg-warning-soft text-warning-soft-foreground flex items-center gap-2 rounded-lg p-2 text-xs font-medium">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>Payment required before completing order handover.</span>
+            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
+              <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
+              <span>Payment required before completing order handover</span>
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {nextStep && (
               <Button
                 type="button"
                 onClick={handleProgressStatus}
                 disabled={isSubmitting || (nextStep.nextStatus === "COMPLETED" && isUnpaid)}
-                className="bg-primary text-primary-foreground min-h-12 flex-1 text-base font-semibold shadow-sm"
+                className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
                 data-testid="next-status-action-button"
               >
-                <nextStep.icon className="mr-2 h-5 w-5" />
-                {nextStep.label}
+                <nextStep.icon className="h-4 w-4" />
+                <span>{nextStep.label}</span>
               </Button>
             )}
 
@@ -436,11 +700,11 @@ export function OrderDetail({ order }: OrderDetailProps) {
               variant="outline"
               onClick={() => setCancelDialogOpen(true)}
               disabled={isSubmitting}
-              className="border-destructive text-destructive hover:bg-destructive/10 min-h-12 font-medium"
+              className="border-destructive text-destructive hover:bg-destructive/10 min-h-[44px] gap-1 px-3.5 text-xs font-semibold active:scale-95"
               data-testid="cancel-order-button"
             >
-              <Ban className="mr-1.5 h-4 w-4" />
-              Cancel
+              <Ban className="h-4 w-4" />
+              <span>Cancel</span>
             </Button>
           </div>
         </div>
@@ -458,13 +722,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
           </DialogHeader>
 
           <div className="flex flex-col gap-2 py-2">
-            <label className="text-foreground text-sm font-medium">
+            <label className="text-foreground text-xs font-semibold">
               Cancellation Reason (optional)
             </label>
             <Textarea
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
               placeholder="e.g. Customer requested, kitchen issue..."
+              className="text-xs"
               data-testid="cancel-reason-input"
             />
           </div>
@@ -476,7 +741,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
               onClick={() => setCancelDialogOpen(false)}
               disabled={isSubmitting}
             >
-              Back
+              Keep order
             </Button>
             <Button
               type="button"
@@ -485,7 +750,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
               disabled={isSubmitting}
               data-testid="confirm-cancel-button"
             >
-              Confirm cancellation
+              {isSubmitting ? "Cancelling..." : "Confirm cancellation"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -508,7 +773,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
                 className={cn(
-                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-sm font-semibold capitalize transition-colors",
+                  "flex min-h-[44px] items-center justify-between rounded-lg border p-3 text-xs font-semibold capitalize transition-colors",
                   selectedPaymentMethod === method
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",

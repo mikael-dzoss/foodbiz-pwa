@@ -103,6 +103,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
               Category name
             </label>
             <div className="relative">
+              {/* TODO(design): scale down h-12/text-base to h-11/text-sm to match Stitch mobile tokens */}
               <Input
                 id="new-category-name-input"
                 type="text"
@@ -122,6 +123,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
             </p>
           </div>
 
+          {/* TODO(design): scale down button from h-12 to min-h-11 (h-10 or h-11) */}
           <Button
             id="create-category-btn"
             type="submit"

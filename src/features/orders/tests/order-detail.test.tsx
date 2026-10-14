@@ -68,12 +68,14 @@ describe("OrderDetail Component", () => {
     expect(screen.getByText("Jean Dupont")).toBeDefined();
     expect(screen.getByText("+33612345678")).toBeDefined();
     expect(screen.getByText("123 Rue de la Paix, Paris")).toBeDefined();
-    expect(screen.getByText("2× Burger Maison")).toBeDefined();
+    expect(screen.getByTestId("order-items-card").textContent).toContain("Burger Maison");
+    expect(screen.getByTestId("order-items-card").textContent).toContain("2×");
     expect(screen.getByText(/No onions/)).toBeDefined();
     expect(screen.getByTestId("call-guest-button").getAttribute("href")).toBe("tel:+33612345678");
     expect(screen.getByTestId("whatsapp-guest-button").getAttribute("href")).toBe(
       "https://wa.me/33612345678",
     );
+    expect(screen.getByTestId("print-ticket-button")).toBeDefined();
   });
 
   it("displays payment status with icon and text (not color only)", () => {

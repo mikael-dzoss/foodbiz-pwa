@@ -19,7 +19,7 @@ const STATUSES: readonly OrderStatus[] = [
 ];
 
 const CHANNELS: readonly Channel[] = ["storefront", "phone", "whatsapp", "in-person"];
-const SERVICES: readonly ServiceType[] = ["pickup", "delivery", "dine-in"];
+const SERVICES: readonly ServiceType[] = ["pickup", "delivery"];
 const PREFERENCES: readonly PaymentPreference[] = ["on_handover", "revolut", "wero"];
 
 const BASE_TIMESTAMP = Date.UTC(2026, 9, 9, 12, 0, 0); // 2026-10-09T12:00:00Z
@@ -37,8 +37,15 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
   const guest = demoGuests[idx % demoGuests.length];
   const status: OrderStatus =
     idx < 30 ? (idx % 7 === 4 ? "CANCELLED" : "COMPLETED") : STATUSES[idx % STATUSES.length];
-  const paid: "paid" | "unpaid" =
-    status === "CANCELLED" || (idx >= 34 && idx % 2 === 1) ? "unpaid" : "paid";
+  const isCompleted = status === "COMPLETED";
+  const isCancelled = status === "CANCELLED";
+  const paid: "paid" | "unpaid" = isCompleted
+    ? "paid"
+    : isCancelled
+      ? "unpaid"
+      : idx % 2 === 1
+        ? "unpaid"
+        : "paid";
 
   const serviceType = SERVICES[idx % SERVICES.length];
   const channel = CHANNELS[idx % CHANNELS.length];
@@ -56,6 +63,63 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
   const min = String(minute).padStart(2, "0");
   const requestedTime = `${hh}:${min}`;
   const createdAt = `${requestedDate}T${hh}:${min}:00.000Z`;
+  const t0 = new Date(createdAt).getTime();
+  const toIso = (ms: number) => new Date(ms).toISOString();
+
+  // Realistic step progression with gradual timestamps
+  const statusHistory = (() => {
+    const baseNew = {
+      status: "NEW" as const,
+      timestamp: toIso(t0),
+      note: `Order placed via ${channel}`,
+    };
+    if (status === "NEW") return [baseNew];
+
+    const baseConfirmed = {
+      status: "CONFIRMED" as const,
+      timestamp: toIso(t0 + 5 * 60_000),
+      note: "Order confirmed by kitchen",
+    };
+    if (status === "CONFIRMED") return [baseNew, baseConfirmed];
+
+    const basePreparing = {
+      status: "PREPARING" as const,
+      timestamp: toIso(t0 + 15 * 60_000),
+      note: "Kitchen started preparation",
+    };
+    if (status === "PREPARING") return [baseNew, baseConfirmed, basePreparing];
+
+    const baseReady = {
+      status: "READY" as const,
+      timestamp: toIso(t0 + 35 * 60_000),
+      note: `Order packed and ready for ${serviceType}`,
+    };
+    if (status === "READY") return [baseNew, baseConfirmed, basePreparing, baseReady];
+
+    if (status === "COMPLETED") {
+      return [
+        baseNew,
+        baseConfirmed,
+        basePreparing,
+        baseReady,
+        {
+          status: "COMPLETED" as const,
+          timestamp: toIso(t0 + 50 * 60_000),
+          note: "Order handed over to customer",
+        },
+      ];
+    }
+
+    // CANCELLED
+    return [
+      baseNew,
+      {
+        status: "CANCELLED" as const,
+        timestamp: toIso(t0 + 8 * 60_000),
+        note: "Customer requested cancellation",
+      },
+    ];
+  })();
 
   const p1 = demoProducts[idx % demoProducts.length];
   const p2 = demoProducts[(idx + 5) % demoProducts.length];
@@ -90,7 +154,7 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     paid,
     paymentPreference,
     paymentMethod,
-    paidAt: paid === "paid" ? createdAt : null,
+    paidAt: paid === "paid" ? toIso(isCompleted ? t0 + 45 * 60_000 : t0) : null,
     requestedDate,
     requestedTime,
     items,
@@ -99,11 +163,8 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     notes: idx % 5 === 0 ? "Special handling requested" : null,
     deliveryAddress:
       serviceType === "delivery" ? (guest.address ?? "123 Rue de la Paix, Paris") : null,
-    statusHistory: [
-      { status: "NEW", timestamp: createdAt, note: "Order placed" },
-      ...(status !== "NEW" ? [{ status, timestamp: createdAt, note: null }] : []),
-    ],
+    statusHistory,
     createdAt,
-    updatedAt: createdAt,
+    updatedAt: statusHistory[statusHistory.length - 1]?.timestamp ?? createdAt,
   };
 });
