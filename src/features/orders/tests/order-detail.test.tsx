@@ -119,7 +119,7 @@ describe("OrderDetail Component", () => {
     });
   });
 
-  it("disables complete action and shows warning when order is READY and unpaid", () => {
+  it("shows warning and dynamically displays 'Mark paid & complete' instead of 'Complete order' when order is READY and unpaid", () => {
     const readyUnpaidOrder: EnrichedOrder = {
       ...mockOrder,
       status: "READY",
@@ -127,10 +127,42 @@ describe("OrderDetail Component", () => {
     };
 
     render(<OrderDetail order={readyUnpaidOrder} />);
+    expect(screen.getByText(/Payment required before completing order handover/i)).toBeDefined();
+    expect(screen.queryByText("Complete order")).toBeNull();
+    const shortcutBtn = screen.getByTestId("mark-paid-and-complete-button");
+    expect(shortcutBtn.textContent).toContain("Mark paid & complete");
+  });
+
+  it("displays enabled 'Complete order' action when order is READY and paid", async () => {
+    const completeSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...mockOrder,
+        status: "COMPLETED",
+        paid: "paid",
+      },
+    });
+
+    const readyPaidOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "READY",
+      paid: "paid",
+      paymentMethod: "cash",
+      paidAt: "2026-10-13T18:46:00.000Z",
+    };
+
+    render(<OrderDetail order={readyPaidOrder} />);
     const nextBtn = screen.getByTestId("next-status-action-button") as HTMLButtonElement;
     expect(nextBtn.textContent).toContain("Complete order");
-    expect(nextBtn.disabled).toBe(true);
-    expect(screen.getByText(/Payment required before completing order handover/i)).toBeDefined();
+    expect(nextBtn.disabled).toBe(false);
+
+    fireEvent.click(nextBtn);
+    await waitFor(() => {
+      expect(completeSpy).toHaveBeenCalledWith({
+        orderId: "ord-1",
+        nextStatus: "COMPLETED",
+      });
+    });
   });
 
   it("opens cancel dialog and cancels order with reason", async () => {
@@ -254,5 +286,91 @@ describe("OrderDetail Component", () => {
     const nextBtn = screen.getByTestId("next-status-action-button") as HTMLButtonElement;
     expect(nextBtn.disabled).toBe(true);
     expect(screen.getByText(/Payment required before completing order handover/i)).toBeDefined();
+  });
+
+  it("shows 'refund manually' warning inside cancel dialog when cancelling an already paid order (AC of #55)", () => {
+    const paidOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "PREPARING",
+      paid: "paid",
+      paymentMethod: "cash",
+      paidAt: "2026-10-13T18:46:00.000Z",
+    };
+
+    render(<OrderDetail order={paidOrder} />);
+    fireEvent.click(screen.getByTestId("cancel-order-button"));
+
+    expect(screen.getByTestId("cancel-order-dialog")).toBeDefined();
+    const warning = screen.getByTestId("cancel-paid-warning");
+    expect(warning.textContent).toContain("refund");
+    expect(warning.textContent).toContain("Cash");
+  });
+
+  it("allows manager to mark paid order as unpaid to undo a mistake (AC 1 of #53)", async () => {
+    const unpaidSpy = vi.spyOn(actions, "markOrderUnpaidAction").mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...mockOrder,
+        paid: "unpaid",
+        paymentMethod: null,
+        paidAt: null,
+      },
+    });
+
+    const paidOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "PREPARING",
+      paid: "paid",
+      paymentMethod: "cash",
+      paidAt: "2026-10-13T18:46:00.000Z",
+    };
+
+    render(<OrderDetail order={paidOrder} />);
+    const undoBtn = screen.getByTestId("mark-unpaid-button");
+    expect(undoBtn.textContent).toContain("Mark as unpaid");
+
+    fireEvent.click(undoBtn);
+
+    await waitFor(() => {
+      expect(unpaidSpy).toHaveBeenCalledWith({
+        orderId: "ord-1",
+      });
+    });
+  });
+
+  it("renders 'Mark paid & complete' shortcut when READY and unpaid (AC 3 of #53)", async () => {
+    const shortcutSpy = vi.spyOn(actions, "markPaidAndCompleteAction").mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...mockOrder,
+        status: "COMPLETED",
+        paid: "paid",
+        paymentMethod: "wero",
+        paidAt: new Date().toISOString(),
+      },
+    });
+
+    const readyUnpaidOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "READY",
+      paid: "unpaid",
+    };
+
+    render(<OrderDetail order={readyUnpaidOrder} />);
+    const shortcutBtn = screen.getByTestId("mark-paid-and-complete-button");
+    expect(shortcutBtn.textContent).toContain("Mark paid & complete");
+
+    fireEvent.click(shortcutBtn);
+
+    expect(screen.getByTestId("record-payment-dialog")).toBeDefined();
+    fireEvent.click(screen.getByTestId("payment-method-wero"));
+    fireEvent.click(screen.getByTestId("confirm-payment-button"));
+
+    await waitFor(() => {
+      expect(shortcutSpy).toHaveBeenCalledWith({
+        orderId: "ord-1",
+        paymentMethod: "wero",
+      });
+    });
   });
 });

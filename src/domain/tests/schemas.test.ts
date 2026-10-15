@@ -391,6 +391,21 @@ describe("Order and OrderItem schemas", () => {
     ).toBe(false);
   });
 
+  it("validates updateOrderStatusInputSchema and rejects invalid input", () => {
+    const valid = {
+      orderId: validUuid,
+      nextStatus: "CONFIRMED" as const,
+      reason: "Confirmed by kitchen",
+    };
+    expect(updateOrderStatusInputSchema.safeParse(valid).success).toBe(true);
+    expect(updateOrderStatusInputSchema.safeParse({ ...valid, orderId: "bad-id" }).success).toBe(
+      false,
+    );
+    expect(
+      updateOrderStatusInputSchema.safeParse({ ...valid, nextStatus: "UNKNOWN" }).success,
+    ).toBe(false);
+  });
+
   it("validates paidStatusSchema with paid, unpaid, and refunded", () => {
     expect(paidStatusSchema.safeParse("paid").success).toBe(true);
     expect(paidStatusSchema.safeParse("unpaid").success).toBe(true);

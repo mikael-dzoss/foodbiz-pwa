@@ -176,17 +176,10 @@ describe("Payment model and rules", () => {
     });
   });
 
-  describe("Payment status independence from order lifecycle", () => {
-    const allStatuses: OrderStatus[] = [
-      "NEW",
-      "CONFIRMED",
-      "PREPARING",
-      "READY",
-      "COMPLETED",
-      "CANCELLED",
-    ];
+  describe("Payment status and order lifecycle rules", () => {
+    const validStatuses: OrderStatus[] = ["NEW", "CONFIRMED", "PREPARING", "READY", "COMPLETED"];
 
-    for (const status of allStatuses) {
+    for (const status of validStatuses) {
       it(`allows markOrderPaid in status ${status} without altering status`, () => {
         expect(canChangePaymentStatus(status)).toBe(true);
 
@@ -216,6 +209,18 @@ describe("Payment model and rules", () => {
         }
       });
     }
+
+    it("rejects markOrderPaid when order status is CANCELLED (AC: Payment can be recorded at any status except CANCELLED)", () => {
+      expect(canChangePaymentStatus("CANCELLED")).toBe(false);
+
+      const order = createMockOrder({ status: "CANCELLED", paid: "unpaid" });
+      const res = markOrderPaid(order, { paymentMethod: "cash" });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.error).toMatch(/cancelled/i);
+      }
+    });
   });
 
   describe("validatePaymentState", () => {

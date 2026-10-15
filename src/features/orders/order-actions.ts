@@ -439,8 +439,18 @@ const recordPaymentInputSchema = z.object({
   paymentMethod: z.enum(["cash", "revolut", "wero"]),
 });
 
+const markOrderUnpaidInputSchema = z.object({
+  orderId: z.string().uuid(),
+});
+
+const markPaidAndCompleteInputSchema = z.object({
+  orderId: z.string().uuid(),
+  paymentMethod: z.enum(["cash", "revolut", "wero"]),
+});
+
 /**
  * Records payment for an order and sets paid status to 'paid'.
+ * Fails if order is CANCELLED per AC: Payment can be recorded at any status except CANCELLED.
  */
 export async function recordPaymentAction(input: unknown): Promise<OrderActionResult<Order>> {
   try {
@@ -459,6 +469,13 @@ export async function recordPaymentAction(input: unknown): Promise<OrderActionRe
       return { success: false, error: "Order not found" };
     }
 
+    if (order.status === "CANCELLED") {
+      return {
+        success: false,
+        error: "Payment cannot be recorded for a cancelled order.",
+      };
+    }
+
     const now = new Date().toISOString();
     const updated = await repos.orders.update(businessId, orderId, {
       paid: "paid",
@@ -472,6 +489,125 @@ export async function recordPaymentAction(input: unknown): Promise<OrderActionRe
     return { success: true, data: updated };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to record payment";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Marks a paid order as unpaid (undo), clearing paymentMethod and paidAt.
+ * Blocks if order is COMPLETED, refunded, or already unpaid.
+ */
+export async function markOrderUnpaidAction(input: unknown): Promise<OrderActionResult<Order>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = markOrderUnpaidInputSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return { success: false, error: "Invalid order parameters." };
+    }
+
+    const { orderId } = parsed.data;
+    const repos = getRepositories();
+
+    const order = await repos.orders.findById(businessId, orderId);
+    if (!order) {
+      return { success: false, error: "Order not found" };
+    }
+
+    if (order.status === "COMPLETED") {
+      return { success: false, error: "Cannot mark a completed order as unpaid." };
+    }
+
+    if (order.paid === "refunded") {
+      return { success: false, error: "Cannot mark a refunded order as unpaid." };
+    }
+
+    if (order.paid === "unpaid") {
+      return { success: false, error: "Order is already marked as unpaid." };
+    }
+
+    const now = new Date().toISOString();
+    const history: Array<{ status: OrderStatus; timestamp: string; note?: string | null }> = [
+      ...(order.statusHistory ?? [
+        { status: order.status, timestamp: order.createdAt, note: null },
+      ]),
+      {
+        status: order.status,
+        timestamp: now,
+        note: "Payment marked as unpaid (undone)",
+      },
+    ];
+
+    const updated = await repos.orders.update(businessId, orderId, {
+      paid: "unpaid",
+      paymentMethod: null,
+      paidAt: null,
+      statusHistory: history,
+    });
+
+    revalidatePath("/manage/orders");
+    revalidatePath(`/manage/orders/${orderId}`);
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to mark order as unpaid";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Shortcut when order is in READY status: records payment and immediately transitions status to COMPLETED.
+ */
+export async function markPaidAndCompleteAction(input: unknown): Promise<OrderActionResult<Order>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = markPaidAndCompleteInputSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return { success: false, error: "Invalid parameters for mark paid and complete." };
+    }
+
+    const { orderId, paymentMethod } = parsed.data;
+    const repos = getRepositories();
+
+    const order = await repos.orders.findById(businessId, orderId);
+    if (!order) {
+      return { success: false, error: "Order not found" };
+    }
+
+    if (order.status !== "READY") {
+      return {
+        success: false,
+        error: "Order must be in READY status to use Mark Paid & Complete.",
+      };
+    }
+
+    const now = new Date().toISOString();
+    const history: Array<{ status: OrderStatus; timestamp: string; note?: string | null }> = [
+      ...(order.statusHistory ?? [
+        { status: order.status, timestamp: order.createdAt, note: null },
+      ]),
+      {
+        status: "COMPLETED" as const,
+        timestamp: now,
+        note: `Paid via ${paymentMethod} and completed`,
+      },
+    ];
+
+    const updated = await repos.orders.update(businessId, orderId, {
+      paid: "paid",
+      paymentMethod,
+      paidAt: now,
+      status: "COMPLETED",
+      statusHistory: history,
+    });
+
+    revalidatePath("/manage/orders");
+    revalidatePath(`/manage/orders/${orderId}`);
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to mark paid and complete order";
     return { success: false, error: message };
   }
 }
