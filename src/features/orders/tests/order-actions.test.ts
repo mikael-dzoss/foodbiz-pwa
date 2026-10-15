@@ -6,6 +6,8 @@ import {
   createManualOrderAction,
   progressOrderStatusAction,
   recordPaymentAction,
+  markOrderUnpaidAction,
+  markPaidAndCompleteAction,
   recordRefundAction,
   lookupGuestByPhoneAction,
 } from "../order-actions";
@@ -583,6 +585,132 @@ describe("Order Server Actions", () => {
       if (compRes.success) {
         expect(compRes.data.status).toBe("COMPLETED");
       }
+    });
+
+    it("rejects recording payment when order status is CANCELLED (AC: Payment can be recorded at any status except CANCELLED)", async () => {
+      mockOrders[0].status = "CANCELLED";
+      mockOrders[0].paid = "unpaid";
+
+      const res = await recordPaymentAction({
+        orderId: validOrderId,
+        paymentMethod: "revolut",
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/cancelled/i);
+      }
+    });
+
+    it("rejects invalid input schema", async () => {
+      const res = await recordPaymentAction({
+        orderId: "not-a-uuid",
+        paymentMethod: "invalid",
+      });
+      expect(res.success).toBe(false);
+    });
+  });
+
+  describe("markOrderUnpaidAction", () => {
+    it("marks a paid order as unpaid to undo a mistake, clearing paymentMethod and paidAt", async () => {
+      mockOrders[0].status = "PREPARING";
+      mockOrders[0].paid = "paid";
+      mockOrders[0].paymentMethod = "revolut";
+      mockOrders[0].paidAt = new Date().toISOString();
+
+      const res = await markOrderUnpaidAction({ orderId: validOrderId });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.paid).toBe("unpaid");
+        expect(res.data.paymentMethod).toBeNull();
+        expect(res.data.paidAt).toBeNull();
+        const lastEntry = res.data.statusHistory?.[res.data.statusHistory.length - 1];
+        expect(lastEntry?.note).toContain("unpaid");
+        expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/orders");
+      }
+    });
+
+    it("rejects when order is already unpaid", async () => {
+      mockOrders[0].paid = "unpaid";
+
+      const res = await markOrderUnpaidAction({ orderId: validOrderId });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/already/i);
+      }
+    });
+
+    it("rejects when order is already COMPLETED", async () => {
+      mockOrders[0].status = "COMPLETED";
+      mockOrders[0].paid = "paid";
+
+      const res = await markOrderUnpaidAction({ orderId: validOrderId });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/completed/i);
+      }
+    });
+
+    it("rejects when order is refunded", async () => {
+      mockOrders[0].paid = "refunded";
+
+      const res = await markOrderUnpaidAction({ orderId: validOrderId });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/refunded/i);
+      }
+    });
+  });
+
+  describe("markPaidAndCompleteAction", () => {
+    it("shortcuts payment recording and marks order COMPLETED when status is READY", async () => {
+      mockOrders[0].status = "READY";
+      mockOrders[0].paid = "unpaid";
+      mockOrders[0].paymentMethod = null;
+
+      const res = await markPaidAndCompleteAction({
+        orderId: validOrderId,
+        paymentMethod: "wero",
+      });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.paid).toBe("paid");
+        expect(res.data.paymentMethod).toBe("wero");
+        expect(res.data.paidAt).toBeDefined();
+        expect(res.data.status).toBe("COMPLETED");
+        const lastEntry = res.data.statusHistory?.[res.data.statusHistory.length - 1];
+        expect(lastEntry?.status).toBe("COMPLETED");
+        expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/orders");
+      }
+    });
+
+    it("rejects shortcut if order is not in READY status (e.g. PREPARING)", async () => {
+      mockOrders[0].status = "PREPARING";
+      mockOrders[0].paid = "unpaid";
+
+      const res = await markPaidAndCompleteAction({
+        orderId: validOrderId,
+        paymentMethod: "cash",
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/ready/i);
+      }
+    });
+
+    it("rejects shortcut if order is CANCELLED", async () => {
+      mockOrders[0].status = "CANCELLED";
+      mockOrders[0].paid = "unpaid";
+
+      const res = await markPaidAndCompleteAction({
+        orderId: validOrderId,
+        paymentMethod: "cash",
+      });
+
+      expect(res.success).toBe(false);
     });
   });
 

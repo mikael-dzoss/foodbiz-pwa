@@ -20,20 +20,27 @@ export interface MarkPaidInput {
 }
 
 /**
- * Payment status can change independently of order status (before or after delivery).
+ * Payment status can change independently of order status (before or after delivery),
+ * except when an order is CANCELLED.
  */
 export function canChangePaymentStatus(orderStatus: OrderStatus): boolean {
-  // Payment status can change independently of order status (before or after delivery).
-  return Boolean(orderStatus);
+  return orderStatus !== "CANCELLED";
 }
 
 /**
  * Marks an order as paid with a required payment method and timestamp.
  */
-export function markOrderPaid<T extends OrderPaymentFields>(
+export function markOrderPaid<T extends OrderPaymentFields & { status?: OrderStatus }>(
   order: T,
   input: MarkPaidInput,
 ): PaymentResult<T> {
+  if (order.status && !canChangePaymentStatus(order.status)) {
+    return {
+      ok: false,
+      error: "Payment cannot be recorded for a cancelled order.",
+    };
+  }
+
   const methodParsed = paymentMethodSchema.safeParse(input.paymentMethod);
   if (!methodParsed.success) {
     return {

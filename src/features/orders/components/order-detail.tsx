@@ -21,6 +21,7 @@ import {
   Truck,
   PhoneCall,
   CircleDot,
+  RotateCcw,
 } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,8 @@ import {
   progressOrderStatusAction,
   recordPaymentAction,
   recordRefundAction,
+  markOrderUnpaidAction,
+  markPaidAndCompleteAction,
 } from "../order-actions";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +108,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
     "cash" | "revolut" | "wero"
   >("cash");
+  const [paymentDialogMode, setPaymentDialogMode] = React.useState<"record" | "shortcut">("record");
   const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
   const [refundReason, setRefundReason] = React.useState("");
 
@@ -168,20 +172,49 @@ export function OrderDetail({ order }: OrderDetailProps) {
     }
   };
 
-  // Handle Payment Recording
+  // Handle Payment Recording / Shortcut Progression
   const handleRecordPayment = async () => {
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const res = await recordPaymentAction({
-      orderId: currentOrder.id,
-      paymentMethod: selectedPaymentMethod,
-    });
+    const res =
+      paymentDialogMode === "shortcut"
+        ? await markPaidAndCompleteAction({
+            orderId: currentOrder.id,
+            paymentMethod: selectedPaymentMethod,
+          })
+        : await recordPaymentAction({
+            orderId: currentOrder.id,
+            paymentMethod: selectedPaymentMethod,
+          });
 
     setIsSubmitting(false);
 
     if (res.success) {
       setPaymentDialogOpen(false);
+      setPaymentDialogMode("record");
+      setCurrentOrder({
+        ...currentOrder,
+        ...res.data,
+      });
+      router.refresh();
+    } else {
+      setErrorMessage(res.error);
+    }
+  };
+
+  // Handle Mark Unpaid (Undo)
+  const handleMarkUnpaid = async () => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const res = await markOrderUnpaidAction({
+      orderId: currentOrder.id,
+    });
+
+    setIsSubmitting(false);
+
+    if (res.success) {
       setCurrentOrder({
         ...currentOrder,
         ...res.data,
@@ -656,11 +689,33 @@ export function OrderDetail({ order }: OrderDetailProps) {
             </div>
           )}
 
+          {currentOrder.status !== "COMPLETED" &&
+            currentOrder.status !== "CANCELLED" &&
+            currentOrder.paid === "paid" && (
+              <div className="border-border/60 border-t pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkUnpaid}
+                  disabled={isSubmitting}
+                  className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-[36px] w-full gap-1.5 text-xs font-semibold"
+                  data-testid="mark-unpaid-button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Mark as unpaid (undo)</span>
+                </Button>
+              </div>
+            )}
+
           {currentOrder.paid === "unpaid" && currentOrder.status !== "CANCELLED" && (
             <Button
               type="button"
               variant="outline"
-              onClick={() => setPaymentDialogOpen(true)}
+              onClick={() => {
+                setPaymentDialogMode("record");
+                setPaymentDialogOpen(true);
+              }}
               className="border-primary text-primary hover:bg-primary-soft/50 min-h-[44px] w-full gap-1.5 text-xs font-semibold"
               data-testid="record-payment-button"
             >
@@ -771,10 +826,25 @@ export function OrderDetail({ order }: OrderDetailProps) {
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
-            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
-              <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
-              <span>Payment required before completing order handover</span>
-            </div>
+            <>
+              <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
+                <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
+                <span>Payment required before completing order handover</span>
+              </div>
+              <Button
+                type="button"
+                onClick={() => {
+                  setPaymentDialogMode("shortcut");
+                  setPaymentDialogOpen(true);
+                }}
+                disabled={isSubmitting}
+                className="bg-primary text-primary-foreground min-h-[44px] w-full gap-1.5 text-xs font-semibold shadow-none active:scale-95"
+                data-testid="mark-paid-and-complete-button"
+              >
+                <Check className="h-4 w-4" />
+                <span>Mark paid & complete ({formatMoney(currentOrder.totalAmount)})</span>
+              </Button>
+            </>
           )}
 
           <div className="flex items-center gap-2">
@@ -817,6 +887,27 @@ export function OrderDetail({ order }: OrderDetailProps) {
             </DialogDescription>
           </DialogHeader>
 
+          {currentOrder.paid === "paid" && (
+            <div
+              className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-start gap-2 rounded-lg border p-2.5 text-xs font-semibold"
+              data-testid="cancel-paid-warning"
+            >
+              <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+              <div className="flex flex-col gap-0.5">
+                <span>
+                  This order was marked as paid ({formatMoney(currentOrder.totalAmount)}{" "}
+                  {currentOrder.paymentMethod
+                    ? `via ${currentOrder.paymentMethod.charAt(0).toUpperCase() + currentOrder.paymentMethod.slice(1)}`
+                    : ""}
+                  ).
+                </span>
+                <span className="text-muted-foreground font-normal">
+                  Please remember to issue a refund manually to the customer.
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2 py-2">
             <label className="text-foreground text-xs font-semibold">
               Cancellation Reason (optional)
@@ -853,10 +944,20 @@ export function OrderDetail({ order }: OrderDetailProps) {
       </Dialog>
 
       {/* Record Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+      <Dialog
+        open={paymentDialogOpen}
+        onOpenChange={(open) => {
+          setPaymentDialogOpen(open);
+          if (!open) setPaymentDialogMode("record");
+        }}
+      >
         <DialogContent data-testid="record-payment-dialog">
           <DialogHeader>
-            <DialogTitle>Record Payment for Order #{currentOrder.orderNumber}</DialogTitle>
+            <DialogTitle>
+              {paymentDialogMode === "shortcut"
+                ? `Mark Paid & Complete Order #${currentOrder.orderNumber}`
+                : `Record Payment for Order #${currentOrder.orderNumber}`}
+            </DialogTitle>
             <DialogDescription>
               Select payment method used for {formatMoney(currentOrder.totalAmount)}
             </DialogDescription>
