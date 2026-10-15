@@ -86,6 +86,7 @@ describe("Manager App Shell & Navigation (#29)", () => {
 
     expect(screen.getByRole("heading", { name: /More Options/i })).toBeDefined();
     expect(screen.getByRole("link", { name: /Categories/i })).toBeDefined();
+    expect(screen.getByRole("link", { name: /Expenses/i })).toBeDefined();
     expect(screen.getByRole("button", { name: /Sign out/i })).toBeDefined();
   });
 });
