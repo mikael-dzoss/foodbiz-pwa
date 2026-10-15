@@ -33,7 +33,7 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
       href: "/manage/expenses",
       icon: Receipt,
       description: "Log receipts and operating costs",
-      isReady: false,
+      isReady: true,
     },
     {
       title: "Customers",

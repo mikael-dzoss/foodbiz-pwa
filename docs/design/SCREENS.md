@@ -93,6 +93,8 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | M-41 Product form       | `096f7f6b9222407caa87e483cc1de8bf` | `0dbc6481c8244d9a88b78fb8ef819124` | —                      |
 | M-42 Categories         | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                      |
 | M-43 Stock adjustment   | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                      |
+| M-50 Expenses list      | `251415a589154a9e92e0e250f6eb8976` | `969886d60bb642619532a2bab9344df6` | —                      |
+| M-51 Expense sheet      | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | —                      |
 
 ## Gaps
 
