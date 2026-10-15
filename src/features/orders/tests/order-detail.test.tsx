@@ -119,7 +119,7 @@ describe("OrderDetail Component", () => {
     });
   });
 
-  it("disables complete action and shows warning when order is READY and unpaid", () => {
+  it("shows warning and dynamically displays 'Mark paid & complete' instead of 'Complete order' when order is READY and unpaid", () => {
     const readyUnpaidOrder: EnrichedOrder = {
       ...mockOrder,
       status: "READY",
@@ -127,10 +127,42 @@ describe("OrderDetail Component", () => {
     };
 
     render(<OrderDetail order={readyUnpaidOrder} />);
+    expect(screen.getByText(/Payment required before completing order handover/i)).toBeDefined();
+    expect(screen.queryByText("Complete order")).toBeNull();
+    const shortcutBtn = screen.getByTestId("mark-paid-and-complete-button");
+    expect(shortcutBtn.textContent).toContain("Mark paid & complete");
+  });
+
+  it("displays enabled 'Complete order' action when order is READY and paid", async () => {
+    const completeSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...mockOrder,
+        status: "COMPLETED",
+        paid: "paid",
+      },
+    });
+
+    const readyPaidOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "READY",
+      paid: "paid",
+      paymentMethod: "cash",
+      paidAt: "2026-10-13T18:46:00.000Z",
+    };
+
+    render(<OrderDetail order={readyPaidOrder} />);
     const nextBtn = screen.getByTestId("next-status-action-button") as HTMLButtonElement;
     expect(nextBtn.textContent).toContain("Complete order");
-    expect(nextBtn.disabled).toBe(true);
-    expect(screen.getByText(/Payment required before completing order handover/i)).toBeDefined();
+    expect(nextBtn.disabled).toBe(false);
+
+    fireEvent.click(nextBtn);
+    await waitFor(() => {
+      expect(completeSpy).toHaveBeenCalledWith({
+        orderId: "ord-1",
+        nextStatus: "COMPLETED",
+      });
+    });
   });
 
   it("opens cancel dialog and cancels order with reason", async () => {

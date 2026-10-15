@@ -114,6 +114,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
 
   const nextStep = getNextStep(currentOrder.status);
   const isNotPaid = currentOrder.paid !== "paid";
+  const isReadyUnpaid = currentOrder.status === "READY" && currentOrder.paid === "unpaid";
   const isReadyNotPaid = currentOrder.status === "READY" && isNotPaid;
 
   // Handle Next Status Progression
@@ -826,11 +827,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
-            <>
-              <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
-                <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
-                <span>Payment required before completing order handover</span>
-              </div>
+            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
+              <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
+              <span>Payment required before completing order handover</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {isReadyUnpaid ? (
               <Button
                 type="button"
                 onClick={() => {
@@ -838,17 +842,13 @@ export function OrderDetail({ order }: OrderDetailProps) {
                   setPaymentDialogOpen(true);
                 }}
                 disabled={isSubmitting}
-                className="bg-primary text-primary-foreground min-h-[44px] w-full gap-1.5 text-xs font-semibold shadow-none active:scale-95"
+                className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
                 data-testid="mark-paid-and-complete-button"
               >
                 <Check className="h-4 w-4" />
                 <span>Mark paid & complete ({formatMoney(currentOrder.totalAmount)})</span>
               </Button>
-            </>
-          )}
-
-          <div className="flex items-center gap-2">
-            {nextStep && (
+            ) : nextStep ? (
               <Button
                 type="button"
                 onClick={handleProgressStatus}
@@ -859,7 +859,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 <nextStep.icon className="h-4 w-4" />
                 <span>{nextStep.label}</span>
               </Button>
-            )}
+            ) : null}
 
             <Button
               type="button"
