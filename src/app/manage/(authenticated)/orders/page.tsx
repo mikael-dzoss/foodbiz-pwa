@@ -11,8 +11,20 @@ export const metadata: Metadata = {
 
 export const instant = false;
 
-export default async function OrdersPage() {
+interface OrdersPageProps {
+  searchParams?: Promise<{ tab?: string; unpaid?: string; payment?: string }>;
+}
+
+export default async function OrdersPage({ searchParams }: OrdersPageProps = {}) {
   await requireManagerSession();
+  const params = searchParams ? await searchParams : undefined;
+  const isUnpaid = params?.unpaid === "true" || params?.payment === "unpaid";
+  const validTabs = ["active", "completed", "cancelled"] as const;
+  const initialTab =
+    params?.tab && (validTabs as readonly string[]).includes(params.tab)
+      ? (params.tab as (typeof validTabs)[number])
+      : "active";
+
   const res = await listOrdersAction({ statusTab: "all" });
 
   const initialData = res.success
@@ -32,7 +44,7 @@ export default async function OrdersPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <OrderList initialData={initialData} />
+      <OrderList initialData={initialData} initialTab={initialTab} initialUnpaidOnly={isUnpaid} />
     </div>
   );
 }

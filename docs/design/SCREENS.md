@@ -24,7 +24,7 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 | F1 Manager shell       | Shell (bottom nav / sidebar), quick-add sheet                                                          | #29                          | brief       | —            |
 | F2 Storefront shell    | Shell (header, cart button, footer, language switch)                                                   | #30                          | brief       | —            |
 | F3 Auth                | Sign-in, no access                                                                                     | #36, #37, #38, #40           | brief       | see registry |
-| F4 Dashboard           | Dashboard                                                                                              | #61, #62, #63                | brief       | —            |
+| F4 Dashboard           | Dashboard                                                                                              | #61, #62, #63                | designed    | see registry |
 | F5 Orders              | Orders list, order detail, cancel dialog, payment sheet                                                | #49, #50, #52, #53, #54, #55 | designed    | see registry |
 | F6 Manual order        | New order (items, customer, service, payment)                                                          | #51                          | designed    | see registry |
 | F7 Catalog             | Products list, product form, categories, stock sheet                                                   | #42–#47                      | brief       | see registry |
@@ -86,6 +86,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | ----------------------- | ---------------------------------- | ---------------------------------- | ---------------------- |
 | P-01 Patterns reference | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                      |
 | A-01 Manager sign-in    | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                      |
+| M-10 Dashboard          | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                      |
 | M-20 Orders list        | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                      |
 | M-21 Order detail       | `dd6b7a8e57994a808b4bb091dc366d0e` | `b8414f3cda494766b6b6dfebdb796961` | —                      |
 | M-30 New order          | `a9730928a6cd4a448907b4cd55d3f03d` | `b91d3b2fb2af416aacb2c4cc1a015ffe` | —                      |

@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 
 export interface OrderListProps {
   initialData: ListOrdersResult;
+  initialTab?: "active" | "completed" | "cancelled";
+  initialUnpaidOnly?: boolean;
   onFilterChange?: (filter: {
     tab: "active" | "completed" | "cancelled";
     serviceType?: string;
@@ -122,14 +124,20 @@ function getDueTimeDiff(requestedDate?: string | null, requestedTime?: string | 
   }
 }
 
-export function OrderList({ initialData }: OrderListProps) {
+export function OrderList({
+  initialData,
+  initialTab = "active",
+  initialUnpaidOnly = false,
+}: OrderListProps) {
   const router = useRouter();
   const [localStatusUpdates, setLocalStatusUpdates] = React.useState<Record<string, OrderStatus>>(
     {},
   );
-  const [activeTab, setActiveTab] = React.useState<"active" | "completed" | "cancelled">("active");
+  const [activeTab, setActiveTab] = React.useState<"active" | "completed" | "cancelled">(
+    initialTab,
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [unpaidOnly, setUnpaidOnly] = React.useState(false);
+  const [unpaidOnly, setUnpaidOnly] = React.useState(initialUnpaidOnly);
   const [selectedServiceType, setSelectedServiceType] = React.useState<
     "all" | "pickup" | "delivery"
   >("all");

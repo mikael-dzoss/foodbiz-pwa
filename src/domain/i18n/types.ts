@@ -39,6 +39,52 @@ export interface QuickAddDictionary {
   newExpense: string;
 }
 
+export interface DashboardDictionary {
+  title: string;
+  subtitle: string;
+  activeStatus: string;
+  periods: {
+    today: string;
+    last_7_days: string;
+    last_30_days: string;
+    this_month: string;
+  };
+  kpi: {
+    revenue: string;
+    costs: string;
+    profit: string;
+    orders: string;
+    averageOrderValue: string;
+    vsPreviousPeriod: string;
+    vsYesterday: string;
+  };
+  triage: {
+    sectionTitle: string;
+    realtimeAlerts: string;
+    toPrepare: string;
+    toPrepareCount: string;
+    viewAllPrepOrders: string;
+    noOrdersToPrepare: string;
+    unpaidOrders: string;
+    unpaidOrdersCount: string;
+    reviewUnpaidOrders: string;
+    noUnpaidOrders: string;
+    lowStockAlert: string;
+    lowStockCount: string;
+    manageInventory: string;
+    allStockHealthy: string;
+    unitsLeft: string;
+  };
+  activity: {
+    sectionTitle: string;
+    viewAll: string;
+    empty: string;
+    paid: string;
+    unpaid: string;
+    expense: string;
+  };
+}
+
 export interface CommonDictionary {
   close: string;
   save: string;
@@ -52,6 +98,7 @@ export interface CommonDictionary {
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
+  dashboard: DashboardDictionary;
   storefront: StorefrontDictionary;
   quickAdd: QuickAddDictionary;
   common: CommonDictionary;
