@@ -1,0 +1,180 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { Expense, Order, Product } from "@/domain";
+import { getDashboardDataAction } from "../dashboard-actions";
+
+const testBusinessId = "11111111-1111-4111-8111-111111111111";
+
+let mockOrders: Order[] = [];
+let mockExpenses: Expense[] = [];
+let mockProducts: Product[] = [];
+
+const mockOrderRepo = {
+  list: vi.fn(async () => mockOrders),
+};
+
+const mockExpenseRepo = {
+  list: vi.fn(async () => mockExpenses),
+};
+
+const mockProductRepo = {
+  list: vi.fn(async () => mockProducts),
+};
+
+vi.mock("@/lib/repositories", () => ({
+  getRepositories: () => ({
+    orders: mockOrderRepo,
+    expenses: mockExpenseRepo,
+    products: mockProductRepo,
+  }),
+}));
+
+const mockRequireAuthenticatedAction = vi.fn(async () => ({
+  session: {
+    user: { id: "user-1", email: "manager@test.com" },
+    business: { id: testBusinessId, name: "Test Kitchen", slug: "test-kitchen" },
+    role: "manager" as const,
+  },
+  businessId: testBusinessId,
+}));
+
+vi.mock("@/features/auth", () => ({
+  requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
+}));
+
+describe("Dashboard Server Actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockOrders = [
+      {
+        id: "22222222-2222-4111-8111-222222222222",
+        businessId: testBusinessId,
+        orderNumber: 1042,
+        guestName: "Bob",
+        serviceType: "pickup",
+        channel: "storefront",
+        status: "CONFIRMED",
+        paid: "paid",
+        paymentPreference: "on_handover",
+        paymentMethod: "cash",
+        paidAt: "2026-10-15T12:00:00.000Z",
+        requestedDate: "2026-10-15",
+        requestedTime: "12:30",
+        items: [
+          {
+            productId: "33333333-3333-4111-8111-333333333333",
+            productName: "Smash Burger",
+            quantity: 2,
+            unitPrice: 1200,
+            totalPrice: 2400,
+          },
+        ],
+        totalAmount: 2400,
+        createdAt: "2026-10-15T10:00:00.000Z",
+        updatedAt: "2026-10-15T10:05:00.000Z",
+      },
+      {
+        id: "22222222-2222-4111-8111-222222222223",
+        businessId: testBusinessId,
+        orderNumber: 1043,
+        guestName: "Charlie",
+        serviceType: "delivery",
+        channel: "storefront",
+        status: "PREPARING",
+        paid: "unpaid",
+        paymentPreference: "on_handover",
+        requestedDate: "2026-10-15",
+        requestedTime: "13:00",
+        items: [
+          {
+            productId: "33333333-3333-4111-8111-333333333334",
+            productName: "Salad",
+            quantity: 1,
+            unitPrice: 1500,
+            totalPrice: 1500,
+          },
+        ],
+        totalAmount: 1500,
+        createdAt: "2026-10-15T11:00:00.000Z",
+        updatedAt: "2026-10-15T11:05:00.000Z",
+      },
+    ];
+
+    mockExpenses = [
+      {
+        id: "44444444-4444-4111-8111-444444444444",
+        businessId: testBusinessId,
+        amount: 500,
+        date: "2026-10-15",
+        description: "Fresh Veggies",
+        tags: ["Ingredients"],
+        createdAt: "2026-10-15T09:00:00.000Z",
+      },
+    ];
+
+    mockProducts = [
+      {
+        id: "55555555-5555-4111-8111-555555555555",
+        businessId: testBusinessId,
+        categoryId: "66666666-6666-4111-8111-666666666666",
+        name: "Brioche Buns",
+        description: null,
+        price: 350,
+        unitCost: 100,
+        stock: 3,
+        visible: true,
+        imageUrl: null,
+        createdAt: "2026-10-10T10:00:00.000Z",
+        updatedAt: "2026-10-10T10:00:00.000Z",
+      },
+    ];
+  });
+
+  it("loads dashboard data with default 'today' preset", async () => {
+    const res = await getDashboardDataAction({ referenceDate: "2026-10-15" });
+
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+
+    expect(res.data.periodPreset).toBe("today");
+    expect(res.data.kpis.current.revenue).toBe(2400);
+    expect(res.data.kpis.current.costs).toBe(500);
+    expect(res.data.kpis.current.profit).toBe(1900);
+    expect(res.data.triage.toPrepare.count).toBe(2);
+    expect(res.data.triage.unpaid.count).toBe(1);
+    expect(res.data.triage.unpaid.totalAmount).toBe(1500);
+    expect(res.data.triage.lowStock.count).toBe(1);
+    expect(res.data.activity).toHaveLength(3);
+  });
+
+  it("supports periodPreset filtering ('last_7_days')", async () => {
+    const res = await getDashboardDataAction({
+      periodPreset: "last_7_days",
+      referenceDate: "2026-10-15",
+    });
+
+    expect(res.success).toBe(true);
+    if (!res.success) return;
+
+    expect(res.data.periodPreset).toBe("last_7_days");
+    expect(res.data.period.startDate).toBe("2026-10-09");
+    expect(res.data.period.endDate).toBe("2026-10-15");
+  });
+
+  it("fails gracefully on invalid input parameters", async () => {
+    const res = await getDashboardDataAction({ periodPreset: "invalid_period" });
+
+    expect(res.success).toBe(false);
+    if (res.success) return;
+    expect(res.error).toContain("Invalid dashboard query parameters");
+  });
+
+  it("catches repository or authentication failure", async () => {
+    mockRequireAuthenticatedAction.mockRejectedValueOnce(new Error("Unauthorized access"));
+
+    const res = await getDashboardDataAction();
+    expect(res.success).toBe(false);
+    if (res.success) return;
+    expect(res.error).toBe("Unauthorized access");
+  });
+});

@@ -7,6 +7,21 @@ vi.mock("@/lib/auth", () => ({
   requireManagerSession: vi.fn(),
 }));
 
+import { buildDashboardData } from "@/domain";
+
+vi.mock("@/features/dashboard", () => ({
+  getDashboardDataAction: vi.fn(async () => ({
+    success: true,
+    data: buildDashboardData({
+      orders: [],
+      expenses: [],
+      products: [],
+      periodPreset: "today",
+    }),
+  })),
+  DashboardView: () => null,
+}));
+
 describe("manage: route guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
