@@ -27,6 +27,36 @@ export const demoSettings: BusinessSettings = {
   lowStockThreshold: 5,
   taxPercentage: 5.5,
   notifications: true,
+
+  // Ordering (#71)
+  acceptingOrders: true,
+  serviceTypes: {
+    pickup: true,
+    delivery: true,
+    dineIn: true,
+  },
+  openingHours: "Mon-Sat: 07:00 - 19:30, Sun: 08:00 - 13:00",
+  orderTimingAsap: true,
+  orderTimingScheduled: true,
+  orderTimingTimeOptional: true,
+  deliveryFee: 350, // €3.50 in cents
+  minOrderAmount: 1500, // €15.00 in cents
+
+  // Payment (#72)
+  revolutRevtag: "@boulangerie",
+  weroIdentifier: "+33612345678",
+  paymentMethods: {
+    cash: true,
+    revolut: true,
+    wero: true,
+  },
+  paymentInstructionsEn: "Please prepare exact change or present your QR code on handover.",
+  paymentInstructionsFr:
+    "Merci de préparer l'appoint ou de présenter votre code QR lors du retrait.",
+
+  // Notifications & Sound (#74)
+  inAppAlerts: true,
+  soundAlerts: true,
 };
 
 export const demoMembers: BusinessMember[] = [

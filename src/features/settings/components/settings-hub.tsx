@@ -7,10 +7,8 @@ import {
   ShoppingBag,
   CreditCard,
   Package,
-  Receipt,
   Bell,
   Users,
-  Smartphone,
   Info,
   ChevronRight,
   LogOut,
@@ -113,32 +111,77 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
         </div>
       </div>
 
-      {/* 2. Operations (Upcoming modules) */}
+      {/* 2. Operations */}
       <div className="mb-6">
         <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
           {dict.operationsSection}
         </h2>
-        <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-2xl border shadow-2xs">
-          <SoonItem
-            featureKey="settings.ordering"
-            leading={<ShoppingBag className="h-5 w-5" />}
-            data-testid="soon-ordering"
-          />
-          <SoonItem
-            featureKey="settings.payments"
-            leading={<CreditCard className="h-5 w-5" />}
-            data-testid="soon-payments"
-          />
-          <SoonItem
-            featureKey="settings.inventory"
-            leading={<Package className="h-5 w-5" />}
-            data-testid="soon-inventory"
-          />
-          <SoonItem
-            featureKey="settings.finance"
-            leading={<Receipt className="h-5 w-5" />}
-            data-testid="soon-finance"
-          />
+        <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
+          {/* Ordering */}
+          <Link
+            href="/manage/settings/ordering"
+            data-testid="link-ordering-settings"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors first:rounded-t-2xl focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div className="flex min-w-0 items-center gap-3.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-foreground block text-sm font-semibold">
+                  {dict.ordering.title}
+                </span>
+                <span className="text-body-sm text-muted-foreground block truncate">
+                  {dict.ordering.description}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" />
+          </Link>
+
+          {/* Payment */}
+          <Link
+            href="/manage/settings/payment"
+            data-testid="link-payment-settings"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div className="flex min-w-0 items-center gap-3.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-foreground block text-sm font-semibold">
+                  {dict.payment.title}
+                </span>
+                <span className="text-body-sm text-muted-foreground block truncate">
+                  {dict.payment.description}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" />
+          </Link>
+
+          {/* Inventory & Finance */}
+          <Link
+            href="/manage/settings/inventory-finance"
+            data-testid="link-inventory-settings"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors last:rounded-b-2xl focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div className="flex min-w-0 items-center gap-3.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                <Package className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-foreground block text-sm font-semibold">
+                  {dict.inventoryFinance.title}
+                </span>
+                <span className="text-body-sm text-muted-foreground block truncate">
+                  {dict.inventoryFinance.description}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" />
+          </Link>
         </div>
       </div>
 
@@ -148,26 +191,40 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
           {dict.systemSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-2xl border shadow-2xs">
-          <SoonItem
-            featureKey="settings.notifications"
-            leading={<Bell className="h-5 w-5" />}
-            data-testid="soon-notifications"
-          />
+          {/* Notifications & App */}
+          <Link
+            href="/manage/settings/notifications"
+            data-testid="link-notifications-settings"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors first:rounded-t-2xl focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div className="flex min-w-0 items-center gap-3.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                <Bell className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-foreground block text-sm font-semibold">
+                  {dict.notifications.title}
+                </span>
+                <span className="text-body-sm text-muted-foreground block truncate">
+                  {dict.notifications.description}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" />
+          </Link>
+
+          {/* Team Permissions (Upcoming) */}
           <SoonItem
             featureKey="settings.team"
             leading={<Users className="h-5 w-5" />}
             data-testid="soon-team"
           />
-          <SoonItem
-            featureKey="settings.app"
-            leading={<Smartphone className="h-5 w-5" />}
-            data-testid="soon-app"
-          />
+
           {/* About */}
           <Link
             href="/manage/settings/about"
             data-testid="link-about"
-            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors last:rounded-b-2xl focus-visible:ring-2 focus-visible:outline-none"
           >
             <div className="flex min-w-0 items-center gap-3.5">
               <div className="bg-muted text-muted-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">

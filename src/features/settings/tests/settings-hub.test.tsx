@@ -56,17 +56,14 @@ describe("SettingsHub component", () => {
     expect(screen.getByTestId("link-business-settings")).toBeDefined();
   });
 
-  it("renders upcoming operations and system features as soon items", () => {
+  it("renders operations and system navigation links", () => {
     render(<SettingsHub session={mockSession} dict={dict} />);
 
-    expect(screen.getByTestId("soon-ordering")).toBeDefined();
-    expect(screen.getByTestId("soon-payments")).toBeDefined();
-    expect(screen.getByTestId("soon-inventory")).toBeDefined();
-    expect(screen.getByTestId("soon-finance")).toBeDefined();
-
-    expect(screen.getByTestId("soon-notifications")).toBeDefined();
+    expect(screen.getByTestId("link-ordering-settings")).toBeDefined();
+    expect(screen.getByTestId("link-payment-settings")).toBeDefined();
+    expect(screen.getByTestId("link-inventory-settings")).toBeDefined();
+    expect(screen.getByTestId("link-notifications-settings")).toBeDefined();
     expect(screen.getByTestId("soon-team")).toBeDefined();
-    expect(screen.getByTestId("soon-app")).toBeDefined();
     expect(screen.getByTestId("link-about")).toBeDefined();
   });
 
