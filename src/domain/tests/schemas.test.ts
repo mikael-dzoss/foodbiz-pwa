@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   businessMemberSchema,
   businessSchema,
+  updateBusinessProfileSchema,
   businessSettingsSchema,
   expenseSchema,
   guestSchema,
@@ -27,11 +28,47 @@ describe("Business schemas", () => {
       name: "La Petite Boulangerie",
       slug: "la-petite-boulangerie",
       currency: "EUR" as const,
+      description: "Artisanal organic sourdough bakery",
+      phone: "+33 1 43 55 67 89",
+      email: "bonjour@lapetiteboulangerie.fr",
+      whatsappNumber: "+33 6 12 34 56 78",
+      address: "12 Rue de la Roquette, 75011 Paris",
+      logoUrl: "https://example.com/logo.png",
       createdAt: isoNow,
       updatedAt: isoNow,
     };
     const parsed = businessSchema.safeParse(valid);
     expect(parsed.success).toBe(true);
+  });
+
+  it("validates updateBusinessProfileSchema and rejects invalid slug or email", () => {
+    const validProfile = {
+      name: "La Petite Boulangerie",
+      slug: "la-petite-boulangerie",
+      description: "Fresh baguettes daily",
+      phone: "+33 1 43 55 67 89",
+      email: "info@bakery.com",
+      whatsappNumber: "+33 6 12 34 56 78",
+      address: "Paris, France",
+      logoUrl: null,
+    };
+    expect(updateBusinessProfileSchema.safeParse(validProfile).success).toBe(true);
+
+    // Invalid slug (spaces, capital letters, special chars)
+    expect(
+      updateBusinessProfileSchema.safeParse({
+        ...validProfile,
+        slug: "Invalid Slug!",
+      }).success,
+    ).toBe(false);
+
+    // Invalid email
+    expect(
+      updateBusinessProfileSchema.safeParse({
+        ...validProfile,
+        email: "not-an-email",
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects Business with invalid UUID or non-EUR currency", () => {

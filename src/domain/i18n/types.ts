@@ -95,11 +95,63 @@ export interface CommonDictionary {
   back: string;
 }
 
+export interface SettingsDictionary {
+  title: string;
+  subtitle: string;
+  coreSection: string;
+  operationsSection: string;
+  systemSection: string;
+  account: {
+    title: string;
+    description: string;
+    profileTitle: string;
+    managedViaGoogle: string;
+    preferencesTitle: string;
+    languageLabel: string;
+    themeLabel: string;
+    themeSystem: string;
+    themeLight: string;
+    themeDark: string;
+    securityTitle: string;
+    signOut: string;
+  };
+  business: {
+    title: string;
+    description: string;
+    identitySection: string;
+    logoLabel: string;
+    uploadLogo: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    descLabel: string;
+    descPlaceholder: string;
+    slugLabel: string;
+    slugHelper: string;
+    activeBadge: string;
+    contactSection: string;
+    phoneLabel: string;
+    emailLabel: string;
+    whatsappLabel: string;
+    addressLabel: string;
+    brandingSection: string;
+    saveButton: string;
+    saveSuccess: string;
+    discardButton: string;
+  };
+  about: {
+    title: string;
+    version: string;
+    legal: string;
+    support: string;
+  };
+}
+
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
   dashboard: DashboardDictionary;
   storefront: StorefrontDictionary;
   quickAdd: QuickAddDictionary;
+  settings: SettingsDictionary;
   common: CommonDictionary;
 }

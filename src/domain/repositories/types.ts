@@ -141,6 +141,12 @@ export interface CreateBusinessInput {
   readonly name: string;
   readonly slug: string;
   readonly currency?: Business["currency"];
+  readonly description?: string;
+  readonly phone?: string;
+  readonly email?: string;
+  readonly whatsappNumber?: string;
+  readonly address?: string;
+  readonly logoUrl?: string | null;
 }
 
 export type UpdateBusinessInput = Partial<Omit<CreateBusinessInput, "id">>;

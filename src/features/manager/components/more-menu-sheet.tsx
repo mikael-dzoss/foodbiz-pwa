@@ -54,7 +54,7 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
       href: "/manage/settings",
       icon: Settings,
       description: "Account and business profile",
-      isReady: false,
+      isReady: true,
     },
   ];
 
