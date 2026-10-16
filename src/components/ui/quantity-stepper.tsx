@@ -9,6 +9,7 @@ export interface QuantityStepperProps {
   value: number;
   min?: number;
   max?: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
   className?: string;
   "data-testid"?: string;
@@ -18,18 +19,19 @@ export function QuantityStepper({
   value,
   min = 0,
   max = 999,
+  disabled = false,
   onChange,
   className,
   "data-testid": testId,
 }: QuantityStepperProps) {
   const handleDecrement = () => {
-    if (value > min) {
+    if (!disabled && value > min) {
       onChange(value - 1);
     }
   };
 
   const handleIncrement = () => {
-    if (value < max) {
+    if (!disabled && value < max) {
       onChange(value + 1);
     }
   };
@@ -38,6 +40,7 @@ export function QuantityStepper({
     <div
       className={cn(
         "border-border bg-card inline-flex items-center rounded-md border p-1",
+        disabled && "cursor-not-allowed opacity-60",
         className,
       )}
       data-testid={testId}
@@ -47,7 +50,7 @@ export function QuantityStepper({
         variant="ghost"
         size="icon"
         onClick={handleDecrement}
-        disabled={value <= min}
+        disabled={disabled || value <= min}
         aria-label="Decrease quantity"
         className="text-foreground hover:bg-muted h-12 w-12"
         data-testid="quantity-decrement"
@@ -67,7 +70,7 @@ export function QuantityStepper({
         variant="ghost"
         size="icon"
         onClick={handleIncrement}
-        disabled={value >= max}
+        disabled={disabled || value >= max}
         aria-label="Increase quantity"
         className="text-foreground hover:bg-muted h-12 w-12"
         data-testid="quantity-increment"

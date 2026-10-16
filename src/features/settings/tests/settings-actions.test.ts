@@ -12,8 +12,10 @@ import {
 } from "../actions";
 
 const mockRevalidatePath = vi.fn();
+const mockRevalidateTag = vi.fn();
 vi.mock("next/cache", () => ({
   revalidatePath: (path: string) => mockRevalidatePath(path),
+  revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
 }));
 
 const mockSetCookie = vi.fn();

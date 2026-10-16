@@ -29,6 +29,49 @@ export interface StorefrontDictionary {
   terms: string;
   privacy: string;
   openHours: string;
+
+  // Catalog & Navigation (#80)
+  allCategories: string;
+  searchPlaceholder: string;
+  noProductsFound: string;
+  noProductsInCategory: string;
+  addToCart: string;
+  addedToCart: string;
+  viewCart: string;
+  backToCatalog: string;
+
+  // Availability & Status (#82)
+  inStock: string;
+  lowStock: string;
+  unitsLeft: string;
+  outOfStock: string;
+  storeClosedBanner: string;
+  notAcceptingOrdersBanner: string;
+  storeOpenBadge: string;
+  storeClosedBadge: string;
+  scheduledOnlyNotice: string;
+
+  // Product Detail (#81)
+  productNotFound: string;
+  productUnavailable: string;
+  quantity: string;
+  total: string;
+
+  // Shop Information (#83)
+  shopInfo: string;
+  services: string;
+  address: string;
+  chatOnWhatsApp: string;
+  callShop: string;
+  emailShop: string;
+  getDirections: string;
+  servicePickup: string;
+  serviceDelivery: string;
+  serviceDineIn: string;
+  serviceAvailable: string;
+  minimumOrder: string;
+  deliveryFee: string;
+  freeDelivery: string;
 }
 
 export interface QuickAddDictionary {

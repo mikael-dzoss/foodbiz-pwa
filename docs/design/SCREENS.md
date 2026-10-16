@@ -31,7 +31,7 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 | F8 Expenses            | Expenses list, expense sheet                                                                           | #58, #59                     | brief       | —            |
 | F9 Settings            | Settings hub, account, business, ordering, payment, inventory & finance, notifications/team/app, about | #68–#74                      | brief       | —            |
 | F10 Customers          | Customers list, customer detail                                                                        | #66                          | brief       | —            |
-| F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | brief       | —            |
+| F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | designed    | see registry |
 | F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | brief       | —            |
 | F13 Tracking           | Order tracking                                                                                         | #89                          | brief       | —            |
 | F14 Analytics          | Analytics (range, trend, top products, export)                                                         | #76, #77, #78                | brief       | —            |
@@ -103,6 +103,9 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | M-64 Payment settings    | `466a1d7f374942e9895e789831633b69` | `5f6c2683efbf46e48baa48a2b909ed93` | —                      |
 | M-65 Inventory & finance | `6988aebd933e47bda20be9ec53adc21d` | `aded4036b64f473cb6b8ecaa408d1518` | —                      |
 | M-67 Notifications & app | `8ee29f8193974f6089b549ea3e13114e` | `016523a07f9c4ee5b8987b58a552e981` | —                      |
+| C-01 Storefront home     | `f7ad34729a9749f8bdcd5f284d6693f2` | —                                  | —                      |
+| C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                      |
+| C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                      |
 
 ## Gaps
 

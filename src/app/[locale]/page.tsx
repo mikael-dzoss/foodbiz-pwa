@@ -1,4 +1,3 @@
-import { APP_METADATA } from "@/config/app";
 import {
   getDictionary,
   isSupportedLocale,
@@ -6,6 +5,7 @@ import {
   SUPPORTED_LOCALES,
   type SupportedLocale,
 } from "@/domain/i18n";
+import { getStorefrontCatalog, StorefrontCatalogView } from "@/features/storefront";
 
 export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
@@ -24,15 +24,8 @@ export default async function LocaleHomePage({ params }: LocalePageProps) {
     : DEFAULT_LOCALE;
   const dict = getDictionary(locale);
 
-  return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-      <h1 className="text-3xl font-semibold tracking-tight">{APP_METADATA.name}</h1>
-      <p className="max-w-md text-base text-zinc-600 dark:text-zinc-400">
-        {APP_METADATA.description}
-      </p>
-      <p className="text-sm text-zinc-500">
-        {dict.storefront.openHours} · {locale.toUpperCase()}
-      </p>
-    </main>
-  );
+  // Server-rendered, cached catalog query with 'use cache' (#80, #82)
+  const catalog = await getStorefrontCatalog();
+
+  return <StorefrontCatalogView catalog={catalog} locale={locale} dict={dict.storefront} />;
 }
