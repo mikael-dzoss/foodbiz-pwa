@@ -52,6 +52,22 @@ export function describeBusinessRepositoryContract(
       ).rejects.toThrow();
     });
 
+    it("update modifies profile contact and details", async () => {
+      const repos = await getRepositories();
+      const updated = await repos.business.update(businessId, {
+        description: "New updated bakery description",
+        phone: "+33 1 99 88 77 66",
+        email: "contact@lapetiteboulangerie.fr",
+        whatsappNumber: "+33 6 99 88 77 66",
+        address: "50 Boulevard Voltaire, 75011 Paris",
+      });
+      expect(updated.description).toBe("New updated bakery description");
+      expect(updated.phone).toBe("+33 1 99 88 77 66");
+      expect(updated.email).toBe("contact@lapetiteboulangerie.fr");
+      expect(updated.whatsappNumber).toBe("+33 6 99 88 77 66");
+      expect(updated.address).toBe("50 Boulevard Voltaire, 75011 Paris");
+    });
+
     it("getSettings returns business settings and updateSettings modifies them, throwing on wrong businessId", async () => {
       const repos = await getRepositories();
       const settings = await repos.business.getSettings(businessId);

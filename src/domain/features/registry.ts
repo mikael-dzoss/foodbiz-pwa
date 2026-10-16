@@ -19,6 +19,30 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     title: "Analytics Report Export",
     description: "Download financial and performance summary reports.",
   },
+  "settings.ordering": {
+    key: "settings.ordering",
+    status: "soon",
+    title: "Ordering Settings",
+    description: "Fulfillment modes, prep times, and order cutoffs.",
+  },
+  "settings.payments": {
+    key: "settings.payments",
+    status: "soon",
+    title: "Payment Settings",
+    description: "Revolut Pay, Wero, cash, and payout preferences.",
+  },
+  "settings.inventory": {
+    key: "settings.inventory",
+    status: "soon",
+    title: "Inventory Settings",
+    description: "Low-stock thresholds and waste tracking.",
+  },
+  "settings.finance": {
+    key: "settings.finance",
+    status: "soon",
+    title: "Finance & Tax Settings",
+    description: "VAT rates, accounting exports, and currency rules.",
+  },
   "settings.notifications": {
     key: "settings.notifications",
     status: "soon",
@@ -42,6 +66,42 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     title: "Billing & Plans",
     description: "Manage subscription and store invoices.",
+  },
+  "settings.app": {
+    key: "settings.app",
+    status: "soon",
+    title: "App Configuration",
+    description: "PWA caching, offline mode, and dev tools.",
+  },
+  "account.devices": {
+    key: "account.devices",
+    status: "soon",
+    title: "Signed-in Devices",
+    description: "Manage active sessions and trusted devices.",
+  },
+  "account.export_data": {
+    key: "account.export_data",
+    status: "soon",
+    title: "Export My Data",
+    description: "Download GDPR archive of orders, expenses, and logs.",
+  },
+  "account.delete": {
+    key: "account.delete",
+    status: "soon",
+    title: "Delete Account",
+    description: "Permanently purge manager account and personal data.",
+  },
+  "business.cover_image": {
+    key: "business.cover_image",
+    status: "soon",
+    title: "Storefront Cover Image",
+    description: "Hero header photo displayed on customer web storefront.",
+  },
+  "business.brand_color": {
+    key: "business.brand_color",
+    status: "soon",
+    title: "Brand Theme Colour",
+    description: "Custom accent colour on digital receipts and storefront.",
   },
   "products.import": {
     key: "products.import",

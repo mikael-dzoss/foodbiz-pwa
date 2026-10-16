@@ -324,6 +324,12 @@ export function createMockRepositories(
         name: input.name,
         slug: input.slug,
         currency: input.currency ?? "EUR",
+        description: input.description,
+        phone: input.phone,
+        email: input.email,
+        whatsappNumber: input.whatsappNumber,
+        address: input.address,
+        logoUrl: input.logoUrl,
         createdAt: now,
         updatedAt: now,
       };

@@ -9,6 +9,12 @@ export const demoBusiness: Business = {
   name: "La Petite Boulangerie",
   slug: "la-petite-boulangerie",
   currency: "EUR",
+  description: "Artisanal organic sourdough bakery and French pastries in Paris.",
+  phone: "+33 1 43 55 67 89",
+  email: "bonjour@lapetiteboulangerie.fr",
+  whatsappNumber: "+33 6 12 34 56 78",
+  address: "12 Rue de la Roquette, 75011 Paris, France",
+  logoUrl: null,
   createdAt: "2026-08-01T08:00:00.000Z",
   updatedAt: "2026-08-01T08:00:00.000Z",
 };

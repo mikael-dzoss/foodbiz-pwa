@@ -6,11 +6,34 @@ export const businessSchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1),
   currency: z.literal("EUR").default("EUR"),
+  description: z.string().trim().max(500).optional(),
+  phone: z.string().trim().optional(),
+  email: z.string().trim().email().optional().or(z.literal("")),
+  whatsappNumber: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  logoUrl: z.string().trim().optional().nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 });
 
 export type Business = z.infer<typeof businessSchema>;
+
+export const updateBusinessProfileSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  slug: z
+    .string()
+    .trim()
+    .min(1, "Slug is required")
+    .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase alphanumeric characters and hyphens"),
+  description: z.string().trim().max(500, "Description must be 500 characters or less").optional(),
+  phone: z.string().trim().optional(),
+  email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
+  whatsappNumber: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  logoUrl: z.string().trim().optional().nullable(),
+});
+
+export type UpdateBusinessProfileInput = z.infer<typeof updateBusinessProfileSchema>;
 
 export const businessMemberRoleSchema = z.enum(["owner", "manager", "staff"]);
 export type BusinessMemberRole = z.infer<typeof businessMemberRoleSchema>;
