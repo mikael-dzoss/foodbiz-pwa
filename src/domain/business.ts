@@ -59,6 +59,117 @@ export const businessSettingsSchema = z.object({
   lowStockThreshold: z.number().int().min(0).default(5),
   taxPercentage: z.number().min(0).max(100).default(0),
   notifications: z.boolean().default(true),
+
+  // Ordering settings (#71)
+  acceptingOrders: z.boolean().default(true),
+  serviceTypes: z
+    .object({
+      pickup: z.boolean().default(true),
+      delivery: z.boolean().default(true),
+      dineIn: z.boolean().default(true),
+    })
+    .default({ pickup: true, delivery: true, dineIn: true }),
+  openingHours: z.string().trim().max(500).optional().default(""),
+  orderTimingAsap: z.boolean().default(true),
+  orderTimingScheduled: z.boolean().default(true),
+  orderTimingTimeOptional: z.boolean().default(true),
+  deliveryFee: z.number().int().min(0).default(0), // cents
+  minOrderAmount: z.number().int().min(0).default(0), // cents
+
+  // Payment settings (#72)
+  revolutRevtag: z.string().trim().optional().default(""),
+  weroIdentifier: z.string().trim().optional().default(""),
+  paymentMethods: z
+    .object({
+      cash: z.boolean().default(true),
+      revolut: z.boolean().default(true),
+      wero: z.boolean().default(true),
+    })
+    .default({ cash: true, revolut: true, wero: true }),
+  paymentInstructionsEn: z.string().trim().max(1000).optional().default(""),
+  paymentInstructionsFr: z.string().trim().max(1000).optional().default(""),
+
+  // Notifications & sound (#74)
+  inAppAlerts: z.boolean().default(true),
+  soundAlerts: z.boolean().default(true),
 });
 
 export type BusinessSettings = z.infer<typeof businessSettingsSchema>;
+
+export const updateOrderingSettingsSchema = z
+  .object({
+    acceptingOrders: z.boolean(),
+    serviceTypes: z.object({
+      pickup: z.boolean(),
+      delivery: z.boolean(),
+      dineIn: z.boolean(),
+    }),
+    openingHours: z.string().trim().max(500).optional().default(""),
+    orderTimingAsap: z.boolean().default(true),
+    orderTimingScheduled: z.boolean().default(true),
+    orderTimingTimeOptional: z.boolean().default(true),
+    deliveryFee: z.number().int().min(0, "Delivery fee must be 0 or positive").default(0),
+    minOrderAmount: z
+      .number()
+      .int()
+      .min(0, "Minimum order amount must be 0 or positive")
+      .default(0),
+  })
+  .refine(
+    (data) => data.serviceTypes.pickup || data.serviceTypes.delivery || data.serviceTypes.dineIn,
+    {
+      message: "At least one service type must be enabled",
+      path: ["serviceTypes"],
+    },
+  );
+
+export type UpdateOrderingSettingsInput = z.infer<typeof updateOrderingSettingsSchema>;
+
+export const updatePaymentSettingsSchema = z
+  .object({
+    revolutRevtag: z.string().trim().optional().default(""),
+    weroIdentifier: z.string().trim().optional().default(""),
+    paymentMethods: z.object({
+      cash: z.boolean(),
+      revolut: z.boolean(),
+      wero: z.boolean(),
+    }),
+    paymentInstructionsEn: z.string().trim().max(1000).optional().default(""),
+    paymentInstructionsFr: z.string().trim().max(1000).optional().default(""),
+  })
+  .refine(
+    (data) => data.paymentMethods.cash || data.paymentMethods.revolut || data.paymentMethods.wero,
+    {
+      message: "At least one payment option must be enabled",
+      path: ["paymentMethods"],
+    },
+  );
+
+export type UpdatePaymentSettingsInput = z.infer<typeof updatePaymentSettingsSchema>;
+
+export const updateInventoryFinanceSettingsSchema = z.object({
+  lowStockThreshold: z
+    .number()
+    .int("Low-stock threshold must be an integer")
+    .min(0, "Low-stock threshold must be 0 or greater")
+    .default(5),
+  taxPercentage: z
+    .number()
+    .min(0, "Tax percentage must be at least 0")
+    .max(100, "Tax percentage cannot exceed 100")
+    .default(0),
+  currency: z.literal("EUR").default("EUR"),
+  dateFormat: dateFormatSchema.default("DD/MM/YYYY"),
+});
+
+export type UpdateInventoryFinanceSettingsInput = z.infer<
+  typeof updateInventoryFinanceSettingsSchema
+>;
+
+export const updateNotificationSettingsSchema = z.object({
+  notifications: z.boolean().default(true),
+  inAppAlerts: z.boolean().default(true),
+  soundAlerts: z.boolean().default(true),
+});
+
+export type UpdateNotificationSettingsInput = z.infer<typeof updateNotificationSettingsSchema>;

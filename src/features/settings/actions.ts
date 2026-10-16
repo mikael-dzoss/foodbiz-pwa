@@ -6,6 +6,10 @@ import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
 import {
   updateBusinessProfileSchema,
+  updateOrderingSettingsSchema,
+  updatePaymentSettingsSchema,
+  updateInventoryFinanceSettingsSchema,
+  updateNotificationSettingsSchema,
   type Business,
   type BusinessSettings,
   type SupportedLocale,
@@ -128,6 +132,131 @@ export async function switchLanguageAction(
     return { success: true, data: locale };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update language";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Updates ordering preferences (fulfillment modes, opening hours, lead times, fees).
+ */
+export async function updateOrderingSettingsAction(
+  input: unknown,
+): Promise<SettingsActionResult<BusinessSettings>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = updateOrderingSettingsSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Invalid ordering settings data",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const repos = getRepositories();
+    const updated = await repos.business.updateSettings(businessId, parsed.data);
+
+    revalidatePath("/manage/settings/ordering");
+    revalidatePath("/manage/settings");
+    revalidatePath("/manage");
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update ordering settings";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Updates payment settings (direct identifiers, handover toggles, instructions).
+ */
+export async function updatePaymentSettingsAction(
+  input: unknown,
+): Promise<SettingsActionResult<BusinessSettings>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = updatePaymentSettingsSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Invalid payment settings data",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const repos = getRepositories();
+    const updated = await repos.business.updateSettings(businessId, parsed.data);
+
+    revalidatePath("/manage/settings/payment");
+    revalidatePath("/manage/settings");
+    revalidatePath("/manage");
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update payment settings";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Updates inventory & finance settings (low-stock threshold, currency, tax).
+ */
+export async function updateInventoryFinanceSettingsAction(
+  input: unknown,
+): Promise<SettingsActionResult<BusinessSettings>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = updateInventoryFinanceSettingsSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Invalid inventory and finance settings data",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const repos = getRepositories();
+    const updated = await repos.business.updateSettings(businessId, parsed.data);
+
+    revalidatePath("/manage/settings/inventory-finance");
+    revalidatePath("/manage/settings");
+    revalidatePath("/manage");
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to update inventory and finance settings";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Updates notification and alert settings (in-app alerts, sounds).
+ */
+export async function updateNotificationSettingsAction(
+  input: unknown,
+): Promise<SettingsActionResult<BusinessSettings>> {
+  try {
+    const { businessId } = await requireAuthenticatedAction();
+    const parsed = updateNotificationSettingsSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: "Invalid notification settings data",
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      };
+    }
+
+    const repos = getRepositories();
+    const updated = await repos.business.updateSettings(businessId, parsed.data);
+
+    revalidatePath("/manage/settings/notifications");
+    revalidatePath("/manage/settings");
+    revalidatePath("/manage");
+
+    return { success: true, data: updated };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update notification settings";
     return { success: false, error: message };
   }
 }

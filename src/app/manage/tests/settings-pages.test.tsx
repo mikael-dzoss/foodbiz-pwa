@@ -4,6 +4,10 @@ import SettingsPage from "../(authenticated)/settings/page";
 import AccountSettingsPage from "../(authenticated)/settings/account/page";
 import BusinessProfilePage from "../(authenticated)/settings/business/page";
 import AboutPage from "../(authenticated)/settings/about/page";
+import OrderingSettingsPage from "../(authenticated)/settings/ordering/page";
+import PaymentSettingsPage from "../(authenticated)/settings/payment/page";
+import InventoryFinanceSettingsPage from "../(authenticated)/settings/inventory-finance/page";
+import NotificationsSettingsPage from "../(authenticated)/settings/notifications/page";
 import * as auth from "@/lib/auth";
 
 const mockSession = {
@@ -131,5 +135,41 @@ describe("Settings Pages Route Guards and Rendering", () => {
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("about-page")).toBeDefined();
     expect(screen.getByText("M-68")).toBeDefined();
+  });
+
+  it("renders OrderingSettingsPage (M-63) and invokes requireManagerSession", async () => {
+    const page = await OrderingSettingsPage();
+    render(page);
+
+    expect(auth.requireManagerSession).toHaveBeenCalled();
+    expect(screen.getByTestId("ordering-settings-form")).toBeDefined();
+    expect(screen.getByText("M-63")).toBeDefined();
+  });
+
+  it("renders PaymentSettingsPage (M-64) and invokes requireManagerSession", async () => {
+    const page = await PaymentSettingsPage();
+    render(page);
+
+    expect(auth.requireManagerSession).toHaveBeenCalled();
+    expect(screen.getByTestId("payment-settings-form")).toBeDefined();
+    expect(screen.getByText("M-64")).toBeDefined();
+  });
+
+  it("renders InventoryFinanceSettingsPage (M-65) and invokes requireManagerSession", async () => {
+    const page = await InventoryFinanceSettingsPage();
+    render(page);
+
+    expect(auth.requireManagerSession).toHaveBeenCalled();
+    expect(screen.getByTestId("inventory-finance-form")).toBeDefined();
+    expect(screen.getByText("M-65")).toBeDefined();
+  });
+
+  it("renders NotificationsSettingsPage (M-67) and invokes requireManagerSession", async () => {
+    const page = await NotificationsSettingsPage();
+    render(page);
+
+    expect(auth.requireManagerSession).toHaveBeenCalled();
+    expect(screen.getByTestId("notifications-app-form")).toBeDefined();
+    expect(screen.getByText("M-67")).toBeDefined();
   });
 });

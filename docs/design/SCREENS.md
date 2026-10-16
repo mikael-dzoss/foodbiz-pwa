@@ -82,23 +82,27 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 
 One active screen per screen and mode. Any other Stitch card is superseded: list it here until the owner deletes it in Stitch. Rules: [`DESIGN_SYSTEM.md` §11](DESIGN_SYSTEM.md#working-with-stitch-agents).
 
-| Screen                  | Light (active)                     | Dark (active)                      | Superseded (to delete) |
-| ----------------------- | ---------------------------------- | ---------------------------------- | ---------------------- |
-| P-01 Patterns reference | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                      |
-| A-01 Manager sign-in    | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                      |
-| M-10 Dashboard          | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                      |
-| M-20 Orders list        | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                      |
-| M-21 Order detail       | `dd6b7a8e57994a808b4bb091dc366d0e` | `b8414f3cda494766b6b6dfebdb796961` | —                      |
-| M-30 New order          | `a9730928a6cd4a448907b4cd55d3f03d` | `b91d3b2fb2af416aacb2c4cc1a015ffe` | —                      |
-| M-40 Products list      | `b45ce7634bf84c92949a79411887e2bc` | `d85df903d3114fc6b1705a6cd8de2244` | —                      |
-| M-41 Product form       | `096f7f6b9222407caa87e483cc1de8bf` | `0dbc6481c8244d9a88b78fb8ef819124` | —                      |
-| M-42 Categories         | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                      |
-| M-43 Stock adjustment   | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                      |
-| M-50 Expenses list      | `251415a589154a9e92e0e250f6eb8976` | `969886d60bb642619532a2bab9344df6` | —                      |
-| M-51 Expense sheet      | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | —                      |
-| M-60 Settings hub       | `6e8ffc50ac7c4811b656ef660a024e9f` | `39826731f08b48bb9c77481a2fd53f11` | —                      |
-| M-61 Account section    | `bfc76ad7c1614f5b9238da67a6310910` | `dc62c013cf5b46019408cbf09df9b4f2` | —                      |
-| M-62 Business profile   | `ea7f25f130ac435c97189a109f4fa833` | `e36913afc5404a63babe254e31b241d5` | —                      |
+| Screen                   | Light (active)                     | Dark (active)                      | Superseded (to delete) |
+| ------------------------ | ---------------------------------- | ---------------------------------- | ---------------------- |
+| P-01 Patterns reference  | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                      |
+| A-01 Manager sign-in     | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                      |
+| M-10 Dashboard           | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                      |
+| M-20 Orders list         | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                      |
+| M-21 Order detail        | `dd6b7a8e57994a808b4bb091dc366d0e` | `b8414f3cda494766b6b6dfebdb796961` | —                      |
+| M-30 New order           | `a9730928a6cd4a448907b4cd55d3f03d` | `b91d3b2fb2af416aacb2c4cc1a015ffe` | —                      |
+| M-40 Products list       | `b45ce7634bf84c92949a79411887e2bc` | `d85df903d3114fc6b1705a6cd8de2244` | —                      |
+| M-41 Product form        | `096f7f6b9222407caa87e483cc1de8bf` | `0dbc6481c8244d9a88b78fb8ef819124` | —                      |
+| M-42 Categories          | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                      |
+| M-43 Stock adjustment    | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                      |
+| M-50 Expenses list       | `251415a589154a9e92e0e250f6eb8976` | `969886d60bb642619532a2bab9344df6` | —                      |
+| M-51 Expense sheet       | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | —                      |
+| M-60 Settings hub        | `6e8ffc50ac7c4811b656ef660a024e9f` | `39826731f08b48bb9c77481a2fd53f11` | —                      |
+| M-61 Account section     | `bfc76ad7c1614f5b9238da67a6310910` | `dc62c013cf5b46019408cbf09df9b4f2` | —                      |
+| M-62 Business profile    | `ea7f25f130ac435c97189a109f4fa833` | `e36913afc5404a63babe254e31b241d5` | —                      |
+| M-63 Ordering settings   | `46c2f6a34b44457595003154aee0bcdc` | `3a9a481af1954700bc75109ec7aaa1ed` | —                      |
+| M-64 Payment settings    | `466a1d7f374942e9895e789831633b69` | `5f6c2683efbf46e48baa48a2b909ed93` | —                      |
+| M-65 Inventory & finance | `6988aebd933e47bda20be9ec53adc21d` | `aded4036b64f473cb6b8ecaa408d1518` | —                      |
+| M-67 Notifications & app | `8ee29f8193974f6089b549ea3e13114e` | `016523a07f9c4ee5b8987b58a552e981` | —                      |
 
 ## Gaps
 
