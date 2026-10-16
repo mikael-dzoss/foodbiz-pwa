@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ShoppingCart, Globe } from "lucide-react";
 import { APP_METADATA } from "@/config/app";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import { useCartOptional } from "../context/cart-context";
 
 export interface StorefrontHeaderProps {
   locale: SupportedLocale;
@@ -12,9 +13,11 @@ export interface StorefrontHeaderProps {
   cartCount?: number;
 }
 
-export function StorefrontHeader({ locale, dict, cartCount = 0 }: StorefrontHeaderProps) {
+export function StorefrontHeader({ locale, dict, cartCount }: StorefrontHeaderProps) {
   const pathname = usePathname();
   const nextLocale: SupportedLocale = locale === "en" ? "fr" : "en";
+  const cart = useCartOptional();
+  const effectiveCartCount = cartCount !== undefined ? cartCount : (cart?.totalCount ?? 0);
 
   // Compute equivalent pathname with swapped locale prefix
   const targetPathname = pathname.startsWith(`/${locale}`)
@@ -50,13 +53,13 @@ export function StorefrontHeader({ locale, dict, cartCount = 0 }: StorefrontHead
           {/* Cart Button */}
           <Link
             href={`/${locale}/cart`}
-            aria-label={`${dict.cart} (${cartCount} ${cartCount === 1 ? dict.item : dict.items})`}
+            aria-label={`${dict.cart} (${effectiveCartCount} ${effectiveCartCount === 1 ? dict.item : dict.items})`}
             className="bg-primary text-primary-foreground relative flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2.5 shadow-xs transition-opacity hover:opacity-95"
           >
             <ShoppingCart className="h-5 w-5" />
-            {cartCount > 0 && (
+            {effectiveCartCount > 0 && (
               <span className="bg-secondary text-secondary-foreground border-card absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[11px] font-bold tabular-nums">
-                {cartCount}
+                {effectiveCartCount}
               </span>
             )}
           </Link>

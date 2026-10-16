@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
+import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import {
   productFormInputSchema,
   adjustStockSchema,
@@ -123,6 +124,7 @@ export async function createProductAction(
 
   const product = await repos.products.create(businessId, parsed.data);
   revalidatePath("/manage/products");
+  await revalidateStorefrontCatalog(businessId);
 
   return { success: true, data: product };
 }
@@ -167,6 +169,7 @@ export async function updateProductAction(
 
   const updated = await repos.products.update(businessId, productId, parsed.data);
   revalidatePath("/manage/products");
+  await revalidateStorefrontCatalog(businessId);
 
   return { success: true, data: updated };
 }
@@ -193,6 +196,7 @@ export async function toggleProductVisibilityAction(
 
   const updated = await repos.products.update(businessId, productId, { visible });
   revalidatePath("/manage/products");
+  await revalidateStorefrontCatalog(businessId);
 
   return { success: true, data: updated };
 }
@@ -213,6 +217,7 @@ export async function softDeleteProductAction(
 
   const updated = await repos.products.softDelete(businessId, productId);
   revalidatePath("/manage/products");
+  await revalidateStorefrontCatalog(businessId);
 
   return { success: true, data: updated };
 }
@@ -243,6 +248,7 @@ export async function adjustProductStockAction(
     stock: parsed.data.stock,
   });
   revalidatePath("/manage/products");
+  await revalidateStorefrontCatalog(businessId);
 
   return { success: true, data: updated };
 }

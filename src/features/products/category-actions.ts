@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
+import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import {
   createCategorySchema,
   renameCategorySchema,
@@ -75,6 +76,7 @@ export async function createCategoryAction(
   });
 
   revalidatePath("/manage/categories");
+  await revalidateStorefrontCatalog(businessId);
   return { success: true, data: created };
 }
 
@@ -111,6 +113,7 @@ export async function renameCategoryAction(
   const updated = await repos.categories.update(businessId, id, { name });
 
   revalidatePath("/manage/categories");
+  await revalidateStorefrontCatalog(businessId);
   return { success: true, data: updated };
 }
 
@@ -141,5 +144,6 @@ export async function deleteCategoryAction(rawInput: unknown): Promise<ActionRes
   await repos.categories.delete(businessId, id);
 
   revalidatePath("/manage/categories");
+  await revalidateStorefrontCatalog(businessId);
   return { success: true, data: undefined };
 }

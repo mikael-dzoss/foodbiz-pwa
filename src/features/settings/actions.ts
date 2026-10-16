@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
+import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import {
   updateBusinessProfileSchema,
   updateOrderingSettingsSchema,
@@ -101,6 +102,7 @@ export async function updateBusinessProfileAction(
     revalidatePath("/manage/settings/business");
     revalidatePath("/manage/settings");
     revalidatePath("/manage");
+    await revalidateStorefrontCatalog(businessId);
 
     return { success: true, data: updated };
   } catch (err) {
@@ -159,6 +161,7 @@ export async function updateOrderingSettingsAction(
     revalidatePath("/manage/settings/ordering");
     revalidatePath("/manage/settings");
     revalidatePath("/manage");
+    await revalidateStorefrontCatalog(businessId);
 
     return { success: true, data: updated };
   } catch (err) {
