@@ -1,5 +1,6 @@
 import { cacheLife, cacheTag, revalidateTag, revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
+import type { Repositories } from "@/domain/repositories";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { Product, ProductCategory } from "@/domain/product";
@@ -72,6 +73,16 @@ export function evaluateStoreOperatingStatus(
   };
 }
 
+function getCatalogRepositories(): Repositories {
+  try {
+    return getRepositories();
+  } catch {
+    // Fallback to mock repositories during build / static generation
+    // pending Supabase repository adapter implementation (Wave 5 / Epic #116 / #122).
+    return getRepositories("mock");
+  }
+}
+
 /**
  * Server-rendered, cached catalog query for the public storefront (#80, #82, #83).
  * Groups visible products by category.
@@ -83,7 +94,7 @@ export async function getStorefrontCatalog(
   cacheTag("storefront-catalog", `storefront-catalog-${businessId}`);
   cacheLife("hours");
 
-  const repos = getRepositories();
+  const repos = getCatalogRepositories();
 
   const [business, settings, categories, products] = await Promise.all([
     repos.business.findById(businessId),
@@ -161,7 +172,7 @@ export async function getStorefrontProduct(
   cacheTag("storefront-catalog", `storefront-product-${productId}`);
   cacheLife("hours");
 
-  const repos = getRepositories();
+  const repos = getCatalogRepositories();
 
   const [business, settings, product] = await Promise.all([
     repos.business.findById(businessId),

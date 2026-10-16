@@ -3,14 +3,9 @@ import {
   getDictionary,
   isSupportedLocale,
   DEFAULT_LOCALE,
-  SUPPORTED_LOCALES,
   type SupportedLocale,
 } from "@/domain/i18n";
 import { getStorefrontProduct, ProductDetailView } from "@/features/storefront";
-
-export async function generateStaticParams() {
-  return SUPPORTED_LOCALES.map((locale) => ({ locale }));
-}
 
 export const instant = false;
 
