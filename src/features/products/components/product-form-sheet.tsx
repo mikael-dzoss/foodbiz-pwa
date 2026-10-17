@@ -227,6 +227,7 @@ export function ProductFormSheet({
                     src={imageUrl}
                     alt={name || "Product photo"}
                     fill
+                    sizes="80px"
                     unoptimized={imageUrl.startsWith("data:")}
                     className="object-cover"
                   />

@@ -335,6 +335,7 @@ export function ProductManager({
                         src={p.imageUrl}
                         alt={p.name}
                         fill
+                        sizes="64px"
                         unoptimized={p.imageUrl.startsWith("data:")}
                         className="object-cover"
                       />
