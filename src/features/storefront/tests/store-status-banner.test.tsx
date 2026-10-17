@@ -55,4 +55,46 @@ describe("StoreStatusBanner (#82)", () => {
     expect(screen.getByText("08:00 - 18:00")).toBeDefined();
     expect(screen.queryByRole("alert")).toBeNull();
   });
+
+  it("renders Stitch C-01 open 2-row layout with accepting orders and closing time", () => {
+    render(
+      <StoreStatusBanner
+        isAcceptingOrders={true}
+        isOpen={true}
+        dict={enDictionary.storefront}
+        openingHoursText="07:30 - 19:30"
+      />,
+    );
+
+    // Row 1: Open accepting orders + closing time
+    expect(screen.getByText(enDictionary.storefront.openAcceptingOrders)).toBeDefined();
+    expect(
+      screen.getByText(new RegExp(`${enDictionary.storefront.closesAt}\\s*19:30`)),
+    ).toBeDefined();
+
+    // Row 2: Order ready time + pickup and delivery badge
+    expect(screen.getByText(enDictionary.storefront.orderReadyTime)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.pickupAndDelivery)).toBeDefined();
+  });
+
+  it("renders Stitch C-01 closed 2-row layout with orders queued and opening time", () => {
+    render(
+      <StoreStatusBanner
+        isAcceptingOrders={true}
+        isOpen={false}
+        dict={enDictionary.storefront}
+        openingHoursText="07:30 - 19:30"
+      />,
+    );
+
+    // Row 1: Closed orders queued + opening time
+    expect(screen.getByText(enDictionary.storefront.closedOrdersQueued)).toBeDefined();
+    expect(
+      screen.getByText(new RegExp(`${enDictionary.storefront.opensAt}\\s*07:30`)),
+    ).toBeDefined();
+
+    // Row 2: Order ready time + pickup and delivery badge
+    expect(screen.getByText(enDictionary.storefront.orderReadyTime)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.pickupAndDelivery)).toBeDefined();
+  });
 });

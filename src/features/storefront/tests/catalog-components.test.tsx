@@ -224,5 +224,18 @@ describe("Storefront UI components (#80, #81, #82, #83)", () => {
       expect(screen.getByText("Sourdough Loaf")).toBeDefined();
       expect(screen.queryByText("Croissant")).toBeNull();
     });
+
+    it("renders Bakery Info link directing to the shop info page", () => {
+      render(
+        <CartProvider>
+          <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
+        </CartProvider>,
+      );
+
+      const bakeryInfoLink = screen.getByRole("link", {
+        name: /100% Organic Flours & Artisanal Baking/i,
+      });
+      expect(bakeryInfoLink.getAttribute("href")).toBe("/en/info");
+    });
   });
 });

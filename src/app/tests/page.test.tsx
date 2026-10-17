@@ -60,7 +60,9 @@ describe("Internationalized storefront pages", () => {
     render(<CartProvider>{page}</CartProvider>);
 
     expect(screen.getByRole("heading", { level: 1 })).toBeDefined();
-    expect(screen.getByRole("link", { name: /Back to catalog/i })).toBeDefined();
+    expect(
+      screen.getByRole("link", { name: /(Return to Catalog|Back to catalog)/i }),
+    ).toBeDefined();
   });
 
   it("ProductDetailPage calls notFound() for invalid or non-existent product ID", async () => {

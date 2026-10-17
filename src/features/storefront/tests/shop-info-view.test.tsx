@@ -89,8 +89,10 @@ describe("ShopInfoView (#83)", () => {
     });
     expect(emailLink.getAttribute("href")).toBe("mailto:bonjour@boulangerie.fr");
 
-    // Opening hours
-    expect(screen.getByText("Tue-Sat: 07:30 - 19:30")).toBeDefined();
+    // Weekly Opening hours & Fulfillment badges
+    expect(screen.getByText(enDictionary.storefront.weeklyOpeningHours)).toBeDefined();
+    expect(screen.getByText("FREE")).toBeDefined();
+    expect(screen.getByText("PAID")).toBeDefined();
 
     // Address & Directions
     expect(screen.getByText("15 Rue Oberkampf, 75011 Paris")).toBeDefined();
@@ -149,5 +151,37 @@ describe("ShopInfoView (#83)", () => {
     expect(screen.getByText(frDictionary.storefront.contact)).toBeDefined();
     expect(screen.getByText(frDictionary.storefront.openHours)).toBeDefined();
     expect(screen.getByText(frDictionary.storefront.address)).toBeDefined();
+  });
+
+  it("renders Stitch C-03 elements: weekly hours table with Today badge, holiday panel with SoonBadge, and return button", () => {
+    render(
+      <ShopInfoView
+        business={mockBusiness}
+        settings={mockSettings}
+        locale="en"
+        dict={enDictionary.storefront}
+      />,
+    );
+
+    // Weekly opening hours header & Today badge
+    expect(screen.getByText(enDictionary.storefront.weeklyOpeningHours)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.today)).toBeDefined();
+
+    // Holiday schedule notice
+    expect(screen.getByText(enDictionary.storefront.holidayScheduleNotice)).toBeDefined();
+
+    // Accepted payments & card tap soon badge
+    expect(screen.getByText(enDictionary.storefront.acceptedPayments)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.cashOnPickup)).toBeDefined();
+
+    // Soon badges on holiday schedule & card tap
+    const soonBadges = screen.getAllByText("Soon");
+    expect(soonBadges.length).toBeGreaterThanOrEqual(2);
+
+    // Sticky Return to Catalog CTA
+    const returnLink = screen.getByRole("link", {
+      name: new RegExp(enDictionary.storefront.returnToCatalog),
+    });
+    expect(returnLink.getAttribute("href")).toBe("/en");
   });
 });
