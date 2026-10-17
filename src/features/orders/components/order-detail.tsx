@@ -104,6 +104,9 @@ export function OrderDetail({ order }: OrderDetailProps) {
   // Dialogs
   const [cancelDialogOpen, setCancelDialogOpen] = React.useState(false);
   const [cancellationReason, setCancellationReason] = React.useState("");
+  const [rejectDialogOpen, setRejectDialogOpen] = React.useState(false);
+  const [rejectionReason, setRejectionReason] = React.useState("");
+  const [rejectionError, setRejectionError] = React.useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
     "cash" | "revolut" | "wero"
@@ -138,6 +141,60 @@ export function OrderDetail({ order }: OrderDetailProps) {
     setIsSubmitting(false);
 
     if (res.success) {
+      setCurrentOrder({
+        ...currentOrder,
+        ...res.data,
+      });
+      router.refresh();
+    } else {
+      setErrorMessage(res.error);
+    }
+  };
+
+  // Handle Accepting Web Order (NEW -> CONFIRMED)
+  const handleAcceptOrder = async () => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const res = await progressOrderStatusAction({
+      orderId: currentOrder.id,
+      nextStatus: "CONFIRMED",
+    });
+
+    setIsSubmitting(false);
+
+    if (res.success) {
+      setCurrentOrder({
+        ...currentOrder,
+        ...res.data,
+      });
+      router.refresh();
+    } else {
+      setErrorMessage(res.error);
+    }
+  };
+
+  // Handle Rejecting Web Order (NEW -> CANCELLED with mandatory reason)
+  const handleRejectOrder = async () => {
+    const trimmed = rejectionReason.trim();
+    if (!trimmed) {
+      setRejectionError("A reason is required when rejecting a new order.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const res = await progressOrderStatusAction({
+      orderId: currentOrder.id,
+      nextStatus: "CANCELLED",
+      reason: trimmed,
+    });
+
+    setIsSubmitting(false);
+
+    if (res.success) {
+      setRejectDialogOpen(false);
       setCurrentOrder({
         ...currentOrder,
         ...res.data,
@@ -834,7 +891,35 @@ export function OrderDetail({ order }: OrderDetailProps) {
           )}
 
           <div className="flex items-center gap-2">
-            {isReadyUnpaid ? (
+            {currentOrder.status === "NEW" ? (
+              <>
+                <Button
+                  type="button"
+                  onClick={handleAcceptOrder}
+                  disabled={isSubmitting}
+                  className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
+                  data-testid="accept-order-button"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Accept order</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setRejectionError(null);
+                    setRejectionReason("");
+                    setRejectDialogOpen(true);
+                  }}
+                  disabled={isSubmitting}
+                  className="border-destructive text-destructive hover:bg-destructive/10 min-h-[44px] gap-1 px-3.5 text-xs font-semibold active:scale-95"
+                  data-testid="reject-order-button"
+                >
+                  <Ban className="h-4 w-4" />
+                  <span>Reject order</span>
+                </Button>
+              </>
+            ) : isReadyUnpaid ? (
               <Button
                 type="button"
                 onClick={() => {
@@ -861,20 +946,79 @@ export function OrderDetail({ order }: OrderDetailProps) {
               </Button>
             ) : null}
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCancelDialogOpen(true)}
-              disabled={isSubmitting}
-              className="border-destructive text-destructive hover:bg-destructive/10 min-h-[44px] gap-1 px-3.5 text-xs font-semibold active:scale-95"
-              data-testid="cancel-order-button"
-            >
-              <Ban className="h-4 w-4" />
-              <span>Cancel</span>
-            </Button>
+            {currentOrder.status !== "NEW" && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCancelDialogOpen(true)}
+                disabled={isSubmitting}
+                className="border-destructive text-destructive hover:bg-destructive/10 min-h-[44px] gap-1 px-3.5 text-xs font-semibold active:scale-95"
+                data-testid="cancel-order-button"
+              >
+                <Ban className="h-4 w-4" />
+                <span>Cancel</span>
+              </Button>
+            )}
           </div>
         </div>
       )}
+
+      {/* Reject Order Dialog (NEW orders) */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent data-testid="reject-order-dialog">
+          <DialogHeader>
+            <DialogTitle>Reject Order #{currentOrder.orderNumber}</DialogTitle>
+            <DialogDescription>
+              Rejecting this order will cancel it and restore reserved items back to inventory.
+              Please specify the reason for the customer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2 py-2">
+            <label htmlFor="reject-reason-input" className="text-foreground text-xs font-semibold">
+              Rejection Reason <span className="text-destructive">*</span>
+            </label>
+            <Textarea
+              id="reject-reason-input"
+              value={rejectionReason}
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                if (rejectionError && e.target.value.trim()) {
+                  setRejectionError(null);
+                }
+              }}
+              placeholder="e.g. Kitchen at capacity, item unavailable, outside delivery area..."
+              className="text-xs"
+              data-testid="reject-reason-input"
+            />
+            {rejectionError && (
+              <p className="text-destructive text-xs" data-testid="reject-reason-error">
+                {rejectionError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRejectDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Keep order
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRejectOrder}
+              disabled={isSubmitting || !rejectionReason.trim()}
+              data-testid="confirm-reject-button"
+            >
+              {isSubmitting ? "Rejecting..." : "Confirm rejection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cancel Order Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>

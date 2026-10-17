@@ -33,7 +33,7 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 | F10 Customers          | Customers list, customer detail                                                                        | #66                          | brief       | —            |
 | F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | designed    | see registry |
 | F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | brief       | —            |
-| F13 Tracking           | Order tracking                                                                                         | #89                          | brief       | —            |
+| F13 Tracking           | Order tracking                                                                                         | #89                          | designed    | see registry |
 | F14 Analytics          | Analytics (range, trend, top products, export)                                                         | #76, #77, #78                | brief       | —            |
 | F15 System             | 404, error, offline, legal, install prompt                                                             | #34, #97, #100, #101         | brief       | —            |
 
@@ -106,6 +106,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | C-01 Storefront home     | `f7ad34729a9749f8bdcd5f284d6693f2` | —                                  | —                      |
 | C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                      |
 | C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                      |
+| C-20 Order tracking      | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                      |
 
 ## Gaps
 

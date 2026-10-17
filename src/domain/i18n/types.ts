@@ -317,11 +317,56 @@ export interface SettingsDictionary {
   };
 }
 
+export interface OrderTrackingDictionary {
+  title: string;
+  orderReference: string;
+  placedAt: string;
+  orderNotFound: string;
+  orderNotFoundDesc: string;
+  backToCatalog: string;
+  liveOrderProgress: string;
+  updatingLive: string;
+  currentStatus: string;
+  fulfillmentDetails: string;
+  pickupWindow: string;
+  deliveryAddress: string;
+  directions: string;
+  orderSummary: string;
+  subtotal: string;
+  taxIncluded: string;
+  totalAmount: string;
+  paidBadge: string;
+  unpaidBadge: string;
+  contactShop: string;
+  contactShopDesc: string;
+  orderCancelledTitle: string;
+  rejectionReasonLabel: string;
+  readyInApprox: string;
+  statuses: {
+    NEW: string;
+    CONFIRMED: string;
+    PREPARING: string;
+    READY: string;
+    COMPLETED: string;
+    CANCELLED: string;
+  };
+  stepNotes: {
+    placed: string;
+    confirmed: string;
+    preparing: string;
+    readyPickup: string;
+    readyDelivery: string;
+    completed: string;
+    cancelled: string;
+  };
+}
+
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
   dashboard: DashboardDictionary;
   storefront: StorefrontDictionary;
+  orderTracking: OrderTrackingDictionary;
   quickAdd: QuickAddDictionary;
   settings: SettingsDictionary;
   common: CommonDictionary;

@@ -426,12 +426,36 @@ export async function progressOrderStatusAction(input: unknown): Promise<OrderAc
 
     revalidatePath("/manage/orders");
     revalidatePath(`/manage/orders/${orderId}`);
+    if (nextStatus === "CANCELLED") {
+      revalidatePath("/manage/products");
+    }
 
     return { success: true, data: updated };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update order status";
     return { success: false, error: message };
   }
+}
+
+/**
+ * Accepts a new web order, transitioning its status to CONFIRMED.
+ */
+export async function acceptOrderAction(orderId: string): Promise<OrderActionResult<Order>> {
+  return progressOrderStatusAction({ orderId, nextStatus: "CONFIRMED" });
+}
+
+/**
+ * Rejects a new web order with a required reason, cancelling it and restoring reserved stock.
+ */
+export async function rejectOrderAction(input: {
+  orderId: string;
+  reason: string;
+}): Promise<OrderActionResult<Order>> {
+  return progressOrderStatusAction({
+    orderId: input.orderId,
+    nextStatus: "CANCELLED",
+    reason: input.reason,
+  });
 }
 
 const recordPaymentInputSchema = z.object({

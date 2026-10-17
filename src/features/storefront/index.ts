@@ -8,5 +8,6 @@ export * from "./components/storefront-cart-bar";
 export * from "./components/storefront-catalog-view";
 export * from "./components/product-detail-view";
 export * from "./components/shop-info-view";
+export * from "./components/order-tracking-view";
 export * from "./context/cart-context";
 export * from "./catalog-data";

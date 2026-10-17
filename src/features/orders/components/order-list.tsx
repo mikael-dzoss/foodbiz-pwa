@@ -66,7 +66,7 @@ function getNextAction(order: EnrichedOrder): NextActionStep | null {
     case "NEW":
       return {
         status: "CONFIRMED",
-        label: "Confirm",
+        label: "Accept",
         icon: CheckCircle2,
         buttonClass: commonButtonClass,
       };

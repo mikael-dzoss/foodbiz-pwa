@@ -192,6 +192,7 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     requestedTime,
     items,
     totalAmount,
+    trackingToken: `tk-${orderNumber}`,
     cancellationReason: status === "CANCELLED" ? "Customer requested cancellation" : null,
     notes: idx % 5 === 0 ? "Special handling requested" : null,
     deliveryAddress:

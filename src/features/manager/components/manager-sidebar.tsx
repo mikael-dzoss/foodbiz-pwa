@@ -19,6 +19,7 @@ import type { NavigationDictionary, QuickAddDictionary } from "@/domain/i18n";
 import { APP_METADATA } from "@/config/app";
 import { signOutAction } from "@/features/auth/actions";
 import { QuickAddSheet } from "./quick-add-sheet";
+import { useOrderAlerts } from "@/features/orders";
 import { useState } from "react";
 
 export interface ManagerSidebarProps {
@@ -28,6 +29,7 @@ export interface ManagerSidebarProps {
 
 export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
   const pathname = usePathname();
+  const { newOrdersCount } = useOrderAlerts();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const isActive = (route: string) => {
@@ -104,6 +106,14 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
             >
               <Icon className="h-5 w-5 shrink-0" />
               <span>{item.label}</span>
+              {item.href === "/manage/orders" && newOrdersCount > 0 && (
+                <span
+                  data-testid="orders-sidebar-badge"
+                  className="bg-destructive text-destructive-foreground ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold"
+                >
+                  {newOrdersCount}
+                </span>
+              )}
             </Link>
           );
         })}
