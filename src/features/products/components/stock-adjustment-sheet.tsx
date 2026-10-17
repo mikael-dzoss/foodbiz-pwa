@@ -110,6 +110,7 @@ export function StockAdjustmentSheet({
                     src={product.imageUrl}
                     alt={product.name}
                     fill
+                    sizes="48px"
                     unoptimized={product.imageUrl.startsWith("data:")}
                     className="object-cover"
                   />

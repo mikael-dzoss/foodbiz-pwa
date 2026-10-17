@@ -3,10 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ShoppingBag, Check, UtensilsCrossed } from "lucide-react";
+import {
+  ShoppingBag,
+  Check,
+  UtensilsCrossed,
+  Flame,
+  Store,
+  Lightbulb,
+  AlertTriangle,
+} from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { SoonBadge } from "@/components/feedback";
 import type { StorefrontProductData } from "../catalog-data";
 import { useCart } from "../context/cart-context";
 import { StoreStatusBanner } from "./store-status-banner";
@@ -55,18 +64,8 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
   const totalPrice = product.price * quantity;
 
   return (
-    <div className="flex flex-col pb-32">
-      {/* Back Link & Store Breadcrumb */}
-      <div className="mb-4 flex items-center justify-between">
-        <Link
-          href={`/${locale}`}
-          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-2 text-xs font-semibold transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>{dict.backToCatalog}</span>
-        </Link>
-        <span className="text-muted-foreground text-xs font-medium">{business.name}</span>
-      </div>
+    <div className="flex flex-col gap-4 pb-32">
+      <span className="sr-only">{business.name}</span>
 
       {/* Operational Banner if Store is Closed or Paused */}
       {(!isAcceptingOrders || !isOpen) && (
@@ -79,89 +78,205 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
         />
       )}
 
-      {/* Main Product Card */}
-      <article className="border-border bg-card overflow-hidden rounded-2xl border p-4 sm:p-6">
-        {/* Showcase Image */}
-        <div className="bg-muted relative mb-6 aspect-4/3 w-full overflow-hidden rounded-xl sm:aspect-16/10">
-          {product.imageUrl ? (
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              fill
-              priority
-              sizes="(max-width: 768px) 100vw, 800px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="text-muted-foreground flex h-full w-full items-center justify-center">
-              <UtensilsCrossed className="h-12 w-12 opacity-40" />
-            </div>
-          )}
+      {/* Hero Media Showcase Card with Category Pill (Stitch C-02) */}
+      <section className="bg-muted border-border/80 relative aspect-4/3 w-full overflow-hidden rounded-2xl border">
+        {product.imageUrl ? (
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 800px"
+            unoptimized={product.imageUrl.startsWith("data:")}
+            className="object-cover object-center"
+          />
+        ) : (
+          <div className="text-muted-foreground flex h-full w-full items-center justify-center">
+            <UtensilsCrossed className="h-12 w-12 opacity-40" />
+          </div>
+        )}
 
-          {/* Stock Status Badge */}
-          <div className="absolute top-3 right-3">
+        {categoryName && (
+          <div className="absolute top-3 left-3">
+            <span className="border-border/80 bg-card/90 text-foreground inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold backdrop-blur-md">
+              {categoryName}
+            </span>
+          </div>
+        )}
+      </section>
+
+      {/* Product Header & Pricing Card (Stitch C-02) */}
+      <section className="border-border/80 bg-card rounded-2xl border p-4">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-foreground font-headline text-xl leading-snug font-bold">
+              {product.name}
+            </h1>
+          </div>
+          <div className="shrink-0 text-right">
+            <span className="text-primary font-headline block text-2xl font-bold tracking-tight tabular-nums">
+              {formatMoney(product.price, locale)}
+            </span>
+            <span className="text-muted-foreground block text-[11px] font-medium">
+              {dict.perPiece}
+            </span>
+          </div>
+        </div>
+
+        {/* Inventory / Stock Status Pill & Fresh Prep Tag */}
+        <div className="border-border/60 mt-3 flex items-center justify-between border-t pt-2.5">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+              isOutOfStock
+                ? "bg-muted text-muted-foreground"
+                : isLowStock
+                  ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                  : "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                isOutOfStock
+                  ? "bg-muted-foreground"
+                  : isLowStock
+                    ? "bg-amber-600"
+                    : "bg-emerald-600"
+              }`}
+            />
             {isOutOfStock ? (
-              <span className="bg-card/95 text-destructive border-destructive/20 rounded-lg border px-2.5 py-1 text-xs font-semibold backdrop-blur-xs">
-                {dict.outOfStock}
-              </span>
+              <span>{dict.outOfStock}</span>
             ) : isLowStock ? (
-              <span className="bg-warning-soft text-warning-soft-foreground rounded-lg px-2.5 py-1 text-xs font-semibold">
+              <span>
                 {product.stock} {dict.unitsLeft}
               </span>
             ) : (
-              <span className="bg-primary-soft text-primary-soft-foreground rounded-lg px-2.5 py-1 text-xs font-semibold">
-                {dict.inStock}
-              </span>
+              <>
+                <span>{dict.inStock}</span>
+                <span className="opacity-80"> · {product.stock} available</span>
+              </>
             )}
-          </div>
-        </div>
-
-        {/* Category Pill */}
-        <span className="text-muted-foreground mb-1 block text-xs font-medium">{categoryName}</span>
-
-        {/* Product Title & Tabular Price */}
-        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-baseline">
-          <h1 className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
-            {product.name}
-          </h1>
-          <span className="text-foreground text-2xl font-extrabold tabular-nums sm:text-3xl">
-            {formatMoney(product.price, locale)}
+          </span>
+          <span className="text-muted-foreground text-xs font-medium">
+            {dict.freshlyPreparedToday}
           </span>
         </div>
+      </section>
 
-        {/* Rich Description */}
-        {product.description && (
-          <div className="border-border/60 border-t pt-4">
-            <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-              {product.description}
+      {/* Prep & Collection Logistics Info Card (Stitch C-02) */}
+      <section className="border-border/80 bg-muted/40 space-y-2.5 rounded-2xl border p-3.5">
+        <div className="flex items-center gap-3">
+          <div className="border-border/60 bg-card text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
+            <Flame className="h-4.5 w-4.5" />
+          </div>
+          <div className="text-xs leading-snug">
+            <p className="text-foreground font-semibold">{dict.freshlyPreparedToday}</p>
+            <p className="text-muted-foreground">{dict.readyToServe}</p>
+          </div>
+        </div>
+        <div className="border-border/60 border-t" />
+        <div className="flex items-center gap-3">
+          <div className="border-border/60 bg-card text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
+            <Store className="h-4.5 w-4.5" />
+          </div>
+          <div className="text-xs leading-snug">
+            <p className="text-foreground font-semibold">{dict.orderReadyTime}</p>
+            <p className="text-muted-foreground truncate">
+              {business.address ?? "12 Rue de la Roquette, Paris"}
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Description & Cook's Recommendation Card (Stitch C-02) */}
+      <section className="border-border/80 bg-card space-y-3.5 rounded-2xl border p-4">
+        {product.description && (
+          <p className="text-muted-foreground text-xs leading-relaxed">{product.description}</p>
         )}
 
-        {/* In-Cart Notification */}
-        {currentCartQty > 0 && (
-          <div className="border-border bg-muted mt-6 flex items-center justify-between rounded-lg border p-3 text-xs">
-            <span className="text-muted-foreground font-medium">
-              Currently in your cart: <strong className="text-foreground">{currentCartQty}</strong>
+        {/* Cook's Recommendation / Reheating Advice */}
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+          <Lightbulb className="mt-0.5 h-4.5 w-4.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="text-xs leading-normal">
+            <span className="mb-0.5 block font-bold text-amber-800 dark:text-amber-300">
+              {dict.cooksRecommendation}
             </span>
-            <Link href={`/${locale}/cart`} className="text-primary font-semibold hover:underline">
-              {dict.viewCart} →
-            </Link>
+            <p className="text-muted-foreground">{dict.cooksTip}</p>
           </div>
-        )}
-      </article>
+        </div>
+      </section>
 
-      {/* Sticky Bottom Action Bar with Stepper & Add Button (Stitch C-02 Light) */}
+      {/* TODO(catalog): Dynamic product ingredients & sourcing provenance (#81) */}
+      <section className="border-border/70 bg-card/75 space-y-3 rounded-2xl border p-4 opacity-75">
+        <div className="flex items-center justify-between">
+          <h2 className="text-foreground font-headline text-sm font-bold">
+            {dict.ingredientsAndSourcing}
+          </h2>
+          <SoonBadge />
+        </div>
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          Organic French wheat flour (T65), French AOP cultured butter, natural sourdough levain,
+          pure filtered water, Guérande sea salt.
+        </p>
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          <span className="border-border/50 bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium">
+            <Check className="text-primary h-3 w-3" />
+            100% Organic Flours
+          </span>
+          <span className="border-border/50 bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium">
+            <Check className="text-primary h-3 w-3" />
+            Vegetarian
+          </span>
+          <span className="border-border/50 bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium">
+            <Check className="text-primary h-3 w-3" />
+            Artisanal
+          </span>
+        </div>
+      </section>
+
+      {/* TODO(catalog): Dynamic allergen labeling & compliance schema (#81) */}
+      <section className="border-border/70 bg-card/75 space-y-2.5 rounded-2xl border p-4 opacity-75">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-foreground font-headline text-sm font-bold">
+              {dict.allergenNotice}
+            </h2>
+          </div>
+          <SoonBadge />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+            Gluten (Wheat)
+          </span>
+          <span className="rounded bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+            Dairy (Butter, Milk)
+          </span>
+        </div>
+        <p className="text-muted-foreground pt-1 text-[11px] leading-tight">
+          Produced in an artisanal kitchen. May contain traces of tree nuts, sesame, and eggs.
+        </p>
+      </section>
+
+      {/* In-Cart Notification */}
+      {currentCartQty > 0 && (
+        <div className="border-border bg-muted mt-2 flex items-center justify-between rounded-lg border p-3 text-xs">
+          <span className="text-muted-foreground font-medium">
+            Currently in your cart: <strong className="text-foreground">{currentCartQty}</strong>
+          </span>
+          <Link href={`/${locale}/cart`} className="text-primary font-semibold hover:underline">
+            {dict.viewCart} →
+          </Link>
+        </div>
+      )}
+
+      {/* Sticky Bottom Action Bar with Stepper & Add Button (Stitch C-02) */}
       <aside
         aria-label="Purchase actions"
         className="border-border bg-card/95 fixed right-0 bottom-0 left-0 z-30 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur-md"
       >
-        <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-4xl items-center gap-3">
           {/* Quantity Stepper */}
-          <div className="flex items-center justify-between gap-3 sm:justify-start">
-            <span className="text-muted-foreground text-xs font-medium sm:hidden">
-              {dict.quantity}:
-            </span>
+          <div className="shrink-0">
             <QuantityStepper
               value={quantity}
               onChange={setQuantity}
@@ -176,7 +291,7 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
             <button
               type="button"
               disabled
-              className="border-border bg-muted text-muted-foreground flex min-h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-6 text-sm font-semibold opacity-60 sm:flex-initial"
+              className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-6 text-sm font-semibold opacity-60"
             >
               {dict.outOfStock}
             </button>
@@ -185,10 +300,10 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
               type="button"
               onClick={handleAddToCart}
               disabled={!canOrder || maxAddable === 0}
-              className={`focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-xs transition-all focus-visible:ring-2 focus-visible:outline-hidden active:scale-98 sm:min-w-60 sm:flex-initial ${
+              className={`focus-visible:ring-ring flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-xs transition-all focus-visible:ring-2 focus-visible:outline-hidden active:scale-98 ${
                 justAdded
-                  ? "bg-primary-soft text-primary-soft-foreground"
-                  : "bg-primary text-primary-foreground hover:opacity-95"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-primary text-primary-foreground hover:bg-primary/95"
               } ${!canOrder || maxAddable === 0 ? "cursor-not-allowed opacity-50" : ""}`}
             >
               {justAdded ? (

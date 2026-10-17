@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import {
   getDictionary,
   isSupportedLocale,
@@ -28,11 +29,13 @@ export default async function ShopInfoPage({ params }: ShopInfoPageProps) {
   const catalog = await getStorefrontCatalog();
 
   return (
-    <ShopInfoView
-      business={catalog.business}
-      settings={catalog.settings}
-      locale={locale}
-      dict={dict.storefront}
-    />
+    <Suspense fallback={null}>
+      <ShopInfoView
+        business={catalog.business}
+        settings={catalog.settings}
+        locale={locale}
+        dict={dict.storefront}
+      />
+    </Suspense>
   );
 }

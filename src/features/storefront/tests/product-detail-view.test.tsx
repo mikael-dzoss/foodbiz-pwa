@@ -162,4 +162,31 @@ describe("ProductDetailView (#81, #82)", () => {
     expect(screen.getByRole("alert")).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.notAcceptingOrdersBanner)).toBeDefined();
   });
+
+  it("renders Cook's Recommendation card, Ingredients & Sourcing with SoonBadge, and Allergen Notice", () => {
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    // Cook's Recommendation
+    expect(screen.getByText(enDictionary.storefront.cooksRecommendation)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.cooksTip)).toBeDefined();
+
+    // Ingredients & Sourcing (planned future feature with soon badge)
+    expect(screen.getByText(enDictionary.storefront.ingredientsAndSourcing)).toBeDefined();
+
+    // Allergen Notice (planned future feature with soon badge)
+    expect(screen.getByText(enDictionary.storefront.allergenNotice)).toBeDefined();
+    expect(screen.getByText("Gluten (Wheat)")).toBeDefined();
+
+    // Soon badges are displayed on the upcoming sections
+    const soonBadges = screen.getAllByText("Soon");
+    expect(soonBadges.length).toBeGreaterThanOrEqual(2);
+  });
 });

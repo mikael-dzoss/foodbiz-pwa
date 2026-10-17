@@ -27,7 +27,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   return (
     <div lang={locale} className="flex min-h-full flex-1 flex-col">
-      <StorefrontShell locale={locale} dict={dict.storefront} cartCount={0}>
+      <StorefrontShell locale={locale} dict={dict.storefront} businessName="La Petite Boulangerie">
         {children}
       </StorefrontShell>
     </div>

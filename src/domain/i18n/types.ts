@@ -50,18 +50,35 @@ export interface StorefrontDictionary {
   storeOpenBadge: string;
   storeClosedBadge: string;
   scheduledOnlyNotice: string;
+  openAcceptingOrders: string;
+  closedOrdersQueued: string;
+  closesAt: string;
+  opensAt: string;
+  orderReadyTime: string;
+  pickupReadyTime: string;
+  pickupAndDelivery: string;
 
   // Product Detail (#81)
   productNotFound: string;
   productUnavailable: string;
   quantity: string;
   total: string;
+  cooksRecommendation: string;
+  cooksTip: string;
+  ingredientsAndSourcing: string;
+  allergenNotice: string;
+  perPiece: string;
+  freshlyPreparedToday: string;
+  readyToServe: string;
 
   // Shop Information (#83)
   shopInfo: string;
+  storeInfo: string;
+  aboutBadge: string;
   services: string;
   address: string;
   chatOnWhatsApp: string;
+  fastReply: string;
   callShop: string;
   emailShop: string;
   getDirections: string;
@@ -69,9 +86,22 @@ export interface StorefrontDictionary {
   serviceDelivery: string;
   serviceDineIn: string;
   serviceAvailable: string;
+  serviceFree: string;
+  servicePaid: string;
   minimumOrder: string;
   deliveryFee: string;
   freeDelivery: string;
+  weeklyOpeningHours: string;
+  holidayScheduleTitle: string;
+  holidayScheduleNotice: string;
+  deliveryPolicy: string;
+  acceptedPayments: string;
+  cashOnPickup: string;
+  today: string;
+  returnToCatalog: string;
+  share: string;
+  allRightsReserved: string;
+  bakeryInfo: string;
 }
 
 export interface QuickAddDictionary {
