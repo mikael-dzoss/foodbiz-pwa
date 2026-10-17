@@ -5,6 +5,14 @@ import { enDictionary } from "@/domain/i18n";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/manage",
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 
 afterEach(() => {

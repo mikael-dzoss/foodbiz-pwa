@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { NavigationDictionary, QuickAddDictionary } from "@/domain/i18n";
 import { QuickAddSheet } from "./quick-add-sheet";
 import { MoreMenuSheet } from "./more-menu-sheet";
+import { useOrderAlerts } from "@/features/orders";
 import { useState } from "react";
 
 export interface ManagerBottomNavProps {
@@ -16,6 +17,7 @@ export interface ManagerBottomNavProps {
 
 export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProps) {
   const pathname = usePathname();
+  const { newOrdersCount } = useOrderAlerts();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -72,11 +74,19 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
         >
           <div
             className={cn(
-              "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+              "relative flex h-7 w-12 items-center justify-center rounded-full transition-colors",
               isActive("/manage/orders") && "bg-primary-soft text-primary-soft-foreground",
             )}
           >
             <ShoppingBag className="h-5 w-5" />
+            {newOrdersCount > 0 && (
+              <span
+                data-testid="orders-nav-badge"
+                className="bg-destructive text-destructive-foreground absolute -top-0.5 right-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+              >
+                {newOrdersCount}
+              </span>
+            )}
           </div>
           <span>{navDict.orders}</span>
         </Link>

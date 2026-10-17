@@ -373,4 +373,80 @@ describe("OrderDetail Component", () => {
       });
     });
   });
+
+  describe("Web orders: Accept and Reject (Story #54)", () => {
+    const newOrder: EnrichedOrder = {
+      ...mockOrder,
+      status: "NEW",
+      channel: "storefront",
+    };
+
+    it("displays Accept order and Reject order buttons for NEW orders", () => {
+      render(<OrderDetail order={newOrder} />);
+
+      const acceptBtn = screen.getByTestId("accept-order-button");
+      const rejectBtn = screen.getByTestId("reject-order-button");
+
+      expect(acceptBtn).toBeDefined();
+      expect(acceptBtn.textContent).toContain("Accept order");
+      expect(rejectBtn).toBeDefined();
+      expect(rejectBtn.textContent).toContain("Reject order");
+      expect(screen.queryByTestId("cancel-order-button")).toBeNull();
+    });
+
+    it("clicking Accept order calls progressOrderStatusAction with CONFIRMED status", async () => {
+      const progressSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...newOrder,
+          status: "CONFIRMED",
+        },
+      });
+
+      render(<OrderDetail order={newOrder} />);
+      const acceptBtn = screen.getByTestId("accept-order-button");
+      fireEvent.click(acceptBtn);
+
+      await waitFor(() => {
+        expect(progressSpy).toHaveBeenCalledWith({
+          orderId: "ord-1",
+          nextStatus: "CONFIRMED",
+        });
+      });
+    });
+
+    it("clicking Reject order opens dialog and requires a non-empty reason", async () => {
+      const progressSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...newOrder,
+          status: "CANCELLED",
+          cancellationReason: "Kitchen at capacity",
+        },
+      });
+
+      render(<OrderDetail order={newOrder} />);
+      const rejectBtn = screen.getByTestId("reject-order-button");
+      fireEvent.click(rejectBtn);
+
+      expect(screen.getByTestId("reject-order-dialog")).toBeDefined();
+
+      const confirmBtn = screen.getByTestId("confirm-reject-button") as HTMLButtonElement;
+      expect(confirmBtn.disabled).toBe(true);
+
+      const reasonInput = screen.getByTestId("reject-reason-input");
+      fireEvent.change(reasonInput, { target: { value: "Kitchen at capacity" } });
+      expect(confirmBtn.disabled).toBe(false);
+
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(progressSpy).toHaveBeenCalledWith({
+          orderId: "ord-1",
+          nextStatus: "CANCELLED",
+          reason: "Kitchen at capacity",
+        });
+      });
+    });
+  });
 });

@@ -304,4 +304,10 @@ describe("OrderList Component", () => {
     expect(screen.getByTestId("orders-empty-state")).toBeDefined();
     expect(screen.getByText("No orders found")).toBeDefined();
   });
+
+  it("renders 'Accept' quick progress button for NEW orders", () => {
+    render(<OrderList initialData={mockInitialData} />);
+    const acceptBtn = screen.getByTestId("quick-progress-ord-1");
+    expect(acceptBtn.textContent).toContain("Accept");
+  });
 });

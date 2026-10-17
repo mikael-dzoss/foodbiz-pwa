@@ -10,6 +10,8 @@ import {
   markPaidAndCompleteAction,
   recordRefundAction,
   lookupGuestByPhoneAction,
+  acceptOrderAction,
+  rejectOrderAction,
 } from "../order-actions";
 
 const mockRevalidatePath = vi.fn();
@@ -555,6 +557,40 @@ describe("Order Server Actions", () => {
         expect(res.data.cancellationReason).toBe("Cancelled by guest");
         // Item quantity was 2, so stock should be restored by +2
         expect(mockProducts[0].stock).toBe(initialStock + 2);
+      }
+    });
+
+    it("acceptOrderAction transitions a NEW order to CONFIRMED", async () => {
+      mockOrders[0].status = "NEW";
+      const res = await acceptOrderAction(validOrderId);
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.status).toBe("CONFIRMED");
+      }
+    });
+
+    it("rejectOrderAction fails when reason is empty or whitespace", async () => {
+      mockOrders[0].status = "NEW";
+      const res = await rejectOrderAction({ orderId: validOrderId, reason: "   " });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toContain("A reason is required when rejecting a new order");
+      }
+    });
+
+    it("rejectOrderAction cancels NEW order and restores stock with valid reason", async () => {
+      mockOrders[0].status = "NEW";
+      const initialStock = mockProducts[0].stock;
+      const res = await rejectOrderAction({
+        orderId: validOrderId,
+        reason: "Kitchen out of ingredients",
+      });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.status).toBe("CANCELLED");
+        expect(res.data.cancellationReason).toBe("Kitchen out of ingredients");
+        expect(mockProducts[0].stock).toBe(initialStock + 2);
+        expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
       }
     });
   });
