@@ -1,15 +1,10 @@
 {
   "name": "foodbiz-pwa",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bookworm",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
   "remoteUser": "node",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/python:1": {
-      "installTools": true,
-      "toolsToInstall": "graphifyy"
-    }
-  },
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": { "label": "Next.js", "onAutoForward": "notify" }
@@ -18,7 +13,8 @@
     "NEXT_TELEMETRY_DISABLED": "1"
   },
   "remoteEnv": {
-    "STITCH_API_KEY": "${localEnv:STITCH_API_KEY}"
+    "STITCH_API_KEY": "${localEnv:STITCH_API_KEY}",
+    "VERCEL_API_TOKEN": "${localEnv:VERCEL_API_TOKEN}"
   },
   "mounts": [
     "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
@@ -26,7 +22,6 @@
     "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "postStartCommand": "bash .devcontainer/stitch-mcp.sh",
   "customizations": {
     "vscode": {
       "extensions": [
