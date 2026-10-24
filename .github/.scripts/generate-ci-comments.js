@@ -274,10 +274,8 @@ function buildCommentBody(options = {}) {
   return body;
 }
 
-function publishComment() {
-  const commentBody = buildCommentBody();
-
-  if (!PR_NUMBER || !REPO || !GH_TOKEN) {
+function postOrUpdateComment(prNumber, commentBody) {
+  if (!prNumber || !REPO || !GH_TOKEN) {
     console.log("No PR environment detected. Outputting report to stdout:\n");
     console.log(commentBody);
     return;
@@ -285,7 +283,7 @@ function publishComment() {
 
   try {
     const commentsRaw = execSync(
-      `gh api repos/${REPO}/issues/${PR_NUMBER}/comments --jq '.[] | {id: .id, body: .body}'`,
+      `gh api repos/${REPO}/issues/${prNumber}/comments --jq '.[] | {id: .id, body: .body}'`,
       { encoding: "utf8", env: { ...process.env, GH_TOKEN } },
     ).trim();
 
@@ -309,14 +307,14 @@ function publishComment() {
     fs.writeFileSync(tmpFile, commentBody, "utf8");
 
     if (existingCommentId) {
-      console.log(`Updating comment #${existingCommentId}...`);
+      console.log(`Updating comment #${existingCommentId} on PR #${prNumber}...`);
       execSync(
         `gh api -X PATCH repos/${REPO}/issues/comments/${existingCommentId} -F body=@${tmpFile}`,
         { stdio: "inherit", env: { ...process.env, GH_TOKEN } },
       );
     } else {
-      console.log(`Posting new comment on PR #${PR_NUMBER}...`);
-      execSync(`gh pr comment ${PR_NUMBER} --body-file ${tmpFile}`, {
+      console.log(`Posting new comment on PR #${prNumber}...`);
+      execSync(`gh pr comment ${prNumber} --body-file ${tmpFile}`, {
         stdio: "inherit",
         env: { ...process.env, GH_TOKEN },
       });
@@ -328,12 +326,73 @@ function publishComment() {
   }
 }
 
+function saveReport(targetDir, prNumber) {
+  const commentBody = buildCommentBody();
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  const commentFile = path.join(targetDir, "comment.md");
+  fs.writeFileSync(commentFile, commentBody, "utf8");
+  console.log(`Saved CI comment to ${commentFile}`);
+
+  const pr = prNumber || process.env.PR_NUMBER || PR_NUMBER;
+  if (pr) {
+    const prFile = path.join(targetDir, "pr_number.txt");
+    fs.writeFileSync(prFile, String(pr), "utf8");
+    console.log(`Saved PR number (${pr}) to ${prFile}`);
+  }
+
+  const stepSummary = process.env.GITHUB_STEP_SUMMARY;
+  if (stepSummary && fs.existsSync(path.dirname(stepSummary))) {
+    try {
+      fs.appendFileSync(stepSummary, `\n${commentBody}\n`, "utf8");
+    } catch {
+      // ignore step summary errors
+    }
+  }
+}
+
+function publishFromDir(sourceDir) {
+  const commentFile = path.join(sourceDir, "comment.md");
+  const prFile = path.join(sourceDir, "pr_number.txt");
+
+  if (!fs.existsSync(commentFile) || !fs.existsSync(prFile)) {
+    console.log("No PR report files found in directory; skipping comment publish.");
+    return;
+  }
+
+  const prNumber = fs.readFileSync(prFile, "utf8").trim();
+  const commentBody = fs.readFileSync(commentFile, "utf8");
+
+  if (!/^\d+$/.test(prNumber)) {
+    console.warn(`Invalid PR number '${prNumber}'; skipping comment publish.`);
+    return;
+  }
+
+  postOrUpdateComment(prNumber, commentBody);
+}
+
+function publishComment() {
+  const commentBody = buildCommentBody();
+  postOrUpdateComment(PR_NUMBER, commentBody);
+}
+
 if (require.main === module) {
-  publishComment();
+  const saveIdx = process.argv.indexOf("--save-report");
+  const publishIdx = process.argv.indexOf("--publish-from");
+
+  if (saveIdx !== -1 && process.argv[saveIdx + 1]) {
+    saveReport(path.resolve(process.cwd(), process.argv[saveIdx + 1]));
+  } else if (publishIdx !== -1 && process.argv[publishIdx + 1]) {
+    publishFromDir(path.resolve(process.cwd(), process.argv[publishIdx + 1]));
+  } else {
+    publishComment();
+  }
 }
 
 module.exports = {
   buildCommentBody,
   publishComment,
+  saveReport,
+  publishFromDir,
   getUnformattedFiles,
 };

@@ -1,4 +1,7 @@
 // @vitest-environment node
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import ci from "../.github/.scripts/generate-ci-comments.js";
 
@@ -131,4 +134,34 @@ describe("CI comment generator", () => {
     const files = ci.getUnformattedFiles();
     expect(Array.isArray(files)).toBe(true);
   }, 60000);
+
+  it("exports saveReport and writes comment.md and pr_number.txt", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ci-report-test-"));
+    process.env.PR_NUMBER = "123";
+    try {
+      ci.saveReport(tmpDir);
+      expect(fs.existsSync(path.join(tmpDir, "comment.md"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, "pr_number.txt"))).toBe(true);
+      const pr = fs.readFileSync(path.join(tmpDir, "pr_number.txt"), "utf8");
+      expect(pr).toBe("123");
+    } finally {
+      delete process.env.PR_NUMBER;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("exports publishFromDir and skips safely if files missing or invalid", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "ci-report-test-"));
+    try {
+      // Missing files
+      expect(() => ci.publishFromDir(tmpDir)).not.toThrow();
+
+      // Invalid PR number
+      fs.writeFileSync(path.join(tmpDir, "comment.md"), "test body");
+      fs.writeFileSync(path.join(tmpDir, "pr_number.txt"), "not-a-number");
+      expect(() => ci.publishFromDir(tmpDir)).not.toThrow();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

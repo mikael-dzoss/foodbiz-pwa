@@ -9,16 +9,69 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  quality:
-    name: Quality gate
+  # ── Quality Gate: Code Formatting ───────────────────────────
+  format:
+    name: Quality Gate - Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+  # ── Quality Gate: ESLint ────────────────────────────────────
+  lint:
+    name: Quality Gate - ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint check
+        run: npm run lint
+
+  # ── Quality Gate: Strict TypeScript ─────────────────────────
+  typecheck:
+    name: Quality Gate - Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  # ── Quality Gate: Unit Tests & Coverage Ratchet ─────────────
+  test:
+    name: Quality Gate - Unit Tests & Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -31,28 +84,56 @@ jobs:
 
       - run: npm ci
 
-      - name: Format
-        id: format
-        run: npm run format:check
-
-      - name: Lint
-        id: lint
-        run: npm run lint
-
-      - name: Typecheck
-        id: typecheck
-        run: npm run typecheck
-
-      - name: Test with coverage
-        id: test
+      - name: Run tests with coverage
         run: npm run test:coverage
 
-      - name: Tooling tests
-        id: tooling
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 2
+
+  # ── Quality Gate: Tooling Validation ────────────────────────
+  tooling:
+    name: Quality Gate - Tooling Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run tooling tests
         run: npm run test:tooling
 
+  # ── Quality Gate: Next.js Build & Dependency Audit ──────────
+  build:
+    name: Quality Gate - Build & Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
       - name: Audit production dependencies
-        id: audit
         run: npm audit --audit-level=high --omit=dev
 
       - name: Cache Next.js build
@@ -63,8 +144,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
-      - name: Build
-        id: build
+      - name: Next.js production build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
@@ -72,27 +152,57 @@ jobs:
           DATA_SOURCE: supabase
         run: npm run build
 
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v7
+  # ── Quality Gate: Consolidated Summary Gate ─────────────────
+  summary:
+    name: Quality Gate - Summary
+    runs-on: ubuntu-latest
+    needs: [format, lint, typecheck, test, tooling, build]
+    if: always()
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download test coverage artifact
+        uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           name: coverage
           path: coverage
-          if-no-files-found: ignore
-          retention-days: 7
 
-      - name: Post CI summary comment
-        if: always() && github.event_name == 'pull_request'
+      - name: Render CI quality report
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-          FORMAT_STATUS: ${{ steps.format.outcome }}
-          LINT_STATUS: ${{ steps.lint.outcome }}
-          TYPECHECK_STATUS: ${{ steps.typecheck.outcome }}
-          TEST_STATUS: ${{ steps.test.outcome }}
-          TOOLING_STATUS: ${{ steps.tooling.outcome }}
-          AUDIT_STATUS: ${{ steps.audit.outcome }}
-          BUILD_STATUS: ${{ steps.build.outcome }}
-        run: node .github/.scripts/generate-ci-comments.js
+          FORMAT_STATUS: ${{ needs.format.result }}
+          LINT_STATUS: ${{ needs.lint.result }}
+          TYPECHECK_STATUS: ${{ needs.typecheck.result }}
+          TEST_STATUS: ${{ needs.test.result }}
+          TOOLING_STATUS: ${{ needs.tooling.result }}
+          BUILD_STATUS: ${{ needs.build.result }}
+        run: |
+          node .github/.scripts/generate-ci-comments.js --save-report /tmp/ci-report
+
+      - name: Upload rendered CI report artifact
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-report
+          path: |
+            /tmp/ci-report/comment.md
+            /tmp/ci-report/pr_number.txt
+          retention-days: 2
+
+      - name: Enforce quality gate
+        run: |
+          if [ "${{ needs.format.result }}" != "success" ] || \
+             [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.tooling.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            echo "::error::One or more CI quality checks failed."
+            exit 1
+          fi
