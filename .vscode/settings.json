@@ -3,7 +3,7 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "eslint.useFlatConfig": true,
-  "files.autoSave": "onFocusChange",
+  "files.autoSave": "off",
   "js/ts.tsdk.path": "node_modules/typescript/lib",
   "chat.instructionsFilesLocations": {
     ".agents/rules": true
