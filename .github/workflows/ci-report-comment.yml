@@ -1,0 +1,50 @@
+name: CI Report PR Comment
+
+# Runs in the trusted base repository context after the read-only CI workflow completes.
+# Downloads the pre-rendered markdown report artifact and updates the PR comment
+# without executing untrusted PR code, avoiding comment race conditions and fork permission errors.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+concurrency:
+  group: ci-report-comment-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  publish-comment:
+    name: Publish CI Quality Report on PR
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base repository tooling
+        uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download rendered CI report artifact
+        id: download
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: ci-report
+          path: /tmp/downloaded-ci-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Post or update PR comment
+        if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          node .github/.scripts/generate-ci-comments.js --publish-from /tmp/downloaded-ci-report
