@@ -2,6 +2,7 @@
 
 import { useState, useId, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Lock,
   Pencil,
@@ -32,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCart } from "../context/cart-context";
+import { placeOrderAction } from "../storefront-actions";
 
 const guestContactListeners = new Set<() => void>();
 let cachedRawGuestContact: string | null = "__UNSET__";
@@ -96,7 +98,16 @@ export function CheckoutForm({
   dict,
   onSubmitOrder,
 }: CheckoutFormProps) {
-  const { items, totalAmountInCents, notes: cartNotes, setNotes: setCartNotes } = useCart();
+  const router = useRouter();
+  const {
+    items,
+    totalAmountInCents,
+    notes: cartNotes,
+    setNotes: setCartNotes,
+    clearCart,
+  } = useCart();
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [honeypot, setHoneypot] = useState("");
 
   // Zero DB Lookup: Synchronize remembered contact from local storage safely without cascading renders
   const storedContact = useSyncExternalStore(
@@ -225,8 +236,38 @@ export function CheckoutForm({
 
       if (onSubmitOrder) {
         await onSubmitOrder(validationResult.data);
+        setSubmittedSuccess(true);
+      } else {
+        const orderResult = await placeOrderAction({
+          businessId: business.id,
+          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          name: validationResult.data.name,
+          phone: validationResult.data.phone,
+          serviceType: validationResult.data.serviceType,
+          deliveryAddress: validationResult.data.deliveryAddress,
+          isAsap: validationResult.data.isAsap,
+          requestedDate: validationResult.data.requestedDate,
+          requestedTime: validationResult.data.requestedTime,
+          paymentPreference: validationResult.data.paymentPreference,
+          notes: validationResult.data.notes,
+          idempotencyKey,
+          honeypot,
+        });
+
+        if (!orderResult.success) {
+          setErrorFeedback(orderResult.error);
+          setIsSubmitting(false);
+          return;
+        }
+
+        clearCart();
+        if (orderResult.data.trackingToken) {
+          router.push(`/${locale}/order/${orderResult.data.trackingToken}`);
+        } else {
+          setSubmittedSuccess(true);
+        }
+        return;
       }
-      setSubmittedSuccess(true);
     } catch (err) {
       setErrorFeedback(
         err instanceof Error ? err.message : "Failed to place order. Please try again.",
@@ -266,6 +307,25 @@ export function CheckoutForm({
       data-testid="checkout-form"
       noValidate
     >
+      {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
+      <div
+        className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        <label htmlFor="checkout-honeypot">Leave this field blank</label>
+        <input
+          id="checkout-honeypot"
+          type="text"
+          name="hp_field"
+          autoComplete="off"
+          tabIndex={-1}
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          data-testid="checkout-honeypot-input"
+        />
+      </div>
+
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">

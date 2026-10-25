@@ -3,6 +3,7 @@ import {
   checkoutFormSchema,
   guestContactStorageSchema,
   GUEST_CONTACT_STORAGE_KEY,
+  placeOrderInputSchema,
 } from "../checkout";
 
 describe("checkoutFormSchema", () => {
@@ -120,6 +121,66 @@ describe("guestContactStorageSchema", () => {
     const result = guestContactStorageSchema.safeParse({
       name: "",
       phone: "123",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("placeOrderInputSchema", () => {
+  const validBase = {
+    items: [
+      {
+        productId: "11111111-1111-4111-8111-111111111111",
+        quantity: 2,
+      },
+    ],
+    name: "Thomas Pesquet",
+    phone: "+33612345678",
+    serviceType: "pickup" as const,
+    isAsap: true,
+    paymentPreference: "on_handover" as const,
+    idempotencyKey: "idem-key-12345678",
+  };
+
+  it("validates valid order placement input", () => {
+    const result = placeOrderInputSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.items).toHaveLength(1);
+      expect(result.data.idempotencyKey).toBe("idem-key-12345678");
+      expect(result.data.name).toBe("Thomas Pesquet");
+    }
+  });
+
+  it("fails when items list is empty", () => {
+    const result = placeOrderInputSchema.safeParse({
+      ...validBase,
+      items: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("fails when item quantity is less than 1", () => {
+    const result = placeOrderInputSchema.safeParse({
+      ...validBase,
+      items: [{ productId: "11111111-1111-4111-8111-111111111111", quantity: 0 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("fails when idempotencyKey is missing or too short", () => {
+    const result = placeOrderInputSchema.safeParse({
+      ...validBase,
+      idempotencyKey: "short",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("enforces delivery address when serviceType is delivery", () => {
+    const result = placeOrderInputSchema.safeParse({
+      ...validBase,
+      serviceType: "delivery",
+      deliveryAddress: "",
     });
     expect(result.success).toBe(false);
   });

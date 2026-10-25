@@ -16,3 +16,4 @@ export * from "./components/checkout-form";
 export * from "./components/checkout-view";
 export * from "./context/cart-context";
 export * from "./catalog-data";
+export * from "./storefront-actions";
