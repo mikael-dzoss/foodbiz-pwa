@@ -102,6 +102,61 @@ export interface StorefrontDictionary {
   share: string;
   allRightsReserved: string;
   bakeryInfo: string;
+
+  // Cart (#85)
+  yourCart: string;
+  proceedToCheckout: string;
+  clearCart: string;
+  emptyCartTitle: string;
+  emptyCartMessage: string;
+  minimumOrderProgress: string;
+  minimumOrderReached: string;
+  addMoreForMinimum: string;
+  maxStockReached: string;
+  subtotal: string;
+  estimatedTax: string;
+  orderTotal: string;
+
+  // Checkout (#86)
+  checkoutTitle: string;
+  guestCheckoutBadge: string;
+  customerContact: string;
+  fullName: string;
+  fullNamePlaceholder: string;
+  phone: string;
+  phonePlaceholder: string;
+  phoneHelper: string;
+  savedNameNotice: string;
+  editName: string;
+  fulfillmentMode: string;
+  pickupFree: string;
+  deliveryPaid: string;
+  pickupLocation: string;
+  deliveryAddress: string;
+  deliveryAddressPlaceholder: string;
+  orderTiming: string;
+  asap: string;
+  asapEstimatedReady: string;
+  scheduleLater: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  optionalTime: string;
+  paymentMethod: string;
+  revolutPay: string;
+  weroPay: string;
+  payOnHandover: string;
+  payOnHandoverSubtext: string;
+  orderNotes: string;
+  notesPlaceholder: string;
+  orderSummary: string;
+  placeOrder: string;
+  placingOrder: string;
+  securityNotice: string;
+  orderPolicyNotice: string;
+  nameRequiredError: string;
+  phoneRequiredError: string;
+  addressRequiredError: string;
+  dateRequiredError: string;
 }
 
 export interface QuickAddDictionary {
