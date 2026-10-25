@@ -320,9 +320,7 @@ describe("OrderList Component", () => {
       ],
     };
     render(<OrderList initialData={dataWithMismatch} />);
-    expect(screen.getByTestId("order-submitted-name-badge").textContent).toContain(
-      "Ordered as Marc, linked to Jean Dupont",
-    );
+    expect(screen.getByTestId("order-submitted-name-badge").textContent).toBe("Ordered as Marc");
 
     const searchInput = screen.getByTestId("order-search-input");
     fireEvent.change(searchInput, { target: { value: "Marc" } });

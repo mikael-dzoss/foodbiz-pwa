@@ -452,7 +452,7 @@ describe("OrderDetail Component", () => {
     it("renders submittedName mismatch badge when order has a differing submittedName", () => {
       render(<OrderDetail order={{ ...mockOrder, submittedName: "Marc" }} />);
       const badge = screen.getByTestId("order-submitted-name-badge");
-      expect(badge.textContent).toContain("Ordered as Marc, linked to Jean Dupont");
+      expect(badge.textContent).toBe("Ordered as Marc");
     });
   });
 });
