@@ -1,6 +1,11 @@
 import type { Business, BusinessMember } from "@/domain/business";
 import type { Expense } from "@/domain/expense";
-import { normalizePhoneNumber } from "@/domain/guest";
+import {
+  findOrCreateGuest,
+  isGuestPhoneUnique,
+  normalizeGuestName,
+  normalizePhoneNumber,
+} from "@/domain/guest";
 import type { Guest } from "@/domain/guest";
 import type { Order } from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
@@ -168,8 +173,8 @@ export function createMockRepositories(
         id: input.id ?? crypto.randomUUID(),
         businessId: bId,
         orderNumber: nextOrderNumber,
-        guestId: input.guestId ?? null,
-        guestName: input.guestName,
+        guestId: input.guestId,
+        submittedName: input.submittedName ?? null,
         serviceType: input.serviceType,
         channel: input.channel,
         status: input.status,
@@ -232,11 +237,15 @@ export function createMockRepositories(
       return structuredClone(fixtures.guests.filter((g) => g.businessId === bId));
     },
     async create(bId, input) {
+      const phone = input.phone ? normalizePhoneNumber(input.phone) : null;
+      if (phone && !isGuestPhoneUnique(fixtures.guests, bId, phone)) {
+        throw new Error("A guest with this phone number already exists");
+      }
       const g: Guest = {
         id: input.id ?? crypto.randomUUID(),
         businessId: bId,
-        name: input.name,
-        phone: input.phone ? normalizePhoneNumber(input.phone) : null,
+        name: normalizeGuestName(input.name),
+        phone,
         email: input.email ?? null,
         address: input.address ?? null,
         notes: input.notes ?? null,
@@ -258,9 +267,20 @@ export function createMockRepositories(
             ? normalizePhoneNumber(input.phone)
             : null
           : existing.phone;
-      const updated = { ...existing, ...input, phone };
+      if (phone && !isGuestPhoneUnique(fixtures.guests, bId, phone, id)) {
+        throw new Error("A guest with this phone number already exists");
+      }
+      const name = input.name !== undefined ? normalizeGuestName(input.name) : existing.name;
+      const updated = { ...existing, ...input, name, phone };
       fixtures.guests[idx] = updated;
       return structuredClone(updated);
+    },
+    async findOrCreate(bId, input) {
+      return findOrCreateGuest(
+        fixtures.guests,
+        { businessId: bId, name: input.name, phone: input.phone, address: input.address },
+        { allowRename: input.allowRename },
+      );
     },
   };
 

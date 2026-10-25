@@ -25,7 +25,6 @@ const mockActiveOrder: Order = {
   businessId: "biz-1",
   orderNumber: 42,
   guestId: "g-1",
-  guestName: "Alice Martin",
   serviceType: "pickup",
   channel: "storefront",
   status: "CONFIRMED",

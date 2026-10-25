@@ -35,7 +35,7 @@ const initialMockOrders: EnrichedOrder[] = [
     id: "ord-old-1",
     businessId: "biz-1",
     orderNumber: 10,
-    guestId: null,
+    guestId: "00000000-0000-4000-8000-000000000001",
     guestName: "Old Customer",
     serviceType: "pickup",
     channel: "storefront",

@@ -3,7 +3,12 @@
 import { z } from "zod";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
-import { type DashboardData, buildDashboardData, dashboardPeriodPresetSchema } from "@/domain";
+import {
+  type DashboardData,
+  attachGuestNames,
+  buildDashboardData,
+  dashboardPeriodPresetSchema,
+} from "@/domain";
 
 const getDashboardDataInputSchema = z.object({
   periodPreset: dashboardPeriodPresetSchema.optional().default("today"),
@@ -30,14 +35,15 @@ export async function getDashboardDataAction(
     }
 
     const repos = getRepositories();
-    const [orders, expenses, products] = await Promise.all([
+    const [orders, guests, expenses, products] = await Promise.all([
       repos.orders.list(businessId),
+      repos.guests.list(businessId),
       repos.expenses.list(businessId),
       repos.products.list(businessId),
     ]);
 
     const data = buildDashboardData({
-      orders,
+      orders: attachGuestNames(orders, guests),
       expenses,
       products,
       periodPreset: parsed.data.periodPreset,

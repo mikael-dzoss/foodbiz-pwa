@@ -18,7 +18,7 @@ function createMockOrder(overrides?: Partial<Order>): Order {
   return {
     id: validUuid,
     businessId: validUuid,
-    guestName: "Alice",
+    guestId: validUuid,
     serviceType: "pickup",
     channel: "storefront",
     status: "NEW",

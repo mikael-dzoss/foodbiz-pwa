@@ -50,9 +50,10 @@ export function describeOrderRepositoryContract(
     it("create adds a new order with auto orderNumber and timestamps", async () => {
       const repos = await getRepositories();
       const product = (await repos.products.list(businessId))[0];
+      const guest = (await repos.guests.list(businessId))[0];
 
       const created = await repos.orders.create(businessId, {
-        guestName: "Alice Dupont",
+        guestId: guest.id,
         serviceType: "pickup",
         channel: "storefront",
         status: "NEW",
@@ -79,7 +80,7 @@ export function describeOrderRepositoryContract(
 
       const found = await repos.orders.findById(businessId, created.id);
       expect(found).not.toBeNull();
-      expect(found?.guestName).toBe("Alice Dupont");
+      expect(found?.guestId).toBe(guest.id);
     });
 
     it("update modifies order fields and updates updatedAt", async () => {
@@ -101,8 +102,9 @@ export function describeOrderRepositoryContract(
     it("findByTrackingToken returns order by token or null", async () => {
       const repos = await getRepositories();
       const product = (await repos.products.list(businessId))[0];
+      const guest = (await repos.guests.list(businessId))[0];
       const created = await repos.orders.create(businessId, {
-        guestName: "Tracking Test",
+        guestId: guest.id,
         serviceType: "pickup",
         channel: "storefront",
         status: "NEW",

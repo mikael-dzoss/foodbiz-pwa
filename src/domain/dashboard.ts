@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { type DateRange, calculateKpiReport, resolveDateRange } from "./kpis";
 import type { Expense } from "./expense";
-import type { Order, OrderStatus } from "./order";
+import type { NamedOrder, OrderStatus } from "./order";
 import type { Product } from "./product";
 import { type StockLevelStatus, getStockStatus } from "./stock";
 
@@ -89,7 +89,7 @@ export interface DashboardData {
  * Sorted by scheduled due date & time ascending.
  */
 export function extractOrdersToPrepare(
-  orders: readonly Order[],
+  orders: readonly NamedOrder[],
   limit = 5,
 ): { count: number; items: ToPrepareOrderItem[] } {
   const filtered = orders.filter((o) => o.status === "CONFIRMED" || o.status === "PREPARING");
@@ -127,7 +127,7 @@ export function extractOrdersToPrepare(
  * Extracts unpaid, active (non-cancelled) orders with total outstanding amount.
  */
 export function extractUnpaidOrders(
-  orders: readonly Order[],
+  orders: readonly NamedOrder[],
   limit = 5,
 ): { count: number; totalAmount: number; items: UnpaidOrderSummaryItem[] } {
   const filtered = orders.filter((o) => o.paid === "unpaid" && o.status !== "CANCELLED");
@@ -189,7 +189,7 @@ export function extractLowStockProducts(
  * Merges latest orders and expenses into a single unified chronological feed, newest first.
  */
 export function buildActivityFeed(
-  orders: readonly Order[],
+  orders: readonly NamedOrder[],
   expenses: readonly Expense[],
   limit = 10,
 ): ActivityFeedItem[] {
@@ -255,7 +255,7 @@ export function buildActivityFeed(
 }
 
 export interface BuildDashboardDataInput {
-  orders: readonly Order[];
+  orders: readonly NamedOrder[];
   expenses: readonly Expense[];
   products: readonly Product[];
   periodPreset?: DashboardPeriodPreset;

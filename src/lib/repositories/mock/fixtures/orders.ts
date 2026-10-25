@@ -177,7 +177,6 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     businessId: DEMO_BUSINESS_ID,
     orderNumber,
     guestId: guest.id,
-    guestName: guest.name,
     serviceType,
     channel,
     status,

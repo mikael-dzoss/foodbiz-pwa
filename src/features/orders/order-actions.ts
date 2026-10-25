@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
 import {
+  type NamedOrder,
   type Order,
   type OrderStatus,
   type ServiceType,
@@ -17,6 +18,7 @@ import {
   reserveStock,
   restoreStock,
   normalizePhoneNumber,
+  UNKNOWN_GUEST_NAME,
 } from "@/domain";
 import { z } from "zod";
 
@@ -24,7 +26,7 @@ export type OrderActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string; fieldErrors?: Record<string, string[]> };
 
-export interface EnrichedOrder extends Order {
+export interface EnrichedOrder extends NamedOrder {
   guestPhone?: string | null;
   guestEmail?: string | null;
 }
@@ -71,11 +73,12 @@ export async function listOrdersAction(
       guestMap.set(g.id, g);
     }
 
-    // Enrich orders with guest phone/email
+    // Enrich orders with guest name/phone/email (name is resolved via guestId, never stored)
     const enrichedOrders: EnrichedOrder[] = allOrders.map((o) => {
-      const g = o.guestId ? guestMap.get(o.guestId) : undefined;
+      const g = guestMap.get(o.guestId);
       return {
         ...o,
+        guestName: g?.name ?? UNKNOWN_GUEST_NAME,
         guestPhone: g?.phone ?? null,
         guestEmail: g?.email ?? null,
         deliveryAddress: o.deliveryAddress ?? g?.address ?? null,
@@ -200,13 +203,11 @@ export async function getOrderAction(
       return { success: false, error: "Order not found" };
     }
 
-    let guest: Guest | null = null;
-    if (order.guestId) {
-      guest = await repos.guests.findById(businessId, order.guestId);
-    }
+    const guest = await repos.guests.findById(businessId, order.guestId);
 
     const enriched: EnrichedOrder = {
       ...order,
+      guestName: guest?.name ?? UNKNOWN_GUEST_NAME,
       guestPhone: guest?.phone ?? null,
       guestEmail: guest?.email ?? null,
       deliveryAddress: order.deliveryAddress ?? guest?.address ?? null,
@@ -250,23 +251,6 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
     const data = parsed.data;
     const repos = getRepositories();
 
-    // 1. Phone normalisation & Guest lookup/creation
-    let normalizedPhone: string;
-    try {
-      normalizedPhone = normalizePhoneNumber(data.guestPhone);
-    } catch {
-      normalizedPhone = data.guestPhone.trim();
-    }
-
-    let guest = await repos.guests.findByPhone(businessId, normalizedPhone);
-    if (!guest) {
-      guest = await repos.guests.create(businessId, {
-        name: data.guestName,
-        phone: normalizedPhone,
-        address: data.deliveryAddress ?? null,
-      });
-    }
-
     // 2. Validate product availability and stock
     const allProducts = await repos.products.list(businessId);
     const productMap = new Map<string, Product>();
@@ -288,7 +272,17 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
       }
     }
 
-    // 3. Decrement stock for all items
+    // 3. Guest find-or-create by normalised phone. The stored name is overwritten only on explicit
+    //    manager intent (updateGuestName); otherwise a differing name is kept as an audit field.
+    const guestResult = await repos.guests.findOrCreate(businessId, {
+      name: data.guestName,
+      phone: data.guestPhone,
+      address: data.deliveryAddress ?? null,
+      allowRename: data.updateGuestName,
+    });
+    const guest = await repos.guests.findById(businessId, guestResult.guestId);
+
+    // 4. Decrement stock for all items
     for (const item of data.items) {
       const product = productMap.get(item.productId)!;
       const reservation = reserveStock(product, item.quantity);
@@ -300,7 +294,7 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
       });
     }
 
-    // 4. Build OrderItems and calculate totals
+    // 5. Build OrderItems and calculate totals
     const orderItems = data.items.map((it) => {
       const p = productMap.get(it.productId)!;
       return {
@@ -319,10 +313,10 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
     const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
     const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
 
-    // 5. Create Order as CONFIRMED
+    // 6. Create Order as CONFIRMED
     const order = await repos.orders.create(businessId, {
-      guestId: guest.id,
-      guestName: data.guestName,
+      guestId: guestResult.guestId,
+      submittedName: guestResult.nameMismatch ? data.guestName : null,
       serviceType: data.serviceType,
       channel: data.channel,
       status: "CONFIRMED",
@@ -333,7 +327,7 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
       items: orderItems,
       totalAmount,
       notes: data.notes ?? null,
-      deliveryAddress: data.deliveryAddress ?? guest.address ?? null,
+      deliveryAddress: data.deliveryAddress ?? guest?.address ?? null,
       statusHistory: [
         {
           status: "CONFIRMED",
@@ -636,12 +630,15 @@ export async function markPaidAndCompleteAction(input: unknown): Promise<OrderAc
   }
 }
 
+export type GuestPrefill = Pick<Guest, "id" | "name" | "address">;
+
 /**
- * Looks up an existing guest by phone number for instant form prefill.
+ * Looks up an existing guest by phone number for instant form prefill (managers only).
+ * Returns the minimum needed to prefill the form, not the full guest record.
  */
 export async function lookupGuestByPhoneAction(
   phone: string,
-): Promise<OrderActionResult<Guest | null>> {
+): Promise<OrderActionResult<GuestPrefill | null>> {
   try {
     const { businessId } = await requireAuthenticatedAction();
     const repos = getRepositories();
@@ -658,7 +655,10 @@ export async function lookupGuestByPhoneAction(
     }
 
     const guest = await repos.guests.findByPhone(businessId, normalized);
-    return { success: true, data: guest };
+    return {
+      success: true,
+      data: guest ? { id: guest.id, name: guest.name, address: guest.address ?? null } : null,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Guest lookup failed";
     return { success: false, error: message };
