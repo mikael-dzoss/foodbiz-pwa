@@ -6,6 +6,7 @@ import {
   timeHHMMSchema,
   uuidSchema,
 } from "./common";
+import { type Guest, guestNameSchema, isValidPhoneNumber } from "./guest";
 
 export const orderStatusSchema = z.enum([
   "NEW",
@@ -57,8 +58,11 @@ export const orderSchema = z.object({
   id: uuidSchema,
   businessId: uuidSchema,
   orderNumber: z.number().int().positive().optional(),
-  guestId: uuidSchema.optional().nullable(),
-  guestName: z.string().trim().min(1),
+  // The guest's name is resolved via guestId (single source of truth), never stored on the order.
+  guestId: uuidSchema,
+  // Audit only, never displayed as the customer name: filled when the submitted name differs from
+  // the stored guest name and the caller was not allowed to rename the guest.
+  submittedName: z.string().optional().nullable(),
   serviceType: serviceTypeSchema,
   channel: channelSchema,
   status: orderStatusSchema,
@@ -82,6 +86,20 @@ export const orderSchema = z.object({
 
 export type Order = z.infer<typeof orderSchema>;
 
+/** Read model: an order with its guest's current name resolved via guestId. */
+export type NamedOrder = Order & { readonly guestName: string };
+
+export const UNKNOWN_GUEST_NAME = "Unknown guest";
+
+/** Resolves each order's guest name from the guest list (the name is never stored on the order). */
+export function attachGuestNames(
+  orders: readonly Order[],
+  guests: readonly Pick<Guest, "id" | "name">[],
+): NamedOrder[] {
+  const names = new Map(guests.map((g) => [g.id, g.name]));
+  return orders.map((o) => ({ ...o, guestName: names.get(o.guestId) ?? UNKNOWN_GUEST_NAME }));
+}
+
 export const manualOrderItemInputSchema = z.object({
   productId: uuidSchema,
   quantity: z.number().int().min(1),
@@ -89,8 +107,14 @@ export const manualOrderItemInputSchema = z.object({
 export type ManualOrderItemInput = z.infer<typeof manualOrderItemInputSchema>;
 
 export const manualOrderInputSchema = z.object({
-  guestPhone: z.string().trim().min(1),
-  guestName: z.string().trim().min(1),
+  guestPhone: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((v) => isValidPhoneNumber(v), "Invalid phone number"),
+  guestName: guestNameSchema,
+  // Explicit manager intent to overwrite the stored name of a matched guest.
+  updateGuestName: z.boolean().default(false),
   deliveryAddress: z.string().trim().optional().nullable(),
   serviceType: serviceTypeSchema,
   channel: channelSchema,

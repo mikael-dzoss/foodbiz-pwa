@@ -3,6 +3,8 @@ import type { Expense, Order, Product } from "@/domain";
 import { getDashboardDataAction } from "../dashboard-actions";
 
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
+const guestBobId = "77777777-7777-4111-8111-777777777701";
+const guestCharlieId = "77777777-7777-4111-8111-777777777702";
 
 let mockOrders: Order[] = [];
 let mockExpenses: Expense[] = [];
@@ -10,6 +12,31 @@ let mockProducts: Product[] = [];
 
 const mockOrderRepo = {
   list: vi.fn(async () => mockOrders),
+};
+
+const mockGuestRepo = {
+  list: vi.fn(async () => [
+    {
+      id: guestBobId,
+      businessId: testBusinessId,
+      name: "Bob",
+      phone: "+33612345678",
+      email: null,
+      address: null,
+      notes: null,
+      createdAt: "2026-10-01T10:00:00.000Z",
+    },
+    {
+      id: guestCharlieId,
+      businessId: testBusinessId,
+      name: "Charlie",
+      phone: "+33612345679",
+      email: null,
+      address: null,
+      notes: null,
+      createdAt: "2026-10-01T10:00:00.000Z",
+    },
+  ]),
 };
 
 const mockExpenseRepo = {
@@ -23,6 +50,7 @@ const mockProductRepo = {
 vi.mock("@/lib/repositories", () => ({
   getRepositories: () => ({
     orders: mockOrderRepo,
+    guests: mockGuestRepo,
     expenses: mockExpenseRepo,
     products: mockProductRepo,
   }),
@@ -50,7 +78,7 @@ describe("Dashboard Server Actions", () => {
         id: "22222222-2222-4111-8111-222222222222",
         businessId: testBusinessId,
         orderNumber: 1042,
-        guestName: "Bob",
+        guestId: guestBobId,
         serviceType: "pickup",
         channel: "storefront",
         status: "CONFIRMED",
@@ -77,7 +105,7 @@ describe("Dashboard Server Actions", () => {
         id: "22222222-2222-4111-8111-222222222223",
         businessId: testBusinessId,
         orderNumber: 1043,
-        guestName: "Charlie",
+        guestId: guestCharlieId,
         serviceType: "delivery",
         channel: "storefront",
         status: "PREPARING",

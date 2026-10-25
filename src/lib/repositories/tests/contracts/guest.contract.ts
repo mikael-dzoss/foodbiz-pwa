@@ -80,5 +80,66 @@ export function describeGuestRepositoryContract(
         }),
       ).rejects.toThrow();
     });
+
+    it("enforces phone uniqueness per business on create and update", async () => {
+      const repos = await getRepositories();
+      const firstWithPhone = (await repos.guests.list(businessId)).find((g) => Boolean(g.phone))!;
+
+      await expect(
+        repos.guests.create(businessId, {
+          name: "Duplicate Phone Guest",
+          phone: firstWithPhone.phone,
+        }),
+      ).rejects.toThrow("already exists");
+    });
+
+    it("findOrCreate matches by normalised phone, isolates by business, and protects stored guest data", async () => {
+      const repos = await getRepositories();
+
+      // 1. Creates a new guest when phone is not found
+      const createdRes = await repos.guests.findOrCreate(businessId, {
+        name: "Nadia Benali",
+        phone: "06 44 55 66 77",
+      });
+      expect(createdRes.isNew).toBe(true);
+      expect(createdRes.nameMismatch).toBe(false);
+      expect(Object.keys(createdRes).sort()).toEqual(["guestId", "isNew", "nameMismatch"]);
+
+      // 2. Repeat checkout with different phone format and different name (allowRename: false)
+      const matchedRes = await repos.guests.findOrCreate(businessId, {
+        name: "Untrusted Rename",
+        phone: "+33 6 44 55 66 77",
+      });
+      expect(matchedRes).toEqual({
+        guestId: createdRes.guestId,
+        isNew: false,
+        nameMismatch: true,
+      });
+      const storedAfterBlind = await repos.guests.findById(businessId, createdRes.guestId);
+      expect(storedAfterBlind?.name).toBe("Nadia Benali");
+
+      // 3. Explicit manager rename (allowRename: true) updates stored name
+      const renamedRes = await repos.guests.findOrCreate(businessId, {
+        name: "Nadia B. Martin",
+        phone: "0033644556677",
+        allowRename: true,
+      });
+      expect(renamedRes).toEqual({
+        guestId: createdRes.guestId,
+        isNew: false,
+        nameMismatch: false,
+      });
+      const storedAfterRename = await repos.guests.findById(businessId, createdRes.guestId);
+      expect(storedAfterRename?.name).toBe("Nadia B. Martin");
+
+      // 4. Isolates by businessId
+      const otherBusinessId = "99999999-9999-4999-8999-999999999999";
+      const otherBizRes = await repos.guests.findOrCreate(otherBusinessId, {
+        name: "Other Biz Customer",
+        phone: "+33644556677",
+      });
+      expect(otherBizRes.isNew).toBe(true);
+      expect(otherBizRes.guestId).not.toBe(createdRes.guestId);
+    });
   });
 }

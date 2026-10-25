@@ -1,5 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { Order, Product, Guest, CreateOrderInput, UpdateOrderInput } from "@/domain";
+import {
+  findOrCreateGuest,
+  type Order,
+  type Product,
+  type Guest,
+  type CreateOrderInput,
+  type UpdateOrderInput,
+} from "@/domain";
 import {
   listOrdersAction,
   getOrderAction,
@@ -21,6 +28,7 @@ vi.mock("next/cache", () => ({
 
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const validGuestId = "55555555-5555-4555-8555-555555555501";
+const secondGuestId = "55555555-5555-4555-8555-555555555502";
 const validProductId = "33333333-3333-4333-8333-333333333301";
 const validOrderId = "66666666-6666-4666-8666-666666666601";
 const completedOrderId = "66666666-6666-4666-8666-666666666602";
@@ -38,8 +46,8 @@ const mockOrderRepo = {
       id: input.id ?? "66666666-6666-4666-8666-666666666699",
       businessId: bId,
       orderNumber: input.orderNumber ?? mockOrders.length + 1,
-      guestId: input.guestId ?? null,
-      guestName: input.guestName,
+      guestId: input.guestId,
+      submittedName: input.submittedName ?? null,
       serviceType: input.serviceType,
       channel: input.channel,
       status: input.status,
@@ -98,6 +106,27 @@ const mockGuestRepo = {
       return structuredClone(g);
     },
   ),
+  findOrCreate: vi.fn(
+    async (
+      bId: string,
+      input: {
+        name: string;
+        phone: string;
+        address?: string | null;
+        allowRename?: boolean;
+      },
+    ) =>
+      findOrCreateGuest(
+        mockGuests,
+        {
+          businessId: bId,
+          name: input.name,
+          phone: input.phone,
+          address: input.address,
+        },
+        { allowRename: input.allowRename },
+      ),
+  ),
 };
 
 const mockProductRepo = {
@@ -150,6 +179,16 @@ describe("Order Server Actions", () => {
         notes: null,
         createdAt: "2026-10-01T10:00:00.000Z",
       },
+      {
+        id: secondGuestId,
+        businessId: testBusinessId,
+        name: "Sophie Martin",
+        phone: "+33698765432",
+        email: "sophie@example.com",
+        address: "55 Avenue Foch",
+        notes: null,
+        createdAt: "2026-10-01T10:00:00.000Z",
+      },
     ];
 
     mockProducts = [
@@ -175,7 +214,6 @@ describe("Order Server Actions", () => {
         businessId: testBusinessId,
         orderNumber: 42,
         guestId: validGuestId,
-        guestName: "Jean Dupont",
         serviceType: "pickup",
         channel: "phone",
         status: "CONFIRMED",
@@ -210,8 +248,7 @@ describe("Order Server Actions", () => {
         id: completedOrderId,
         businessId: testBusinessId,
         orderNumber: 41,
-        guestId: null,
-        guestName: "Sophie Martin",
+        guestId: secondGuestId,
         serviceType: "delivery",
         channel: "storefront",
         status: "COMPLETED",
@@ -248,7 +285,6 @@ describe("Order Server Actions", () => {
         businessId: testBusinessId,
         orderNumber: 40,
         guestId: validGuestId,
-        guestName: "Jean Dupont",
         serviceType: "pickup",
         channel: "in-person",
         status: "CANCELLED",
@@ -361,8 +397,7 @@ describe("Order Server Actions", () => {
         id: "order-scheduled",
         businessId: testBusinessId,
         orderNumber: 43,
-        guestId: null,
-        guestName: "Claire",
+        guestId: validGuestId,
         serviceType: "pickup",
         channel: "phone",
         status: "CONFIRMED",
@@ -490,9 +525,51 @@ describe("Order Server Actions", () => {
 
       expect(res.success).toBe(true);
       if (res.success) {
-        expect(res.data.guestName).toBe("Nouveau Client");
         expect(res.data.deliveryAddress).toBe("88 Rue Neuve");
-        expect(mockGuests.some((g) => g.phone === "+33699887766")).toBe(true);
+        const createdGuest = mockGuests.find((g) => g.phone === "+33699887766");
+        expect(createdGuest).toBeDefined();
+        expect(createdGuest?.name).toBe("Nouveau Client");
+        expect(res.data.guestId).toBe(createdGuest?.id);
+      }
+    });
+
+    it("preserves canonical guest name and records submittedName on mismatch when updateGuestName is false", async () => {
+      const res = await createManualOrderAction({
+        guestPhone: "06 12 34 56 78",
+        guestName: "Jean-Paul Dupont",
+        updateGuestName: false,
+        serviceType: "pickup",
+        channel: "phone",
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.guestId).toBe(validGuestId);
+        expect(res.data.submittedName).toBe("Jean-Paul Dupont");
+        // Canonical stored guest name was NOT overwritten
+        expect(mockGuests.find((g) => g.id === validGuestId)?.name).toBe("Jean Dupont");
+      }
+    });
+
+    it("updates canonical guest name when updateGuestName is true", async () => {
+      const res = await createManualOrderAction({
+        guestPhone: "06 12 34 56 78",
+        guestName: "Jean-Paul Dupont",
+        updateGuestName: true,
+        serviceType: "pickup",
+        channel: "phone",
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      });
+
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.guestId).toBe(validGuestId);
+        expect(res.data.submittedName).toBeNull();
+        // Canonical stored guest name WAS updated
+        expect(mockGuests.find((g) => g.id === validGuestId)?.name).toBe("Jean-Paul Dupont");
       }
     });
   });

@@ -54,6 +54,17 @@ Open questions (undecided): customer accounts vs guest checkout, payment handlin
 3. **Order lifecycle:** `Preparing → Ready → Completed/Delivered`; `Cancelled` allowed from any pre-delivery state, with validated transitions.
 4. **Cash-basis profit:** `Profit = Σ(order totals) − Σ(expenses)` over the selected time window.
 5. **Immutable state:** UI state updates use spread/map patterns.
+6. **Guest identity & name validation:**
+   - **Single canonical name:** Guest names use a single field (`Name` / `Full name`), never split into first/last.
+   - **Validation & normalisation (`normalizeGuestName`):**
+     - Trim leading/trailing whitespace, collapse internal runs of whitespace (`/\s+/g` → `" "`), and normalise to Unicode NFC.
+     - Accept all printable Unicode characters (digits, accented letters, hyphens, apostrophes, periods, and non-Latin scripts). Do not enforce character-class regexes, case rules, word-boundary rules, or auto title-casing (which mangles names like `McDonald` or `van der Berg`).
+     - Reject control characters (`U+0000–U+001F`, `U+007F–U+009F`) and lone surrogates (`U+D800–U+DFFF`).
+     - Enforce **2 to 50 characters** (measured in Unicode code points after trimming/collapsing whitespace) on the server; client-side checks are UX-only.
+   - **Blind find-or-create & anti-enumeration:**
+     - Anonymous visitors can _create_ guests and _link_ orders to them by normalised E.164 phone (unique per business), but they can never _read_ or _overwrite_ a canonical guest name (`guests.name`).
+     - Only an authenticated manager can overwrite `guests.name`, and only with explicit intent (`updateGuestName: true` after unlocking the prefilled name field). When an unprivileged or unlocked submission supplies a differing name for an existing phone, the canonical `guests.name` is preserved and the differing name is recorded in `orders.submitted_name` for audit.
+   - **Single source of truth on orders:** `Order` stores `guestId` (required) and never duplicates `guestName`; UI read-models resolve the guest's current name by joining on `guestId`.
 
 Rules 1–3 were found not fully enforced in the legacy code (hard delete, no `CANCELLED` status, silent stock truncation, `customerId` not persisted). The PWA must implement them as specified.
 
@@ -61,15 +72,15 @@ Rules 1–3 were found not fully enforced in the legacy code (hard delete, no `C
 
 Carried over from the legacy app; the PWA database schema is defined in [`docs/database/schema.md`](database/schema.md).
 
-| Entity              | Fields                                                                                       | Notes                                                             |
-| ------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **Product**         | id, name, price, unitCost, stock, visible, image, categoryId, creationDate, lastUpdateDate   | `unitCost` defaults to 0 in v1; used for margins in v2            |
-| **ProductCategory** | id, name                                                                                     | Juice, Yogurt, Bakery (extensible)                                |
-| **Customer**        | id, name, phone?, email?, address?, notes?, creationDate                                     | Enables repeat-customer recognition and delivery contact          |
-| **Order**           | id, customerId?, customerName, serviceType, channel, timestamp, status, items[], totalAmount | Statuses: PREPARING, READY, COMPLETED, CONFIRMED, PAID, DELIVERED |
-| **OrderItem**       | productId, productName, quantity, unitPrice                                                  | Embedded in Order                                                 |
-| **Expense**         | id, amount, date, description, tags[]                                                        | Tags: Ingredients, Transport, Equipment, Supplies, Utilities      |
-| **AppSettings**     | theme, currency, dateFormat, lowStockThreshold, taxPercentage, notifications                 | Storage location in the PWA undecided                             |
+| Entity              | Fields                                                                                     | Notes                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| **Product**         | id, name, price, unitCost, stock, visible, image, categoryId, creationDate, lastUpdateDate | `unitCost` defaults to 0 in v1; used for margins in v2           |
+| **ProductCategory** | id, name                                                                                   | Juice, Yogurt, Bakery (extensible)                               |
+| **Customer**        | id, name, phone?, email?, address?, notes?, creationDate                                   | Enables repeat-customer recognition and delivery contact         |
+| **Order**           | id, guestId, submittedName?, serviceType, channel, timestamp, status, items[], totalAmount | Name resolved via `guestId`; statuses: NEW..COMPLETED, CANCELLED |
+| **OrderItem**       | productId, productName, quantity, unitPrice                                                | Embedded in Order                                                |
+| **Expense**         | id, amount, date, description, tags[]                                                      | Tags: Ingredients, Transport, Equipment, Supplies, Utilities     |
+| **AppSettings**     | theme, currency, dateFormat, lowStockThreshold, taxPercentage, notifications               | Storage location in the PWA undecided                            |
 
 Service types: Dine-in, Pickup, Takeaway, Delivery.
 

@@ -19,7 +19,7 @@ function makeOrder(overrides: Partial<Order>): Order {
   return {
     id: "22222222-2222-4111-8111-222222222222",
     businessId,
-    guestName: "Alice",
+    guestId: "77777777-7777-4111-8111-777777777777",
     serviceType: "pickup",
     channel: "storefront",
     status: "COMPLETED",

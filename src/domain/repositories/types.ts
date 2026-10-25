@@ -1,6 +1,6 @@
 import type { Business, BusinessMember, BusinessMemberRole, BusinessSettings } from "../business";
 import type { Expense } from "../expense";
-import type { Guest } from "../guest";
+import type { FindOrCreateGuestResult, Guest } from "../guest";
 import type { Order, OrderStatus } from "../order";
 import type { Product, ProductCategory } from "../product";
 
@@ -50,8 +50,8 @@ export interface CategoryRepository {
 export interface CreateOrderInput {
   readonly id?: string;
   readonly orderNumber?: number;
-  readonly guestId?: string | null;
-  readonly guestName: string;
+  readonly guestId: string;
+  readonly submittedName?: string | null;
   readonly serviceType: Order["serviceType"];
   readonly channel: Order["channel"];
   readonly status: OrderStatus;
@@ -104,12 +104,26 @@ export interface CreateGuestInput {
 
 export type UpdateGuestInput = Partial<Omit<CreateGuestInput, "id">>;
 
+export interface FindOrCreateGuestRepoInput {
+  readonly name: string;
+  readonly phone: string;
+  /** Used only when a new guest is created; never overwrites a matched guest. */
+  readonly address?: string | null;
+  /** Overwrite a matched guest's stored name. Authenticated managers only, on explicit intent. */
+  readonly allowRename?: boolean;
+}
+
 export interface GuestRepository {
   findById(businessId: string, id: string): Promise<Guest | null>;
   findByPhone(businessId: string, phone: string): Promise<Guest | null>;
   list(businessId: string): Promise<Guest[]>;
   create(businessId: string, input: CreateGuestInput): Promise<Guest>;
   update(businessId: string, id: string, input: UpdateGuestInput): Promise<Guest>;
+  /** Blind find-or-create by (businessId, normalised phone); never returns stored guest data. */
+  findOrCreate(
+    businessId: string,
+    input: FindOrCreateGuestRepoInput,
+  ): Promise<FindOrCreateGuestResult>;
 }
 
 export interface CreateExpenseInput {

@@ -204,7 +204,9 @@ export function OrderList({
         const q = searchQuery.trim().toLowerCase();
         const numStr = order.orderNumber ? String(order.orderNumber) : "";
         const matchesRef = numStr === q || `#${numStr}` === q || numStr.includes(q);
-        const matchesName = order.guestName.toLowerCase().includes(q);
+        const matchesName =
+          order.guestName.toLowerCase().includes(q) ||
+          Boolean(order.submittedName && order.submittedName.toLowerCase().includes(q));
         const matchesPhone = order.guestPhone ? order.guestPhone.toLowerCase().includes(q) : false;
         const matchesToken = order.trackingToken
           ? order.trackingToken.toLowerCase().includes(q)
@@ -506,15 +508,27 @@ export function OrderList({
                 {/* Guest & Contact row with dedicated Eye button */}
                 <div className="flex items-center justify-between gap-2 pt-0.5">
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="text-foreground truncate text-sm font-semibold">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="text-foreground shrink-0 text-sm font-semibold">
                         {order.guestName}
                       </span>
                       {order.guestPhone && (
                         <>
-                          <span className="text-muted-foreground/60 text-xs">•</span>
+                          <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
                           <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                             {order.guestPhone}
+                          </span>
+                        </>
+                      )}
+                      {order.submittedName && order.submittedName !== order.guestName && (
+                        <>
+                          <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
+                          <span
+                            data-testid="order-submitted-name-badge"
+                            title={`Ordered as ${order.submittedName}`}
+                            className="bg-warning-soft text-warning-soft-foreground border-warning/30 min-w-0 truncate rounded border px-1.5 py-0.5 text-[11px] font-medium"
+                          >
+                            Ordered as {order.submittedName}
                           </span>
                         </>
                       )}

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   findGuestIdByPhone,
   findOrCreateGuest,
+  guestNameSchema,
   isGuestPhoneUnique,
+  isValidGuestName,
+  normalizeGuestName,
   isValidPhoneNumber,
   normalizePhoneNumber,
   type Guest,
@@ -150,8 +153,100 @@ describe("Guest matching rules & uniqueness per (businessId, phone)", () => {
   });
 });
 
+describe("Guest name normalisation & validation", () => {
+  it("trims, collapses internal whitespace and keeps original casing", () => {
+    expect(normalizeGuestName("  jean   dupont ")).toBe("jean dupont");
+    expect(normalizeGuestName("Ronald McDonald")).toBe("Ronald McDonald");
+    expect(normalizeGuestName("Anna van der Berg")).toBe("Anna van der Berg");
+  });
+
+  it("accepts any printable Unicode: accents, digits, punctuation, non-Latin scripts", () => {
+    expect(normalizeGuestName("Zoë O'Brien-Smith Jr.")).toBe("Zoë O'Brien-Smith Jr.");
+    expect(normalizeGuestName("李小龙")).toBe("李小龙");
+    expect(normalizeGuestName("Ali 2")).toBe("Ali 2");
+  });
+
+  it("applies Unicode NFC so composed and decomposed forms match", () => {
+    expect(normalizeGuestName("Zoe\u0308")).toBe("Zo\u00eb");
+  });
+
+  it("enforces 2 to 50 characters after trimming, counted in code points", () => {
+    expect(() => normalizeGuestName(" a ")).toThrow();
+    expect(normalizeGuestName("Al")).toBe("Al");
+    expect(normalizeGuestName("x".repeat(50))).toHaveLength(50);
+    expect(() => normalizeGuestName("x".repeat(51))).toThrow();
+    expect(normalizeGuestName("😀".repeat(50))).toBe("😀".repeat(50));
+  });
+
+  it("rejects control characters and lone surrogates", () => {
+    expect(() => normalizeGuestName("Jean\u0000")).toThrow();
+    expect(() => normalizeGuestName("Je\u001Fan")).toThrow();
+    expect(() => normalizeGuestName("Jean\u007F")).toThrow();
+    expect(() => normalizeGuestName("Jean\u0085")).toThrow();
+    expect(() => normalizeGuestName("Jean\uD800")).toThrow();
+  });
+
+  it("guestNameSchema and isValidGuestName mirror normalizeGuestName", () => {
+    expect(guestNameSchema.parse("  Léa  Martin ")).toBe("Léa Martin");
+    expect(guestNameSchema.safeParse("a").success).toBe(false);
+    expect(isValidGuestName("Léa")).toBe(true);
+    expect(isValidGuestName("\u0007")).toBe(false);
+  });
+});
+
 describe("findOrCreateGuest identity & privacy", () => {
   const businessId = "11111111-1111-4111-8111-111111111111";
+
+  const storedGuest = (): Guest => ({
+    id: "55555555-5555-4555-8555-555555555555",
+    businessId,
+    name: "John Smith",
+    phone: "+33612345678",
+    email: null,
+    address: null,
+    notes: null,
+    createdAt: "2026-09-01T12:00:00.000Z",
+  });
+
+  it("keeps the stored name and flags a mismatch when rename is not allowed", () => {
+    const pool = [storedGuest()];
+    const result = findOrCreateGuest(pool, { businessId, name: "Scammer", phone: "0612345678" });
+    expect(result).toEqual({ guestId: pool[0].id, isNew: false, nameMismatch: true });
+    expect(pool[0].name).toBe("John Smith");
+  });
+
+  it("reports no mismatch when the submitted name equals the stored one after normalisation", () => {
+    const pool = [storedGuest()];
+    const result = findOrCreateGuest(pool, {
+      businessId,
+      name: " John  Smith ",
+      phone: "0612345678",
+    });
+    expect(result.nameMismatch).toBe(false);
+  });
+
+  it("updates the stored name only when rename is explicitly allowed", () => {
+    const pool = [storedGuest()];
+    const result = findOrCreateGuest(
+      pool,
+      { businessId, name: "Jon Smith", phone: "+33 6 12 34 56 78" },
+      { allowRename: true },
+    );
+    expect(result).toEqual({ guestId: pool[0].id, isNew: false, nameMismatch: false });
+    expect(pool[0].name).toBe("Jon Smith");
+  });
+
+  it("renames through a GuestLookupStore via save", () => {
+    const saved: Guest[] = [];
+    const store = { findByPhone: () => storedGuest(), save: (g: Guest) => void saved.push(g) };
+    findOrCreateGuest(
+      store,
+      { businessId, name: "Jon", phone: "0612345678" },
+      { allowRename: true },
+    );
+    expect(saved).toHaveLength(1);
+    expect(saved[0].name).toBe("Jon");
+  });
 
   it("creates a new guest when not found, returning guestId without exposing stored data", () => {
     const pool: Guest[] = [];
@@ -168,7 +263,7 @@ describe("findOrCreateGuest identity & privacy", () => {
     expect(result.guestId.length).toBeGreaterThan(0);
 
     // Result object ONLY exposes guestId and isNew — no stored customer details
-    expect(Object.keys(result).sort()).toEqual(["guestId", "isNew"]);
+    expect(Object.keys(result).sort()).toEqual(["guestId", "isNew", "nameMismatch"]);
 
     // Pool now has the newly created guest with normalised phone
     expect(pool).toHaveLength(1);
@@ -205,6 +300,7 @@ describe("findOrCreateGuest identity & privacy", () => {
     expect(result).toEqual({
       guestId: existingGuest.id,
       isNew: false,
+      nameMismatch: true,
     });
     expect("name" in result).toBe(false);
     expect("email" in result).toBe(false);
@@ -253,11 +349,11 @@ describe("findOrCreateGuest identity & privacy", () => {
       "Phone number must be a string",
     );
 
-    // Empty name
+    // Name too short after trimming
     expect(() =>
       findOrCreateGuest(pool, {
         businessId,
-        name: "   ",
+        name: " a ",
         phone: "0612345678",
       }),
     ).toThrow();

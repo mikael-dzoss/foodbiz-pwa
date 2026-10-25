@@ -135,7 +135,7 @@ export function OrderAlertsProvider({
         id: customOrder?.id ?? `mock-${Date.now()}`,
         businessId: customOrder?.businessId ?? "biz-1",
         orderNumber: customOrder?.orderNumber ?? 99,
-        guestId: null,
+        guestId: customOrder?.guestId ?? "00000000-0000-4000-8000-000000000000",
         guestName: customOrder?.guestName ?? "Web Customer",
         serviceType: customOrder?.serviceType ?? "pickup",
         channel: "storefront",

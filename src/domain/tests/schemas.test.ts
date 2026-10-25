@@ -233,7 +233,6 @@ describe("Order and OrderItem schemas", () => {
       businessId: validUuid,
       orderNumber: 42,
       guestId: anotherUuid,
-      guestName: "Alice Dupont",
       serviceType: "pickup" as const,
       channel: "storefront" as const,
       status: "NEW" as const,
@@ -265,7 +264,7 @@ describe("Order and OrderItem schemas", () => {
     const validOrder = {
       id: validUuid,
       businessId: validUuid,
-      guestName: "Bob",
+      guestId: anotherUuid,
       serviceType: "delivery" as const,
       channel: "in-person" as const,
       status: "CONFIRMED" as const,
@@ -294,7 +293,7 @@ describe("Order and OrderItem schemas", () => {
     const validOrder = {
       id: validUuid,
       businessId: validUuid,
-      guestName: "Alice",
+      guestId: anotherUuid,
       serviceType: "pickup" as const,
       channel: "storefront" as const,
       status: "NEW" as const,
@@ -322,7 +321,7 @@ describe("Order and OrderItem schemas", () => {
     const base = {
       id: validUuid,
       businessId: validUuid,
-      guestName: "Bob",
+      guestId: anotherUuid,
       serviceType: "pickup" as const,
       channel: "phone" as const,
       status: "UNKNOWN_STATUS",
@@ -367,7 +366,7 @@ describe("Order and OrderItem schemas", () => {
     const validWithHistory = {
       id: validUuid,
       businessId: validUuid,
-      guestName: "Alice Dupont",
+      guestId: anotherUuid,
       serviceType: "delivery" as const,
       channel: "phone" as const,
       status: "PREPARING" as const,
@@ -454,7 +453,7 @@ describe("Order and OrderItem schemas", () => {
     const refundedOrder = {
       id: validUuid,
       businessId: validUuid,
-      guestName: "Alice",
+      guestId: anotherUuid,
       serviceType: "pickup" as const,
       channel: "storefront" as const,
       status: "CANCELLED" as const,

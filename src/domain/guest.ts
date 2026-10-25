@@ -4,10 +4,55 @@ import { isoDateTimeSchema, uuidSchema } from "./common";
 // Canonical E.164 phone regex: '+' followed by 7 to 15 digits (ITU-T recommendation)
 export const e164PhoneSchema = z.string().regex(/^\+[1-9]\d{6,14}$/, "Invalid E.164 phone number");
 
+export const GUEST_NAME_MIN_LENGTH = 2;
+export const GUEST_NAME_MAX_LENGTH = 50;
+
+// C0/C1 control characters and surrogates: the only code units that can never appear in a real name.
+// Lone surrogates are caught by String#isWellFormed (paired surrogates are valid astral characters).
+const NAME_FORBIDDEN_CHARS = /[\u0000-\u001F\u007F-\u009F]/;
+
+/**
+ * Normalises a guest name: trim, collapse internal whitespace, Unicode NFC.
+ * No casing changes (title-case mangles names like "McDonald" or "van der Berg").
+ * Rules: docs/FUNCTIONAL_SPECIFICATION.md#guest-identity--name-validation
+ */
+export function normalizeGuestName(raw: string): string {
+  if (typeof raw !== "string") throw new Error("Name must be a string");
+  if (NAME_FORBIDDEN_CHARS.test(raw) || !raw.isWellFormed()) {
+    throw new Error("Name contains invalid characters");
+  }
+  const name = raw.trim().replace(/\s+/g, " ").normalize("NFC");
+  const length = [...name].length;
+  if (length < GUEST_NAME_MIN_LENGTH || length > GUEST_NAME_MAX_LENGTH) {
+    throw new Error(
+      `Name must be between ${GUEST_NAME_MIN_LENGTH} and ${GUEST_NAME_MAX_LENGTH} characters`,
+    );
+  }
+  return name;
+}
+
+export function isValidGuestName(raw: string): boolean {
+  try {
+    normalizeGuestName(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const guestNameSchema = z.string().transform((raw, ctx) => {
+  try {
+    return normalizeGuestName(raw);
+  } catch (err) {
+    ctx.addIssue({ code: "custom", message: err instanceof Error ? err.message : "Invalid name" });
+    return z.NEVER;
+  }
+});
+
 export const guestSchema = z.object({
   id: uuidSchema,
   businessId: uuidSchema,
-  name: z.string().trim().min(1),
+  name: guestNameSchema,
   phone: e164PhoneSchema.optional().nullable(),
   email: z.string().email().trim().optional().nullable(),
   address: z.string().trim().optional().nullable(),
@@ -132,9 +177,12 @@ export interface FindOrCreateGuestInput {
   defaultRegion?: string;
 }
 
+/** Never carries stored guest fields: the caller may be an anonymous storefront visitor. */
 export interface FindOrCreateGuestResult {
   guestId: string;
   isNew: boolean;
+  /** Matched an existing guest whose stored name differs from the submitted one (kept unchanged). */
+  nameMismatch: boolean;
 }
 
 export interface GuestLookupStore {
@@ -148,6 +196,8 @@ export interface FindOrCreateGuestOptions {
   idGenerator?: () => string;
   now?: () => string;
   onCreated?: (newGuest: Guest) => void;
+  /** Overwrite the stored name of a matched guest. Only for authenticated managers with explicit intent. */
+  allowRename?: boolean;
 }
 
 /**
@@ -204,7 +254,8 @@ export function isGuestPhoneUnique(
 
 /**
  * Finds an existing guest by normalised phone number or creates a new one.
- * Returns only { guestId, isNew } to prevent exposing stored customer data to the caller.
+ * Blind: returns only { guestId, isNew, nameMismatch }, never stored customer data.
+ * A matched guest's name is overwritten only when `options.allowRename` is set.
  */
 export function findOrCreateGuest(
   store: GuestStoreInput,
@@ -212,7 +263,7 @@ export function findOrCreateGuest(
   options?: FindOrCreateGuestOptions,
 ): FindOrCreateGuestResult {
   const businessId = uuidSchema.parse(input.businessId);
-  const name = z.string().trim().min(1).parse(input.name);
+  const name = normalizeGuestName(input.name);
   const normalizedPhone = normalizePhoneNumber(input.phone, input.defaultRegion);
 
   let existingGuest: Guest | undefined | null;
@@ -227,9 +278,19 @@ export function findOrCreateGuest(
   }
 
   if (existingGuest) {
+    const differs = existingGuest.name !== name;
+    if (differs && options?.allowRename) {
+      const renamed: Guest = { ...existingGuest, name };
+      if (Array.isArray(store)) {
+        store[store.findIndex((g) => g.id === renamed.id)] = renamed;
+      } else {
+        store.save(renamed);
+      }
+    }
     return {
       guestId: existingGuest.id,
       isNew: false,
+      nameMismatch: differs && !options?.allowRename,
     };
   }
 
@@ -259,5 +320,6 @@ export function findOrCreateGuest(
   return {
     guestId: newGuest.id,
     isNew: true,
+    nameMismatch: false,
   };
 }

@@ -256,10 +256,12 @@ create index idx_products_business_name on products(business_id, name);
 -- ----------------------------------------------------------------------------
 -- 3. Guests (Storefront Customers)
 -- ----------------------------------------------------------------------------
+-- Note on right-to-erasure: guests are anonymised in place (name = 'Deleted customer',
+-- phone/email/address/notes = null) rather than deleted so historical orders keep a valid guest_id.
 create table guests (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references businesses(id) on delete cascade,
-  name text not null check (char_length(trim(name)) >= 1),
+  name text not null check (char_length(trim(name)) between 2 and 50),
   phone text check (phone is null or phone ~ '^\+[1-9]\d{6,14}$'), -- E.164 canonical
   email text check (email is null or email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
   address text,
@@ -278,8 +280,8 @@ create table orders (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references businesses(id) on delete cascade,
   order_number integer not null check (order_number > 0),
-  guest_id uuid references guests(id) on delete set null,
-  guest_name text not null check (char_length(trim(guest_name)) >= 1),
+  guest_id uuid not null references guests(id) on delete restrict,
+  submitted_name text check (submitted_name is null or char_length(trim(submitted_name)) between 2 and 50), -- audit only on name mismatch
   service_type order_service_type not null,
   channel order_channel not null,
   status order_status not null default 'NEW',
@@ -435,7 +437,7 @@ To allow storefront customers to track orders securely without authenticating, t
 
 2. **Ticket N° + Phone Verification (`/track` or modal lookup):**
    - Enables walk-in or lost-link customers with a physical receipt or ticket number to locate their order by providing their ticket number and validated phone number.
-   - Executed via security definer RPC:
+   - Executed via security definer RPC returning an explicit guest-PII-free projection (never joining `guests.name` onto public tracking responses):
      ```sql
      create or replace function public.lookup_order_by_ticket_and_phone(
        p_business_id uuid,
@@ -444,7 +446,20 @@ To allow storefront customers to track orders securely without authenticating, t
      )
      returns jsonb security definer set search_path = public as $$
        select jsonb_build_object(
-         'order', to_jsonb(o),
+         'order', jsonb_build_object(
+           'id', o.id,
+           'business_id', o.business_id,
+           'order_number', o.order_number,
+           'service_type', o.service_type,
+           'status', o.status,
+           'paid', o.paid,
+           'requested_date', o.requested_date,
+           'requested_time', o.requested_time,
+           'total_amount', o.total_amount,
+           'tracking_token', o.tracking_token,
+           'created_at', o.created_at,
+           'updated_at', o.updated_at
+         ),
          'items', coalesce(jsonb_agg(to_jsonb(oi)) filter (where oi.id is not null), '[]'::jsonb)
        )
        from orders o

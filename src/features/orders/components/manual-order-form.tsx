@@ -11,6 +11,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Check,
+  Pencil,
   ShoppingBag,
   Truck,
   MessageSquare,
@@ -28,10 +29,26 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { formatMoney } from "@/domain";
-import type { Product, Guest } from "@/domain";
-import { createManualOrderAction, lookupGuestByPhoneAction } from "../order-actions";
+import { useToast } from "@/components/ui/toast";
+import { formatMoney, isValidGuestName, isValidPhoneNumber, normalizeGuestName } from "@/domain";
+import type { Product } from "@/domain";
+import {
+  createManualOrderAction,
+  lookupGuestByPhoneAction,
+  type GuestPrefill,
+} from "../order-actions";
 import { cn } from "@/lib/utils";
+
+function useSafeToast() {
+  try {
+    return useToast();
+  } catch {
+    return { showToast: () => {} };
+  }
+}
+
+const NAME_UPDATE_TOAST_MESSAGE =
+  "Editing this name will update it for all orders linked to this phone number.";
 
 export interface ManualOrderFormProps {
   products: Product[];
@@ -39,12 +56,17 @@ export interface ManualOrderFormProps {
 
 export function ManualOrderForm({ products }: ManualOrderFormProps) {
   const router = useRouter();
+  const { showToast } = useSafeToast();
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const nameInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Guest State
   const [guestPhone, setGuestPhone] = React.useState("");
   const [guestName, setGuestName] = React.useState("");
-  const [matchedGuest, setMatchedGuest] = React.useState<Guest | null>(null);
+  const [matchedGuest, setMatchedGuest] = React.useState<GuestPrefill | null>(null);
+  const [isNameLocked, setIsNameLocked] = React.useState(false);
+  const [isNameUnlockedByUser, setIsNameUnlockedByUser] = React.useState(false);
+  const [nameEditNotice, setNameEditNotice] = React.useState<string | null>(null);
   const [isLookingUpGuest, setIsLookingUpGuest] = React.useState(false);
 
   // Service & Timing State (strictly pickup and delivery)
@@ -75,12 +97,28 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     if (res.success && res.data) {
       setMatchedGuest(res.data);
       setGuestName(res.data.name);
+      setIsNameLocked(true);
+      setIsNameUnlockedByUser(false);
+      setNameEditNotice(null);
       if (res.data.address && !deliveryAddress) {
         setDeliveryAddress(res.data.address);
       }
     } else {
       setMatchedGuest(null);
+      setIsNameLocked(false);
+      setIsNameUnlockedByUser(false);
+      setNameEditNotice(null);
     }
+  };
+
+  const handleUnlockGuestName = () => {
+    setIsNameLocked(false);
+    setIsNameUnlockedByUser(true);
+    setNameEditNotice(NAME_UPDATE_TOAST_MESSAGE);
+    showToast(NAME_UPDATE_TOAST_MESSAGE);
+    setTimeout(() => {
+      nameInputRef.current?.focus();
+    }, 0);
   };
 
   const handleQuantityChange = (productId: string, qty: number) => {
@@ -104,6 +142,17 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
   const totalItemCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = selectedItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
+  const isPhoneSyntaxValid = isValidPhoneNumber(guestPhone);
+  const isNameSyntaxValid = isValidGuestName(guestName);
+  const isDeliveryValid = serviceType !== "delivery" || deliveryAddress.trim().length > 0;
+  const isTimingValid = isAsap || Boolean(requestedDate);
+  const canPreview =
+    totalItemCount > 0 &&
+    isPhoneSyntaxValid &&
+    isNameSyntaxValid &&
+    isDeliveryValid &&
+    isTimingValid;
+
   // Filter products by search
   const displayedProducts = React.useMemo(() => {
     let list = products.filter((p) => p.visible);
@@ -114,22 +163,33 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     return list;
   }, [products, productSearch]);
 
-  const handleOpenPreview = (e?: React.MouseEvent | React.FormEvent) => {
-    if (e) e.preventDefault();
+  const validateBeforePreviewOrSubmit = (): boolean => {
     if (selectedItems.length === 0) {
       setErrorMessage("Please select at least one product with a quantity.");
-      return;
+      return false;
     }
 
-    if (!guestName.trim()) {
-      setErrorMessage("Please provide guest name.");
-      return;
+    if (!guestPhone.trim() || !isValidPhoneNumber(guestPhone)) {
+      setErrorMessage("Please provide a valid phone number.");
+      return false;
     }
 
-    if (!guestPhone.trim()) {
-      setErrorMessage("Please provide guest phone number.");
-      return;
+    if (!guestName.trim() || !isValidGuestName(guestName)) {
+      setErrorMessage("Please provide a valid guest name (2–50 characters).");
+      return false;
     }
+
+    if (serviceType === "delivery" && !deliveryAddress.trim()) {
+      setErrorMessage("Please provide a delivery address.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleOpenPreview = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!validateBeforePreviewOrSubmit()) return;
 
     setErrorMessage(null);
     setPreviewOpen(true);
@@ -137,27 +197,20 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
 
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
-    if (selectedItems.length === 0) {
-      setErrorMessage("Please select at least one product with a quantity.");
-      return;
-    }
-
-    if (!guestName.trim()) {
-      setErrorMessage("Please provide guest name.");
-      return;
-    }
-
-    if (!guestPhone.trim()) {
-      setErrorMessage("Please provide guest phone number.");
-      return;
-    }
+    if (!validateBeforePreviewOrSubmit()) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    const normalizedSubmittedName = normalizeGuestName(guestName);
+    const updateGuestName = Boolean(
+      matchedGuest && isNameUnlockedByUser && normalizedSubmittedName !== matchedGuest.name,
+    );
+
     const payload = {
       guestPhone: guestPhone.trim(),
-      guestName: guestName.trim(),
+      guestName: normalizedSubmittedName,
+      updateGuestName,
       deliveryAddress: serviceType === "delivery" ? deliveryAddress.trim() : null,
       serviceType,
       channel,
@@ -294,9 +347,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
               </div>
               <div>
                 <div className="text-foreground text-xs font-bold">{matchedGuest.name}</div>
-                <div className="text-muted-foreground text-[11px]">
-                  {matchedGuest.phone ?? matchedGuest.email ?? "Returning guest"}
-                </div>
+                <div className="text-muted-foreground text-[11px]">Returning guest</div>
               </div>
             </div>
             <span
@@ -311,21 +362,48 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
         {/* Guest Name input */}
         <div className="space-y-1">
           <label htmlFor="guestName" className="text-muted-foreground block text-xs font-medium">
-            Guest Name <span className="text-destructive">*</span>
+            Name <span className="text-destructive">*</span>
           </label>
           <div className="relative flex items-center">
             <User className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
             <Input
+              ref={nameInputRef}
               id="guestName"
               type="text"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="e.g. Jean Dupont"
-              className="bg-card h-11 rounded-lg pl-9 text-sm"
+              disabled={isNameLocked}
+              minLength={2}
+              maxLength={50}
+              className={cn(
+                "bg-card h-11 rounded-lg pl-9 text-sm",
+                isNameLocked && "pr-11 opacity-80",
+              )}
               required
               data-testid="guest-name-input"
             />
+            {matchedGuest && isNameLocked && (
+              <button
+                type="button"
+                onClick={handleUnlockGuestName}
+                aria-label="Edit guest name"
+                data-testid="unlock-guest-name-button"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-md transition-colors"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
           </div>
+          {nameEditNotice && (
+            <div
+              role="status"
+              data-testid="guest-name-update-toast"
+              className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-md border px-2.5 py-1.5 text-[11px] font-medium"
+            >
+              {nameEditNotice}
+            </div>
+          )}
         </div>
 
         {/* Channel Selector Chips (Phone, WhatsApp, In-person with icons) */}
@@ -642,7 +720,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
         <Button
           type="button"
           onClick={handleOpenPreview}
-          disabled={isSubmitting || totalItemCount === 0}
+          disabled={isSubmitting || !canPreview}
           className="bg-primary text-primary-foreground min-h-11 rounded-lg px-5 text-xs font-semibold shadow-none active:scale-95"
           data-testid="create-order-submit-button"
         >

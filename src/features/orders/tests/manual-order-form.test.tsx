@@ -87,18 +87,13 @@ describe("ManualOrderForm Component", () => {
     expect(screen.getByText("Order Preview")).toBeDefined();
   });
 
-  it("looks up existing guest on phone blur and auto-fills name", async () => {
+  it("looks up existing guest on phone blur, locks name input, and unlocks with pencil button and toast", async () => {
     vi.spyOn(actions, "lookupGuestByPhoneAction").mockResolvedValueOnce({
       success: true,
       data: {
         id: "g-1",
-        businessId: "biz-1",
         name: "Jean Dupont",
-        phone: "+33612345678",
-        email: "jean@test.com",
         address: "10 Rue de Paris",
-        notes: null,
-        createdAt: "2026-10-01T10:00:00.000Z",
       },
     });
 
@@ -110,10 +105,48 @@ describe("ManualOrderForm Component", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("guest-matched-badge")).toBeDefined();
-      expect((screen.getByTestId("guest-name-input") as HTMLInputElement).value).toBe(
-        "Jean Dupont",
-      );
+      const nameInput = screen.getByTestId("guest-name-input") as HTMLInputElement;
+      expect(nameInput.value).toBe("Jean Dupont");
+      expect(nameInput.disabled).toBe(true);
     });
+
+    // Click pencil button to unlock
+    const unlockBtn = screen.getByTestId("unlock-guest-name-button");
+    fireEvent.click(unlockBtn);
+
+    const nameInputAfter = screen.getByTestId("guest-name-input") as HTMLInputElement;
+    expect(nameInputAfter.disabled).toBe(false);
+    expect(screen.getByTestId("guest-name-update-toast").textContent).toContain(
+      "Editing this name will update it for all orders linked to this phone number",
+    );
+  });
+
+  it("disables preview button until phone and name pass syntax validation", () => {
+    render(<ManualOrderForm products={mockProducts} />);
+
+    // Select 1 burger
+    const burgerRow = screen.getByTestId("product-row-p-1");
+    const incrementBtn = burgerRow.querySelector('button[aria-label="Increase quantity"]')!;
+    fireEvent.click(incrementBtn);
+
+    const previewBtn = screen.getByTestId("create-order-submit-button") as HTMLButtonElement;
+    expect(previewBtn.disabled).toBe(true);
+
+    // Invalid phone + valid name -> still disabled
+    fireEvent.change(screen.getByTestId("guest-phone-input"), { target: { value: "123" } });
+    fireEvent.change(screen.getByTestId("guest-name-input"), { target: { value: "Jean Dupont" } });
+    expect(previewBtn.disabled).toBe(true);
+
+    // Valid phone + 1-char invalid name -> still disabled
+    fireEvent.change(screen.getByTestId("guest-phone-input"), {
+      target: { value: "06 12 34 56 78" },
+    });
+    fireEvent.change(screen.getByTestId("guest-name-input"), { target: { value: "J" } });
+    expect(previewBtn.disabled).toBe(true);
+
+    // Valid phone + valid 2+ char name -> enabled!
+    fireEvent.change(screen.getByTestId("guest-name-input"), { target: { value: "Jean Dupont" } });
+    expect(previewBtn.disabled).toBe(false);
   });
 
   it("increments quantity and updates order total", () => {
@@ -157,7 +190,6 @@ describe("ManualOrderForm Component", () => {
         businessId: "biz-1",
         orderNumber: 43,
         guestId: "g-1",
-        guestName: "Jean Dupont",
         serviceType: "pickup",
         channel: "phone",
         status: "CONFIRMED",

@@ -492,9 +492,24 @@ export function OrderDetail({ order }: OrderDetailProps) {
 
         <div className="pt-2.5">
           <h2 className="text-foreground mb-0.5 text-base font-bold">{currentOrder.guestName}</h2>
-          <p className="text-muted-foreground mb-3 text-xs font-medium tabular-nums">
-            {currentOrder.guestPhone ?? "No phone recorded"}
-          </p>
+          <div className="mb-3 flex min-w-0 items-center gap-1.5 text-xs font-medium">
+            <span className="text-muted-foreground shrink-0 tabular-nums">
+              {currentOrder.guestPhone ?? "No phone recorded"}
+            </span>
+            {currentOrder.submittedName &&
+              currentOrder.submittedName !== currentOrder.guestName && (
+                <>
+                  <span className="text-muted-foreground/60 shrink-0">•</span>
+                  <span
+                    data-testid="order-submitted-name-badge"
+                    title={`Ordered as ${currentOrder.submittedName}`}
+                    className="bg-warning-soft text-warning-soft-foreground border-warning/30 min-w-0 truncate rounded border px-1.5 py-0.5 text-[11px] font-medium"
+                  >
+                    Ordered as {currentOrder.submittedName}
+                  </span>
+                </>
+              )}
+          </div>
 
           {/* Quick Contact Actions: 2-column Call & WhatsApp */}
           {currentOrder.guestPhone && (

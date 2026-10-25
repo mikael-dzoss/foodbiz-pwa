@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachGuestNames,
   buildActivityFeed,
   buildDashboardData,
   extractLowStockProducts,
   extractOrdersToPrepare,
   extractUnpaidOrders,
   type Expense,
-  type Order,
+  type NamedOrder,
   type Product,
 } from "../index";
 
 const businessId = "11111111-1111-4111-8111-111111111111";
 
-function makeOrder(overrides: Partial<Order>): Order {
+function makeOrder(overrides: Partial<NamedOrder>): NamedOrder {
   return {
     id: "22222222-2222-4111-8111-222222222222",
     businessId,
+    guestId: "77777777-7777-4111-8111-777777777777",
     guestName: "Alice",
     serviceType: "pickup",
     channel: "storefront",
@@ -304,6 +306,19 @@ describe("Dashboard Domain Engine", () => {
       expect(data.triage.toPrepare.count).toBe(0); // completed order
       expect(data.triage.lowStock.count).toBe(1);
       expect(data.activity).toHaveLength(2);
+    });
+
+    it("attachGuestNames resolves guest names via guestId with fallback", () => {
+      const { guestName: _omit, ...rawOrder } = makeOrder({
+        guestId: "77777777-7777-4111-8111-777777777777",
+      });
+      void _omit;
+      const named = attachGuestNames(
+        [rawOrder, { ...rawOrder, id: "o-missing", guestId: "missing-id" }],
+        [{ id: "77777777-7777-4111-8111-777777777777", name: "Alice Resolved" }],
+      );
+      expect(named[0].guestName).toBe("Alice Resolved");
+      expect(named[1].guestName).toBe("Unknown guest");
     });
   });
 });
