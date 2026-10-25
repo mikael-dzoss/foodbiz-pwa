@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ShoppingBag, ShoppingCart, Trash2, ArrowRight } from "lucide-react";
+import {
+  ArrowLeft,
+  ShoppingBag,
+  ShoppingCart,
+  Trash2,
+  ArrowRight,
+  FileText,
+  ChevronRight,
+  AlertTriangle,
+} from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useCart } from "../context/cart-context";
 import { CartItemCard } from "./cart-item-card";
 import { MinimumOrderBanner } from "./minimum-order-banner";
@@ -55,16 +65,18 @@ export function CartView({
     <div className="space-y-6 pb-28">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b pb-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link
             href={`/${locale}`}
             aria-label={dict.backToCatalog}
-            className="text-muted-foreground hover:text-foreground hover:bg-muted flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-95"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted flex h-10 w-10 items-center justify-center rounded-lg transition-colors active:scale-95"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground text-xl font-bold tracking-tight">{dict.yourCart}</h1>
+            <h1 className="text-foreground text-base font-semibold tracking-tight">
+              {dict.yourCart}
+            </h1>
             <span
               data-testid="cart-count-badge"
               className="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
@@ -77,11 +89,11 @@ export function CartView({
         <button
           type="button"
           onClick={clearCart}
-          className="text-muted-foreground hover:text-destructive flex items-center gap-1 text-xs font-medium transition-colors"
+          aria-label={dict.clearCart}
+          className="text-muted-foreground hover:text-destructive hover:bg-muted flex h-10 w-10 items-center justify-center rounded-lg transition-colors active:opacity-80"
           data-testid="clear-cart-top-button"
         >
-          <Trash2 className="h-3.5 w-3.5" />
-          <span>{dict.clearCart}</span>
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
@@ -108,39 +120,79 @@ export function CartView({
       </div>
 
       {/* Promo & Kitchen Note Placeholder (Signal from Stitch design) */}
-      <div className="border-border bg-card text-muted-foreground rounded-xl border p-3.5 text-xs">
+      <section className="border-border bg-card space-y-3 rounded-xl border p-3.5 shadow-2xs">
+        <div className="flex items-center justify-between text-xs font-medium">
+          <label htmlFor="promo-input" className="text-muted-foreground">
+            {dict.discountCode}
+          </label>
+          <span className="text-primary cursor-pointer hover:underline">{dict.haveVoucher}</span>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            id="promo-input"
+            type="text"
+            placeholder="e.g. MORNING10"
+            disabled
+            className="h-9 text-xs"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled
+            className="h-9 px-3 text-xs font-semibold"
+          >
+            {dict.applyDiscount}
+          </Button>
+        </div>
         {/* TODO(pricing): wire promo codes (#105) */}
-        <p className="italic">{dict.notesPlaceholder}</p>
-      </div>
+        <div className="border-border/60 text-muted-foreground flex items-center justify-between border-t pt-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 opacity-70" />
+            <span>{dict.addKitchenNote}</span>
+          </div>
+          <ChevronRight className="h-4 w-4 opacity-50" />
+          {/* TODO(orders): kitchen packing notes */}
+        </div>
+      </section>
 
       {/* Order Breakdown Summary Card */}
-      <div className="border-border bg-card space-y-2.5 rounded-xl border p-4 shadow-2xs">
-        <h2 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+      <section className="border-border bg-card space-y-2.5 rounded-xl border p-4 shadow-2xs">
+        <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
           {dict.orderSummary}
         </h2>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">{dict.subtotal}</span>
           <span className="text-foreground font-medium tabular-nums">
             {formatMoney(totalAmountInCents, locale)}
           </span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">{dict.estimatedTax}</span>
           <span className="text-foreground font-medium tabular-nums">
             {formatMoney(Math.round(totalAmountInCents * 0.1), locale)}
           </span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">{dict.servicePickup}</span>
           <span className="text-primary font-medium">{dict.serviceFree}</span>
         </div>
-        <div className="border-border/60 my-2 flex justify-between border-t pt-2.5 text-base font-bold">
+        <div className="border-border/60 my-1 flex justify-between border-t pt-2.5 text-sm font-bold sm:text-base">
           <span className="text-foreground">{dict.orderTotal}</span>
           <span className="text-foreground tabular-nums">
             {formatMoney(totalAmountInCents, locale)}
           </span>
         </div>
-      </div>
+
+        {isBelowMinimum && (
+          <div className="border-border bg-muted/60 text-muted-foreground mt-2 flex items-center gap-2 rounded-lg border p-2 text-[11px]">
+            <AlertTriangle className="text-secondary h-3.5 w-3.5 shrink-0" />
+            <span>
+              {dict.orderThresholdNotice.replace("{min}", formatMoney(minOrderAmount, locale))}
+            </span>
+          </div>
+        )}
+      </section>
 
       {/* Sticky Bottom Actions Bar */}
       <div className="bg-card/95 border-border pb-safe fixed inset-x-0 bottom-0 z-40 border-t p-4 backdrop-blur-md">
@@ -149,7 +201,7 @@ export function CartView({
             type="button"
             variant="outline"
             onClick={clearCart}
-            className="h-12 rounded-xl text-xs sm:text-sm"
+            className="h-12 rounded-xl px-4 text-xs font-semibold sm:text-sm"
             data-testid="clear-cart-bottom-button"
           >
             {dict.clearCart}

@@ -8,11 +8,14 @@ import {
   CheckCircle2,
   Store,
   Truck,
-  Clock,
-  Calendar,
   CreditCard,
   ShieldCheck,
   AlertCircle,
+  Wallet,
+  QrCode,
+  Banknote,
+  BadgeCheck,
+  ArrowRight,
 } from "lucide-react";
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
@@ -266,9 +269,12 @@ export function CheckoutForm({
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-foreground text-base font-semibold">{dict.customerContact}</h2>
-          <span className="border-border bg-muted text-muted-foreground rounded-full border px-2.5 py-0.5 text-xs font-medium">
-            {dict.guestCheckoutBadge}
+          <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+            <span className="text-primary font-bold">1.</span>
+            {dict.customerContact}
+          </h2>
+          <span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-[11px] font-medium">
+            {dict.guestModeBadge}
           </span>
         </div>
 
@@ -317,7 +323,7 @@ export function CheckoutForm({
           {hasLoadedFromStorage && isNameLocked && (
             <div
               data-testid="saved-name-toast"
-              className="bg-primary-soft/40 text-primary-soft-foreground border-primary-soft flex items-center gap-2 rounded-lg border p-2.5 text-xs font-medium"
+              className="bg-primary/10 text-primary border-primary/20 flex items-center gap-2 rounded-lg border p-2.5 text-xs font-medium"
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>{dict.savedNameNotice}</span>
@@ -327,19 +333,28 @@ export function CheckoutForm({
 
         {/* Mobile Phone field with E.164 validation */}
         <div className="space-y-1.5">
-          <label htmlFor={phoneId} className="text-foreground text-xs font-medium">
-            {dict.phone} <span className="text-destructive">*</span>
-          </label>
-          <Input
-            id={phoneId}
-            type="tel"
-            value={phone}
-            onChange={(e) => setCustomPhone(e.target.value)}
-            placeholder={dict.phonePlaceholder}
-            data-testid="checkout-phone-input"
-            error={phone.length > 0 && !isPhoneValid}
-            required
-          />
+          <div className="flex items-center justify-between">
+            <label htmlFor={phoneId} className="text-foreground text-xs font-medium">
+              {dict.phone} <span className="text-destructive">*</span>
+            </label>
+            <span className="text-primary text-[11px] font-medium">{dict.verifiedSms}</span>
+          </div>
+          <div className="relative flex items-center">
+            <span className="text-muted-foreground border-border absolute left-3 border-r pr-2 text-xs font-semibold tabular-nums select-none">
+              FR +33
+            </span>
+            <Input
+              id={phoneId}
+              type="tel"
+              value={phone}
+              onChange={(e) => setCustomPhone(e.target.value)}
+              placeholder={dict.phonePlaceholder}
+              data-testid="checkout-phone-input"
+              error={phone.length > 0 && !isPhoneValid}
+              className="pl-20 tabular-nums"
+              required
+            />
+          </div>
           <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
             <span>{dict.phoneHelper}</span>
@@ -349,11 +364,14 @@ export function CheckoutForm({
 
       {/* 2. Fulfillment Mode */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground text-base font-semibold">{dict.fulfillmentMode}</h2>
+        <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+          <span className="text-primary font-bold">2.</span>
+          {dict.fulfillmentMode}
+        </h2>
 
         {/* Segmented Mode Pills */}
         <div
-          className="bg-muted grid grid-cols-2 gap-1 rounded-xl p-1"
+          className="bg-muted grid grid-cols-2 gap-1.5 rounded-xl p-1"
           role="radiogroup"
           aria-label={dict.fulfillmentMode}
         >
@@ -366,8 +384,8 @@ export function CheckoutForm({
               data-testid="service-pickup-button"
               className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
                 serviceType === "pickup"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary/10 text-primary border shadow-xs"
+                  : "text-muted-foreground hover:text-foreground font-medium"
               }`}
             >
               <Store className="h-4 w-4" />
@@ -384,8 +402,8 @@ export function CheckoutForm({
               data-testid="service-delivery-button"
               className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
                 serviceType === "delivery"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary/10 text-primary border shadow-xs"
+                  : "text-muted-foreground hover:text-foreground font-medium"
               }`}
             >
               <Truck className="h-4 w-4" />
@@ -403,11 +421,21 @@ export function CheckoutForm({
         {/* Conditional Address or Pickup Location */}
         {serviceType === "pickup" ? (
           <div className="border-border bg-muted/40 flex items-start gap-3 rounded-lg border p-3 text-xs">
-            <Store className="text-primary mt-0.5 h-4 w-4 shrink-0" />
-            <div className="space-y-0.5">
-              <p className="text-foreground font-semibold">{business.name}</p>
+            <div className="border-border bg-card text-primary mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
+              <Store className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <p className="text-foreground truncate font-semibold">{business.name}</p>
+                <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                  {dict.inStore}
+                </span>
+              </div>
               <p className="text-muted-foreground">{business.address}</p>
-              <p className="text-primary text-[11px] font-medium">• {dict.pickupLocation}</p>
+              <p className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+                <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
+                <span>{dict.pickupExpressNotice}</span>
+              </p>
             </div>
           </div>
         ) : (
@@ -430,9 +458,12 @@ export function CheckoutForm({
 
       {/* 3. Order Timing */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground text-base font-semibold">{dict.orderTiming}</h2>
+        <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+          <span className="text-primary font-bold">3.</span>
+          {dict.orderTiming}
+        </h2>
 
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className="space-y-2.5">
           {/* ASAP Option */}
           <label
             data-testid="timing-asap-option"
@@ -442,19 +473,30 @@ export function CheckoutForm({
                 : "border-border bg-card text-muted-foreground hover:border-border/80"
             }`}
           >
+            <div className="pt-0.5">
+              <span
+                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                  isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
+                }`}
+              >
+                {isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
+              </span>
+            </div>
             <input
               type="radio"
               name="orderTiming"
               checked={isAsap}
               onChange={() => setIsAsap(true)}
-              className="text-primary mt-1 h-4 w-4"
+              className="sr-only"
             />
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span className="text-foreground text-sm font-semibold">{dict.asap}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-foreground text-xs font-semibold">{dict.asap}</span>
+                <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold">
+                  {dict.recommended}
+                </span>
               </div>
-              <p className="text-muted-foreground text-xs">{dict.asapEstimatedReady}</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">{dict.asapEstimatedReady}</p>
             </div>
           </label>
 
@@ -467,88 +509,129 @@ export function CheckoutForm({
                 : "border-border bg-card text-muted-foreground hover:border-border/80"
             }`}
           >
+            <div className="pt-0.5">
+              <span
+                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                  !isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
+                }`}
+              >
+                {!isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
+              </span>
+            </div>
             <input
               type="radio"
               name="orderTiming"
               checked={!isAsap}
               onChange={() => setIsAsap(false)}
-              className="text-primary mt-1 h-4 w-4"
+              className="sr-only"
             />
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" />
-                <span className="text-foreground text-sm font-semibold">{dict.scheduleLater}</span>
-              </div>
-              <p className="text-muted-foreground text-xs">
-                {dict.scheduledDate} & {dict.scheduledTime}
-              </p>
+            <div className="min-w-0 flex-1">
+              <span className="text-foreground text-xs font-semibold">{dict.scheduleLater}</span>
+              <p className="text-muted-foreground mt-0.5 text-xs">{dict.scheduleLaterSubtext}</p>
+
+              {!isAsap && (
+                <div
+                  data-testid="scheduled-timing-inputs"
+                  className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2"
+                >
+                  <div className="space-y-1">
+                    <label htmlFor={dateId} className="text-foreground text-[11px] font-medium">
+                      {dict.scheduledDate} <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      id={dateId}
+                      type="date"
+                      min={new Date().toISOString().split("T")[0]}
+                      value={requestedDate}
+                      onChange={(e) => setRequestedDate(e.target.value)}
+                      data-testid="checkout-date-input"
+                      className="h-9 text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor={timeId} className="text-foreground text-[11px] font-medium">
+                      {dict.scheduledTime}
+                    </label>
+                    <Input
+                      id={timeId}
+                      type="time"
+                      value={requestedTime}
+                      onChange={(e) => setRequestedTime(e.target.value)}
+                      data-testid="checkout-time-input"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </label>
         </div>
-
-        {/* Date and Time Pickers when Scheduled is chosen */}
-        {!isAsap && (
-          <div
-            data-testid="scheduled-timing-inputs"
-            className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2"
-          >
-            <div className="space-y-1">
-              <label htmlFor={dateId} className="text-foreground text-xs font-medium">
-                {dict.scheduledDate} <span className="text-destructive">*</span>
-              </label>
-              <Input
-                id={dateId}
-                type="date"
-                min={new Date().toISOString().split("T")[0]}
-                value={requestedDate}
-                onChange={(e) => setRequestedDate(e.target.value)}
-                data-testid="checkout-date-input"
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor={timeId} className="text-foreground text-xs font-medium">
-                {dict.scheduledTime}
-              </label>
-              <Input
-                id={timeId}
-                type="time"
-                value={requestedTime}
-                onChange={(e) => setRequestedTime(e.target.value)}
-                data-testid="checkout-time-input"
-              />
-            </div>
-          </div>
-        )}
       </section>
 
       {/* 4. Payment Preference */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground text-base font-semibold">{dict.paymentMethod}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+            <span className="text-primary font-bold">4.</span>
+            {dict.paymentMethod}
+          </h2>
+          <span className="text-muted-foreground text-xs">{dict.secured}</span>
+        </div>
 
         <div className="space-y-2">
           {/* Pay on Handover */}
           {cashAllowed && (
             <label
               data-testid="payment-on-handover"
-              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+              className={`flex cursor-pointer items-start justify-between rounded-xl border p-3.5 transition-all ${
                 paymentPreference === "on_handover"
                   ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
                   : "border-border bg-card text-muted-foreground hover:border-border/80"
               }`}
             >
-              <input
-                type="radio"
-                name="paymentPreference"
-                checked={paymentPreference === "on_handover"}
-                onChange={() => setPaymentPreference("on_handover")}
-                className="text-primary mt-1 h-4 w-4"
-              />
-              <div className="space-y-0.5">
-                <span className="text-foreground text-sm font-semibold">{dict.payOnHandover}</span>
-                <p className="text-muted-foreground text-xs">{dict.payOnHandoverSubtext}</p>
+              <div className="flex items-start gap-3">
+                <div className="pt-0.5">
+                  <span
+                    className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                      paymentPreference === "on_handover"
+                        ? "border-primary bg-card"
+                        : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {paymentPreference === "on_handover" && (
+                      <span className="bg-primary h-2 w-2 rounded-full" />
+                    )}
+                  </span>
+                </div>
+                <input
+                  type="radio"
+                  name="paymentPreference"
+                  checked={paymentPreference === "on_handover"}
+                  onChange={() => setPaymentPreference("on_handover")}
+                  className="sr-only"
+                />
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-foreground text-xs font-semibold">
+                      {dict.payOnHandover}
+                    </span>
+                  </div>
+                  <p className="text-primary text-xs font-medium">{dict.payOnHandoverSubtext}</p>
+                  <div className="text-muted-foreground flex items-center gap-2 pt-1 text-[11px]">
+                    <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
+                      <Banknote className="text-muted-foreground h-3 w-3" />
+                      {dict.cashBadge}
+                    </span>
+                    <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
+                      <CreditCard className="text-muted-foreground h-3 w-3" />
+                      {dict.contactlessBadge}
+                    </span>
+                  </div>
+                </div>
               </div>
+              <BadgeCheck className="text-primary mt-0.5 h-5 w-5 shrink-0" />
             </label>
           )}
 
@@ -556,32 +639,46 @@ export function CheckoutForm({
           {revolutAllowed && (
             <label
               data-testid="payment-revolut"
-              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+              className={`flex cursor-pointer items-start justify-between rounded-xl border p-3.5 transition-all ${
                 paymentPreference === "revolut"
                   ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
                   : "border-border bg-card text-muted-foreground hover:border-border/80"
               }`}
             >
-              <input
-                type="radio"
-                name="paymentPreference"
-                checked={paymentPreference === "revolut"}
-                onChange={() => setPaymentPreference("revolut")}
-                className="text-primary mt-1 h-4 w-4"
-              />
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-foreground text-sm font-semibold">{dict.revolutPay}</span>
-                  {settings?.revolutRevtag && (
-                    <span className="border-border bg-muted rounded border px-1.5 py-0.5 font-mono text-[11px]">
-                      @{settings.revolutRevtag}
-                    </span>
-                  )}
+              <div className="flex items-start gap-3">
+                <div className="pt-0.5">
+                  <span
+                    className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                      paymentPreference === "revolut"
+                        ? "border-primary bg-card"
+                        : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {paymentPreference === "revolut" && (
+                      <span className="bg-primary h-2 w-2 rounded-full" />
+                    )}
+                  </span>
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  Fast mobile transfer with instant confirmation
-                </p>
+                <input
+                  type="radio"
+                  name="paymentPreference"
+                  checked={paymentPreference === "revolut"}
+                  onChange={() => setPaymentPreference("revolut")}
+                  className="sr-only"
+                />
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-foreground text-xs font-semibold">{dict.revolutPay}</span>
+                    <span className="border-border bg-muted text-muted-foreground py-0.2 rounded border px-1.5 text-[10px] font-medium">
+                      {dict.revolutSubtext}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground font-mono text-[11px]">
+                    @{settings?.revolutRevtag || "petiteboulangerie"}
+                  </p>
+                </div>
               </div>
+              <Wallet className="text-muted-foreground h-4 w-4 opacity-60" />
             </label>
           )}
 
@@ -589,28 +686,44 @@ export function CheckoutForm({
           {weroAllowed && (
             <label
               data-testid="payment-wero"
-              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+              className={`flex cursor-pointer items-start justify-between rounded-xl border p-3.5 transition-all ${
                 paymentPreference === "wero"
                   ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
                   : "border-border bg-card text-muted-foreground hover:border-border/80"
               }`}
             >
-              <input
-                type="radio"
-                name="paymentPreference"
-                checked={paymentPreference === "wero"}
-                onChange={() => setPaymentPreference("wero")}
-                className="text-primary mt-1 h-4 w-4"
-              />
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-foreground text-sm font-semibold">{dict.weroPay}</span>
-                  <span className="border-border bg-muted rounded border px-1.5 py-0.5 text-[11px] font-medium">
-                    EU QR
+              <div className="flex items-start gap-3">
+                <div className="pt-0.5">
+                  <span
+                    className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                      paymentPreference === "wero"
+                        ? "border-primary bg-card"
+                        : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {paymentPreference === "wero" && (
+                      <span className="bg-primary h-2 w-2 rounded-full" />
+                    )}
                   </span>
                 </div>
-                <p className="text-muted-foreground text-xs">Direct SEPA instant payment</p>
+                <input
+                  type="radio"
+                  name="paymentPreference"
+                  checked={paymentPreference === "wero"}
+                  onChange={() => setPaymentPreference("wero")}
+                  className="sr-only"
+                />
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-foreground text-xs font-semibold">{dict.weroPay}</span>
+                    <span className="border-border bg-muted text-muted-foreground py-0.2 rounded border px-1.5 text-[10px] font-medium">
+                      {dict.weroSubtext}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">Direct SEPA instant transfer</p>
+                </div>
               </div>
+              <QrCode className="text-muted-foreground h-4 w-4 opacity-60" />
             </label>
           )}
         </div>
@@ -618,7 +731,11 @@ export function CheckoutForm({
 
       {/* 5. Notes */}
       <section className="border-border bg-card space-y-2 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <label htmlFor={notesId} className="text-foreground text-base font-semibold">
+        <label
+          htmlFor={notesId}
+          className="text-foreground flex items-center gap-1.5 text-sm font-semibold"
+        >
+          <span className="text-primary font-bold">5.</span>
           {dict.orderNotes}
         </label>
         <Textarea
@@ -632,27 +749,51 @@ export function CheckoutForm({
       </section>
 
       {/* 6. Order Summary Card */}
-      <section className="border-border bg-card space-y-2.5 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
-          {dict.orderSummary} ({items.length} {items.length === 1 ? dict.item : dict.items})
-        </h2>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{dict.subtotal}</span>
-          <span className="text-foreground font-medium tabular-nums">
-            {formatMoney(totalAmountInCents, locale)}
+      <section className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-2xs sm:p-5">
+        <div className="border-border flex items-center justify-between border-b pb-2">
+          <h2 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+            {dict.orderSummary}
+          </h2>
+          <span className="border-border bg-muted text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums">
+            {items.reduce((acc, i) => acc + i.quantity, 0)}{" "}
+            {items.length === 1 ? dict.item : dict.items}
           </span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">
-            {serviceType === "delivery" ? dict.deliveryFee : dict.servicePickup}
-          </span>
-          <span className="text-foreground font-medium tabular-nums">
-            {deliveryFee > 0 ? formatMoney(deliveryFee, locale) : dict.serviceFree}
-          </span>
+
+        {/* Itemized line items preview */}
+        <div className="space-y-1.5 text-xs">
+          {items.map((item) => (
+            <div key={item.productId} className="text-foreground flex justify-between">
+              <span className="truncate pr-2">
+                {item.quantity}× {item.name}
+              </span>
+              <span className="shrink-0 font-medium tabular-nums">
+                {formatMoney(item.price * item.quantity, locale)}
+              </span>
+            </div>
+          ))}
         </div>
-        <div className="border-border/60 my-2 flex justify-between border-t pt-2.5 text-base font-bold">
-          <span className="text-foreground">{dict.orderTotal}</span>
-          <span className="text-foreground tabular-nums">{formatMoney(finalTotal, locale)}</span>
+
+        <div className="border-border/60 space-y-1.5 border-t pt-2 text-xs">
+          <div className="text-muted-foreground flex justify-between">
+            <span>{dict.subtotal}</span>
+            <span className="text-foreground font-medium tabular-nums">
+              {formatMoney(totalAmountInCents, locale)}
+            </span>
+          </div>
+          <div className="text-muted-foreground flex justify-between">
+            <span>{serviceType === "delivery" ? dict.deliveryPaid : dict.pickupFree}</span>
+            <span className="text-primary font-medium tabular-nums">
+              {deliveryFee > 0 ? formatMoney(deliveryFee, locale) : `€0.00 (${dict.serviceFree})`}
+            </span>
+          </div>
+        </div>
+
+        <div className="border-border/60 flex items-center justify-between border-t pt-2.5">
+          <span className="text-foreground text-sm font-bold">{dict.orderTotal}</span>
+          <span className="text-primary text-lg font-bold tabular-nums">
+            {formatMoney(finalTotal, locale)}
+          </span>
         </div>
       </section>
 
@@ -677,15 +818,17 @@ export function CheckoutForm({
             className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
             data-testid="place-order-button"
           >
-            <CreditCard className="mr-2 h-4 w-4" />
             <span>
               {isSubmitting
                 ? dict.placingOrder
                 : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
             </span>
+            <ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
 
-          <p className="text-muted-foreground text-center text-[11px]">{dict.orderPolicyNotice}</p>
+          <p className="text-muted-foreground text-center text-[11px]">
+            🔒 {dict.pickupPolicyNotice}
+          </p>
         </div>
       </div>
     </form>
