@@ -96,7 +96,7 @@ export function CheckoutForm({
   dict,
   onSubmitOrder,
 }: CheckoutFormProps) {
-  const { items, totalAmountInCents } = useCart();
+  const { items, totalAmountInCents, notes: cartNotes, setNotes: setCartNotes } = useCart();
 
   // Zero DB Lookup: Synchronize remembered contact from local storage safely without cascading renders
   const storedContact = useSyncExternalStore(
@@ -138,7 +138,7 @@ export function CheckoutForm({
   );
 
   // Notes & UI State
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(cartNotes);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
@@ -337,7 +337,6 @@ export function CheckoutForm({
             <label htmlFor={phoneId} className="text-foreground text-xs font-medium">
               {dict.phone} <span className="text-destructive">*</span>
             </label>
-            <span className="text-primary text-[11px] font-medium">{dict.verifiedSms}</span>
           </div>
           <div className="relative flex items-center">
             <span className="text-muted-foreground border-border absolute left-3 border-r pr-2 text-xs font-semibold tabular-nums select-none">
@@ -741,7 +740,11 @@ export function CheckoutForm({
         <Textarea
           id={notesId}
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setNotes(val);
+            setCartNotes(val);
+          }}
           placeholder={dict.notesPlaceholder}
           className="min-h-20"
           data-testid="checkout-notes-input"

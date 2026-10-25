@@ -34,6 +34,8 @@ function TestCartConsumer() {
     removeItem,
     clearCart,
     syncPrices,
+    notes,
+    setNotes,
   } = useCart();
 
   return (
@@ -41,6 +43,7 @@ function TestCartConsumer() {
       <div data-testid="total-count">{totalCount}</div>
       <div data-testid="total-amount">{totalAmountInCents}</div>
       <div data-testid="item-count">{items.length}</div>
+      <div data-testid="cart-notes">{notes}</div>
       <ul>
         {items.map((i) => (
           <li key={i.productId} data-testid={`item-${i.productId}`}>
@@ -78,6 +81,9 @@ function TestCartConsumer() {
         data-testid="sync-prices-btn"
       >
         Sync Prices
+      </button>
+      <button onClick={() => setNotes("Extra crispy packaging")} data-testid="set-notes-btn">
+        Set Notes
       </button>
       <button onClick={clearCart} data-testid="clear-btn">
         Clear
@@ -212,5 +218,21 @@ describe("CartContext (#81, #82)", () => {
     expect(screen.getByTestId("price-prod-1").textContent).toBe("300");
     expect(screen.getByTestId("total-count").textContent).toBe("2");
     expect(screen.getByTestId("total-amount").textContent).toBe("600");
+  });
+
+  it("stores and clears customer kitchen/packing notes (#85, #86)", () => {
+    render(
+      <CartProvider>
+        <TestCartConsumer />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("cart-notes").textContent).toBe("");
+
+    fireEvent.click(screen.getByTestId("set-notes-btn"));
+    expect(screen.getByTestId("cart-notes").textContent).toBe("Extra crispy packaging");
+
+    fireEvent.click(screen.getByTestId("clear-btn"));
+    expect(screen.getByTestId("cart-notes").textContent).toBe("");
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -9,12 +10,16 @@ import {
   ArrowRight,
   FileText,
   ChevronRight,
+  ChevronDown,
   AlertTriangle,
 } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToastOptional } from "@/components/ui";
+import { SoonBadge } from "@/components/feedback";
 import { useCart } from "../context/cart-context";
 import { CartItemCard } from "./cart-item-card";
 import { MinimumOrderBanner } from "./minimum-order-banner";
@@ -32,8 +37,19 @@ export function CartView({
   minOrderAmount = 0,
   isAcceptingOrders = true,
 }: CartViewProps) {
-  const { items, updateQuantity, removeItem, clearCart, totalCount, totalAmountInCents } =
-    useCart();
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    totalCount,
+    totalAmountInCents,
+    notes,
+    setNotes,
+  } = useCart();
+  const toast = useToastOptional();
+  const showToast = toast?.showToast ?? (() => {});
+  const [isNotesOpen, setIsNotesOpen] = useState(notes.length > 0);
 
   const isBelowMinimum = minOrderAmount > 0 && totalAmountInCents < minOrderAmount;
   const canProceed = items.length > 0 && !isBelowMinimum && isAcceptingOrders;
@@ -119,13 +135,23 @@ export function CartView({
         ))}
       </div>
 
-      {/* Promo & Kitchen Note Placeholder (Signal from Stitch design) */}
+      {/* Promo Code Section (Upcoming Feature with SoonBadge and Toast) */}
       <section className="border-border bg-card space-y-3 rounded-xl border p-3.5 shadow-2xs">
         <div className="flex items-center justify-between text-xs font-medium">
-          <label htmlFor="promo-input" className="text-muted-foreground">
-            {dict.discountCode}
-          </label>
-          <span className="text-primary cursor-pointer hover:underline">{dict.haveVoucher}</span>
+          <div className="flex items-center gap-1.5">
+            <label htmlFor="promo-input" className="text-muted-foreground">
+              {dict.discountCode}
+            </label>
+            <SoonBadge label={dict.soon} data-testid="discount-soon-badge" />
+          </div>
+          <button
+            type="button"
+            onClick={() => showToast(dict.voucherUnavailableNotice)}
+            className="text-primary cursor-pointer text-xs font-medium hover:underline"
+            data-testid="have-voucher-button"
+          >
+            {dict.haveVoucher}
+          </button>
         </div>
         <div className="flex gap-2">
           <Input
@@ -133,6 +159,7 @@ export function CartView({
             type="text"
             placeholder="e.g. MORNING10"
             disabled
+            aria-label={`${dict.discountCode} (${dict.soon})`}
             className="h-9 text-xs"
           />
           <Button
@@ -146,14 +173,42 @@ export function CartView({
           </Button>
         </div>
         {/* TODO(pricing): wire promo codes (#105) */}
-        <div className="border-border/60 text-muted-foreground flex items-center justify-between border-t pt-2.5 text-xs">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 opacity-70" />
+      </section>
+
+      {/* Kitchen / Packing Notes Disclosure */}
+      <section className="border-border bg-card overflow-hidden rounded-xl border shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setIsNotesOpen((prev) => !prev)}
+          aria-expanded={isNotesOpen}
+          aria-controls="kitchen-notes-collapse"
+          className="hover:bg-muted/50 flex w-full items-center justify-between p-3.5 text-left text-xs font-medium transition-colors"
+          data-testid="toggle-kitchen-note-btn"
+        >
+          <div className="text-foreground flex items-center gap-2 font-medium">
+            <FileText className="text-primary h-4 w-4" />
             <span>{dict.addKitchenNote}</span>
           </div>
-          <ChevronRight className="h-4 w-4 opacity-50" />
-          {/* TODO(orders): kitchen packing notes */}
-        </div>
+          {isNotesOpen ? (
+            <ChevronDown className="text-muted-foreground h-4 w-4 transition-transform" />
+          ) : (
+            <ChevronRight className="text-muted-foreground h-4 w-4 transition-transform" />
+          )}
+        </button>
+
+        {isNotesOpen && (
+          <div id="kitchen-notes-collapse" className="border-border/60 border-t p-3.5 pt-2">
+            <Textarea
+              id="cart-kitchen-note"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={dict.notesPlaceholder}
+              rows={3}
+              className="resize-none text-xs"
+              data-testid="cart-kitchen-note-input"
+            />
+          </div>
+        )}
       </section>
 
       {/* Order Breakdown Summary Card */}

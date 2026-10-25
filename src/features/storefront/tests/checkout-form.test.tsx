@@ -248,4 +248,37 @@ describe("CheckoutView & CheckoutForm", () => {
     // Success confirmation view
     expect(screen.getByTestId("checkout-success-view")).toBeDefined();
   });
+
+  it("prefills notes from Cart and syncs edits back to Cart (#85, #86)", () => {
+    render(
+      <CartProvider initialItems={mockCartItems} initialNotes="Handle with care">
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+
+    const notesInput = screen.getByTestId("checkout-notes-input") as HTMLTextAreaElement;
+    expect(notesInput.value).toBe("Handle with care");
+
+    fireEvent.change(notesInput, { target: { value: "Extra napkins please" } });
+    expect(notesInput.value).toBe("Extra napkins please");
+  });
+
+  it("displays explicit WhatsApp phone label, clean helper text, and no misleading verified badge (#86)", () => {
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+
+    // Label contains WhatsApp order updates
+    expect(screen.getByText(dict.phone)).toBeDefined();
+
+    // Helper text contains only "No account required."
+    expect(screen.getByText(dict.phoneHelper)).toBeDefined();
+    expect(screen.queryByText(/Zero database lookups/i)).toBeNull();
+
+    // Static "Verified SMS" badge is completely removed
+    expect(screen.queryByText(/SMS validé/i)).toBeNull();
+    expect(screen.queryByText(/Verified SMS/i)).toBeNull();
+  });
 });

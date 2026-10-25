@@ -35,6 +35,8 @@ export interface CartContextValue {
   clearCart: () => void;
   getItemQuantity: (productId: string) => number;
   syncPrices: (freshItems: Array<{ id: string; price: number; stock?: number }>) => void;
+  notes: string;
+  setNotes: (notes: string) => void;
   totalCount: number;
   totalAmountInCents: number;
 }
@@ -42,9 +44,12 @@ export interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 const STORAGE_KEY = "foodbiz_storefront_cart";
+const NOTES_STORAGE_KEY = "foodbiz_storefront_notes";
 
 let memoryCart: CartItem[] = [];
+let memoryNotes: string = "";
 let isInitialized = false;
+let isNotesInitialized = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -53,10 +58,13 @@ function notify() {
 
 export function resetCartStore(): void {
   memoryCart = [];
+  memoryNotes = "";
   isInitialized = false;
+  isNotesInitialized = false;
   if (typeof window !== "undefined") {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(NOTES_STORAGE_KEY);
     } catch {
       // Storage unavailable
     }
@@ -95,11 +103,42 @@ function saveStoredCart(newItems: CartItem[]) {
   notify();
 }
 
+function getStoredNotes(): string {
+  if (typeof window === "undefined") return "";
+  if (!isNotesInitialized) {
+    try {
+      const stored = localStorage.getItem(NOTES_STORAGE_KEY);
+      if (typeof stored === "string") {
+        memoryNotes = stored;
+      }
+    } catch {
+      // Storage unavailable
+    }
+    isNotesInitialized = true;
+  }
+  return memoryNotes;
+}
+
+function saveStoredNotes(newNotes: string) {
+  memoryNotes = newNotes;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(NOTES_STORAGE_KEY, newNotes);
+    } catch {
+      // Storage error
+    }
+  }
+  notify();
+}
+
 function subscribeCart(callback: () => void) {
   listeners.add(callback);
   const handleStorage = (e: StorageEvent) => {
     if (e.key === STORAGE_KEY) {
       isInitialized = false;
+      notify();
+    } else if (e.key === NOTES_STORAGE_KEY) {
+      isNotesInitialized = false;
       notify();
     }
   };
@@ -115,14 +154,29 @@ const emptyCart: CartItem[] = [];
 export interface CartProviderProps {
   children: ReactNode;
   initialItems?: CartItem[];
+  initialNotes?: string;
 }
 
-export function CartProvider({ children, initialItems }: CartProviderProps) {
+export function CartProvider({ children, initialItems, initialNotes }: CartProviderProps) {
   const [localItems, setLocalItems] = useState<CartItem[] | null>(initialItems ?? null);
+  const [localNotes, setLocalNotes] = useState<string | null>(initialNotes ?? null);
 
   const syncedItems = useSyncExternalStore(subscribeCart, getStoredCart, () => emptyCart);
+  const syncedNotes = useSyncExternalStore(subscribeCart, getStoredNotes, () => "");
 
   const items = localItems ?? syncedItems;
+  const notes = localNotes ?? syncedNotes;
+
+  const setNotes = useCallback(
+    (newNotes: string) => {
+      if (initialNotes !== undefined) {
+        setLocalNotes(newNotes);
+      } else {
+        saveStoredNotes(newNotes);
+      }
+    },
+    [initialNotes],
+  );
 
   const updateCartState = useCallback(
     (updater: (current: CartItem[]) => CartItem[]) => {
@@ -215,7 +269,8 @@ export function CartProvider({ children, initialItems }: CartProviderProps) {
 
   const clearCart = useCallback(() => {
     updateCartState(() => []);
-  }, [updateCartState]);
+    setNotes("");
+  }, [updateCartState, setNotes]);
 
   const getItemQuantity = useCallback(
     (productId: string): number => {
@@ -263,6 +318,8 @@ export function CartProvider({ children, initialItems }: CartProviderProps) {
       clearCart,
       getItemQuantity,
       syncPrices,
+      notes,
+      setNotes,
       totalCount,
       totalAmountInCents,
     }),
@@ -274,6 +331,8 @@ export function CartProvider({ children, initialItems }: CartProviderProps) {
       clearCart,
       getItemQuantity,
       syncPrices,
+      notes,
+      setNotes,
       totalCount,
       totalAmountInCents,
     ],

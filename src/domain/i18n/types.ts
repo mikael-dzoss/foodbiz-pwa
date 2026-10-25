@@ -119,6 +119,8 @@ export interface StorefrontDictionary {
   discountCode: string;
   haveVoucher: string;
   applyDiscount: string;
+  voucherUnavailableNotice: string;
+  soon: string;
   addKitchenNote: string;
   orderThresholdNotice: string;
 
@@ -132,7 +134,6 @@ export interface StorefrontDictionary {
   phone: string;
   phonePlaceholder: string;
   phoneHelper: string;
-  verifiedSms: string;
   savedNameNotice: string;
   editName: string;
   fulfillmentMode: string;

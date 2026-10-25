@@ -43,7 +43,7 @@ export {
   SheetTitle,
   SheetDescription,
 } from "./sheet";
-export { ToastProvider, useToast } from "./toast";
+export { ToastProvider, useToast, useToastOptional } from "./toast";
 export type { ToastProps } from "./toast";
 export { KPICard } from "./kpi-card";
 export type { KPICardProps } from "./kpi-card";
