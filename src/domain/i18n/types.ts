@@ -102,6 +102,80 @@ export interface StorefrontDictionary {
   share: string;
   allRightsReserved: string;
   bakeryInfo: string;
+
+  // Cart (#85)
+  yourCart: string;
+  proceedToCheckout: string;
+  clearCart: string;
+  emptyCartTitle: string;
+  emptyCartMessage: string;
+  minimumOrderProgress: string;
+  minimumOrderReached: string;
+  addMoreForMinimum: string;
+  maxStockReached: string;
+  subtotal: string;
+  estimatedTax: string;
+  orderTotal: string;
+  discountCode: string;
+  haveVoucher: string;
+  applyDiscount: string;
+  voucherUnavailableNotice: string;
+  soon: string;
+  addKitchenNote: string;
+  orderThresholdNotice: string;
+
+  // Checkout (#86)
+  checkoutTitle: string;
+  guestCheckoutBadge: string;
+  customerContact: string;
+  guestModeBadge: string;
+  fullName: string;
+  fullNamePlaceholder: string;
+  phone: string;
+  phonePlaceholder: string;
+  phoneHelper: string;
+  savedNameNotice: string;
+  editName: string;
+  fulfillmentMode: string;
+  pickupFree: string;
+  deliveryPaid: string;
+  pickupLocation: string;
+  inStore: string;
+  pickupExpressNotice: string;
+  deliveryAddress: string;
+  deliveryAddressPlaceholder: string;
+  orderTiming: string;
+  asap: string;
+  asapEstimatedReady: string;
+  recommended: string;
+  scheduleLater: string;
+  scheduleLaterSubtext: string;
+  selectDateTime: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  optionalTime: string;
+  paymentMethod: string;
+  secured: string;
+  revolutPay: string;
+  revolutSubtext: string;
+  weroPay: string;
+  weroSubtext: string;
+  payOnHandover: string;
+  payOnHandoverSubtext: string;
+  cashBadge: string;
+  contactlessBadge: string;
+  orderNotes: string;
+  notesPlaceholder: string;
+  orderSummary: string;
+  placeOrder: string;
+  placingOrder: string;
+  securityNotice: string;
+  orderPolicyNotice: string;
+  pickupPolicyNotice: string;
+  nameRequiredError: string;
+  phoneRequiredError: string;
+  addressRequiredError: string;
+  dateRequiredError: string;
 }
 
 export interface QuickAddDictionary {

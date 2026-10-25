@@ -25,18 +25,30 @@ const mockOutOfStockProduct: Product = {
 };
 
 function TestCartConsumer() {
-  const { items, totalCount, totalAmountInCents, addItem, updateQuantity, removeItem, clearCart } =
-    useCart();
+  const {
+    items,
+    totalCount,
+    totalAmountInCents,
+    addItem,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    syncPrices,
+    notes,
+    setNotes,
+  } = useCart();
 
   return (
     <div>
       <div data-testid="total-count">{totalCount}</div>
       <div data-testid="total-amount">{totalAmountInCents}</div>
       <div data-testid="item-count">{items.length}</div>
+      <div data-testid="cart-notes">{notes}</div>
       <ul>
         {items.map((i) => (
           <li key={i.productId} data-testid={`item-${i.productId}`}>
-            <span>{i.name}</span> - <span>qty: {i.quantity}</span> - <span>price: {i.price}</span>
+            <span>{i.name}</span> - <span>qty: {i.quantity}</span> -{" "}
+            <span data-testid={`price-${i.productId}`}>{i.price}</span>
             <button
               onClick={() => updateQuantity(i.productId, i.quantity + 1)}
               data-testid={`inc-${i.productId}`}
@@ -63,6 +75,15 @@ function TestCartConsumer() {
       </button>
       <button onClick={() => addItem(mockOutOfStockProduct, 1)} data-testid="add-out-btn">
         Add Out of Stock
+      </button>
+      <button
+        onClick={() => syncPrices([{ id: "prod-1", price: 300, stock: 2 }])}
+        data-testid="sync-prices-btn"
+      >
+        Sync Prices
+      </button>
+      <button onClick={() => setNotes("Extra crispy packaging")} data-testid="set-notes-btn">
+        Set Notes
       </button>
       <button onClick={clearCart} data-testid="clear-btn">
         Clear
@@ -177,5 +198,41 @@ describe("CartContext (#81, #82)", () => {
 
     fireEvent.click(screen.getByTestId("clear-btn"));
     expect(screen.getByTestId("item-count").textContent).toBe("0");
+  });
+
+  it("syncs fresh prices and caps quantities according to updated server stock (#85)", () => {
+    render(
+      <CartProvider>
+        <TestCartConsumer />
+      </CartProvider>,
+    );
+
+    // Add 5 croissants at price 250
+    fireEvent.click(screen.getByTestId("add-overstock-btn"));
+    expect(screen.getByTestId("total-count").textContent).toBe("5");
+    expect(screen.getByTestId("total-amount").textContent).toBe("1250");
+    expect(screen.getByTestId("price-prod-1").textContent).toBe("250");
+
+    // Sync prices: updated price 300, stock reduced to 2
+    fireEvent.click(screen.getByTestId("sync-prices-btn"));
+    expect(screen.getByTestId("price-prod-1").textContent).toBe("300");
+    expect(screen.getByTestId("total-count").textContent).toBe("2");
+    expect(screen.getByTestId("total-amount").textContent).toBe("600");
+  });
+
+  it("stores and clears customer kitchen/packing notes (#85, #86)", () => {
+    render(
+      <CartProvider>
+        <TestCartConsumer />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("cart-notes").textContent).toBe("");
+
+    fireEvent.click(screen.getByTestId("set-notes-btn"));
+    expect(screen.getByTestId("cart-notes").textContent).toBe("Extra crispy packaging");
+
+    fireEvent.click(screen.getByTestId("clear-btn"));
+    expect(screen.getByTestId("cart-notes").textContent).toBe("");
   });
 });

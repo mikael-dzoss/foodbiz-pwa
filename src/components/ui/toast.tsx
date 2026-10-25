@@ -71,6 +71,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function useToastOptional(): ToastContextValue | null {
+  return React.useContext(ToastContext) ?? null;
+}
+
 export function useToast() {
   const context = React.useContext(ToastContext);
   if (!context) {
