@@ -205,6 +205,30 @@ export async function getStorefrontProduct(
 }
 
 /**
+ * Server query to fetch latest prices and stock for a list of products (Issue #85).
+ * Refreshes prices from server to prevent stale checkout numbers.
+ */
+export async function getLatestProductPrices(
+  productIds: string[],
+  businessId = DEMO_BUSINESS_ID,
+): Promise<Array<{ id: string; name: string; price: number; stock: number; visible: boolean }>> {
+  const repos = getCatalogRepositories();
+  const products = await Promise.all(
+    productIds.map((id) => repos.products.findById(businessId, id)),
+  );
+
+  return products
+    .filter((p): p is NonNullable<typeof p> => p !== null)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      stock: p.stock,
+      visible: p.visible,
+    }));
+}
+
+/**
  * Revalidates all storefront cached data when products, categories, or settings mutate.
  */
 export async function revalidateStorefrontCatalog(businessId = DEMO_BUSINESS_ID): Promise<void> {

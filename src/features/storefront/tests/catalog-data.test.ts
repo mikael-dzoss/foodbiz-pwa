@@ -141,6 +141,29 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
     });
   });
 
+  describe("getLatestProductPrices (#85)", () => {
+    it("returns fresh prices and stock for requested products", async () => {
+      const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
+      const prod1 = catalog.groupedCategories[0].products[0];
+      const prod2 = catalog.groupedCategories[0].products[1];
+
+      const { getLatestProductPrices } = await import("../catalog-data");
+      const prices = await getLatestProductPrices([prod1.id, prod2.id], DEMO_BUSINESS_ID);
+
+      expect(prices.length).toBe(2);
+      expect(prices[0].id).toBe(prod1.id);
+      expect(prices[0].price).toBe(prod1.price);
+      expect(prices[0].stock).toBe(prod1.stock);
+      expect(prices[1].id).toBe(prod2.id);
+    });
+
+    it("handles missing product IDs gracefully by filtering them out", async () => {
+      const { getLatestProductPrices } = await import("../catalog-data");
+      const prices = await getLatestProductPrices(["non-existent-id"], DEMO_BUSINESS_ID);
+      expect(prices).toEqual([]);
+    });
+  });
+
   describe("revalidateStorefrontCatalog", () => {
     it("runs revalidation without throwing", async () => {
       await expect(revalidateStorefrontCatalog(DEMO_BUSINESS_ID)).resolves.toBeUndefined();

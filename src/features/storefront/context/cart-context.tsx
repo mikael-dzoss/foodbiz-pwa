@@ -34,6 +34,7 @@ export interface CartContextValue {
   removeItem: (productId: string) => void;
   clearCart: () => void;
   getItemQuantity: (productId: string) => number;
+  syncPrices: (freshItems: Array<{ id: string; price: number; stock?: number }>) => void;
   totalCount: number;
   totalAmountInCents: number;
 }
@@ -224,6 +225,28 @@ export function CartProvider({ children, initialItems }: CartProviderProps) {
     [items],
   );
 
+  const syncPrices = useCallback(
+    (freshItems: Array<{ id: string; price: number; stock?: number }>) => {
+      const priceMap = new Map(freshItems.map((p) => [p.id, p]));
+      updateCartState((currentItems) =>
+        currentItems.map((item) => {
+          const fresh = priceMap.get(item.productId);
+          if (fresh) {
+            const newMaxStock = fresh.stock !== undefined ? fresh.stock : item.maxStock;
+            return {
+              ...item,
+              price: fresh.price,
+              maxStock: newMaxStock,
+              quantity: Math.min(item.quantity, newMaxStock),
+            };
+          }
+          return item;
+        }),
+      );
+    },
+    [updateCartState],
+  );
+
   const totalCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
 
   const totalAmountInCents = useMemo(
@@ -239,6 +262,7 @@ export function CartProvider({ children, initialItems }: CartProviderProps) {
       removeItem,
       clearCart,
       getItemQuantity,
+      syncPrices,
       totalCount,
       totalAmountInCents,
     }),
@@ -249,6 +273,7 @@ export function CartProvider({ children, initialItems }: CartProviderProps) {
       removeItem,
       clearCart,
       getItemQuantity,
+      syncPrices,
       totalCount,
       totalAmountInCents,
     ],
