@@ -492,6 +492,14 @@ export function OrderDetail({ order }: OrderDetailProps) {
 
         <div className="pt-2.5">
           <h2 className="text-foreground mb-0.5 text-base font-bold">{currentOrder.guestName}</h2>
+          {currentOrder.submittedName && currentOrder.submittedName !== currentOrder.guestName && (
+            <div
+              data-testid="order-submitted-name-badge"
+              className="bg-warning-soft text-warning-soft-foreground border-warning/30 mb-1.5 inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium"
+            >
+              Ordered as {currentOrder.submittedName}, linked to {currentOrder.guestName}
+            </div>
+          )}
           <p className="text-muted-foreground mb-3 text-xs font-medium tabular-nums">
             {currentOrder.guestPhone ?? "No phone recorded"}
           </p>

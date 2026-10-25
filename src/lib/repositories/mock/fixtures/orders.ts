@@ -34,7 +34,7 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
   const hour = 8 + (orderNumber % 10);
   const minute = (orderNumber * 15) % 60;
 
-  const guest = demoGuests[idx % demoGuests.length];
+  const guest = idx === 35 ? demoGuests[0] : demoGuests[idx % demoGuests.length];
   const status: OrderStatus =
     idx < 30 ? (idx % 7 === 4 ? "CANCELLED" : "COMPLETED") : STATUSES[idx % STATUSES.length];
   const isCompleted = status === "COMPLETED";
@@ -54,7 +54,8 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
         : "paid";
 
   const serviceType = SERVICES[idx % SERVICES.length];
-  const channel = CHANNELS[idx % CHANNELS.length];
+  const channel: Channel = idx === 35 ? "storefront" : CHANNELS[idx % CHANNELS.length];
+  const submittedName = idx === 35 ? "Marc" : null;
   const paymentPreference = PREFERENCES[idx % PREFERENCES.length];
   const paymentMethod =
     paid === "paid" || paid === "refunded"
@@ -177,6 +178,7 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     businessId: DEMO_BUSINESS_ID,
     orderNumber,
     guestId: guest.id,
+    submittedName,
     serviceType,
     channel,
     status,

@@ -204,7 +204,9 @@ export function OrderList({
         const q = searchQuery.trim().toLowerCase();
         const numStr = order.orderNumber ? String(order.orderNumber) : "";
         const matchesRef = numStr === q || `#${numStr}` === q || numStr.includes(q);
-        const matchesName = order.guestName.toLowerCase().includes(q);
+        const matchesName =
+          order.guestName.toLowerCase().includes(q) ||
+          Boolean(order.submittedName && order.submittedName.toLowerCase().includes(q));
         const matchesPhone = order.guestPhone ? order.guestPhone.toLowerCase().includes(q) : false;
         const matchesToken = order.trackingToken
           ? order.trackingToken.toLowerCase().includes(q)
@@ -519,6 +521,14 @@ export function OrderList({
                         </>
                       )}
                     </div>
+                    {order.submittedName && order.submittedName !== order.guestName && (
+                      <div
+                        data-testid="order-submitted-name-badge"
+                        className="bg-warning-soft text-warning-soft-foreground border-warning/30 mt-1 inline-flex w-fit items-center rounded border px-1.5 py-0.5 text-[11px] font-medium"
+                      >
+                        Ordered as {order.submittedName}, linked to {order.guestName}
+                      </div>
+                    )}
                     <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
                       {order.serviceType === "delivery" ? (
                         <>

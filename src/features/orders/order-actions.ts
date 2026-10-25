@@ -128,8 +128,9 @@ export async function listOrdersAction(
         if (numStr === query || `#${numStr}` === query) return true;
         if (numStr.includes(query)) return true;
 
-        // Guest name
+        // Guest name or submittedName mismatch
         if (o.guestName.toLowerCase().includes(query)) return true;
+        if (o.submittedName && o.submittedName.toLowerCase().includes(query)) return true;
 
         // Guest phone
         if (o.guestPhone && o.guestPhone.toLowerCase().includes(query)) return true;

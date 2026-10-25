@@ -5,9 +5,9 @@ export const demoGuests: Guest[] = [
   {
     id: "44444444-4444-4444-8444-444444444401",
     businessId: DEMO_BUSINESS_ID,
-    name: "Camille Dupont",
+    name: "Jean Dupont",
     phone: "+33612345671",
-    email: "camille.dupont@example.com",
+    email: "jean.dupont@example.com",
     address: "12 Rue de Paris, 75001 Paris",
     notes: "Prefers morning deliveries before 9am",
     createdAt: "2026-08-05T08:30:00.000Z",

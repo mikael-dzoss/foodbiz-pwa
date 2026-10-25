@@ -310,4 +310,22 @@ describe("OrderList Component", () => {
     const acceptBtn = screen.getByTestId("quick-progress-ord-1");
     expect(acceptBtn.textContent).toContain("Accept");
   });
+
+  it("displays submittedName mismatch badge and matches search on submittedName", () => {
+    const dataWithMismatch: ListOrdersResult = {
+      ...mockInitialData,
+      orders: [
+        { ...mockInitialData.orders[0], submittedName: "Marc" },
+        ...mockInitialData.orders.slice(1),
+      ],
+    };
+    render(<OrderList initialData={dataWithMismatch} />);
+    expect(screen.getByTestId("order-submitted-name-badge").textContent).toContain(
+      "Ordered as Marc, linked to Jean Dupont",
+    );
+
+    const searchInput = screen.getByTestId("order-search-input");
+    fireEvent.change(searchInput, { target: { value: "Marc" } });
+    expect(screen.getByTestId("order-card-ord-1")).toBeDefined();
+  });
 });
