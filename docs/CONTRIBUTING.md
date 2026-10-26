@@ -61,6 +61,10 @@ Install Chromium once with `npx playwright install --with-deps chromium`, then r
 Playwright starts its own mock-mode development server at `http://127.0.0.1:3100`;
 stop other Next.js dev servers in this checkout first. It never reuses an existing
 server, calls Supabase, or enables mock authentication in production.
+In mock mode, the request proxy skips Supabase session refresh, so these browser
+tests do not require public Supabase environment variables or a local `.env` file.
+Supabase mode still validates its public configuration; mock mode remains forbidden
+in production.
 
 The suite uses one worker and no retries because the mock repositories are
 process-local and shared between browser contexts. Each run starts with fresh
