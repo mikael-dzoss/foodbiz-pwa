@@ -3,6 +3,7 @@ export * from "./business";
 export * from "./category";
 export * from "./common";
 export * from "./checkout";
+export * from "./customers";
 export * from "./dashboard";
 export * from "./expense";
 export * from "./guest";
