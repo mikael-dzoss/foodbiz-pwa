@@ -154,11 +154,33 @@ jobs:
           DATA_SOURCE: supabase
         run: npm run build
 
+  e2e:
+    name: Quality Gate - Playwright & Accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
   # ── Quality Gate: Consolidated Summary Gate ─────────────────
   summary:
     name: Quality Gate - Summary
     runs-on: ubuntu-latest
-    needs: [format, lint, typecheck, test, tooling, build]
+    needs: [format, lint, typecheck, test, tooling, build, e2e]
     if: always()
     steps:
       - uses: actions/checkout@v7
@@ -186,6 +208,7 @@ jobs:
           TEST_STATUS: ${{ needs.test.result }}
           TOOLING_STATUS: ${{ needs.tooling.result }}
           BUILD_STATUS: ${{ needs.build.result }}
+          E2E_STATUS: ${{ needs.e2e.result }}
         run: |
           node .github/.scripts/generate-ci-comments.js --save-report /tmp/ci-report
           node .github/.scripts/generate-ci-comments.js || true
@@ -207,7 +230,8 @@ jobs:
              [ "${{ needs.typecheck.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.tooling.result }}" != "success" ] || \
-             [ "${{ needs.build.result }}" != "success" ]; then
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "::error::One or more CI quality checks failed."
             exit 1
           fi

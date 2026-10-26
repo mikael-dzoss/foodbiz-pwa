@@ -206,7 +206,7 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
       </section>
 
       {/* TODO(catalog): Dynamic product ingredients & sourcing provenance (#81) */}
-      <section className="border-border/70 bg-card/75 space-y-3 rounded-2xl border p-4 opacity-75">
+      <section className="border-border/70 bg-card/75 space-y-3 rounded-2xl border p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-foreground font-headline text-sm font-bold">
             {dict.ingredientsAndSourcing}
@@ -234,7 +234,7 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
       </section>
 
       {/* TODO(catalog): Dynamic allergen labeling & compliance schema (#81) */}
-      <section className="border-border/70 bg-card/75 space-y-2.5 rounded-2xl border p-4 opacity-75">
+      <section className="border-border/70 bg-card/75 space-y-2.5 rounded-2xl border p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />

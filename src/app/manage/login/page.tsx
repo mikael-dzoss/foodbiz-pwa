@@ -65,7 +65,7 @@ export default function ManagerLoginPage() {
             <button
               type="button"
               disabled
-              aria-label="Continue with Google (coming soon)"
+              aria-label="Continue with Google Soon (coming soon)"
               className="bg-card text-foreground border-border hover:bg-muted active:bg-muted/80 focus-visible:ring-ring flex h-12 w-full cursor-not-allowed items-center justify-center gap-3 rounded-lg border text-sm font-medium opacity-75 transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -86,8 +86,7 @@ export default function ManagerLoginPage() {
                   fill="#EA4335"
                 />
               </svg>
-              <span>Continue with Google</span>
-              <SoonBadge />
+              <span>Continue with Google</span> <SoonBadge />
             </button>
 
             {/* Divider with Text */}

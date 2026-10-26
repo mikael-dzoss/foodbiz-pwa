@@ -51,7 +51,36 @@ npm run typecheck      # next typegen && tsc --noEmit
 npm run test:coverage  # tests + coverage floors + ratchet
 npm run test:tooling   # tooling tests (Vitest + Python)
 npm run build
+npm run test:e2e       # mock-mode Chromium journeys + light/dark WCAG AA checks
 ```
+
+### Browser and accessibility checks
+
+Install Chromium once with `npx playwright install --with-deps chromium`, then run
+`npm run test:e2e` (or `npm run test:e2e:ui` for interactive debugging).
+Playwright starts its own mock-mode development server at `http://127.0.0.1:3100`;
+stop other Next.js dev servers in this checkout first. It never reuses an existing
+server, calls Supabase, or enables mock authentication in production.
+
+The suite uses one worker and no retries because the mock repositories are
+process-local and shared between browser contexts. Each run starts with fresh
+fixtures; mutations use unique names or separate guests and do not rely on test
+order. Manager tests sign in through the demo UI. Checkout uses separate customer
+and manager contexts and reloads tracking after acceptance (live polling is not
+part of this gate).
+
+Browser axe checks cover storefront catalog, product detail, populated cart and
+checkout, tracking (EN/FR), manager sign-in, dashboard, products/product sheet,
+orders/manual entry/order detail, and expenses/expense sheet in light and dark.
+WCAG 2/2.1/2.2 A/AA violations, including color contrast, fail CI. Component axe
+tests run in the regular Vitest gate; JSDOM cannot calculate contrast, so only
+that rule is disabled there, not in browser tests. Automated checks supplement,
+but do not replace, keyboard and screen-reader testing.
+
+The consolidated CI summary requires the browser job to succeed. Download
+`playwright-results` for the HTML report, light/dark screenshots, and failure
+traces (retained seven days). Locally use `npx playwright show-report` or
+`npx playwright show-trace test-results/<test>/trace.zip`.
 
 Coverage policy:
 

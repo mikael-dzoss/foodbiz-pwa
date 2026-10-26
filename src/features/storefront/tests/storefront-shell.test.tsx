@@ -46,9 +46,9 @@ describe("Storefront Shell (#30)", () => {
     expect(screen.getByText("Catalog Content")).toBeDefined();
     expect(screen.getByRole("banner")).toBeDefined();
     expect(
-      screen.getByRole("link", { name: enDictionary.storefront.switchLanguage }),
+      screen.getByRole("link", { name: `FR - ${enDictionary.storefront.switchLanguage}` }),
     ).toBeDefined();
-    expect(screen.getByRole("link", { name: /Cart \(0 items\)/i })).toBeDefined();
+    expect(screen.getByRole("link", { name: /Cart - 0 items/i })).toBeDefined();
   });
 
   it("displays badge with item count when cartCount > 0", () => {
@@ -58,7 +58,7 @@ describe("Storefront Shell (#30)", () => {
       </StorefrontShell>,
     );
 
-    expect(screen.getByRole("link", { name: /Cart \(3 items\)/i })).toBeDefined();
+    expect(screen.getByRole("link", { name: /Cart - 3 items/i })).toBeDefined();
     expect(screen.getByText("3")).toBeDefined();
   });
 

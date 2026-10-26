@@ -21,6 +21,7 @@ const TEST_STATUS = process.env.TEST_STATUS || "skipped";
 const TOOLING_STATUS = process.env.TOOLING_STATUS || "skipped";
 const AUDIT_STATUS = process.env.AUDIT_STATUS || "skipped";
 const BUILD_STATUS = process.env.BUILD_STATUS || "skipped";
+const E2E_STATUS = process.env.E2E_STATUS || "skipped";
 const PR_TITLE = process.env.PR_TITLE || "";
 
 const MARKER = "<!-- CI-BOT-GATE-SUMMARY -->";
@@ -137,6 +138,7 @@ function buildCommentBody(options = {}) {
   const toolingStatus = options.toolingStatus || TOOLING_STATUS;
   const auditStatus = options.auditStatus || AUDIT_STATUS;
   const buildStatus = options.buildStatus || BUILD_STATUS;
+  const e2eStatus = options.e2eStatus || E2E_STATUS;
   const prTitle = options.prTitle || PR_TITLE;
 
   const isSuccess =
@@ -147,7 +149,8 @@ function buildCommentBody(options = {}) {
     (testStatus === "success" || testStatus === "skipped") &&
     (toolingStatus === "success" || toolingStatus === "skipped") &&
     (auditStatus === "success" || auditStatus === "skipped") &&
-    (buildStatus === "success" || buildStatus === "skipped");
+    (buildStatus === "success" || buildStatus === "skipped") &&
+    (e2eStatus === "success" || e2eStatus === "skipped");
 
   const coverage =
     options.coverage !== undefined ? options.coverage : parseJson("coverage/coverage-summary.json");
@@ -160,7 +163,7 @@ function buildCommentBody(options = {}) {
   let body = `${MARKER}\n## 🤖 CI Quality Gate Report\n\n`;
 
   if (isSuccess) {
-    body += `> [!NOTE]\n> **All Quality Checks Passed!** Code formatting, linting, typecheck, tests, security audit, and Next.js build are satisfied.\n\n`;
+    body += `> [!NOTE]\n> **All Quality Checks Passed!** Code formatting, linting, typecheck, tests, browser/accessibility checks, security audit, and Next.js build are satisfied.\n\n`;
     body += buildCoverageTable(coverage, toolingCoverage);
     return body;
   }
@@ -255,6 +258,12 @@ function buildCommentBody(options = {}) {
     body += `> [!WARNING]\n`;
     body += `> **Tooling Tests Failed**\n>\n`;
     body += `> Run \`npm run test:tooling\` locally to debug failing tooling tests.\n\n`;
+  }
+
+  if (e2eStatus !== "success" && e2eStatus !== "skipped") {
+    body += `> [!WARNING]\n`;
+    body += `> **Playwright & Accessibility Checks Did Not Pass**\n>\n`;
+    body += `> Run \`npm run test:e2e\` locally. Download the \`playwright-results\` artifact for traces, screenshots, and the HTML report.\n\n`;
   }
 
   if (auditStatus === "failure") {
