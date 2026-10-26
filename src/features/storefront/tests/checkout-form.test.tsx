@@ -100,7 +100,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("renders checkout form with sections when items are present", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -120,7 +126,13 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -144,7 +156,13 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -159,7 +177,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("shows delivery address field when Local Delivery is selected", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -177,7 +201,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("shows date and time pickers when Schedule for Later is selected", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -195,7 +225,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("gates Place Order button until valid name and phone are entered", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -272,7 +308,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("displays explicit WhatsApp phone label, clean helper text, and no misleading verified badge (#86)", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -291,7 +333,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("renders concealed anti-spam honeypot input with accessibility guards (#90)", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -321,7 +369,13 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -343,6 +397,12 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(callPayload.phone).toBe("+33611223344");
     expect(callPayload.idempotencyKey).toBeDefined();
 
+    // Verify confirmation view is displayed and empty cart notice never flashes
+    expect(screen.getByTestId("checkout-success-view")).toBeDefined();
+    expect(screen.getByText(dict.orderPlacedTitle)).toBeDefined();
+    expect(screen.getAllByText(dict.redirectingToTracking).length).toBeGreaterThan(0);
+    expect(screen.queryByText(dict.emptyCartTitle)).toBeNull();
+
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/en/order/token-secret-42");
     });
@@ -357,7 +417,13 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 

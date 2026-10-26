@@ -17,6 +17,7 @@ import {
   Banknote,
   BadgeCheck,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
@@ -24,6 +25,7 @@ import { formatMoney } from "@/domain/formatting";
 import {
   checkoutFormSchema,
   type CheckoutFormData,
+  type PlaceOrderSuccessData,
   GUEST_CONTACT_STORAGE_KEY,
   guestContactStorageSchema,
   type GuestContactStorage,
@@ -89,6 +91,8 @@ export interface CheckoutFormProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
+  onOrderSuccess?: () => void;
+  redirectDelayMs?: number;
 }
 
 export function CheckoutForm({
@@ -97,6 +101,8 @@ export function CheckoutForm({
   locale,
   dict,
   onSubmitOrder,
+  onOrderSuccess,
+  redirectDelayMs,
 }: CheckoutFormProps) {
   const router = useRouter();
   const {
@@ -108,6 +114,7 @@ export function CheckoutForm({
   } = useCart();
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [honeypot, setHoneypot] = useState("");
+  const [confirmedOrder, setConfirmedOrder] = useState<PlaceOrderSuccessData | null>(null);
 
   // Zero DB Lookup: Synchronize remembered contact from local storage safely without cascading renders
   const storedContact = useSyncExternalStore(
@@ -236,6 +243,7 @@ export function CheckoutForm({
 
       if (onSubmitOrder) {
         await onSubmitOrder(validationResult.data);
+        onOrderSuccess?.();
         setSubmittedSuccess(true);
       } else {
         const orderResult = await placeOrderAction({
@@ -260,12 +268,23 @@ export function CheckoutForm({
           return;
         }
 
-        clearCart();
-        if (orderResult.data.trackingToken) {
-          router.push(`/${locale}/order/${orderResult.data.trackingToken}`);
-        } else {
-          setSubmittedSuccess(true);
-        }
+        // Display brief confirmation screen first, keeping order state visible
+        onOrderSuccess?.();
+        setConfirmedOrder(orderResult.data);
+        setSubmittedSuccess(true);
+        setIsSubmitting(false);
+
+        // Empty cart in the background and redirect to order tracking
+        const delay = redirectDelayMs ?? 1000;
+        const trackingToken = orderResult.data.trackingToken;
+
+        setTimeout(() => {
+          clearCart();
+          if (trackingToken) {
+            router.push(`/${locale}/order/${trackingToken}`);
+          }
+        }, delay);
+
         return;
       }
     } catch (err) {
@@ -277,25 +296,48 @@ export function CheckoutForm({
     }
   };
 
-  // If order is completed or submitted in UI
-  if (submittedSuccess) {
+  // Confirmation view displayed upon order submission announcing redirection
+  if (submittedSuccess || confirmedOrder) {
     return (
       <div
         data-testid="checkout-success-view"
-        className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border p-8 text-center shadow-xs"
+        className="border-border bg-card flex min-h-[50vh] flex-col items-center justify-center rounded-2xl border p-8 text-center shadow-xs"
       >
         <div className="bg-primary/10 text-primary mb-4 flex h-16 w-16 items-center justify-center rounded-full">
           <CheckCircle2 className="h-8 w-8" />
         </div>
         <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.orderSummary}
+          {dict.orderPlacedTitle}
         </h2>
-        <p className="text-muted-foreground mt-2 max-w-sm text-sm">{dict.securityNotice}</p>
-        <div className="mt-6">
-          <Button asChild size="lg" className="rounded-xl px-6">
-            <Link href={`/${locale}`}>{dict.returnToCatalog}</Link>
-          </Button>
-        </div>
+        {confirmedOrder?.orderNumber && (
+          <p className="text-primary mt-1 text-sm font-semibold">#{confirmedOrder.orderNumber}</p>
+        )}
+        <p className="text-muted-foreground mt-2 max-w-sm text-sm">
+          {confirmedOrder?.trackingToken ? dict.redirectingToTracking : dict.securityNotice}
+        </p>
+
+        {confirmedOrder?.trackingToken ? (
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+              <Loader2 className="text-primary h-4 w-4 animate-spin" />
+              <span>{dict.redirectingToTracking}</span>
+            </div>
+            <Button asChild variant="outline" size="sm" className="mt-2 rounded-xl text-xs">
+              <Link
+                href={`/${locale}/order/${confirmedOrder.trackingToken}`}
+                onClick={() => clearCart()}
+              >
+                {dict.trackOrder} &rarr;
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-6">
+            <Button asChild size="lg" className="rounded-xl px-6">
+              <Link href={`/${locale}`}>{dict.returnToCatalog}</Link>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

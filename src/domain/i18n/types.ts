@@ -172,6 +172,9 @@ export interface StorefrontDictionary {
   securityNotice: string;
   orderPolicyNotice: string;
   pickupPolicyNotice: string;
+  orderPlacedTitle: string;
+  redirectingToTracking: string;
+  trackOrder: string;
   nameRequiredError: string;
   phoneRequiredError: string;
   addressRequiredError: string;
