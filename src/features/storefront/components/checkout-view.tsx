@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ShoppingBag, User } from "lucide-react";
 import type { Business, BusinessSettings } from "@/domain/business";
@@ -15,6 +16,7 @@ export interface CheckoutViewProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
+  redirectDelayMs?: number;
 }
 
 export function CheckoutView({
@@ -23,11 +25,13 @@ export function CheckoutView({
   locale,
   dict,
   onSubmitOrder,
+  redirectDelayMs,
 }: CheckoutViewProps) {
   const { items } = useCart();
+  const [isOrderSubmitted, setIsOrderSubmitted] = useState(false);
 
-  // If cart is completely empty, encourage customer to return to catalog
-  if (items.length === 0) {
+  // If cart is completely empty and an order has not just been submitted, encourage customer to return to catalog
+  if (items.length === 0 && !isOrderSubmitted) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="bg-muted text-muted-foreground mb-4 flex h-20 w-20 items-center justify-center rounded-full">
@@ -79,6 +83,8 @@ export function CheckoutView({
         locale={locale}
         dict={dict}
         onSubmitOrder={onSubmitOrder}
+        onOrderSuccess={() => setIsOrderSubmitted(true)}
+        redirectDelayMs={redirectDelayMs}
       />
     </div>
   );

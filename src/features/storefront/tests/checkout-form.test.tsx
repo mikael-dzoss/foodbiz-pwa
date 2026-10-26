@@ -7,6 +7,12 @@ import { resetGuestContactCache } from "../components/checkout-form";
 import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
 import type { Business, BusinessSettings } from "@/domain/business";
 
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush, refresh: vi.fn() }),
+  usePathname: () => "/en/checkout",
+}));
+
 const dict = getDictionary("en").storefront;
 
 const mockBusiness: Business = {
@@ -94,7 +100,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("renders checkout form with sections when items are present", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -114,7 +126,13 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -138,7 +156,13 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -153,7 +177,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("shows delivery address field when Local Delivery is selected", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -171,7 +201,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("shows date and time pickers when Schedule for Later is selected", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -189,7 +225,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("gates Place Order button until valid name and phone are entered", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -266,7 +308,13 @@ describe("CheckoutView & CheckoutForm", () => {
   it("displays explicit WhatsApp phone label, clean helper text, and no misleading verified badge (#86)", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
       </CartProvider>,
     );
 
@@ -280,5 +328,120 @@ describe("CheckoutView & CheckoutForm", () => {
     // Static "Verified SMS" badge is completely removed
     expect(screen.queryByText(/SMS validé/i)).toBeNull();
     expect(screen.queryByText(/Verified SMS/i)).toBeNull();
+  });
+
+  it("renders concealed anti-spam honeypot input with accessibility guards (#90)", () => {
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
+      </CartProvider>,
+    );
+
+    const honeypot = screen.getByTestId("checkout-honeypot-input") as HTMLInputElement;
+    expect(honeypot).toBeDefined();
+    expect(honeypot.getAttribute("tabIndex")).toBe("-1");
+    expect(honeypot.getAttribute("autoComplete")).toBe("off");
+    expect(honeypot.value).toBe("");
+  });
+
+  it("calls placeOrderAction and redirects to tracking page on default submission (#87)", async () => {
+    // Mock placeOrderAction resolving with success
+    const mockOrderData = {
+      orderId: "order-999",
+      orderNumber: 42,
+      trackingToken: "token-secret-42",
+      status: "NEW" as const,
+      totalAmount: 690,
+    };
+
+    const actionSpy = vi
+      .spyOn(await import("../storefront-actions"), "placeOrderAction")
+      .mockResolvedValue({
+        success: true,
+        data: mockOrderData,
+      });
+
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
+      </CartProvider>,
+    );
+
+    const nameInput = screen.getByTestId("checkout-name-input");
+    fireEvent.change(nameInput, { target: { value: "Valérie Trierweiler" } });
+
+    const phoneInput = screen.getByTestId("checkout-phone-input");
+    fireEvent.change(phoneInput, { target: { value: "+33611223344" } });
+
+    const form = screen.getByTestId("checkout-form");
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(actionSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const callPayload = actionSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(callPayload.name).toBe("Valérie Trierweiler");
+    expect(callPayload.phone).toBe("+33611223344");
+    expect(callPayload.idempotencyKey).toBeDefined();
+
+    // Verify confirmation view is displayed and empty cart notice never flashes
+    expect(screen.getByTestId("checkout-success-view")).toBeDefined();
+    expect(screen.getByText(dict.orderPlacedTitle)).toBeDefined();
+    expect(screen.getAllByText(dict.redirectingToTracking).length).toBeGreaterThan(0);
+    expect(screen.queryByText(dict.emptyCartTitle)).toBeNull();
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/en/order/token-secret-42");
+    });
+  });
+
+  it("displays server error feedback when placeOrderAction rejects (#87, #90)", async () => {
+    vi.spyOn(await import("../storefront-actions"), "placeOrderAction").mockResolvedValue({
+      success: false,
+      error: "Too many order attempts. Please wait a few minutes before trying again.",
+      code: "ANTI_ABUSE_REJECTION",
+    });
+
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
+      </CartProvider>,
+    );
+
+    const nameInput = screen.getByTestId("checkout-name-input");
+    fireEvent.change(nameInput, { target: { value: "Valérie Trierweiler" } });
+
+    const phoneInput = screen.getByTestId("checkout-phone-input");
+    fireEvent.change(phoneInput, { target: { value: "+33611223344" } });
+
+    const form = screen.getByTestId("checkout-form");
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("checkout-error-feedback")).toBeDefined();
+    });
+
+    expect(
+      screen.getByText("Too many order attempts. Please wait a few minutes before trying again."),
+    ).toBeDefined();
   });
 });

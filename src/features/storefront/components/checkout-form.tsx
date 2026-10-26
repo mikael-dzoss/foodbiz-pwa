@@ -2,6 +2,7 @@
 
 import { useState, useId, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Lock,
   Pencil,
@@ -16,6 +17,7 @@ import {
   Banknote,
   BadgeCheck,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
@@ -23,6 +25,7 @@ import { formatMoney } from "@/domain/formatting";
 import {
   checkoutFormSchema,
   type CheckoutFormData,
+  type PlaceOrderSuccessData,
   GUEST_CONTACT_STORAGE_KEY,
   guestContactStorageSchema,
   type GuestContactStorage,
@@ -32,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCart } from "../context/cart-context";
+import { placeOrderAction } from "../storefront-actions";
 
 const guestContactListeners = new Set<() => void>();
 let cachedRawGuestContact: string | null = "__UNSET__";
@@ -87,6 +91,8 @@ export interface CheckoutFormProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
+  onOrderSuccess?: () => void;
+  redirectDelayMs?: number;
 }
 
 export function CheckoutForm({
@@ -95,8 +101,20 @@ export function CheckoutForm({
   locale,
   dict,
   onSubmitOrder,
+  onOrderSuccess,
+  redirectDelayMs,
 }: CheckoutFormProps) {
-  const { items, totalAmountInCents, notes: cartNotes, setNotes: setCartNotes } = useCart();
+  const router = useRouter();
+  const {
+    items,
+    totalAmountInCents,
+    notes: cartNotes,
+    setNotes: setCartNotes,
+    clearCart,
+  } = useCart();
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [honeypot, setHoneypot] = useState("");
+  const [confirmedOrder, setConfirmedOrder] = useState<PlaceOrderSuccessData | null>(null);
 
   // Zero DB Lookup: Synchronize remembered contact from local storage safely without cascading renders
   const storedContact = useSyncExternalStore(
@@ -225,8 +243,50 @@ export function CheckoutForm({
 
       if (onSubmitOrder) {
         await onSubmitOrder(validationResult.data);
+        onOrderSuccess?.();
+        setSubmittedSuccess(true);
+      } else {
+        const orderResult = await placeOrderAction({
+          businessId: business.id,
+          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          name: validationResult.data.name,
+          phone: validationResult.data.phone,
+          serviceType: validationResult.data.serviceType,
+          deliveryAddress: validationResult.data.deliveryAddress,
+          isAsap: validationResult.data.isAsap,
+          requestedDate: validationResult.data.requestedDate,
+          requestedTime: validationResult.data.requestedTime,
+          paymentPreference: validationResult.data.paymentPreference,
+          notes: validationResult.data.notes,
+          idempotencyKey,
+          honeypot,
+        });
+
+        if (!orderResult.success) {
+          setErrorFeedback(orderResult.error);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Display brief confirmation screen first, keeping order state visible
+        onOrderSuccess?.();
+        setConfirmedOrder(orderResult.data);
+        setSubmittedSuccess(true);
+        setIsSubmitting(false);
+
+        // Empty cart in the background and redirect to order tracking
+        const delay = redirectDelayMs ?? 1000;
+        const trackingToken = orderResult.data.trackingToken;
+
+        setTimeout(() => {
+          clearCart();
+          if (trackingToken) {
+            router.push(`/${locale}/order/${trackingToken}`);
+          }
+        }, delay);
+
+        return;
       }
-      setSubmittedSuccess(true);
     } catch (err) {
       setErrorFeedback(
         err instanceof Error ? err.message : "Failed to place order. Please try again.",
@@ -236,25 +296,48 @@ export function CheckoutForm({
     }
   };
 
-  // If order is completed or submitted in UI
-  if (submittedSuccess) {
+  // Confirmation view displayed upon order submission announcing redirection
+  if (submittedSuccess || confirmedOrder) {
     return (
       <div
         data-testid="checkout-success-view"
-        className="border-border bg-card flex flex-col items-center justify-center rounded-2xl border p-8 text-center shadow-xs"
+        className="border-border bg-card flex min-h-[50vh] flex-col items-center justify-center rounded-2xl border p-8 text-center shadow-xs"
       >
         <div className="bg-primary/10 text-primary mb-4 flex h-16 w-16 items-center justify-center rounded-full">
           <CheckCircle2 className="h-8 w-8" />
         </div>
         <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.orderSummary}
+          {dict.orderPlacedTitle}
         </h2>
-        <p className="text-muted-foreground mt-2 max-w-sm text-sm">{dict.securityNotice}</p>
-        <div className="mt-6">
-          <Button asChild size="lg" className="rounded-xl px-6">
-            <Link href={`/${locale}`}>{dict.returnToCatalog}</Link>
-          </Button>
-        </div>
+        {confirmedOrder?.orderNumber && (
+          <p className="text-primary mt-1 text-sm font-semibold">#{confirmedOrder.orderNumber}</p>
+        )}
+        <p className="text-muted-foreground mt-2 max-w-sm text-sm">
+          {confirmedOrder?.trackingToken ? dict.redirectingToTracking : dict.securityNotice}
+        </p>
+
+        {confirmedOrder?.trackingToken ? (
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+              <Loader2 className="text-primary h-4 w-4 animate-spin" />
+              <span>{dict.redirectingToTracking}</span>
+            </div>
+            <Button asChild variant="outline" size="sm" className="mt-2 rounded-xl text-xs">
+              <Link
+                href={`/${locale}/order/${confirmedOrder.trackingToken}`}
+                onClick={() => clearCart()}
+              >
+                {dict.trackOrder} &rarr;
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-6">
+            <Button asChild size="lg" className="rounded-xl px-6">
+              <Link href={`/${locale}`}>{dict.returnToCatalog}</Link>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -266,6 +349,25 @@ export function CheckoutForm({
       data-testid="checkout-form"
       noValidate
     >
+      {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
+      <div
+        className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        <label htmlFor="checkout-honeypot">Leave this field blank</label>
+        <input
+          id="checkout-honeypot"
+          type="text"
+          name="hp_field"
+          autoComplete="off"
+          tabIndex={-1}
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          data-testid="checkout-honeypot-input"
+        />
+      </div>
+
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">

@@ -126,6 +126,21 @@ Implemented:
 
 **Planned** (not implemented): service worker (`sw.js` is already excluded from the proxy matcher), offline caching of the manager dashboard, PNG/maskable icons. The legacy app was fully local-first/offline; offline behaviour for the PWA is not yet designed, and the storefront needs connectivity.
 
+## Checkout anti-abuse and idempotency
+
+`placeOrderAction` ([`storefront-actions.ts`](../src/features/storefront/storefront-actions.ts)) rejects bots (honeypot), caps quantities (50 per product, 100 per order, after merging duplicate lines), rate-limits per client IP (5 / 10 min) and per normalized phone (3 / 10 min), and replays the stored result for a repeated `idempotencyKey`. Replays are served before rate limiting. Requests without a client IP skip only the IP limit, so unknown clients never share one bucket. Rejections are logged with salted-HMAC hashes of IP/phone only ([`anti-abuse-log.ts`](../src/lib/anti-abuse-log.ts)).
+
+### Known limitations (mock data stage)
+
+| Area                 | Today                                                                                                                        | Impact in production (serverless, several instances)                                                               | Target                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Rate limiter         | In-memory fixed window ([`rate-limiter.ts`](../src/lib/rate-limiter.ts)), per server instance                                | Counters are not shared and reset on cold start, so the effective limits are higher and an attacker can evade them | Database-backed limiter keyed by IP/phone (planned E18)                                          |
+| Idempotency store    | In-memory cache and in-flight map ([`idempotency.ts`](../src/lib/idempotency.ts)), 1 h TTL, per instance                     | A retry that hits another instance, or arrives after a restart, is not recognized and can create a duplicate order | Unique `(business_id, idempotency_key)` constraint on `orders`, returning the existing order     |
+| Stock reservation    | Read, check, then write per product through the repository; released on later failure. Not atomic across concurrent requests | Two simultaneous orders for the last units can both succeed (lost update)                                          | Single conditional decrement (`stock >= qty`) in one SQL statement or RPC inside one transaction |
+| Log hash correlation | Random per-process salt, so hashes do not match across instances or restarts                                                 | Cannot correlate one abuser across instances in logs; hashes cannot be reversed                                    | Keep as is, or add a managed secret salt if cross-instance correlation becomes necessary         |
+
+Replace these in the same change that introduces the Supabase repositories for orders and products; none of them should ship to production traffic on the in-memory implementations.
+
 ## Environments
 
 | Environment    | Source                       | Notes                                                                     |
