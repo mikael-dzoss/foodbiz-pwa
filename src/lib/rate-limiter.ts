@@ -11,7 +11,9 @@ interface RateLimitEntry {
 
 /**
  * In-memory fixed-window rate limiter with automatic expired entry eviction.
- * Used on mock data sources; DB-backed limiter will be introduced in E18.
+ * Per server instance only: counters are neither shared across serverless instances nor
+ * persisted across restarts. Acceptable on mock data sources; a DB-backed limiter is planned (E18).
+ * See docs/architecture.md#known-limitations-mock-data-stage.
  */
 export class RateLimiter {
   private readonly store = new Map<string, RateLimitEntry>();

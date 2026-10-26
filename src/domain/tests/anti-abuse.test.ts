@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   MAX_QUANTITY_PER_LINE,
   MAX_QUANTITY_PER_ORDER,
@@ -7,9 +7,6 @@ import {
   RATE_LIMIT_WINDOW_MS,
   validateHoneypot,
   validateOrderQuantities,
-  hashIdentifier,
-  logAntiAbuseRejection,
-  type AntiAbuseRejectionEvent,
 } from "../anti-abuse";
 import { RateLimiter } from "@/lib/rate-limiter";
 
@@ -74,46 +71,6 @@ describe("Anti-Abuse Domain Logic", () => {
         expect(result.code).toBe("MAX_ORDER_QUANTITY_EXCEEDED");
         expect(result.message).toContain(String(MAX_QUANTITY_PER_ORDER));
       }
-    });
-  });
-
-  describe("hashIdentifier", () => {
-    it("returns consistent, non-empty truncated hash", () => {
-      const h1 = hashIdentifier("+33612345678");
-      const h2 = hashIdentifier("+33612345678");
-      const h3 = hashIdentifier("+33612345679");
-
-      expect(h1).toBe(h2);
-      expect(h1).not.toBe(h3);
-      expect(h1.length).toBeGreaterThan(4);
-      expect(h1).not.toContain("+33612345678");
-    });
-  });
-
-  describe("logAntiAbuseRejection", () => {
-    beforeEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it("logs rejection without any unmasked personal data", () => {
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-      const event: AntiAbuseRejectionEvent = {
-        reason: "honeypot",
-        ip: "192.168.1.50",
-        phone: "+33612345678",
-      };
-
-      logAntiAbuseRejection(event);
-
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      const [msg, payload] = warnSpy.mock.calls[0];
-      expect(msg).toContain("[anti-abuse]");
-      expect(JSON.stringify(payload)).not.toContain("192.168.1.50");
-      expect(JSON.stringify(payload)).not.toContain("+33612345678");
-      expect(payload).toHaveProperty("reason", "honeypot");
-      expect(payload).toHaveProperty("ipHash");
-      expect(payload).toHaveProperty("phoneHash");
     });
   });
 });

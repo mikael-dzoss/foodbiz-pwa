@@ -125,6 +125,20 @@ export const placeOrderInputSchema = z
 
 export type PlaceOrderInput = z.infer<typeof placeOrderInputSchema>;
 
+/**
+ * Merges lines sharing a productId (summing quantities, keeping first-seen order) so stock
+ * validation, reservation and quantity caps operate on one line per product.
+ */
+export function mergeDuplicateItems(
+  items: ReadonlyArray<PlaceOrderItemInput>,
+): PlaceOrderItemInput[] {
+  const totals = new Map<string, number>();
+  for (const { productId, quantity } of items) {
+    totals.set(productId, (totals.get(productId) ?? 0) + quantity);
+  }
+  return Array.from(totals, ([productId, quantity]) => ({ productId, quantity }));
+}
+
 export interface PlaceOrderSuccessData {
   readonly orderId: string;
   readonly orderNumber?: number;
@@ -144,7 +158,8 @@ export type PlaceOrderResult =
         | "STORE_CLOSED"
         | "SERVICE_TYPE_DISABLED"
         | "MINIMUM_ORDER_UNMET"
-        | "STOCK_ERROR";
+        | "STOCK_ERROR"
+        | "INTERNAL_ERROR";
       readonly fieldErrors?: Record<string, string[]>;
       readonly lineErrors?: Record<string, string>;
     };

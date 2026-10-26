@@ -13,7 +13,7 @@ vi.mock("next/cache", () => ({
   revalidateTag: (...args: unknown[]) => mockRevalidateTag(...args),
 }));
 
-let mockClientIp = "192.168.1.100";
+let mockClientIp: string | null = "192.168.1.100";
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({
     get: (key: string) => {
@@ -353,6 +353,108 @@ describe("placeOrderAction", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.code).toBe("SERVICE_TYPE_DISABLED");
+      }
+    });
+  });
+
+  describe("Stock integrity & retry safety", () => {
+    it("merges duplicate product lines before validating stock", async () => {
+      const repos = getRepositories("mock");
+      const before = (await repos.products.findById(bId, sourdoughId))!.stock;
+
+      const result = await placeOrderAction({
+        ...validOrderPayload,
+        items: [
+          { productId: sourdoughId, quantity: before - 4 },
+          { productId: sourdoughId, quantity: 5 }, // each line fits alone, the sum does not
+        ],
+        idempotencyKey: "idem-duplicate-lines-oversell",
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.code).toBe("STOCK_ERROR");
+        expect(result.lineErrors?.[sourdoughId]).toContain("Insufficient stock");
+      }
+      expect((await repos.products.findById(bId, sourdoughId))?.stock).toBe(before);
+    });
+
+    it("decrements stock once per summed quantity and creates a single order line", async () => {
+      const repos = getRepositories("mock");
+      const before = (await repos.products.findById(bId, sourdoughId))!.stock;
+
+      const result = await placeOrderAction({
+        ...validOrderPayload,
+        items: [
+          { productId: sourdoughId, quantity: 2 },
+          { productId: sourdoughId, quantity: 2 },
+        ],
+        idempotencyKey: "idem-duplicate-lines-ok",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.totalAmount).toBe(4 * 450);
+        const order = await repos.orders.findById(bId, result.data.orderId);
+        expect(order?.items).toHaveLength(1);
+        expect(order?.items[0].quantity).toBe(4);
+      }
+      expect((await repos.products.findById(bId, sourdoughId))?.stock).toBe(before - 4);
+    });
+
+    it("releases reserved stock when order creation fails and allows a clean retry", async () => {
+      const repos = getRepositories("mock");
+      const before = (await repos.products.findById(bId, baguetteId))!.stock;
+      vi.spyOn(repos.orders, "create").mockRejectedValueOnce(new Error("db down"));
+
+      const failed = await placeOrderAction({
+        ...validOrderPayload,
+        idempotencyKey: "idem-create-failure",
+      });
+
+      expect(failed.success).toBe(false);
+      if (!failed.success) {
+        expect(failed.code).toBe("INTERNAL_ERROR");
+        expect(failed.error).not.toContain("db down");
+      }
+      expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before);
+
+      const retry = await placeOrderAction({
+        ...validOrderPayload,
+        idempotencyKey: "idem-create-failure",
+      });
+      expect(retry.success).toBe(true);
+      expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before - 2);
+    });
+
+    it("does not consume rate-limit budget on idempotent replays", async () => {
+      mockClientIp = "198.51.100.7";
+      const first = await placeOrderAction({ ...validOrderPayload, idempotencyKey: "idem-replay" });
+      expect(first.success).toBe(true);
+
+      for (let i = 0; i < 10; i++) {
+        const replay = await placeOrderAction({
+          ...validOrderPayload,
+          idempotencyKey: "idem-replay",
+        });
+        expect(replay).toEqual(first);
+      }
+    });
+
+    it("does not pool requests without a client IP into one shared rate-limit bucket", async () => {
+      mockClientIp = null;
+
+      for (let i = 0; i < 6; i++) {
+        const res = await placeOrderAction({
+          ...validOrderPayload,
+          items: [
+            { productId: baguetteId, quantity: 3 },
+            { productId: sourdoughId, quantity: 3 }, // 390 + 1350 cents (> min order)
+          ],
+          phone: `+3360000010${i}`,
+          idempotencyKey: `idem-no-ip-${i}`,
+        });
+        expect(res.success).toBe(true);
       }
     });
   });

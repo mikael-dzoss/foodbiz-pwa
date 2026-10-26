@@ -3,6 +3,7 @@ import {
   checkoutFormSchema,
   guestContactStorageSchema,
   GUEST_CONTACT_STORAGE_KEY,
+  mergeDuplicateItems,
   placeOrderInputSchema,
 } from "../checkout";
 
@@ -183,5 +184,23 @@ describe("placeOrderInputSchema", () => {
       deliveryAddress: "",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("mergeDuplicateItems", () => {
+  const a = "33333333-3333-4333-8333-333333333301";
+  const b = "33333333-3333-4333-8333-333333333302";
+
+  it("sums quantities per product and keeps first-seen order", () => {
+    const input = [
+      { productId: a, quantity: 2 },
+      { productId: b, quantity: 1 },
+      { productId: a, quantity: 3 },
+    ];
+    expect(mergeDuplicateItems(input)).toEqual([
+      { productId: a, quantity: 5 },
+      { productId: b, quantity: 1 },
+    ]);
+    expect(input).toHaveLength(3);
   });
 });

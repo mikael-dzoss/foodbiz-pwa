@@ -11,6 +11,9 @@ const DEFAULT_TTL_MS = 60 * 60 * 1000; // 1 hour
  * In-memory idempotency cache for order placement.
  * Ensures duplicate form submissions / network retries return the exact same order result
  * without duplicating orders or decrementing product stock twice.
+ * Per server instance only: a retry served by another instance (or after a restart) is not
+ * recognized. Production needs a unique (business_id, idempotency_key) constraint on orders.
+ * See docs/architecture.md#known-limitations-mock-data-stage.
  */
 export class IdempotencyStore {
   private readonly store = new Map<string, IdempotencyEntry>();

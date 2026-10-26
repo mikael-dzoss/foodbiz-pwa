@@ -5,6 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import {
+  mergeDuplicateItems,
   placeOrderInputSchema,
   type PlaceOrderResult,
   type PlaceOrderSuccessData,
@@ -12,14 +13,14 @@ import {
 import {
   validateHoneypot,
   validateOrderQuantities,
-  logAntiAbuseRejection,
   RATE_LIMIT_IP_MAX_REQUESTS,
   RATE_LIMIT_PHONE_MAX_REQUESTS,
   RATE_LIMIT_WINDOW_MS,
 } from "@/domain/anti-abuse";
-import { normalizePhoneNumber, type Product, type OrderItem } from "@/domain";
+import { normalizePhoneNumber, type Order, type Product, type OrderItem } from "@/domain";
 import { validateOrderStock, reserveStock, restoreStock } from "@/domain/stock";
 import { calculateOrderTotals, type PricingLineItem } from "@/domain/pricing";
+import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { getGlobalIdempotencyStore } from "@/lib/idempotency";
 
@@ -32,9 +33,8 @@ import { getGlobalIdempotencyStore } from "@/lib/idempotency";
 export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult> {
   const reqHeaders = await headers();
   const rawForwarded = reqHeaders.get("x-forwarded-for");
-  const clientIp = rawForwarded
-    ? rawForwarded.split(",")[0].trim()
-    : reqHeaders.get("x-real-ip") || "unknown-ip";
+  // No shared fallback bucket: unknown IPs must not be able to lock each other out.
+  const clientIp = (rawForwarded?.split(",")[0] ?? reqHeaders.get("x-real-ip"))?.trim() || null;
 
   // 1. Zod input parsing & preliminary validation
   const parsed = placeOrderInputSchema.safeParse(input);
@@ -55,6 +55,8 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
 
   const data = parsed.data;
   const businessId = data.businessId ?? DEMO_BUSINESS_ID;
+  // One line per product so stock checks, reservations and caps cannot be bypassed by repeating a line.
+  const items = mergeDuplicateItems(data.items);
 
   // 2. Anti-Abuse: Honeypot check
   const honeypotCheck = validateHoneypot(data.honeypot);
@@ -72,7 +74,7 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
   }
 
   // 3. Anti-Abuse: Quantity caps per line (<= 50) and per order (<= 100)
-  const quantityCheck = validateOrderQuantities(data.items);
+  const quantityCheck = validateOrderQuantities(items);
   if (!quantityCheck.ok) {
     logAntiAbuseRejection({
       reason:
@@ -107,14 +109,24 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     };
   }
 
-  // 5. Anti-Abuse: Rate limiting per IP and per Phone
+  // 5. Idempotency replay (before rate limiting so legitimate retries are not penalized)
+  const idempotencyStore = getGlobalIdempotencyStore();
+  const cachedResult = idempotencyStore.get(businessId, data.idempotencyKey);
+  if (cachedResult) {
+    return { success: true, data: cachedResult };
+  }
+
+  const inFlightPromise = idempotencyStore.getInFlight(businessId, data.idempotencyKey);
+  if (inFlightPromise) {
+    return await inFlightPromise;
+  }
+
+  // 6. Anti-Abuse: Rate limiting per IP and per Phone
   const rateLimiter = getGlobalRateLimiter();
-  const ipCheck = rateLimiter.check(
-    `ip:${clientIp}`,
-    RATE_LIMIT_IP_MAX_REQUESTS,
-    RATE_LIMIT_WINDOW_MS,
-  );
-  if (!ipCheck.allowed) {
+  const ipCheck = clientIp
+    ? rateLimiter.check(`ip:${clientIp}`, RATE_LIMIT_IP_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS)
+    : null;
+  if (ipCheck && !ipCheck.allowed) {
     logAntiAbuseRejection({
       reason: "rate_limit_ip",
       ip: clientIp,
@@ -144,18 +156,6 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
         "Too many order attempts for this phone number. Please wait a few minutes before trying again.",
       code: "ANTI_ABUSE_REJECTION",
     };
-  }
-
-  // 6. Idempotency Check & In-flight coordination
-  const idempotencyStore = getGlobalIdempotencyStore();
-  const cachedResult = idempotencyStore.get(businessId, data.idempotencyKey);
-  if (cachedResult) {
-    return { success: true, data: cachedResult };
-  }
-
-  const inFlightPromise = idempotencyStore.getInFlight(businessId, data.idempotencyKey);
-  if (inFlightPromise) {
-    return await inFlightPromise;
   }
 
   // Internal execution wrapped to register in-flight promise
@@ -205,7 +205,7 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     const stockItemsToValidate: Array<{ product: Product; quantity: number }> = [];
     const pricingLineItems: PricingLineItem[] = [];
 
-    for (const item of data.items) {
+    for (const item of items) {
       const product = productMap.get(item.productId);
       if (!product || !product.visible) {
         lineErrors[item.productId] = "This product is unavailable.";
@@ -260,84 +260,101 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
       };
     }
 
-    // 9. Atomic Stock Reservation with Automatic Rollback
-    const successfullyDecremented: Array<{ product: Product; reservedQuantity: number }> = [];
-
-    for (const item of data.items) {
-      const product = productMap.get(item.productId)!;
-      const reservation = reserveStock(product, item.quantity);
-
-      if (!reservation.ok) {
-        // Rollback any previously decremented products in this transaction
-        for (const rollback of successfullyDecremented) {
-          const restored = restoreStock(rollback.product, rollback.reservedQuantity);
-          if (restored.ok) {
-            await repos.products.update(businessId, rollback.product.id, {
-              stock: restored.updatedStock,
-            });
-          }
+    // 9. Stock Reservation: any later failure releases everything reserved so far.
+    const reserved: Array<{ productId: string; quantity: number }> = [];
+    const releaseReserved = async (): Promise<void> => {
+      for (const { productId, quantity } of reserved) {
+        const current = await repos.products.findById(businessId, productId);
+        const restored = current ? restoreStock(current, quantity) : null;
+        if (restored?.ok) {
+          await repos.products.update(businessId, productId, { stock: restored.updatedStock });
         }
-        return {
-          success: false,
-          error: reservation.error.message,
-          code: "STOCK_ERROR",
-          lineErrors: { [product.id]: reservation.error.message },
-        };
+      }
+    };
+
+    let order: Order;
+    try {
+      for (const item of items) {
+        // Re-read right before decrementing to keep the read-modify-write window minimal.
+        const product = await repos.products.findById(businessId, item.productId);
+        const reservation = product ? reserveStock(product, item.quantity) : null;
+
+        if (!product || !reservation?.ok) {
+          await releaseReserved();
+          const message =
+            reservation?.ok === false ? reservation.error.message : "This product is unavailable.";
+          return {
+            success: false,
+            error: message,
+            code: "STOCK_ERROR",
+            lineErrors: { [item.productId]: message },
+          };
+        }
+
+        await repos.products.update(businessId, product.id, {
+          stock: reservation.remainingStock,
+        });
+        reserved.push({ productId: product.id, quantity: item.quantity });
       }
 
-      // Persist stock decrement
-      await repos.products.update(businessId, product.id, {
-        stock: reservation.remainingStock,
+      // 10. Blind Guest Find-or-Create (allowRename: false)
+      // Links guestId without reading back or overwriting stored name; audits differing submitted name.
+      const guestResult = await repos.guests.findOrCreate(businessId, {
+        name: data.name,
+        phone: normalizedPhone,
+        address: data.deliveryAddress ?? null,
+        allowRename: false,
       });
-      successfullyDecremented.push({ product, reservedQuantity: item.quantity });
+
+      // 11. Create Order
+      const now = new Date().toISOString();
+      const todayDate = now.slice(0, 10);
+      const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
+      const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
+
+      const orderItems: OrderItem[] = totalsResult.items.map((it) => ({
+        id: crypto.randomUUID(),
+        productId: it.productId,
+        productName: it.productName,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        totalPrice: it.totalPrice,
+      }));
+
+      order = await repos.orders.create(businessId, {
+        guestId: guestResult.guestId,
+        submittedName: guestResult.nameMismatch ? data.name : null,
+        serviceType: data.serviceType,
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: data.paymentPreference,
+        requestedDate,
+        requestedTime,
+        items: orderItems,
+        totalAmount: totalsResult.total,
+        notes: data.notes ?? null,
+        deliveryAddress: data.deliveryAddress ?? null,
+        statusHistory: [
+          {
+            status: "NEW",
+            timestamp: now,
+            note: "Order placed via online storefront",
+          },
+        ],
+      });
+    } catch {
+      try {
+        await releaseReserved();
+      } catch {
+        console.error("[place-order] failed to release reserved stock");
+      }
+      return {
+        success: false,
+        error: "We could not place your order. Please try again.",
+        code: "INTERNAL_ERROR",
+      };
     }
-
-    // 10. Blind Guest Find-or-Create (allowRename: false)
-    // Links guestId without reading back or overwriting stored name; audits differing submitted name.
-    const guestResult = await repos.guests.findOrCreate(businessId, {
-      name: data.name,
-      phone: normalizedPhone,
-      address: data.deliveryAddress ?? null,
-      allowRename: false,
-    });
-
-    // 11. Create Order
-    const now = new Date().toISOString();
-    const todayDate = now.slice(0, 10);
-    const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
-    const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
-
-    const orderItems: OrderItem[] = totalsResult.items.map((it) => ({
-      id: crypto.randomUUID(),
-      productId: it.productId,
-      productName: it.productName,
-      quantity: it.quantity,
-      unitPrice: it.unitPrice,
-      totalPrice: it.totalPrice,
-    }));
-
-    const order = await repos.orders.create(businessId, {
-      guestId: guestResult.guestId,
-      submittedName: guestResult.nameMismatch ? data.name : null,
-      serviceType: data.serviceType,
-      channel: "storefront",
-      status: "NEW",
-      paid: "unpaid",
-      paymentPreference: data.paymentPreference,
-      requestedDate,
-      requestedTime,
-      items: orderItems,
-      totalAmount: totalsResult.total,
-      notes: data.notes ?? null,
-      deliveryAddress: data.deliveryAddress ?? null,
-      statusHistory: [
-        {
-          status: "NEW",
-          timestamp: now,
-          note: "Order placed via online storefront",
-        },
-      ],
-    });
 
     const successData: PlaceOrderSuccessData = {
       orderId: order.id,
