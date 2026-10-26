@@ -4,6 +4,7 @@ import CustomersPage from "../(authenticated)/customers/page";
 import CustomerDetailPage from "../(authenticated)/customers/[id]/page";
 import CustomerNotFound from "../(authenticated)/customers/not-found";
 import CustomersLoading from "../(authenticated)/customers/loading";
+import CustomerDetailLoading from "../(authenticated)/customers/[id]/loading";
 import CustomersError from "../(authenticated)/customers/error";
 import { summarizeCustomers } from "@/domain";
 import { demoGuests } from "@/lib/repositories/mock/fixtures/guests";
@@ -74,6 +75,8 @@ describe("customer routes", () => {
   it("provides a loading state and retryable, generic load error", () => {
     render(<CustomersLoading />);
     expect(screen.getByTestId("customers-loading").getAttribute("aria-busy")).toBe("true");
+    render(<CustomerDetailLoading />);
+    expect(screen.getByTestId("customer-detail-loading").getAttribute("aria-busy")).toBe("true");
     const retry = vi.fn();
     render(<CustomersError retry={retry} />);
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));

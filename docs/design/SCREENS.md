@@ -118,6 +118,10 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 
 The light canvas references were inspected with `get_screen`; dark styling derives from shared tokens. Browser screenshots and WCAG AA checks cover both routes in EN/FR, light/dark, at 360 px.
 
+The M-70 visual contract is a compact app bar with a live customer count, search and result/sort metadata, and one divided directory surface: identity and order/date metadata on the left, spend and chevron on the right. M-71 uses an initials avatar identity card, separate three-column KPI tiles, an internal profile form with a full-width save action, and history cards with status/payment badges, fulfillment, quantities, audit-name annotations and view affordances. Loading skeletons mirror these compositions. Browser checks cover the compact row geometry at 360 and 390 px as well as functional and accessibility regressions.
+
+Keep the model's visual hierarchy, spacing and surfaces, but omit model-only screen IDs, the unsupported "Regular" classification, POS/invoice claims and the empty-state preview control. Customer totals and history counts are live; notes and spend helper copy describe only implemented behavior. Input outlines retain the design system's accessible control token rather than the model's low-contrast decorative borders.
+
 Customer detail uses the top back link without the manager bottom navigation, consistent with order detail. Any bottom navigation added by a generated detail reference is noise, not a requirement.
 
 ## Gaps

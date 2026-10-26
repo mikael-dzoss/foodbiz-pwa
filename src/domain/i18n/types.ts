@@ -441,6 +441,18 @@ export interface OrderTrackingDictionary {
 export interface CustomersDictionary {
   title: string;
   subtitle: string;
+  listedSingular: string;
+  listedPlural: string;
+  sortedByRecent: string;
+  order: string;
+  last: string;
+  lifetime: string;
+  paidOrders: string;
+  internal: string;
+  newestFirst: string;
+  viewOrder: string;
+  item: string;
+  items: string;
   search: string;
   empty: string;
   noResults: string;

@@ -38,6 +38,14 @@ describe("customer list", () => {
     expect(screen.getByRole("status").textContent).toContain("première commande");
   });
 
+  it("shows live directory counts and the recent-order sort description", () => {
+    render(<CustomerList customers={summaries} locale="en" dict={getDictionary().customers} />);
+    expect(screen.getByText(`${summaries.length} customers listed`)).toBeDefined();
+    expect(screen.getByText("Sorted by recent orders")).toBeDefined();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Jean" } });
+    expect(screen.getByText("1 customer listed")).toBeDefined();
+  });
+
   it("limits long lists and reveals more customers", () => {
     const customers = Array.from({ length: 21 }, (_, i) => ({
       ...summaries[0],
@@ -71,7 +79,9 @@ describe("customer detail", () => {
     expect(screen.getByRole("link", { name: "WhatsApp" }).getAttribute("href")).toBe(
       `https://wa.me/${guest.phone?.slice(1)}`,
     );
-    expect(screen.getByText("Ordered as Alex")).toBeDefined();
+    expect(screen.getByTestId(`customer-order-${orders[0].id}`).textContent).toContain(
+      "Ordered as Alex",
+    );
     expect(screen.queryByText(`Ordered as ${guest.name}`)).toBeNull();
     expect(screen.getByTestId(`customer-order-${orders[0].id}`).getAttribute("href")).toBe(
       `/manage/orders/${orders[0].id}`,
@@ -83,6 +93,23 @@ describe("customer detail", () => {
     expect(screen.queryByRole("link", { name: "Call" })).toBeNull();
     expect(screen.queryByRole("link", { name: "WhatsApp" })).toBeNull();
     expect(screen.getByText("No phone number")).toBeDefined();
+  });
+
+  it("shows history status badges, fulfillment and item quantities", () => {
+    renderDetail();
+    const order = screen.getByTestId(`customer-order-${orders[0].id}`);
+    const dict = getDictionary();
+    expect(order.querySelectorAll("[data-testid^='customer-order-status-']")).toHaveLength(1);
+    expect(order.textContent).toContain(
+      orders[0].serviceType === "pickup"
+        ? dict.storefront.servicePickup
+        : dict.storefront.serviceDelivery,
+    );
+    const itemCount = orders[0].items.reduce((total, item) => total + item.quantity, 0);
+    expect(order.textContent).toContain(
+      `${itemCount} ${itemCount === 1 ? dict.customers.item : dict.customers.items}`,
+    );
+    expect(screen.getByText("Newest first")).toBeDefined();
   });
 
   it("saves name and notes and updates the canonical name in history", async () => {
