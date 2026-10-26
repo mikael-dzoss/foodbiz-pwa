@@ -28,7 +28,8 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
     return pathname.startsWith(route);
   };
 
-  const isHiddenSubroute = pathname.startsWith("/manage/orders/");
+  const isHiddenSubroute =
+    pathname.startsWith("/manage/orders/") || pathname.startsWith("/manage/customers/");
   if (isHiddenSubroute) {
     return null;
   }

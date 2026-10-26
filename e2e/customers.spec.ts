@@ -70,6 +70,16 @@ for (const locale of ["en", "fr"] as const) {
                 path.endsWith("customers") ? "customer-list-screen" : "customer-detail-screen",
               ),
           ).toBeVisible();
+          if (!path.endsWith("customers")) {
+            await expect(
+              page.getByRole("navigation", { name: "Manager mobile navigation" }),
+            ).toHaveCount(0);
+            await expect(
+              page.getByRole("link", {
+                name: locale === "fr" ? "Retour aux clients" : "Back to customers",
+              }),
+            ).toBeVisible();
+          }
           await expect(page.locator("html")).toHaveClass(
             colorScheme === "dark" ? /dark/ : /^(?!.*dark)/,
           );
