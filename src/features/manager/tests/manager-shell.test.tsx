@@ -1,10 +1,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ManagerShell } from "../components/manager-shell";
 import { enDictionary } from "@/domain/i18n";
 
+const { pathname } = vi.hoisted(() => ({ pathname: vi.fn(() => "/manage") }));
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/manage",
+  usePathname: pathname,
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -19,7 +20,35 @@ afterEach(() => {
   cleanup();
 });
 
+beforeEach(() => {
+  pathname.mockReturnValue("/manage");
+});
+
 describe("Manager App Shell & Navigation (#29)", () => {
+  it.each([
+    "/manage/customers/44444444-4444-4444-8444-444444444401",
+    "/manage/orders/66666666-6666-4666-8666-666666666636",
+  ])("omits the mobile bottom navigation on detail route %s", (route) => {
+    pathname.mockReturnValue(route);
+    render(
+      <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>
+        <div>Detail view</div>
+      </ManagerShell>,
+    );
+    expect(screen.queryByRole("navigation", { name: /Manager mobile navigation/i })).toBeNull();
+    expect(screen.getByRole("complementary", { name: /Manager desktop sidebar/i })).toBeDefined();
+  });
+
+  it("keeps the mobile bottom navigation on the customer list", () => {
+    pathname.mockReturnValue("/manage/customers");
+    render(
+      <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>
+        <div>Customer list</div>
+      </ManagerShell>,
+    );
+    expect(screen.getByRole("navigation", { name: /Manager mobile navigation/i })).toBeDefined();
+  });
+
   it("renders both mobile bottom nav and desktop sidebar", () => {
     render(
       <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>

@@ -438,6 +438,54 @@ export interface OrderTrackingDictionary {
   };
 }
 
+export interface CustomersDictionary {
+  title: string;
+  subtitle: string;
+  listedSingular: string;
+  listedPlural: string;
+  sortedByRecent: string;
+  order: string;
+  last: string;
+  lifetime: string;
+  paidOrders: string;
+  internal: string;
+  newestFirst: string;
+  viewOrder: string;
+  item: string;
+  items: string;
+  search: string;
+  empty: string;
+  noResults: string;
+  orders: string;
+  totalSpent: string;
+  spentHint: string;
+  lastOrder: string;
+  neverOrdered: string;
+  back: string;
+  call: string;
+  whatsapp: string;
+  noPhone: string;
+  edit: string;
+  name: string;
+  nameHint: string;
+  notes: string;
+  notesHint: string;
+  save: string;
+  saved: string;
+  invalid: string;
+  notFound: string;
+  saveFailed: string;
+  history: string;
+  noOrders: string;
+  orderedAs: string;
+  showMore: string;
+  paid: string;
+  unpaid: string;
+  refunded: string;
+  loadFailed: string;
+  retry: string;
+}
+
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
@@ -447,4 +495,5 @@ export interface Dictionary {
   quickAdd: QuickAddDictionary;
   settings: SettingsDictionary;
   common: CommonDictionary;
+  customers: CustomersDictionary;
 }

@@ -30,7 +30,7 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 | F7 Catalog             | Products list, product form, categories, stock sheet                                                   | #42–#47                      | brief       | see registry |
 | F8 Expenses            | Expenses list, expense sheet                                                                           | #58, #59                     | brief       | —            |
 | F9 Settings            | Settings hub, account, business, ordering, payment, inventory & finance, notifications/team/app, about | #68–#74                      | brief       | —            |
-| F10 Customers          | Customers list, customer detail                                                                        | #66                          | brief       | —            |
+| F10 Customers          | Customers list, customer detail                                                                        | #66                          | verified    | see registry |
 | F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | designed    | see registry |
 | F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | designed    | see registry |
 | F13 Tracking           | Order tracking                                                                                         | #89                          | designed    | see registry |
@@ -82,33 +82,47 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 
 One active screen per screen and mode. Any other Stitch card is superseded: list it here until the owner deletes it in Stitch. Rules: [`DESIGN_SYSTEM.md` §11](DESIGN_SYSTEM.md#working-with-stitch-agents).
 
-| Screen                   | Light (active)                     | Dark (active)                      | Superseded (to delete) |
-| ------------------------ | ---------------------------------- | ---------------------------------- | ---------------------- |
-| P-01 Patterns reference  | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                      |
-| A-01 Manager sign-in     | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                      |
-| M-10 Dashboard           | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                      |
-| M-20 Orders list         | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                      |
-| M-21 Order detail        | `dd6b7a8e57994a808b4bb091dc366d0e` | `b8414f3cda494766b6b6dfebdb796961` | —                      |
-| M-30 New order           | `a9730928a6cd4a448907b4cd55d3f03d` | `b91d3b2fb2af416aacb2c4cc1a015ffe` | —                      |
-| M-40 Products list       | `b45ce7634bf84c92949a79411887e2bc` | `d85df903d3114fc6b1705a6cd8de2244` | —                      |
-| M-41 Product form        | `096f7f6b9222407caa87e483cc1de8bf` | `0dbc6481c8244d9a88b78fb8ef819124` | —                      |
-| M-42 Categories          | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                      |
-| M-43 Stock adjustment    | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                      |
-| M-50 Expenses list       | `251415a589154a9e92e0e250f6eb8976` | `969886d60bb642619532a2bab9344df6` | —                      |
-| M-51 Expense sheet       | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | —                      |
-| M-60 Settings hub        | `6e8ffc50ac7c4811b656ef660a024e9f` | `39826731f08b48bb9c77481a2fd53f11` | —                      |
-| M-61 Account section     | `bfc76ad7c1614f5b9238da67a6310910` | `dc62c013cf5b46019408cbf09df9b4f2` | —                      |
-| M-62 Business profile    | `ea7f25f130ac435c97189a109f4fa833` | `e36913afc5404a63babe254e31b241d5` | —                      |
-| M-63 Ordering settings   | `46c2f6a34b44457595003154aee0bcdc` | `3a9a481af1954700bc75109ec7aaa1ed` | —                      |
-| M-64 Payment settings    | `466a1d7f374942e9895e789831633b69` | `5f6c2683efbf46e48baa48a2b909ed93` | —                      |
-| M-65 Inventory & finance | `6988aebd933e47bda20be9ec53adc21d` | `aded4036b64f473cb6b8ecaa408d1518` | —                      |
-| M-67 Notifications & app | `8ee29f8193974f6089b549ea3e13114e` | `016523a07f9c4ee5b8987b58a552e981` | —                      |
-| C-01 Storefront home     | `f7ad34729a9749f8bdcd5f284d6693f2` | —                                  | —                      |
-| C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                      |
-| C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                      |
-| C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                      |
-| C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                      |
-| C-20 Order tracking      | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                      |
+| Screen                   | Light (active)                     | Dark (active)                      | Superseded (to delete)                                  |
+| ------------------------ | ---------------------------------- | ---------------------------------- | ------------------------------------------------------- |
+| P-01 Patterns reference  | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                                                       |
+| A-01 Manager sign-in     | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                                                       |
+| M-10 Dashboard           | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                                                       |
+| M-20 Orders list         | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                                                       |
+| M-21 Order detail        | `dd6b7a8e57994a808b4bb091dc366d0e` | `b8414f3cda494766b6b6dfebdb796961` | —                                                       |
+| M-30 New order           | `a9730928a6cd4a448907b4cd55d3f03d` | `b91d3b2fb2af416aacb2c4cc1a015ffe` | —                                                       |
+| M-40 Products list       | `b45ce7634bf84c92949a79411887e2bc` | `d85df903d3114fc6b1705a6cd8de2244` | —                                                       |
+| M-41 Product form        | `096f7f6b9222407caa87e483cc1de8bf` | `0dbc6481c8244d9a88b78fb8ef819124` | —                                                       |
+| M-42 Categories          | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                                                       |
+| M-43 Stock adjustment    | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                                                       |
+| M-50 Expenses list       | `251415a589154a9e92e0e250f6eb8976` | `969886d60bb642619532a2bab9344df6` | —                                                       |
+| M-51 Expense sheet       | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | —                                                       |
+| M-60 Settings hub        | `6e8ffc50ac7c4811b656ef660a024e9f` | `39826731f08b48bb9c77481a2fd53f11` | —                                                       |
+| M-61 Account section     | `bfc76ad7c1614f5b9238da67a6310910` | `dc62c013cf5b46019408cbf09df9b4f2` | —                                                       |
+| M-62 Business profile    | `ea7f25f130ac435c97189a109f4fa833` | `e36913afc5404a63babe254e31b241d5` | —                                                       |
+| M-63 Ordering settings   | `46c2f6a34b44457595003154aee0bcdc` | `3a9a481af1954700bc75109ec7aaa1ed` | —                                                       |
+| M-64 Payment settings    | `466a1d7f374942e9895e789831633b69` | `5f6c2683efbf46e48baa48a2b909ed93` | —                                                       |
+| M-65 Inventory & finance | `6988aebd933e47bda20be9ec53adc21d` | `aded4036b64f473cb6b8ecaa408d1518` | —                                                       |
+| M-67 Notifications & app | `8ee29f8193974f6089b549ea3e13114e` | `016523a07f9c4ee5b8987b58a552e981` | —                                                       |
+| M-70 Customers list      | `e7ecfb1ddb65480099a05b44683ce239` | `c02a041e162045c8a1c381feb1cf0d6f` | —                                                       |
+| M-71 Customer detail     | `f71153b9f4e441adafc8610a8fcd7867` | `822b2692324546cf9e05cd7edea2a3ed` | `01e712f983ba43658ec5d408f89ddb0e` (bottom nav removed) |
+| C-01 Storefront home     | `f7ad34729a9749f8bdcd5f284d6693f2` | —                                  | —                                                       |
+| C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                                                       |
+| C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                                                       |
+| C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                                                       |
+| C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                                                       |
+| C-20 Order tracking      | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                                                       |
+
+## Customer behaviour (#66)
+
+`/manage/customers` searches canonical names and phone numbers, lists all-order counts and the latest order creation date, and sums paid, non-cancelled, non-refunded orders for total spent (matching cash-basis KPI rules). Lists and histories initially render 20 entries with a "Show more" action. Detail resolves orders by `guestId`, displays differing `submittedName` values as "Ordered as …", and supports canonical-name edits, private notes (2,000 characters), call and WhatsApp links. Names are validated with the shared guest schema; all reads and edits are scoped to the authenticated business. Renaming never rewrites historical order audit fields. Uses the existing repository adapter; Supabase persistence remains part of the repository integration work.
+
+The light canvas references were inspected with `get_screen`; dark styling derives from shared tokens. Browser screenshots and WCAG AA checks cover both routes in EN/FR, light/dark, at 360 px.
+
+The M-70 visual contract is a compact app bar with a live customer count, search and result/sort metadata, and one divided directory surface: identity and order/date metadata on the left, spend and chevron on the right. M-71 uses an initials avatar identity card, separate three-column KPI tiles, an internal profile form with a full-width save action, and history cards with status/payment badges, fulfillment, quantities, audit-name annotations and view affordances. Loading skeletons mirror these compositions. Browser checks cover the compact row geometry at 360 and 390 px as well as functional and accessibility regressions.
+
+Keep the model's visual hierarchy, spacing and surfaces, but omit model-only screen IDs, the unsupported "Regular" classification, POS/invoice claims and the empty-state preview control. Customer totals and history counts are live; notes and spend helper copy describe only implemented behavior. Input outlines retain the design system's accessible control token rather than the model's low-contrast decorative borders.
+
+Customer detail uses the top back link without the manager bottom navigation, consistent with order detail. Any bottom navigation added by a generated detail reference is noise, not a requirement.
 
 ## Gaps
 

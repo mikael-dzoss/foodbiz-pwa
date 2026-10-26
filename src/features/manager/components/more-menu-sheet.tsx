@@ -40,7 +40,7 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
       href: "/manage/customers",
       icon: Users,
       description: "Guest history and repeat diners",
-      isReady: false,
+      isReady: true,
     },
     {
       title: "Analytics",
