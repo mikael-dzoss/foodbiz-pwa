@@ -415,7 +415,7 @@ export function ProductManager({
                     <button
                       type="button"
                       onClick={() => handleOpenStockSheet(p)}
-                      aria-label={`Open stock sheet for ${p.name}`}
+                      aria-label={`${p.stock} - Open stock sheet for ${p.name}`}
                       className="hover:bg-muted text-foreground flex h-9 min-w-10 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors"
                       data-testid={`quick-stock-count-${p.id}`}
                     >

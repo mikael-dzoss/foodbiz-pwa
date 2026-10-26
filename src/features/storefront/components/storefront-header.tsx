@@ -107,7 +107,7 @@ export function StorefrontHeader({
           >
             <Link
               href={pathForEn}
-              aria-label={locale === "fr" ? dict.switchLanguage : "English"}
+              aria-label={`EN - ${locale === "fr" ? dict.switchLanguage : "English"}`}
               className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
                 locale === "en"
                   ? "bg-card text-foreground font-bold shadow-xs"
@@ -118,7 +118,7 @@ export function StorefrontHeader({
             </Link>
             <Link
               href={pathForFr}
-              aria-label={locale === "en" ? dict.switchLanguage : "Français"}
+              aria-label={`FR - ${locale === "en" ? dict.switchLanguage : "Français"}`}
               className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
                 locale === "fr"
                   ? "bg-card text-foreground font-bold shadow-xs"
@@ -142,7 +142,7 @@ export function StorefrontHeader({
           ) : (
             <Link
               href={`/${locale}/cart`}
-              aria-label={`${dict.cart} (${effectiveCartCount} ${effectiveCartCount === 1 ? dict.item : dict.items})`}
+              aria-label={`${dict.cart} - ${effectiveCartCount} ${effectiveCartCount === 1 ? dict.item : dict.items}`}
               className="text-muted-foreground hover:bg-muted hover:text-foreground relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
             >
               <ShoppingCart className="h-5 w-5" />

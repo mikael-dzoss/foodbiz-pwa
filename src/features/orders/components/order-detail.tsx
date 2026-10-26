@@ -844,7 +844,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                         (step.status === "CANCELLED"
                           ? "text-destructive"
                           : "text-warning-soft-foreground"),
-                      step.state === "future" && "text-muted-foreground/60 font-medium",
+                      step.state === "future" && "text-muted-foreground/75 font-medium",
                     )}
                   >
                     <span>{step.label}</span>
@@ -867,7 +867,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                           ? "text-destructive font-bold"
                           : "text-warning-soft-foreground font-bold"
                         : step.state === "future"
-                          ? "text-muted-foreground/50 italic"
+                          ? "text-muted-foreground/75 italic"
                           : "text-muted-foreground font-medium",
                     )}
                   >
@@ -879,7 +879,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
                     className={cn(
                       "text-[11px]",
                       step.state === "future"
-                        ? "text-muted-foreground/50"
+                        ? "text-muted-foreground/75"
                         : "text-muted-foreground",
                     )}
                   >

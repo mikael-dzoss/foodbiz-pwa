@@ -325,7 +325,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                             "text-xs font-bold",
                             isCurrent && "text-primary",
                             isDone && "text-foreground",
-                            state === "upcoming" && "text-muted-foreground/70 font-medium",
+                            state === "upcoming" && "text-muted-foreground/75 font-medium",
                           )}
                         >
                           {step.title}

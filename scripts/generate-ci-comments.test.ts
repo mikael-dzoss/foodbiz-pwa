@@ -12,6 +12,7 @@ const passing = {
   typecheckStatus: "success",
   testStatus: "success",
   toolingStatus: "success",
+  e2eStatus: "success",
   auditStatus: "success",
   buildStatus: "success",
   coverage: null,
@@ -57,6 +58,16 @@ describe("CI comment generator", () => {
     expect(body).toContain("Tooling Tests Failed");
     expect(body).not.toContain("All Quality Checks Passed");
   });
+
+  it.each(["failure", "cancelled"])(
+    "does not report success when browser checks are %s",
+    (e2eStatus) => {
+      const body = ci.buildCommentBody({ ...passing, e2eStatus });
+      expect(body).toContain("Playwright & Accessibility Checks Did Not Pass");
+      expect(body).toContain("npm run test:e2e");
+      expect(body).not.toContain("All Quality Checks Passed");
+    },
+  );
 
   it("shows tooling coverage as an informative row against 60%", () => {
     const onTarget = ci.buildCommentBody({

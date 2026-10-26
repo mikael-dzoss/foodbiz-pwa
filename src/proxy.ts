@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 import { MOCK_AUTH_COOKIE_NAME } from "@/domain/auth";
+import { getServerEnv } from "@/config/env";
 
 export async function proxy(request: NextRequest) {
+  const env = getServerEnv();
   const { pathname } = request.nextUrl;
 
   // Convenience redirect for unauthenticated /manage routes
@@ -17,7 +19,7 @@ export async function proxy(request: NextRequest) {
 
   // TODO(supabase): When Supabase Auth is active, check Supabase JWT session claims in proxy
   // as convenience redirect to /manage/login before hitting Server Components (#37, #38).
-  return updateSession(request);
+  return env.DATA_SOURCE === "mock" ? NextResponse.next({ request }) : updateSession(request);
 }
 
 export const config = {

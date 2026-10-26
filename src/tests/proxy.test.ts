@@ -1,13 +1,62 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { proxy } from "@/proxy";
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_AUTH_COOKIE_NAME } from "@/domain/auth";
+import { updateSession } from "@/lib/supabase/proxy";
 
 vi.mock("@/lib/supabase/proxy", () => ({
   updateSession: vi.fn(async () => NextResponse.next()),
 }));
 
 describe("proxy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("DATA_SOURCE", "mock");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", undefined);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each(["/manage/login", "/en", "/manage"])(
+    "serves %s in mock mode without Supabase configuration or session refresh",
+    async (path) => {
+      const request = new NextRequest(`http://localhost:3000${path}`, {
+        headers: { cookie: `${MOCK_AUTH_COOKIE_NAME}=active` },
+      });
+
+      const response = await proxy(request);
+
+      expect(response.status).toBe(200);
+      expect(updateSession).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["development", "production"])(
+    "preserves Supabase session refresh in %s",
+    async (nodeEnv) => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", nodeEnv);
+      const refreshed = NextResponse.next();
+      vi.mocked(updateSession).mockResolvedValueOnce(refreshed);
+      const request = new NextRequest("http://localhost:3000/manage/login");
+
+      expect(await proxy(request)).toBe(refreshed);
+      expect(updateSession).toHaveBeenCalledWith(request);
+    },
+  );
+
+  it("rejects mock mode in production before redirecting or refreshing sessions", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const request = new NextRequest("http://localhost:3000/manage/orders");
+
+    await expect(proxy(request)).rejects.toThrow("DATA_SOURCE cannot be 'mock' in production");
+    expect(updateSession).not.toHaveBeenCalled();
+  });
+
   it("redirects to /manage/login when accessing /manage with missing mock cookie", async () => {
     const request = new NextRequest("http://localhost:3000/manage/orders");
 
