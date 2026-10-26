@@ -60,6 +60,16 @@ Names follow shadcn/ui conventions so #28 can consume them directly. Hex values 
 
 Re-run the check whenever a value changes; text pairs must stay ≥ 4.5:1, control outlines ≥ 3:1.
 
+Keep subdued content readable by calibrating opacity against its rendered background in both themes,
+rather than removing the visual hierarchy. Browser axe measurements for the current tokens:
+
+| Subdued content                         | Utility                     | Light minimum | Dark minimum |
+| --------------------------------------- | --------------------------- | ------------- | ------------ |
+| Upcoming customer/manager timeline text | `text-muted-foreground/75`  | 4.99:1        | 4.80:1       |
+| Product ingredients/allergen sections   | `opacity-85` on the section | 4.64:1        | 5.06:1       |
+
+These values include a margin above AA; remeasure after token, background, or nested opacity changes.
+
 ### Order and payment status mapping
 
 | Status    | Surface                                       | Label                          |
