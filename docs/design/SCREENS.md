@@ -30,7 +30,7 @@ New pattern needed by a screen → add it to F0 and the component inventory firs
 | F7 Catalog             | Products list, product form, categories, stock sheet                                                   | #42–#47                      | brief       | see registry |
 | F8 Expenses            | Expenses list, expense sheet                                                                           | #58, #59                     | brief       | —            |
 | F9 Settings            | Settings hub, account, business, ordering, payment, inventory & finance, notifications/team/app, about | #68–#74                      | brief       | —            |
-| F10 Customers          | Customers list, customer detail                                                                        | #66                          | brief       | —            |
+| F10 Customers          | Customers list, customer detail                                                                        | #66                          | verified    | see registry |
 | F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | designed    | see registry |
 | F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | designed    | see registry |
 | F13 Tracking           | Order tracking                                                                                         | #89                          | designed    | see registry |
@@ -103,12 +103,20 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | M-64 Payment settings    | `466a1d7f374942e9895e789831633b69` | `5f6c2683efbf46e48baa48a2b909ed93` | —                      |
 | M-65 Inventory & finance | `6988aebd933e47bda20be9ec53adc21d` | `aded4036b64f473cb6b8ecaa408d1518` | —                      |
 | M-67 Notifications & app | `8ee29f8193974f6089b549ea3e13114e` | `016523a07f9c4ee5b8987b58a552e981` | —                      |
+| M-70 Customers list      | `e7ecfb1ddb65480099a05b44683ce239` | `c02a041e162045c8a1c381feb1cf0d6f` | —                      |
+| M-71 Customer detail     | `01e712f983ba43658ec5d408f89ddb0e` | `822b2692324546cf9e05cd7edea2a3ed` | —                      |
 | C-01 Storefront home     | `f7ad34729a9749f8bdcd5f284d6693f2` | —                                  | —                      |
 | C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                      |
 | C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                      |
 | C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                      |
 | C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                      |
 | C-20 Order tracking      | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                      |
+
+## Customer behaviour (#66)
+
+`/manage/customers` searches canonical names and phone numbers, lists all-order counts and the latest order creation date, and sums paid, non-cancelled, non-refunded orders for total spent (matching cash-basis KPI rules). Lists and histories initially render 20 entries with a "Show more" action. Detail resolves orders by `guestId`, displays differing `submittedName` values as "Ordered as …", and supports canonical-name edits, private notes (2,000 characters), call and WhatsApp links. Names are validated with the shared guest schema; all reads and edits are scoped to the authenticated business. Renaming never rewrites historical order audit fields. Uses the existing repository adapter; Supabase persistence remains part of the repository integration work.
+
+The light canvas references were inspected with `get_screen`; dark styling derives from shared tokens. Browser screenshots and WCAG AA checks cover both routes in EN/FR, light/dark, at 360 px.
 
 ## Gaps
 
