@@ -174,6 +174,7 @@ export interface StorefrontDictionary {
   pickupPolicyNotice: string;
   orderPlacedTitle: string;
   redirectingToTracking: string;
+  viewConfirmation: string;
   trackOrder: string;
   nameRequiredError: string;
   phoneRequiredError: string;
@@ -394,6 +395,24 @@ export interface SettingsDictionary {
   };
 }
 
+export interface OrderConfirmationDictionary {
+  title: string;
+  awaiting: string;
+  receivedHelp: string;
+  paymentTitle: string;
+  handover: string;
+  revtag: string;
+  weroIdentifier: string;
+  amount: string;
+  paymentHelp: string;
+  unavailable: string;
+  copy: string;
+  copied: string;
+  copyFailed: string;
+  noPaymentNeeded: string;
+  nextSteps: string;
+}
+
 export interface OrderTrackingDictionary {
   orderLabel: string;
   pickup: string;
@@ -500,6 +519,7 @@ export interface Dictionary {
   dashboard: DashboardDictionary;
   storefront: StorefrontDictionary;
   orderTracking: OrderTrackingDictionary;
+  orderConfirmation: OrderConfirmationDictionary;
   quickAdd: QuickAddDictionary;
   settings: SettingsDictionary;
   common: CommonDictionary;

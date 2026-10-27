@@ -125,6 +125,29 @@ Keep the model's visual hierarchy, spacing and surfaces, but omit model-only scr
 
 Customer detail uses the top back link without the manager bottom navigation, consistent with order detail. Any bottom navigation added by a generated detail reference is noise, not a requirement.
 
+## Customer post-checkout behaviour (#88, #89)
+
+Checkout opens the reloadable C-12 confirmation route, not tracking directly. Confirmation
+shows the saved reference, item snapshots and total, plus the selected Revolut revtag or
+Wero identifier, amount and payment reference, or payment-at-handover instructions.
+Copying a recipient reports success or an explicit clipboard error. Missing payment
+configuration asks the customer to contact the shop; paid, refunded and cancelled orders
+are not asked to pay again. Payment preference never implies payment receipt.
+The tracking link preserves the token and locale; customers choose when to follow it.
+
+C-12 follows the registered light mobile model; dark styling derives from shared tokens.
+C-20 retains its status timeline, payment badge, item summary, public shop contact details,
+and cancellation reason. Refresh loads the latest state; live polling is not implemented.
+Unsupported tax estimates and invented preparation times are not displayed.
+
+Both token pages are `noindex, nofollow` and use `no-referrer`. Public token and
+ticket/phone repository lookups return the allowlisted `PublicOrder` schema, excluding
+guest identities, submitted names, customer phone/address, notes, internal history notes
+and item identifiers. New mock orders use random 32-character UUID-derived tokens;
+predictable `tk-*` tokens exist only in demo fixtures. Supabase repositories and the future
+`lookup_order_by_ticket_and_phone` RPC remain part of E18 and must enforce the same
+projection at the database boundary, never projecting `guests.name` or `submitted_name`.
+
 ## Gaps
 
 - **Living style guide route**: Implemented at `/patterns` (dev-only) with reusable components inventory and documentation in [`COMPONENTS.md`](COMPONENTS.md).

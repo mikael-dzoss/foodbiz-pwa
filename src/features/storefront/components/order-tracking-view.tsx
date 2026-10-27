@@ -131,7 +131,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
         </header>
 
         {/* 2. Main Content */}
-        <main className="flex-1 space-y-4 px-4 py-4">
+        <div className="flex-1 space-y-4 px-4 py-4">
           {/* Hero Order Header Card */}
           <section
             className="bg-card border-border rounded-xl border p-4 shadow-none"
@@ -457,7 +457,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
               </Link>
             </div>
           </section>
-        </main>
+        </div>
       </div>
     </div>
   );
