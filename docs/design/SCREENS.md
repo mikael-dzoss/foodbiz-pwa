@@ -110,6 +110,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                                                       |
 | C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                                                       |
 | C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                                                       |
+| C-12 Confirmation        | `e23f423142a5463c9055b697bec49db2` | `65f2f70e9e1544d7bdcc02244828337d` | —                                                       |
 | C-20 Order tracking      | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                                                       |
 
 ## Customer behaviour (#66)

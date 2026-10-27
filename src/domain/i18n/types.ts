@@ -395,6 +395,14 @@ export interface SettingsDictionary {
 }
 
 export interface OrderTrackingDictionary {
+  orderLabel: string;
+  pickup: string;
+  delivery: string;
+  deliveryTime: string;
+  asap: string;
+  refreshHint: string;
+  refundedBadge: string;
+  cancelledPaymentHelp: string;
   title: string;
   orderReference: string;
   placedAt: string;

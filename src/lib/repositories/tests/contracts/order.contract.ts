@@ -121,12 +121,25 @@ export function describeOrderRepositoryContract(
           },
         ],
         totalAmount: product.price,
+        submittedName: "Private submitted name",
+        deliveryAddress: "Private delivery address",
+        notes: "Private door code",
+        statusHistory: [
+          { status: "NEW", timestamp: "2026-10-15T12:00:00.000Z", note: "Internal note" },
+        ],
       });
 
       expect(created.trackingToken).toBeDefined();
       const found = await repos.orders.findByTrackingToken(created.trackingToken!);
       expect(found).not.toBeNull();
-      expect(found?.id).toBe(created.id);
+      expect(found?.orderNumber).toBe(created.orderNumber);
+      expect(created.trackingToken).toMatch(/^[a-f0-9]{32}$/);
+      expect(found).not.toHaveProperty("guestId");
+      expect(found).not.toHaveProperty("submittedName");
+      expect(found).not.toHaveProperty("deliveryAddress");
+      expect(found).not.toHaveProperty("notes");
+      expect(found).not.toHaveProperty("statusHistory");
+      expect(found?.items[0]).not.toHaveProperty("productId");
 
       const notFound = await repos.orders.findByTrackingToken("non-existent-token");
       expect(notFound).toBeNull();
@@ -150,7 +163,10 @@ export function describeOrderRepositoryContract(
         guestWithPhone!.phone!,
       );
       expect(found).not.toBeNull();
-      expect(found?.id).toBe(targetOrder.id);
+      expect(found?.orderNumber).toBe(targetOrder.orderNumber);
+      expect(found).not.toHaveProperty("guestId");
+      expect(found).not.toHaveProperty("submittedName");
+      expect(found).not.toHaveProperty("deliveryAddress");
 
       // Wrong phone number fails
       const wrongPhone = await repos.orders.findByTicketAndPhone(

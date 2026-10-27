@@ -86,6 +86,33 @@ export const orderSchema = z.object({
 
 export type Order = z.infer<typeof orderSchema>;
 
+// Public lookups must strip private fields, including nested item identifiers.
+export const publicOrderSchema = orderSchema
+  .pick({
+    businessId: true,
+    orderNumber: true,
+    serviceType: true,
+    status: true,
+    paid: true,
+    paymentPreference: true,
+    requestedDate: true,
+    requestedTime: true,
+    totalAmount: true,
+    cancellationReason: true,
+    createdAt: true,
+  })
+  .extend({
+    items: z.array(
+      orderItemSchema.pick({
+        productName: true,
+        quantity: true,
+        unitPrice: true,
+        totalPrice: true,
+      }),
+    ),
+  });
+export type PublicOrder = z.infer<typeof publicOrderSchema>;
+
 /** Read model: an order with its guest's current name resolved via guestId. */
 export type NamedOrder = Order & { readonly guestName: string };
 

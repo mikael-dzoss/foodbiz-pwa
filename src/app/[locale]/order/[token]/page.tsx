@@ -23,12 +23,16 @@ export async function generateMetadata({ params }: OrderTrackingPageProps): Prom
   if (!order) {
     return {
       title: "Order Tracking",
+      robots: { index: false, follow: false },
+      referrer: "no-referrer",
     };
   }
 
   return {
     title: `Order #${order.orderNumber ?? "—"} Tracking | FoodBiz`,
     description: `Track status of order #${order.orderNumber ?? "—"}`,
+    robots: { index: false, follow: false },
+    referrer: "no-referrer",
   };
 }
 

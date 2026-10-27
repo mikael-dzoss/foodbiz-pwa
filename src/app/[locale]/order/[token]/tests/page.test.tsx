@@ -98,5 +98,6 @@ describe("OrderTrackingPage Route", () => {
     });
 
     expect(meta.title).toBe("Order #99 Tracking | FoodBiz");
+    expect(meta.robots).toEqual({ index: false, follow: false });
   });
 });

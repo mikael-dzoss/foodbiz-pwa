@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import Link from "next/link";
 import {
@@ -12,16 +10,14 @@ import {
   Store,
   MapPin,
   Phone,
-  HelpCircle,
   AlertTriangle,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   formatMoney,
   formatTime,
-  type Order,
+  type PublicOrder,
   type Business,
   type OrderStatus,
   type SupportedLocale,
@@ -30,7 +26,7 @@ import type { OrderTrackingDictionary, StorefrontDictionary } from "@/domain/i18
 import { cn } from "@/lib/utils";
 
 export interface OrderTrackingViewProps {
-  order: Order;
+  order: PublicOrder;
   business: Business;
   locale: SupportedLocale;
   dict: OrderTrackingDictionary;
@@ -47,10 +43,6 @@ interface TimelineStepConfig {
 export function OrderTrackingView({ order, business, locale, dict }: OrderTrackingViewProps) {
   const isCancelled = order.status === "CANCELLED";
   const isCompleted = order.status === "COMPLETED";
-
-  // Calculate included tax (10% standard rate for food items)
-  const includedTax = Math.round(order.totalAmount * 0.1 * 100) / 100;
-  const subtotal = Math.max(0, order.totalAmount - includedTax);
 
   const cleanPhone = business.phone?.replace(/\D/g, "");
   const mapsUrl = business.address
@@ -124,7 +116,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
           <Link
             href={`/${locale}`}
             aria-label={dict.backToCatalog}
-            className="hover:bg-muted text-foreground -ml-1.5 flex h-10 w-10 items-center justify-center rounded-lg transition-colors active:scale-95"
+            className="hover:bg-muted text-foreground -ml-1.5 flex h-11 w-11 items-center justify-center rounded-lg transition-colors active:scale-95"
             data-testid="tracking-back-button"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -135,13 +127,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
             </h1>
             <span className="text-muted-foreground text-xs font-medium">{business.name}</span>
           </div>
-          <button
-            type="button"
-            aria-label="Order info"
-            className="hover:bg-muted text-muted-foreground -mr-1.5 flex h-10 w-10 items-center justify-center rounded-lg transition-colors active:scale-95"
-          >
-            <HelpCircle className="h-5 w-5" />
-          </button>
+          <span className="w-11" aria-hidden="true" />
         </header>
 
         {/* 2. Main Content */}
@@ -161,7 +147,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                     className="font-headline text-foreground text-xl font-bold tracking-tight tabular-nums"
                     data-testid="tracking-order-title"
                   >
-                    Order #{order.orderNumber ?? "—"}
+                    {dict.orderLabel} #{order.orderNumber ?? "—"}
                   </h2>
                 </div>
                 <p className="text-muted-foreground mt-1 text-xs tabular-nums">
@@ -219,11 +205,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                         <span>&ldquo;{order.cancellationReason}&rdquo;</span>
                       </p>
                     )}
-                    <p className="text-muted-foreground text-[11px]">
-                      {order.paid === "paid"
-                        ? "Any payment made will be refunded directly. Contact the shop if you have questions."
-                        : "No payment was taken for this order."}
-                    </p>
+                    <p className="text-muted-foreground text-[11px]">{dict.cancelledPaymentHelp}</p>
                   </div>
                 </div>
               </div>
@@ -234,14 +216,10 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-foreground text-xs font-medium">
-                    {order.serviceType === "pickup"
-                      ? dict.readyInApprox
-                      : "Estimated delivery time"}
+                    {order.serviceType === "pickup" ? dict.readyInApprox : dict.deliveryTime}
                   </p>
                   <p className="text-primary text-xs font-bold tabular-nums">
-                    {order.requestedTime
-                      ? `${order.requestedTime} (${order.serviceType === "pickup" ? "Pickup" : "Delivery"})`
-                      : "20–25 min (ASAP)"}
+                    {order.requestedDate} · {order.requestedTime ?? dict.asap}
                   </p>
                 </div>
               </div>
@@ -257,10 +235,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
               <h3 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
                 {dict.liveOrderProgress}
               </h3>
-              <span className="text-primary flex items-center gap-1 text-xs font-medium">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>{dict.updatingLive}</span>
-              </span>
+              <span className="text-muted-foreground text-xs">{dict.refreshHint}</span>
             </div>
 
             {isCancelled ? (
@@ -280,7 +255,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-destructive text-xs font-bold">{dict.statuses.CANCELLED}</p>
                     <span className="bg-destructive/10 text-destructive py-0.2 rounded px-1.5 text-[10px] font-semibold">
-                      Outcome
+                      {dict.currentStatus}
                     </span>
                   </div>
                   {order.cancellationReason && (
@@ -364,46 +339,32 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                 </h3>
               </div>
               <Badge variant="outline" className="text-[10px] font-semibold">
-                {order.serviceType === "pickup" ? "Storefront Pickup" : "Delivery"}
+                {order.serviceType === "pickup" ? dict.pickup : dict.delivery}
               </Badge>
             </div>
 
             <div className="mt-3 space-y-2.5">
               <div>
                 <span className="text-muted-foreground text-xs font-medium">
-                  {order.serviceType === "pickup" ? dict.pickupWindow : dict.deliveryAddress}
+                  {order.serviceType === "pickup" ? dict.pickupWindow : dict.deliveryTime}
                 </span>
                 <p className="text-foreground text-xs font-semibold tabular-nums">
-                  {order.serviceType === "pickup"
-                    ? order.requestedTime
-                      ? `Today at ${order.requestedTime}`
-                      : "Today (ASAP)"
-                    : (order.deliveryAddress ?? "Address provided at checkout")}
+                  {order.requestedDate} · {order.requestedTime ?? dict.asap}
                 </p>
               </div>
-
-              {order.notes && (
-                <div className="border-border/60 border-t pt-2.5">
-                  <span className="text-muted-foreground text-xs font-medium">
-                    Special instructions
-                  </span>
-                  <p className="text-foreground mt-0.5 text-xs">{order.notes}</p>
-                </div>
-              )}
 
               <div className="border-border/60 flex items-start justify-between gap-3 border-t pt-2.5">
                 <div>
                   <p className="text-foreground text-xs font-bold">{business.name}</p>
-                  <p className="text-muted-foreground mt-0.5 text-xs">
-                    {business.address ?? "Store address on confirmation"}
-                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">{business.address}</p>
                 </div>
                 {mapsUrl && (
                   <a
                     href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="border-border hover:bg-muted text-primary inline-flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                    data-testid="tracking-directions-link"
+                    className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
                   >
                     <MapPin className="h-3.5 w-3.5" />
                     <span>{dict.directions}</span>
@@ -420,13 +381,17 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
           >
             <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
               <h3 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
-                {dict.orderSummary} ({order.items.reduce((acc, it) => acc + it.quantity, 0)} items)
+                {dict.orderSummary} ({order.items.reduce((acc, it) => acc + it.quantity, 0)})
               </h3>
               <Badge
                 variant={order.paid === "paid" ? "paid" : "unpaid"}
                 className="text-[10px] font-semibold"
               >
-                {order.paid === "paid" ? dict.paidBadge : dict.unpaidBadge}
+                {order.paid === "paid"
+                  ? dict.paidBadge
+                  : order.paid === "refunded"
+                    ? dict.refundedBadge
+                    : dict.unpaidBadge}
               </Badge>
             </div>
 
@@ -441,12 +406,12 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                     <div>
                       <p className="text-foreground text-xs font-semibold">{item.productName}</p>
                       <p className="text-muted-foreground text-[10px] tabular-nums">
-                        {formatMoney(item.unitPrice)} each
+                        {formatMoney(item.unitPrice, locale)}
                       </p>
                     </div>
                   </div>
                   <span className="text-foreground text-xs font-semibold tabular-nums">
-                    {formatMoney(item.totalPrice)}
+                    {formatMoney(item.totalPrice, locale)}
                   </span>
                 </div>
               ))}
@@ -454,18 +419,10 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
 
             {/* Price breakdown */}
             <div className="border-border/60 space-y-1.5 border-t pt-2.5 text-xs">
-              <div className="text-muted-foreground flex justify-between">
-                <span>{dict.subtotal}</span>
-                <span className="tabular-nums">{formatMoney(subtotal)}</span>
-              </div>
-              <div className="text-muted-foreground flex justify-between">
-                <span>{dict.taxIncluded}</span>
-                <span className="tabular-nums">{formatMoney(includedTax)}</span>
-              </div>
               <div className="border-border flex justify-between border-t border-dashed pt-2 font-bold">
                 <span className="text-foreground text-sm">{dict.totalAmount}</span>
                 <span className="text-primary text-sm tabular-nums">
-                  {formatMoney(order.totalAmount)}
+                  {formatMoney(order.totalAmount, locale)}
                 </span>
               </div>
             </div>
@@ -492,7 +449,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
             <div className="pt-2">
               <Link
                 href={`/${locale}`}
-                className="hover:bg-muted text-primary flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors"
+                className="hover:bg-muted text-primary flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-colors active:opacity-80"
                 data-testid="tracking-back-catalog-button"
               >
                 <Store className="h-4 w-4" />
