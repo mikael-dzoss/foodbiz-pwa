@@ -148,6 +148,12 @@ predictable `tk-*` tokens exist only in demo fixtures. Supabase repositories and
 `lookup_order_by_ticket_and_phone` RPC remain part of E18 and must enforce the same
 projection at the database boundary, never projecting `guests.name` or `submitted_name`.
 
+Verification: C-12 and C-20 browser screenshots were inspected in EN/light and FR/dark;
+axe WCAG AA checks and screenshots cover EN/FR in both themes at 390 px. Browser
+journeys verify Revolut, Wero and handover instructions, confirmation persistence on
+reload, token-preserving navigation, manager acceptance reflected on tracking refresh,
+and absence of guest details in returned confirmation/tracking HTML and RSC payloads.
+
 ## Gaps
 
 - **Living style guide route**: Implemented at `/patterns` (dev-only) with reusable components inventory and documentation in [`COMPONENTS.md`](COMPONENTS.md).
