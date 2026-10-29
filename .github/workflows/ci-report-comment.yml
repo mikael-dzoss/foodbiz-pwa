@@ -33,7 +33,7 @@ jobs:
 
       - name: Download rendered CI report artifact
         id: download
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: ci-report
