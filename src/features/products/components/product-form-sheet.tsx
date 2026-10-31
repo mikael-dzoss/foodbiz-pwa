@@ -1,6 +1,8 @@
 "use client";
 
-import * as React from "react";
+import { useState, useTransition, type ChangeEvent, type FormEvent } from "react";
+import { allergenSchema, type Allergen } from "@/domain/allergen";
+import { getDictionary, type ProductsDictionary } from "@/domain/i18n";
 import Image from "next/image";
 import { Camera, Check, Loader2, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -31,6 +33,7 @@ export interface ProductFormSheetProps {
   onOpenChange: (open: boolean) => void;
   onProductSaved?: (product: Product) => void;
   lowStockThreshold?: number;
+  dict?: ProductsDictionary;
 }
 
 export function ProductFormSheet({
@@ -40,29 +43,29 @@ export function ProductFormSheet({
   onOpenChange,
   onProductSaved,
   lowStockThreshold = 5,
+  dict = getDictionary().products,
 }: ProductFormSheetProps) {
   const isEditing = Boolean(product);
 
-  const [prevProduct, setPrevProduct] = React.useState<EnrichedProduct | null>(product ?? null);
-  const [prevIsOpen, setPrevIsOpen] = React.useState<boolean>(isOpen);
+  const [prevProduct, setPrevProduct] = useState<EnrichedProduct | null>(product ?? null);
+  const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
 
-  const [name, setName] = React.useState(product?.name ?? "");
-  const [categoryId, setCategoryId] = React.useState(
-    product?.categoryId ?? categories[0]?.id ?? "",
-  );
-  const [description, setDescription] = React.useState(product?.description ?? "");
-  const [priceStr, setPriceStr] = React.useState(product ? centsToEuroString(product.price) : "");
-  const [unitCostStr, setUnitCostStr] = React.useState(
+  const [name, setName] = useState(product?.name ?? "");
+  const [categoryId, setCategoryId] = useState(product?.categoryId ?? categories[0]?.id ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
+  const [priceStr, setPriceStr] = useState(product ? centsToEuroString(product.price) : "");
+  const [unitCostStr, setUnitCostStr] = useState(
     product?.unitCost ? centsToEuroString(product.unitCost) : "",
   );
-  const [stock, setStock] = React.useState(product?.stock ?? 0);
-  const [visible, setVisible] = React.useState(product?.visible ?? true);
-  const [imageUrl, setImageUrl] = React.useState<string | null>(product?.imageUrl ?? null);
+  const [stock, setStock] = useState(product?.stock ?? 0);
+  const [allergens, setAllergens] = useState<Allergen[]>(product?.allergens ?? []);
+  const [visible, setVisible] = useState(product?.visible ?? true);
+  const [imageUrl, setImageUrl] = useState<string | null>(product?.imageUrl ?? null);
 
-  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
-  const [generalError, setGeneralError] = React.useState<string | null>(null);
-  const [isPending, startTransition] = React.useTransition();
-  const [isUploadingImage, setIsUploadingImage] = React.useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const normalizedProduct = product ?? null;
 
@@ -81,6 +84,7 @@ export function ProductFormSheet({
         );
         setStock(normalizedProduct.stock);
         setVisible(normalizedProduct.visible);
+        setAllergens(normalizedProduct.allergens);
         setImageUrl(normalizedProduct.imageUrl ?? null);
       } else {
         setName("");
@@ -90,6 +94,7 @@ export function ProductFormSheet({
         setUnitCostStr("");
         setStock(0);
         setVisible(true);
+        setAllergens([]);
         setImageUrl(null);
       }
       setFieldErrors({});
@@ -102,7 +107,7 @@ export function ProductFormSheet({
   const costInCents = parseEuroStringToCents(unitCostStr) || 0;
   const grossMargin = calculateGrossMargin(priceInCents, costInCents);
 
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -139,7 +144,7 @@ export function ProductFormSheet({
     setImageUrl(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     // Client-side schema validation with inline translated errors
@@ -151,6 +156,7 @@ export function ProductFormSheet({
       unitCost: unitCostStr || 0,
       stock,
       visible,
+      allergens,
       imageUrl,
     });
 
@@ -177,6 +183,7 @@ export function ProductFormSheet({
         unitCost: unitCostStr || 0,
         stock,
         visible,
+        allergens,
         imageUrl,
       };
 
@@ -363,6 +370,38 @@ export function ProductFormSheet({
               />
             </div>
           </div>
+
+          <fieldset className="border-border bg-card rounded-lg border p-3.5">
+            <legend className="text-foreground px-1 text-sm font-semibold">
+              {dict.allergensLabel}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {allergenSchema.options.map((allergen) => (
+                <button
+                  key={allergen}
+                  type="button"
+                  aria-pressed={allergens.includes(allergen)}
+                  disabled={isPending}
+                  onClick={() =>
+                    setAllergens((selected) =>
+                      selected.includes(allergen)
+                        ? selected.filter((value) => value !== allergen)
+                        : [...selected, allergen],
+                    )
+                  }
+                  className="border-input text-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground focus-visible:ring-ring min-h-11 min-w-11 rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none active:opacity-80"
+                  data-testid={`product-allergen-${allergen}`}
+                >
+                  {dict.allergenLabels[allergen]}
+                </button>
+              ))}
+            </div>
+            {fieldErrors.allergens && (
+              <p role="alert" className="text-destructive mt-1 text-xs">
+                {fieldErrors.allergens[0]}
+              </p>
+            )}
+          </fieldset>
 
           {/* Section 3: Pricing & Economics */}
           <div className="space-y-3">

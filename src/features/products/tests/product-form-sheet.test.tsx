@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { ProductFormSheet } from "../components/product-form-sheet";
+import { getDictionary } from "@/domain/i18n";
 import type { ProductCategory } from "@/domain";
 import type { EnrichedProduct } from "../product-actions";
 
@@ -48,6 +49,7 @@ const sampleProduct: EnrichedProduct = {
   unitCost: 420,
   stock: 18,
   visible: true,
+  allergens: [],
   imageUrl: null,
   createdAt: "2026-08-01T08:00:00.000Z",
   updatedAt: "2026-08-01T08:00:00.000Z",
@@ -72,6 +74,61 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it("toggles allergen chips and submits selected tags without mutating the product", async () => {
+    const product = { ...sampleProduct, allergens: ["gluten"] as const };
+    const { rerender } = render(
+      <ProductFormSheet
+        product={{ ...product, allergens: [...product.allergens] }}
+        categories={sampleCategories}
+        isOpen={true}
+        onOpenChange={() => {}}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Gluten" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Gluten" }));
+    fireEvent.click(screen.getByRole("button", { name: "Milk" }));
+    fireEvent.click(screen.getByTestId("save-product-button"));
+    await waitFor(() =>
+      expect(mockUpdateProductAction).toHaveBeenCalledWith(
+        product.id,
+        expect.objectContaining({ allergens: ["milk"] }),
+      ),
+    );
+    expect(product.allergens).toEqual(["gluten"]);
+    rerender(
+      <ProductFormSheet
+        categories={sampleCategories}
+        isOpen={true}
+        onOpenChange={() => {}}
+        dict={getDictionary("fr").products}
+      />,
+    );
+    expect(screen.getByText("Allergènes")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Lait" }).getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("announces allergen errors returned by the action", async () => {
+    mockUpdateProductAction.mockResolvedValueOnce({
+      success: false,
+      error: "Invalid allergens",
+      fieldErrors: { allergens: ["Choose valid allergens"] },
+    });
+    render(
+      <ProductFormSheet
+        product={sampleProduct}
+        categories={sampleCategories}
+        isOpen={true}
+        onOpenChange={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("save-product-button"));
+    await waitFor(() =>
+      expect(screen.getByText("Choose valid allergens").getAttribute("role")).toBe("alert"),
+    );
   });
 
   it("renders Add Product title and empty inputs for new product", () => {

@@ -517,6 +517,11 @@ export interface CustomersDictionary {
   retry: string;
 }
 
+export interface ProductsDictionary {
+  allergensLabel: string;
+  allergenLabels: Record<import("@/domain/allergen").Allergen, string>;
+}
+
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
@@ -528,4 +533,5 @@ export interface Dictionary {
   settings: SettingsDictionary;
   common: CommonDictionary;
   customers: CustomersDictionary;
+  products: ProductsDictionary;
 }

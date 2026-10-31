@@ -16,6 +16,7 @@ const sampleProductData: StorefrontProductData = {
     unitCost: 200,
     stock: 8,
     visible: true,
+    allergens: [],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   },

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  productSchema,
   createProductSchema,
   updateProductSchema,
   productFormInputSchema,
@@ -13,6 +14,32 @@ import {
 describe("Product Domain & Schemas", () => {
   const validCategoryId = "11111111-1111-4111-8111-111111111101";
   const validProductId = "22222222-2222-4222-8222-222222222201";
+
+  it("defaults allergens and rejects unsupported allergen tags across product schemas", () => {
+    const input = {
+      id: validProductId,
+      businessId: validCategoryId,
+      categoryId: validCategoryId,
+      name: "Bread",
+      price: 100,
+      createdAt: "2026-08-01T08:00:00.000Z",
+      updatedAt: "2026-08-01T08:00:00.000Z",
+    };
+    for (const schema of [
+      productSchema,
+      createProductSchema,
+      updateProductSchema,
+      productFormInputSchema,
+    ]) {
+      expect(schema.parse(input).allergens).toEqual([]);
+      expect(schema.parse({ ...input, allergens: ["gluten", "milk"] }).allergens).toEqual([
+        "gluten",
+        "milk",
+      ]);
+      expect(schema.safeParse({ ...input, allergens: ["unknown"] }).success).toBe(false);
+      expect(schema.safeParse({ ...input, allergens: "gluten" }).success).toBe(false);
+    }
+  });
 
   describe("parseEuroStringToCents & centsToEuroString", () => {
     it("parses euro decimal string to integer cents", () => {

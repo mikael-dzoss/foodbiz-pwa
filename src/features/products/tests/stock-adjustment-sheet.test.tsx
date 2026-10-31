@@ -24,6 +24,7 @@ const sampleProduct: EnrichedProduct = {
   unitCost: 420,
   stock: 18,
   visible: true,
+  allergens: [],
   imageUrl: null,
   createdAt: "2026-08-01T08:00:00.000Z",
   updatedAt: "2026-08-01T08:00:00.000Z",

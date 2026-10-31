@@ -65,6 +65,17 @@ export function describeProductRepositoryContract(
       expect(created.name).toBe("Artisan Brioche Loaf");
       expect(created.price).toBe(520);
       expect(created.visible).toBe(true);
+      expect(created.allergens).toEqual([]);
+      const tagged = await repos.products.update(businessId, created.id, {
+        allergens: ["gluten", "milk"],
+      });
+      expect(tagged.allergens).toEqual(["gluten", "milk"]);
+      expect((await repos.products.findById(businessId, created.id))?.allergens).toEqual([
+        "gluten",
+        "milk",
+      ]);
+      const cleared = await repos.products.update(businessId, created.id, { allergens: [] });
+      expect(cleared.allergens).toEqual([]);
       expect(created.createdAt).toBeDefined();
 
       const found = await repos.products.findById(businessId, created.id);

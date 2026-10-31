@@ -64,6 +64,7 @@ const mockProductRepo = {
     unitCost: input.unitCost ?? 0,
     stock: input.stock ?? 0,
     visible: input.visible ?? true,
+    allergens: input.allergens ?? [],
     imageUrl: input.imageUrl ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -164,6 +165,35 @@ describe("Product Server Actions", () => {
   });
 
   describe("createProductAction", () => {
+    it("creates and updates allergen tags and rejects invalid tags", async () => {
+      const input = {
+        name: "Bread",
+        categoryId: validCategoryId,
+        price: 100,
+        allergens: ["gluten", "milk"],
+      };
+      expect(await createProductAction(input)).toMatchObject({
+        success: true,
+        data: { allergens: input.allergens },
+      });
+      expect(await updateProductAction(validProductId, { allergens: [] })).toMatchObject({
+        success: true,
+        data: { allergens: [] },
+      });
+      expect(await createProductAction({ ...input, allergens: ["invalid"] })).toMatchObject({
+        success: false,
+        fieldErrors: { allergens: expect.any(Array) },
+      });
+      expect(await updateProductAction(validProductId, { allergens: ["invalid"] })).toMatchObject({
+        success: false,
+        fieldErrors: { allergens: expect.any(Array) },
+      });
+    });
+    it("requires authentication to change allergens", async () => {
+      mockRequireAuthenticatedAction.mockRejectedValueOnce(new Error("Unauthorized"));
+      await expect(createProductAction({ allergens: ["gluten"] })).rejects.toThrow("Unauthorized");
+      expect(mockProductRepo.create).not.toHaveBeenCalled();
+    });
     it("validates and creates product, calling revalidatePath", async () => {
       const res = await createProductAction({
         name: "Tiramisu Maison",

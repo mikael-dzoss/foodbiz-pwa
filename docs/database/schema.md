@@ -247,6 +247,7 @@ create table products (
   unit_cost integer not null default 0 check (unit_cost >= 0), -- integer cents
   stock integer not null default 0 check (stock >= 0), -- negative inventory prevention
   visible boolean not null default true, -- soft deletion / catalog visibility
+  allergens text[] not null default '{}',
   image_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

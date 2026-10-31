@@ -62,6 +62,7 @@ export function createMockRepositories(
         unitCost: input.unitCost ?? 0,
         stock: input.stock ?? 0,
         visible: input.visible ?? true,
+        allergens: [...(input.allergens ?? [])],
         imageUrl: input.imageUrl ?? null,
         createdAt: now,
         updatedAt: now,

@@ -13,6 +13,7 @@ export interface CreateProductInput {
   readonly unitCost?: number;
   readonly stock?: number;
   readonly visible?: boolean;
+  readonly allergens?: Product["allergens"];
   readonly imageUrl?: string | null;
 }
 

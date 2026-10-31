@@ -15,6 +15,7 @@ const sampleProduct: Product = {
   unitCost: 150,
   stock: 12,
   visible: true,
+  allergens: [],
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };

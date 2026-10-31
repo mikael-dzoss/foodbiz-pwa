@@ -202,6 +202,7 @@ describe("Order Server Actions", () => {
         unitCost: 300,
         stock: 10,
         visible: true,
+        allergens: [],
         imageUrl: null,
         createdAt: "2026-10-01T10:00:00.000Z",
         updatedAt: "2026-10-01T10:00:00.000Z",
