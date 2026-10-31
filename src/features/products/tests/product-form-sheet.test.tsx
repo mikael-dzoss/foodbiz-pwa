@@ -34,6 +34,7 @@ const sampleCategories: ProductCategory[] = [
     businessId: "biz-1",
     name: "Plats",
     sortOrder: 1,
+    role: "regular" as const,
     createdAt: "2026-08-01T08:00:00.000Z",
   },
 ];

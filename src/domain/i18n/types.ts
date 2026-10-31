@@ -518,6 +518,8 @@ export interface CustomersDictionary {
 }
 
 export interface ProductsDictionary {
+  categoryRoleLabel: string;
+  categoryRoles: Record<import("@/domain/category").CategoryRole, string>;
   allergensLabel: string;
   allergenLabels: Record<import("@/domain/allergen").Allergen, string>;
 }

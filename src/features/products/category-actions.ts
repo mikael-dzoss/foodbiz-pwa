@@ -57,7 +57,7 @@ export async function createCategoryAction(
     return { success: false, error };
   }
 
-  const { name, sortOrder } = parsed.data;
+  const { name, sortOrder, role } = parsed.data;
   const repos = getRepositories();
   const existing = await repos.categories.list(businessId);
 
@@ -73,6 +73,7 @@ export async function createCategoryAction(
   const created = await repos.categories.create(businessId, {
     name,
     sortOrder,
+    role,
   });
 
   revalidatePath("/manage/categories");
@@ -95,7 +96,7 @@ export async function renameCategoryAction(
     return { success: false, error };
   }
 
-  const { id, name } = parsed.data;
+  const { id, name, role } = parsed.data;
   const repos = getRepositories();
   const existing = await repos.categories.list(businessId);
 
@@ -110,7 +111,10 @@ export async function renameCategoryAction(
     };
   }
 
-  const updated = await repos.categories.update(businessId, id, { name });
+  const updated = await repos.categories.update(businessId, id, {
+    name,
+    ...(role === undefined ? {} : { role }),
+  });
 
   revalidatePath("/manage/categories");
   await revalidateStorefrontCatalog(businessId);

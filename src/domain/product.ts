@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { categoryRoleSchema } from "@/domain/category";
 import { allergenSchema } from "@/domain/allergen";
 import { isoDateTimeSchema, moneySchema, uuidSchema } from "./common";
 
@@ -7,6 +8,7 @@ export const productCategorySchema = z.object({
   businessId: uuidSchema,
   name: z.string().trim().min(1),
   sortOrder: z.number().int().min(0).default(0),
+  role: categoryRoleSchema.default("regular"),
   createdAt: isoDateTimeSchema,
 });
 

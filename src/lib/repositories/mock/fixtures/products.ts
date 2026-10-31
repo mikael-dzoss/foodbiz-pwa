@@ -3,7 +3,7 @@ import { DEMO_BUSINESS_ID } from "./business";
 import { DEMO_CATEGORY_IDS } from "./categories";
 
 const bId = DEMO_BUSINESS_ID;
-const { breads, pastries, beverages } = DEMO_CATEGORY_IDS;
+const { breads, pastries, beverages, snacks } = DEMO_CATEGORY_IDS;
 const date = "2026-08-01T08:00:00.000Z";
 
 export const demoProducts: Product[] = [
@@ -234,6 +234,34 @@ export const demoProducts: Product[] = [
     stock: 25,
     visible: true,
     imageUrl: "/images/orange-juice.jpg",
+    createdAt: date,
+    updatedAt: date,
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333316",
+    businessId: bId,
+    categoryId: snacks,
+    name: "Madeleines x3",
+    price: 300,
+    unitCost: 0,
+    stock: 20,
+    visible: true,
+    allergens: ["gluten", "milk", "eggs"],
+    imageUrl: null,
+    createdAt: date,
+    updatedAt: date,
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333317",
+    businessId: bId,
+    categoryId: snacks,
+    name: "Mini Cookies",
+    price: 250,
+    unitCost: 0,
+    stock: 15,
+    visible: true,
+    allergens: ["gluten", "milk", "eggs", "nuts"],
+    imageUrl: null,
     createdAt: date,
     updatedAt: date,
   },

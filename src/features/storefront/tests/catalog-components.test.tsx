@@ -46,6 +46,7 @@ const mockCatalog: StorefrontCatalogData = {
       businessId: "biz-1",
       name: "Breads",
       sortOrder: 1,
+      role: "regular" as const,
       createdAt: "2026-01-01T00:00:00Z",
     },
     {
@@ -53,6 +54,7 @@ const mockCatalog: StorefrontCatalogData = {
       businessId: "biz-1",
       name: "Pastries",
       sortOrder: 2,
+      role: "regular" as const,
       createdAt: "2026-01-01T00:00:00Z",
     },
   ],

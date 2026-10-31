@@ -36,6 +36,7 @@ export interface CreateCategoryInput {
   readonly id?: string;
   readonly name: string;
   readonly sortOrder?: number;
+  readonly role?: ProductCategory["role"];
 }
 
 export type UpdateCategoryInput = Partial<Omit<CreateCategoryInput, "id">>;

@@ -27,21 +27,44 @@ describe("Demo fixtures validity", () => {
     }
   });
 
-  it("contains exactly 3 categories valid against productCategorySchema", () => {
-    expect(demoCategories).toHaveLength(3);
+  it("contains exactly 4 categories valid against productCategorySchema", () => {
+    expect(demoCategories).toHaveLength(4);
     for (const category of demoCategories) {
       expect(() => productCategorySchema.parse(category)).not.toThrow();
     }
   });
 
-  it("contains exactly 15 products valid against productSchema across categories", () => {
-    expect(demoProducts).toHaveLength(15);
+  it("contains exactly 17 products valid against productSchema across categories", () => {
+    expect(demoProducts).toHaveLength(17);
     for (const product of demoProducts) {
       expect(() => productSchema.parse(product)).not.toThrow();
       expect(product.price).toBeGreaterThan(0);
       expect(product.stock).toBeGreaterThanOrEqual(0);
       expect(product.visible).toBe(true);
     }
+  });
+
+  it("seeds add-on roles and two visible snack products with prices, stock and allergens", () => {
+    const drinks = demoCategories.find((category) => category.role === "drinks");
+    const snacks = demoCategories.find((category) => category.role === "snacks");
+    expect(drinks?.name).toBe("Hot & Cold Beverages");
+    expect(snacks?.sortOrder).toBe(4);
+    expect(demoProducts.filter((product) => product.categoryId === snacks?.id)).toMatchObject([
+      {
+        name: "Madeleines x3",
+        price: 300,
+        stock: 20,
+        visible: true,
+        allergens: ["gluten", "milk", "eggs"],
+      },
+      {
+        name: "Mini Cookies",
+        price: 250,
+        stock: 15,
+        visible: true,
+        allergens: ["gluten", "milk", "eggs", "nuts"],
+      },
+    ]);
   });
 
   it("contains valid guests with valid E.164 phone numbers", () => {

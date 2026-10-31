@@ -103,6 +103,7 @@ export function createMockRepositories(
         businessId: bId,
         name: input.name,
         sortOrder: input.sortOrder ?? fixtures.categories.length + 1,
+        role: input.role ?? "regular",
         createdAt: new Date().toISOString(),
       };
       fixtures.categories.push(c);

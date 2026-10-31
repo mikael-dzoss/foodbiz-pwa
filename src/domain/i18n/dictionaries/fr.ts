@@ -51,6 +51,8 @@ export const frDictionary: Dictionary = {
     retry: "Réessayer",
   },
   products: {
+    categoryRoleLabel: "Rôle de la catégorie",
+    categoryRoles: { regular: "Standard", drinks: "Boissons", snacks: "Accompagnements" },
     allergensLabel: "Allergènes",
     allergenLabels: {
       gluten: "Gluten",
