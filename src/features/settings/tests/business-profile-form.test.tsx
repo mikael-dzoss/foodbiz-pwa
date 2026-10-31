@@ -42,6 +42,53 @@ afterEach(() => {
 });
 
 describe("BusinessProfileForm component", () => {
+  it("renders, submits and discards social links", async () => {
+    const business = { ...mockBusiness, instagramUrl: "https://instagram.com/original" };
+    render(<BusinessProfileForm business={business} dict={dict} />);
+    for (const [field, label] of [
+      ["instagramUrl", dict.business.instagramLabel],
+      ["facebookUrl", dict.business.facebookLabel],
+      ["tiktokUrl", dict.business.tiktokLabel],
+    ]) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      expect(input.type).toBe("url");
+      fireEvent.change(input, { target: { value: `https://example.com/${field}` } });
+    }
+    fireEvent.click(screen.getByTestId("button-discard"));
+    expect((screen.getByLabelText(dict.business.instagramLabel) as HTMLInputElement).value).toBe(
+      business.instagramUrl,
+    );
+    expect((screen.getByLabelText(dict.business.tiktokLabel) as HTMLInputElement).value).toBe("");
+    for (const [field, label] of [
+      ["instagramUrl", dict.business.instagramLabel],
+      ["facebookUrl", dict.business.facebookLabel],
+      ["tiktokUrl", dict.business.tiktokLabel],
+    ]) {
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: `https://example.com/${field}` },
+      });
+    }
+    fireEvent.click(screen.getByTestId("button-save-profile"));
+    await waitFor(() =>
+      expect(actions.updateBusinessProfileAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          instagramUrl: "https://example.com/instagramUrl",
+          facebookUrl: "https://example.com/facebookUrl",
+          tiktokUrl: "https://example.com/tiktokUrl",
+        }),
+      ),
+    );
+  });
+  it("announces social URL validation errors", async () => {
+    vi.mocked(actions.updateBusinessProfileAction).mockResolvedValueOnce({
+      success: false,
+      error: "Invalid URL",
+      fieldErrors: { instagramUrl: ["HTTPS required"] },
+    });
+    render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
+    fireEvent.click(screen.getByTestId("button-save-profile"));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("HTTPS required"));
+  });
   it("renders form fields pre-populated with business values", () => {
     render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
 

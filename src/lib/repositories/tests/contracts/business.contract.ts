@@ -27,12 +27,24 @@ export function describeBusinessRepositoryContract(
       const created = await repos.business.create({
         name: "Artisan Bakery Paris",
         slug: "artisan-bakery-paris",
+        instagramUrl: "https://instagram.com/artisan",
+        facebookUrl: "https://facebook.com/artisan",
+        tiktokUrl: "https://tiktok.com/@artisan",
       });
       expect(created.id).toBeDefined();
       expect(created.name).toBe("Artisan Bakery Paris");
 
       const found = await repos.business.findBySlug("artisan-bakery-paris");
       expect(found?.id).toBe(created.id);
+      expect(found?.instagramUrl).toBe("https://instagram.com/artisan");
+      expect(found?.facebookUrl).toBe("https://facebook.com/artisan");
+      expect(found?.tiktokUrl).toBe("https://tiktok.com/@artisan");
+      await repos.business.update(created.id, { instagramUrl: "", facebookUrl: "", tiktokUrl: "" });
+      expect(await repos.business.findById(created.id)).toMatchObject({
+        instagramUrl: "",
+        facebookUrl: "",
+        tiktokUrl: "",
+      });
     });
 
     it("update modifies business name and updatedAt, and throws on unknown id", async () => {

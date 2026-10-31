@@ -22,6 +22,19 @@ const anotherUuid = "987fcdeb-51a2-43d7-9012-345678901234";
 const isoNow = "2026-10-09T14:00:00.000Z";
 
 describe("Business schemas", () => {
+  it.each(["instagramUrl", "facebookUrl", "tiktokUrl"])("validates optional HTTPS %s", (field) => {
+    const profile = { name: "Bakery", slug: "bakery" };
+    const business = { ...profile, id: validUuid, createdAt: isoNow, updatedAt: isoNow };
+    for (const schema of [businessSchema, updateBusinessProfileSchema]) {
+      const base = schema === businessSchema ? business : profile;
+      for (const url of ["https://example.com/shop", "", undefined]) {
+        expect(schema.safeParse({ ...base, [field]: url }).success).toBe(true);
+      }
+      for (const url of ["http://example.com", "invalid", "https://", "ftp://example.com"]) {
+        expect(schema.safeParse({ ...base, [field]: url }).success).toBe(false);
+      }
+    }
+  });
   it("validates a valid Business", () => {
     const valid = {
       id: validUuid,
