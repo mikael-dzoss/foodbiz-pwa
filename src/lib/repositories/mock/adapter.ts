@@ -7,7 +7,7 @@ import {
   normalizePhoneNumber,
 } from "@/domain/guest";
 import type { Guest } from "@/domain/guest";
-import type { Order } from "@/domain/order";
+import { publicOrderSchema, type Order } from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
 import type {
   BusinessRepository,
@@ -134,7 +134,7 @@ export function createMockRepositories(
     },
     async findByTrackingToken(token) {
       const o = fixtures.orders.find((x) => x.trackingToken === token);
-      return o ? structuredClone(o) : null;
+      return o ? publicOrderSchema.parse(o) : null;
     },
     async findByTicketAndPhone(bId, orderNumber, phone) {
       let targetPhone: string;
@@ -154,7 +154,7 @@ export function createMockRepositories(
           return guest.phone === targetPhone;
         }
       });
-      return o ? structuredClone(o) : null;
+      return o ? publicOrderSchema.parse(o) : null;
     },
     async list(bId, filter) {
       let res = fixtures.orders.filter((o) => o.businessId === bId);

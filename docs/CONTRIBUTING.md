@@ -74,7 +74,7 @@ and manager contexts and reloads tracking after acceptance (live polling is not
 part of this gate).
 
 Browser axe checks cover storefront catalog, product detail, populated cart and
-checkout, tracking (EN/FR), manager sign-in, dashboard, products/product sheet,
+checkout, confirmation and tracking (EN/FR), manager sign-in, dashboard, products/product sheet,
 orders/manual entry/order detail, and expenses/expense sheet in light and dark.
 Customer list/detail checks additionally cover EN/FR at 360 and 390 px in both themes,
 including search, persistent canonical-name and note edits, and propagation to linked orders.

@@ -350,7 +350,7 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(honeypot.value).toBe("");
   });
 
-  it("calls placeOrderAction and redirects to tracking page on default submission (#87)", async () => {
+  it("opens persistent confirmation after placing an order", async () => {
     // Mock placeOrderAction resolving with success
     const mockOrderData = {
       orderId: "order-999",
@@ -404,7 +404,7 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(screen.queryByText(dict.emptyCartTitle)).toBeNull();
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/en/order/token-secret-42");
+      expect(mockPush).toHaveBeenCalledWith("/en/order/token-secret-42/confirmed");
     });
   });
 

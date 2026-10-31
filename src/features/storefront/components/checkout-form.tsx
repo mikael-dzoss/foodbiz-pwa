@@ -274,14 +274,14 @@ export function CheckoutForm({
         setSubmittedSuccess(true);
         setIsSubmitting(false);
 
-        // Empty cart in the background and redirect to order tracking
+        // Keep the receipt on a reloadable token route; tracking is an explicit next step.
         const delay = redirectDelayMs ?? 1000;
         const trackingToken = orderResult.data.trackingToken;
 
         setTimeout(() => {
           clearCart();
           if (trackingToken) {
-            router.push(`/${locale}/order/${trackingToken}`);
+            router.push(`/${locale}/order/${encodeURIComponent(trackingToken)}/confirmed`);
           }
         }, delay);
 
@@ -324,10 +324,10 @@ export function CheckoutForm({
             </div>
             <Button asChild variant="outline" size="sm" className="mt-2 rounded-xl text-xs">
               <Link
-                href={`/${locale}/order/${confirmedOrder.trackingToken}`}
+                href={`/${locale}/order/${encodeURIComponent(confirmedOrder.trackingToken)}/confirmed`}
                 onClick={() => clearCart()}
               >
-                {dict.trackOrder} &rarr;
+                {dict.viewConfirmation} &rarr;
               </Link>
             </Button>
           </div>

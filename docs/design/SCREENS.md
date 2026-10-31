@@ -110,6 +110,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                                                       |
 | C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                                                       |
 | C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                                                       |
+| C-12 Confirmation        | `e23f423142a5463c9055b697bec49db2` | `65f2f70e9e1544d7bdcc02244828337d` | —                                                       |
 | C-20 Order tracking      | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                                                       |
 
 ## Customer behaviour (#66)
@@ -123,6 +124,35 @@ The M-70 visual contract is a compact app bar with a live customer count, search
 Keep the model's visual hierarchy, spacing and surfaces, but omit model-only screen IDs, the unsupported "Regular" classification, POS/invoice claims and the empty-state preview control. Customer totals and history counts are live; notes and spend helper copy describe only implemented behavior. Input outlines retain the design system's accessible control token rather than the model's low-contrast decorative borders.
 
 Customer detail uses the top back link without the manager bottom navigation, consistent with order detail. Any bottom navigation added by a generated detail reference is noise, not a requirement.
+
+## Customer post-checkout behaviour (#88, #89)
+
+Checkout opens the reloadable C-12 confirmation route, not tracking directly. Confirmation
+shows the saved reference, item snapshots and total, plus the selected Revolut revtag or
+Wero identifier, amount and payment reference, or payment-at-handover instructions.
+Copying a recipient reports success or an explicit clipboard error. Missing payment
+configuration asks the customer to contact the shop; paid, refunded and cancelled orders
+are not asked to pay again. Payment preference never implies payment receipt.
+The tracking link preserves the token and locale; customers choose when to follow it.
+
+C-12 follows the registered light mobile model; dark styling derives from shared tokens.
+C-20 retains its status timeline, payment badge, item summary, public shop contact details,
+and cancellation reason. Refresh loads the latest state; live polling is not implemented.
+Unsupported tax estimates and invented preparation times are not displayed.
+
+Both token pages are `noindex, nofollow` and use `no-referrer`. Public token and
+ticket/phone repository lookups return the allowlisted `PublicOrder` schema, excluding
+guest identities, submitted names, customer phone/address, notes, internal history notes
+and item identifiers. New mock orders use random 32-character UUID-derived tokens;
+predictable `tk-*` tokens exist only in demo fixtures. Supabase repositories and the future
+`lookup_order_by_ticket_and_phone` RPC remain part of E18 and must enforce the same
+projection at the database boundary, never projecting `guests.name` or `submitted_name`.
+
+Verification: C-12 and C-20 browser screenshots were inspected in EN/light and FR/dark;
+axe WCAG AA checks and screenshots cover EN/FR in both themes at 390 px. Browser
+journeys verify Revolut, Wero and handover instructions, confirmation persistence on
+reload, token-preserving navigation, manager acceptance reflected on tracking refresh,
+and absence of guest details in returned confirmation/tracking HTML and RSC payloads.
 
 ## Gaps
 

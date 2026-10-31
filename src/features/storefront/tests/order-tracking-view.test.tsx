@@ -151,7 +151,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
   });
 
-  it("renders delivery order with address, customer notes, and unpaid badge", () => {
+  it("renders delivery progress and unpaid status without private address or notes", () => {
     const deliveryOrder: Order = {
       ...mockActiveOrder,
       id: "ord-deliv",
@@ -173,8 +173,8 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
 
     expect(screen.getByText("Delivery")).toBeDefined();
-    expect(screen.getByText("42 Avenue des Champs-Élysées, 75008 Paris")).toBeDefined();
-    expect(screen.getByText("Please ring door code 4589B")).toBeDefined();
+    expect(screen.queryByText("42 Avenue des Champs-Élysées, 75008 Paris")).toBeNull();
+    expect(screen.queryByText("Please ring door code 4589B")).toBeNull();
     expect(screen.getByText(enDict.orderTracking.unpaidBadge)).toBeDefined();
     expect(screen.getByTestId("tracking-status-badge").textContent).toContain("Preparing");
   });

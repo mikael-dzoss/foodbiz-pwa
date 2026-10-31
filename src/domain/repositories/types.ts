@@ -1,7 +1,7 @@
 import type { Business, BusinessMember, BusinessMemberRole, BusinessSettings } from "../business";
 import type { Expense } from "../expense";
 import type { FindOrCreateGuestResult, Guest } from "../guest";
-import type { Order, OrderStatus } from "../order";
+import type { Order, OrderStatus, PublicOrder } from "../order";
 import type { Product, ProductCategory } from "../product";
 
 export interface CreateProductInput {
@@ -82,12 +82,12 @@ export interface OrderFilter {
 
 export interface OrderRepository {
   findById(businessId: string, id: string): Promise<Order | null>;
-  findByTrackingToken(trackingToken: string): Promise<Order | null>;
+  findByTrackingToken(trackingToken: string): Promise<PublicOrder | null>;
   findByTicketAndPhone(
     businessId: string,
     orderNumber: number,
     phone: string,
-  ): Promise<Order | null>;
+  ): Promise<PublicOrder | null>;
   list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
   create(businessId: string, input: CreateOrderInput): Promise<Order>;
   update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;

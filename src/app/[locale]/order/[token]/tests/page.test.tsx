@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import OrderTrackingPage, { generateMetadata } from "../page";
+import ConfirmationPage, { generateMetadata as confirmationMetadata } from "../confirmed/page";
+import { getDictionary } from "@/domain/i18n";
+import { createDefaultFixtures } from "@/lib/repositories/mock/fixtures";
 import type { Order, Business } from "@/domain";
 
 const mockNotFound = vi.fn();
@@ -64,6 +67,7 @@ vi.mock("@/lib/repositories", () => ({
     },
     business: {
       findById: vi.fn(async () => mockBusiness),
+      getSettings: vi.fn(async () => createDefaultFixtures().settings),
     },
   }),
 }));
@@ -96,7 +100,47 @@ describe("OrderTrackingPage Route", () => {
     const meta = await generateMetadata({
       params: Promise.resolve({ locale: "en", token: "token-99" }),
     });
-
     expect(meta.title).toBe("Order #99 Tracking | FoodBiz");
+    expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+
+  it("keeps unknown-token metadata non-indexable", async () => {
+    const meta = await generateMetadata({
+      params: Promise.resolve({ locale: "en", token: "unknown" }),
+    });
+    expect(meta.robots).toEqual({ index: false, follow: false });
+    expect(meta.referrer).toBe("no-referrer");
+  });
+
+  it("renders a reloadable French confirmation with a token-preserving tracking link", async () => {
+    render(
+      await ConfirmationPage({
+        params: Promise.resolve({ locale: "fr", token: "token-99" }),
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { name: getDictionary("fr").orderConfirmation.title }),
+    ).toBeDefined();
+    expect(
+      screen
+        .getByRole("link", { name: getDictionary("fr").storefront.trackOrder })
+        .getAttribute("href"),
+    ).toBe("/fr/order/token-99");
+  });
+
+  it("does not render a confirmation for an invalid token", async () => {
+    await ConfirmationPage({ params: Promise.resolve({ locale: "en", token: "unknown" }) });
+    expect(mockNotFound).toHaveBeenCalledOnce();
+  });
+
+  it("marks confirmation metadata noindex in both languages", async () => {
+    for (const locale of ["en", "fr"] as const) {
+      const meta = await confirmationMetadata({
+        params: Promise.resolve({ locale, token: "token-99" }),
+      });
+      expect(meta.title).toBe(getDictionary(locale).orderConfirmation.title);
+      expect(meta.robots).toEqual({ index: false, follow: false });
+      expect(meta.referrer).toBe("no-referrer");
+    }
   });
 });
