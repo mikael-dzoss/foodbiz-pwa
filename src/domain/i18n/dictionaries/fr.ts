@@ -51,6 +51,9 @@ export const frDictionary: Dictionary = {
     retry: "Réessayer",
   },
   products: {
+    suggestAddOnsLabel: "Suggérer des suppléments",
+    suggestAddOnsHelper:
+      "Affiche les boissons pour les plats et les accompagnements pour les boissons",
     categoryRoleLabel: "Rôle de la catégorie",
     categoryRoles: { regular: "Standard", drinks: "Boissons", snacks: "Accompagnements" },
     allergensLabel: "Allergènes",

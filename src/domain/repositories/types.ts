@@ -14,6 +14,7 @@ export interface CreateProductInput {
   readonly stock?: number;
   readonly visible?: boolean;
   readonly allergens?: Product["allergens"];
+  readonly suggestAddOns?: boolean;
   readonly imageUrl?: string | null;
 }
 

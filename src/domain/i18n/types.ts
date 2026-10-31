@@ -1,3 +1,6 @@
+import type { Allergen } from "@/domain/allergen";
+import type { CategoryRole } from "@/domain/category";
+
 export const SUPPORTED_LOCALES = ["en", "fr"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: SupportedLocale = "en";
@@ -519,9 +522,11 @@ export interface CustomersDictionary {
 
 export interface ProductsDictionary {
   categoryRoleLabel: string;
-  categoryRoles: Record<import("@/domain/category").CategoryRole, string>;
+  categoryRoles: Record<CategoryRole, string>;
+  suggestAddOnsLabel: string;
+  suggestAddOnsHelper: string;
   allergensLabel: string;
-  allergenLabels: Record<import("@/domain/allergen").Allergen, string>;
+  allergenLabels: Record<Allergen, string>;
 }
 
 export interface Dictionary {

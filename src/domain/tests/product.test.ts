@@ -41,6 +41,36 @@ describe("Product Domain & Schemas", () => {
     }
   });
 
+  it("defaults suggestAddOns to true across product schemas", () => {
+    const input = {
+      id: validProductId,
+      businessId: validCategoryId,
+      categoryId: validCategoryId,
+      name: "Bread",
+      price: 100,
+      createdAt: "2026-08-01T08:00:00.000Z",
+      updatedAt: "2026-08-01T08:00:00.000Z",
+    };
+    for (const schema of [
+      productSchema,
+      createProductSchema,
+      updateProductSchema,
+      productFormInputSchema,
+    ]) {
+      expect(schema.parse(input).suggestAddOns).toBe(true);
+      expect(schema.parse({ ...input, suggestAddOns: false }).suggestAddOns).toBe(false);
+    }
+    for (const value of [true, "true", "on"])
+      expect(productFormInputSchema.parse({ ...input, suggestAddOns: value }).suggestAddOns).toBe(
+        true,
+      );
+    for (const value of [false, "false", ""])
+      expect(productFormInputSchema.parse({ ...input, suggestAddOns: value }).suggestAddOns).toBe(
+        false,
+      );
+    expect(productFormInputSchema.safeParse({ ...input, suggestAddOns: 1 }).success).toBe(false);
+  });
+
   describe("parseEuroStringToCents & centsToEuroString", () => {
     it("parses euro decimal string to integer cents", () => {
       expect(parseEuroStringToCents("12.50")).toBe(1250);

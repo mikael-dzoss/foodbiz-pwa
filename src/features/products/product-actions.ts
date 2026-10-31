@@ -137,7 +137,13 @@ export async function updateProductAction(
   rawInput: unknown,
 ): Promise<ProductActionResult<Product>> {
   const { businessId } = await requireAuthenticatedAction();
-  const parsed = productFormInputSchema.partial().safeParse(rawInput);
+  const parsed = productFormInputSchema
+    .partial()
+    .extend({
+      allergens: productFormInputSchema.shape.allergens.unwrap().optional(),
+      suggestAddOns: productFormInputSchema.shape.suggestAddOns.unwrap().optional(),
+    })
+    .safeParse(rawInput);
 
   if (!parsed.success) {
     const fieldErrors: Record<string, string[]> = {};

@@ -58,6 +58,7 @@ export function ProductFormSheet({
     product?.unitCost ? centsToEuroString(product.unitCost) : "",
   );
   const [stock, setStock] = useState(product?.stock ?? 0);
+  const [suggestAddOns, setSuggestAddOns] = useState(product?.suggestAddOns ?? true);
   const [allergens, setAllergens] = useState<Allergen[]>(product?.allergens ?? []);
   const [visible, setVisible] = useState(product?.visible ?? true);
   const [imageUrl, setImageUrl] = useState<string | null>(product?.imageUrl ?? null);
@@ -85,6 +86,7 @@ export function ProductFormSheet({
         setStock(normalizedProduct.stock);
         setVisible(normalizedProduct.visible);
         setAllergens(normalizedProduct.allergens);
+        setSuggestAddOns(normalizedProduct.suggestAddOns);
         setImageUrl(normalizedProduct.imageUrl ?? null);
       } else {
         setName("");
@@ -95,6 +97,7 @@ export function ProductFormSheet({
         setStock(0);
         setVisible(true);
         setAllergens([]);
+        setSuggestAddOns(true);
         setImageUrl(null);
       }
       setFieldErrors({});
@@ -157,6 +160,7 @@ export function ProductFormSheet({
       stock,
       visible,
       allergens,
+      suggestAddOns,
       imageUrl,
     });
 
@@ -184,6 +188,7 @@ export function ProductFormSheet({
         stock,
         visible,
         allergens,
+        suggestAddOns,
         imageUrl,
       };
 
@@ -528,6 +533,30 @@ export function ProductFormSheet({
               onCheckedChange={setVisible}
               aria-label="Visible on menu"
               data-testid="product-visibility-switch"
+            />
+          </div>
+
+          <div className="border-border bg-card flex items-center justify-between gap-3 rounded-lg border p-3.5">
+            <label
+              htmlFor="product-suggest-add-ons"
+              className="flex min-h-11 min-w-11 flex-1 cursor-pointer flex-col justify-center"
+            >
+              <span className="text-foreground text-sm font-semibold">
+                {dict.suggestAddOnsLabel}
+              </span>
+              <span id="product-suggest-add-ons-helper" className="text-muted-foreground text-xs">
+                {dict.suggestAddOnsHelper}
+              </span>
+            </label>
+            <Switch
+              id="product-suggest-add-ons"
+              checked={suggestAddOns}
+              onCheckedChange={setSuggestAddOns}
+              disabled={isPending}
+              aria-label={dict.suggestAddOnsLabel}
+              aria-describedby="product-suggest-add-ons-helper"
+              className="relative before:absolute before:inset-x-0 before:-inset-y-2.5 active:opacity-80"
+              data-testid="product-suggest-add-ons-switch"
             />
           </div>
 

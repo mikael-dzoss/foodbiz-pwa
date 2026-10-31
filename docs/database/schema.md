@@ -250,6 +250,7 @@ create table products (
   stock integer not null default 0 check (stock >= 0), -- negative inventory prevention
   visible boolean not null default true, -- soft deletion / catalog visibility
   allergens text[] not null default '{}',
+  suggest_add_ons boolean not null default true,
   image_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

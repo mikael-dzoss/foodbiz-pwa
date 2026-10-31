@@ -69,6 +69,7 @@ function makeProduct(overrides: Partial<Product>): Product {
     stock: 4,
     visible: true,
     allergens: [],
+    suggestAddOns: true,
     imageUrl: null,
     createdAt: "2026-10-10T10:00:00.000Z",
     updatedAt: "2026-10-10T10:00:00.000Z",

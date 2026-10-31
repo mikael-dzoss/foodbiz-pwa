@@ -50,6 +50,8 @@ export const enDictionary: Dictionary = {
     retry: "Try again",
   },
   products: {
+    suggestAddOnsLabel: "Suggest add-ons",
+    suggestAddOnsHelper: "Shows Drinks on dishes and Accompaniments on drinks",
     categoryRoleLabel: "Category role",
     categoryRoles: { regular: "Regular", drinks: "Drinks", snacks: "Snacks" },
     allergensLabel: "Allergens",

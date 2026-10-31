@@ -63,6 +63,7 @@ export function createMockRepositories(
         stock: input.stock ?? 0,
         visible: input.visible ?? true,
         allergens: [...(input.allergens ?? [])],
+        suggestAddOns: input.suggestAddOns ?? true,
         imageUrl: input.imageUrl ?? null,
         createdAt: now,
         updatedAt: now,

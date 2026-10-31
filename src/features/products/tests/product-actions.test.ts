@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { CreateProductInput, UpdateProductInput } from "@/domain";
+import type { CreateProductInput, UpdateProductInput, Product } from "@/domain";
 import {
   listProductsAction,
   getProductAction,
@@ -22,7 +22,7 @@ const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const validCategoryId = "22222222-2222-4222-8222-222222222201";
 const validProductId = "33333333-3333-4333-8333-333333333301";
 
-const mockProducts = [
+const mockProducts: Product[] = [
   {
     id: validProductId,
     businessId: testBusinessId,
@@ -33,6 +33,8 @@ const mockProducts = [
     unitCost: 420,
     stock: 18,
     visible: true,
+    allergens: ["gluten"],
+    suggestAddOns: false,
     imageUrl: "/images/burger.jpg",
     createdAt: "2026-08-01T08:00:00.000Z",
     updatedAt: "2026-08-01T08:00:00.000Z",
@@ -65,6 +67,7 @@ const mockProductRepo = {
     stock: input.stock ?? 0,
     visible: input.visible ?? true,
     allergens: input.allergens ?? [],
+    suggestAddOns: input.suggestAddOns ?? true,
     imageUrl: input.imageUrl ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -165,6 +168,40 @@ describe("Product Server Actions", () => {
   });
 
   describe("createProductAction", () => {
+    it("defaults, persists and validates add-on suggestions on create and update", async () => {
+      const input = { name: "Bread", categoryId: validCategoryId, price: 100 };
+      expect(await createProductAction(input)).toMatchObject({
+        success: true,
+        data: { suggestAddOns: true },
+      });
+      expect(await createProductAction({ ...input, suggestAddOns: false })).toMatchObject({
+        success: true,
+        data: { suggestAddOns: false },
+      });
+      expect(await updateProductAction(validProductId, { suggestAddOns: "on" })).toMatchObject({
+        success: true,
+        data: { suggestAddOns: true },
+      });
+      expect(await updateProductAction(validProductId, { suggestAddOns: false })).toMatchObject({
+        success: true,
+        data: { suggestAddOns: false },
+      });
+      expect(await createProductAction({ ...input, suggestAddOns: null })).toMatchObject({
+        success: false,
+        fieldErrors: { suggestAddOns: expect.any(Array) },
+      });
+      expect(await updateProductAction(validProductId, { suggestAddOns: 1 })).toMatchObject({
+        success: false,
+        fieldErrors: { suggestAddOns: expect.any(Array) },
+      });
+    });
+    it("rejects unauthenticated add-on changes", async () => {
+      mockRequireAuthenticatedAction.mockRejectedValueOnce(new Error("Unauthorized"));
+      await expect(updateProductAction(validProductId, { suggestAddOns: false })).rejects.toThrow(
+        "Unauthorized",
+      );
+      expect(mockProductRepo.update).not.toHaveBeenCalled();
+    });
     it("creates and updates allergen tags and rejects invalid tags", async () => {
       const input = {
         name: "Bread",
@@ -244,6 +281,12 @@ describe("Product Server Actions", () => {
   });
 
   describe("updateProductAction", () => {
+    it("preserves allergens and add-on preference when omitted from partial updates", async () => {
+      expect(await updateProductAction(validProductId, { price: 200 })).toMatchObject({
+        success: true,
+        data: { allergens: ["gluten"], suggestAddOns: false },
+      });
+    });
     it("updates product fields and calls revalidatePath", async () => {
       const res = await updateProductAction(validProductId, {
         name: "Burger Gourmet Deluxe",

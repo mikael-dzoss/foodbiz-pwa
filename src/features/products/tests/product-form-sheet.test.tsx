@@ -51,6 +51,7 @@ const sampleProduct: EnrichedProduct = {
   stock: 18,
   visible: true,
   allergens: [],
+  suggestAddOns: true,
   imageUrl: null,
   createdAt: "2026-08-01T08:00:00.000Z",
   updatedAt: "2026-08-01T08:00:00.000Z",
@@ -130,6 +131,53 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
     await waitFor(() =>
       expect(screen.getByText("Choose valid allergens").getAttribute("role")).toBe("alert"),
     );
+  });
+
+  it("defaults add-on suggestions on new products and submits the switch value", async () => {
+    render(
+      <ProductFormSheet categories={sampleCategories} isOpen={true} onOpenChange={() => {}} />,
+    );
+    const toggle = screen.getByRole("switch", { name: "Suggest add-ons" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Shows Drinks on dishes and Accompaniments on drinks")).toBeDefined();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    fireEvent.change(screen.getByTestId("product-name-input"), { target: { value: "Bread" } });
+    fireEvent.change(screen.getByTestId("product-price-input"), { target: { value: "1" } });
+    fireEvent.click(screen.getByTestId("save-product-button"));
+    await waitFor(() =>
+      expect(mockCreateProductAction).toHaveBeenCalledWith(
+        expect.objectContaining({ suggestAddOns: false }),
+      ),
+    );
+  });
+  it("loads, edits and resets add-on suggestions when switching products", async () => {
+    const { rerender } = render(
+      <ProductFormSheet
+        product={{ ...sampleProduct, suggestAddOns: false }}
+        categories={sampleCategories}
+        isOpen={true}
+        onOpenChange={() => {}}
+        dict={getDictionary("fr").products}
+      />,
+    );
+    expect(
+      screen.getByRole("switch", { name: "Suggérer des suppléments" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    fireEvent.click(screen.getByTestId("product-suggest-add-ons-switch"));
+    fireEvent.click(screen.getByTestId("save-product-button"));
+    await waitFor(() =>
+      expect(mockUpdateProductAction).toHaveBeenCalledWith(
+        sampleProduct.id,
+        expect.objectContaining({ suggestAddOns: true }),
+      ),
+    );
+    rerender(
+      <ProductFormSheet categories={sampleCategories} isOpen={true} onOpenChange={() => {}} />,
+    );
+    expect(
+      screen.getByRole("switch", { name: "Suggest add-ons" }).getAttribute("aria-checked"),
+    ).toBe("true");
   });
 
   it("renders Add Product title and empty inputs for new product", () => {
