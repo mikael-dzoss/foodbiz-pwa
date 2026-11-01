@@ -72,4 +72,15 @@ describe("Internationalized storefront pages", () => {
 
     expect(notFoundMock).toHaveBeenCalled();
   });
+
+  it("ProductDetailPage renders a dish with its optional Drinks add-on group", async () => {
+    const page = await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333301" }),
+    });
+    render(<CartProvider>{page}</CartProvider>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Traditional Baguette" })).toBeDefined();
+    expect(screen.getByTestId("product-addons-group")).toBeDefined();
+    expect(screen.getByRole("checkbox", { name: /Double Espresso/i })).toBeDefined();
+  });
 });

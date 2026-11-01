@@ -6,6 +6,7 @@ export * from "./components/product-catalog-card";
 export * from "./components/storefront-cart-bar";
 export * from "./components/menu-search-dialog";
 export * from "./components/storefront-catalog-view";
+export * from "./components/product-add-on-group";
 export * from "./components/product-detail-view";
 export * from "./components/shop-info-view";
 export * from "./components/order-tracking-view";

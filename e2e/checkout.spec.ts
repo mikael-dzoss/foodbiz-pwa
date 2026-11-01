@@ -53,6 +53,49 @@ test("storefront sticky category bar appears after scrolling past first category
   await expect(searchLauncher).toBeFocused();
 });
 
+test("storefront dish detail adds selected drink as a separate cart line", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/en/p/33333333-3333-4333-8333-333333333301");
+  const addButton = page.getByTestId("product-add-button");
+  if (await addButton.isDisabled()) {
+    const managerContext = await browser.newContext();
+    try {
+      const manager = await managerContext.newPage();
+      await manager.goto("/manage/login");
+      await manager.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+      await expect(manager).toHaveURL("/manage");
+      await manager.goto("/manage/settings/ordering");
+      await manager.getByTestId("input-opening-hours").fill("00:00 - 23:59");
+      await manager
+        .getByTestId("ordering-settings-form")
+        .evaluate((form: HTMLFormElement) => form.requestSubmit());
+      await expect(manager.getByText(/Ordering settings updated successfully/i)).toBeVisible();
+    } finally {
+      await managerContext.close();
+    }
+    await page.reload();
+  }
+
+  const addOnsGroup = page.getByTestId("product-addons-group");
+  await expect(addOnsGroup).toBeVisible();
+  await expect(addOnsGroup).toContainText("Drinks");
+
+  const espressoCheckbox = addOnsGroup.getByRole("checkbox", { name: /Double Espresso/i });
+  await espressoCheckbox.click();
+  await expect(espressoCheckbox).toBeChecked();
+
+  await expect(addButton).toContainText(`Add 1 to cart • ${formatMoney(350, "en")}`);
+  await addButton.click();
+  await expect(espressoCheckbox).not.toBeChecked();
+
+  await page.goto("/en/cart");
+  const cartList = page.getByTestId("cart-items-list");
+  await expect(cartList).toContainText("Traditional Baguette");
+  await expect(cartList).toContainText("Double Espresso");
+});
+
 for (const [locale, method, recipient, phone] of [
   ["en", "revolut", "@boulangerie", "+33600000106"],
   ["fr", "wero", "+33612345678", "+33600000107"],

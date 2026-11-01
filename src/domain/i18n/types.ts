@@ -81,7 +81,7 @@ export interface StorefrontDictionary {
   pickupUnavailableToast: string;
   deliveryUnavailableToast: string;
 
-  // Product Detail (#81, #202)
+  // Product Detail (#81, #202, #206)
   productNotFound: string;
   productUnavailable: string;
   quantity: string;
@@ -90,6 +90,10 @@ export interface StorefrontDictionary {
   cooksTip: string;
   perPiece: string;
   freshlyPreparedToday: string;
+  addQuantityToCart: string;
+  addOnsDrinksTitle: string;
+  addOnsSubtitle: string;
+  addOnsOptionalBadge: string;
 
   // Shop Information (#83)
   shopInfo: string;

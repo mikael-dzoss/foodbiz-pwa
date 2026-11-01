@@ -195,6 +195,10 @@ export const enDictionary: Dictionary = {
     cooksTip: "Best enjoyed fresh or gently reheated for 2 minutes at 160°C.",
     perPiece: "per piece",
     freshlyPreparedToday: "Freshly prepared today",
+    addQuantityToCart: "Add {count} to cart",
+    addOnsDrinksTitle: "Drinks",
+    addOnsSubtitle: "Choose any",
+    addOnsOptionalBadge: "Optional",
 
     shopInfo: "Shop information",
     storeInfo: "Store Info",
