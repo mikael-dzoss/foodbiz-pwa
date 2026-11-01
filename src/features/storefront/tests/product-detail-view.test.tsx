@@ -2,7 +2,7 @@ import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ProductDetailView } from "../components/product-detail-view";
 import { CartProvider } from "../context/cart-context";
-import { enDictionary } from "@/domain/i18n";
+import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { StorefrontProductData } from "../catalog-data";
 
 const sampleProductData: StorefrontProductData = {
@@ -70,13 +70,13 @@ const sampleProductData: StorefrontProductData = {
   isOpen: true,
 };
 
-describe("ProductDetailView (#81, #82)", () => {
+describe("ProductDetailView (#81, #82, #202)", () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
   });
 
-  it("renders product name, price, description, category, and business breadcrumb", () => {
+  it("renders product name, price, description, category, and omits removed legacy cards", () => {
     render(
       <CartProvider>
         <ProductDetailView
@@ -94,6 +94,71 @@ describe("ProductDetailView (#81, #82)", () => {
     expect(screen.getByText("Artisan Breads")).toBeDefined();
     expect(screen.getAllByText(/6,50\s*€|€6\.50|6\.50\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(enDictionary.storefront.inStock)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.cooksRecommendation)).toBeDefined();
+    expect(screen.getByText(enDictionary.storefront.cooksTip)).toBeDefined();
+
+    // Removed sections (#202): logistics/address card, ingredients card, Soon allergens card
+    expect(screen.queryByText("12 Rue de la Paix, Paris")).toBeNull();
+    expect(screen.queryByText(/Ingredients & Sourcing/i)).toBeNull();
+    expect(screen.queryByText(/Allergen Notice/i)).toBeNull();
+    expect(screen.queryByText("Soon")).toBeNull();
+  });
+
+  it("hides the allergens list when product.allergens is empty", () => {
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.queryByRole("list", { name: "Allergens" })).toBeNull();
+    expect(screen.queryByTestId("product-allergens-list")).toBeNull();
+  });
+
+  it("renders EU-14 allergen badges in an accessible list under description and before Cook's Recommendation in EN and FR", () => {
+    const withAllergens: StorefrontProductData = {
+      ...sampleProductData,
+      product: {
+        ...sampleProductData.product,
+        allergens: ["gluten", "milk", "eggs", "nuts"],
+      },
+    };
+
+    const { unmount } = render(
+      <CartProvider>
+        <ProductDetailView productData={withAllergens} locale="en" dict={enDictionary.storefront} />
+      </CartProvider>,
+    );
+
+    const listEn = screen.getByRole("list", { name: "Allergens" });
+    expect(listEn).toBeDefined();
+    expect(screen.getByTestId("product-allergen-gluten").textContent).toBe("Gluten");
+    expect(screen.getByTestId("product-allergen-milk").textContent).toBe("Milk");
+    expect(screen.getByTestId("product-allergen-eggs").textContent).toBe("Eggs");
+    expect(screen.getByTestId("product-allergen-nuts").textContent).toBe("Nuts");
+
+    // Verify DOM order: description -> allergens list -> Cook's Recommendation
+    const descEl = screen.getByText("Slow-fermented artisan sourdough bread with crispy crust");
+    const cooksEl = screen.getByText(enDictionary.storefront.cooksRecommendation);
+    expect(descEl.compareDocumentPosition(listEn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(listEn.compareDocumentPosition(cooksEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    unmount();
+
+    render(
+      <CartProvider>
+        <ProductDetailView productData={withAllergens} locale="fr" dict={frDictionary.storefront} />
+      </CartProvider>,
+    );
+
+    expect(screen.getByRole("list", { name: "Allergènes" })).toBeDefined();
+    expect(screen.getByTestId("product-allergen-milk").textContent).toBe("Lait");
+    expect(screen.getByTestId("product-allergen-eggs").textContent).toBe("Œufs");
+    expect(screen.getByTestId("product-allergen-nuts").textContent).toBe("Fruits à coque");
   });
 
   it("allows incrementing quantity with stepper and adds selected quantity to cart", () => {
@@ -149,46 +214,48 @@ describe("ProductDetailView (#81, #82)", () => {
     expect(button).toHaveProperty("disabled", true);
   });
 
-  it("displays store status alert banner when store is not accepting orders", () => {
-    const closedData: StorefrontProductData = {
+  it("disables add button with explanatory accessible label when store is closed or not accepting orders (without top banner)", () => {
+    const pausedData: StorefrontProductData = {
       ...sampleProductData,
       isAcceptingOrders: false,
     };
 
-    render(
+    const { unmount } = render(
       <CartProvider>
-        <ProductDetailView productData={closedData} locale="en" dict={enDictionary.storefront} />
+        <ProductDetailView productData={pausedData} locale="en" dict={enDictionary.storefront} />
       </CartProvider>,
     );
 
-    expect(screen.getByRole("alert")).toBeDefined();
-    expect(screen.getByText(enDictionary.storefront.notAcceptingOrdersBanner)).toBeDefined();
-  });
+    // Top banner is removed (#202)
+    expect(screen.queryByRole("alert")).toBeNull();
 
-  it("renders Cook's Recommendation card, Ingredients & Sourcing with SoonBadge, and Allergen Notice", () => {
+    // Add button is disabled with explanatory text/label
+    const pausedBtn = screen.getByTestId("product-add-button");
+    expect(pausedBtn).toHaveProperty("disabled", true);
+    expect(pausedBtn.textContent).toContain(enDictionary.storefront.notAcceptingOrdersShort);
+    expect(pausedBtn.textContent).toContain(enDictionary.storefront.notAcceptingOrdersBanner);
+
+    unmount();
+
+    const closedHoursData: StorefrontProductData = {
+      ...sampleProductData,
+      isAcceptingOrders: true,
+      isOpen: false,
+    };
+
     render(
       <CartProvider>
         <ProductDetailView
-          productData={sampleProductData}
-          locale="en"
-          dict={enDictionary.storefront}
+          productData={closedHoursData}
+          locale="fr"
+          dict={frDictionary.storefront}
         />
       </CartProvider>,
     );
 
-    // Cook's Recommendation
-    expect(screen.getByText(enDictionary.storefront.cooksRecommendation)).toBeDefined();
-    expect(screen.getByText(enDictionary.storefront.cooksTip)).toBeDefined();
-
-    // Ingredients & Sourcing (planned future feature with soon badge)
-    expect(screen.getByText(enDictionary.storefront.ingredientsAndSourcing)).toBeDefined();
-
-    // Allergen Notice (planned future feature with soon badge)
-    expect(screen.getByText(enDictionary.storefront.allergenNotice)).toBeDefined();
-    expect(screen.getByText("Gluten (Wheat)")).toBeDefined();
-
-    // Soon badges are displayed on the upcoming sections
-    const soonBadges = screen.getAllByText("Soon");
-    expect(soonBadges.length).toBeGreaterThanOrEqual(2);
+    const closedBtn = screen.getByTestId("product-add-button");
+    expect(closedBtn).toHaveProperty("disabled", true);
+    expect(closedBtn.textContent).toContain(frDictionary.storefront.storeClosedBadge);
+    expect(closedBtn.textContent).toContain(frDictionary.storefront.storeClosedBanner);
   });
 });

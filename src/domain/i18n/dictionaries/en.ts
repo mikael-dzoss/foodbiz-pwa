@@ -184,11 +184,8 @@ export const enDictionary: Dictionary = {
     total: "Total",
     cooksRecommendation: "Cook's Recommendation",
     cooksTip: "Best enjoyed fresh or gently reheated for 2 minutes at 160°C.",
-    ingredientsAndSourcing: "Ingredients & Sourcing",
-    allergenNotice: "Allergen Notice",
     perPiece: "per piece",
     freshlyPreparedToday: "Freshly prepared today",
-    readyToServe: "Ready to serve",
 
     shopInfo: "Shop information",
     storeInfo: "Store Info",

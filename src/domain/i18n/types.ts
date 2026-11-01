@@ -72,18 +72,15 @@ export interface StorefrontDictionary {
   pickupUnavailableToast: string;
   deliveryUnavailableToast: string;
 
-  // Product Detail (#81)
+  // Product Detail (#81, #202)
   productNotFound: string;
   productUnavailable: string;
   quantity: string;
   total: string;
   cooksRecommendation: string;
   cooksTip: string;
-  ingredientsAndSourcing: string;
-  allergenNotice: string;
   perPiece: string;
   freshlyPreparedToday: string;
-  readyToServe: string;
 
   // Shop Information (#83)
   shopInfo: string;

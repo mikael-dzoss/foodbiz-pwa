@@ -187,11 +187,8 @@ export const frDictionary: Dictionary = {
     total: "Total",
     cooksRecommendation: "Conseil du chef",
     cooksTip: "À déguster frais ou tiédi 2 minutes à 160°C pour retrouver tout son croustillant.",
-    ingredientsAndSourcing: "Ingrédients & Origines",
-    allergenNotice: "Allergènes",
     perPiece: "la pièce",
     freshlyPreparedToday: "Fraîchement préparé aujourd'hui",
-    readyToServe: "Prêt à servir",
 
     shopInfo: "Informations boutique",
     storeInfo: "Boutique",
