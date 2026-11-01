@@ -87,7 +87,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | P-01 Patterns reference              | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                                                                      |
 | S-00 Storefront shell                | `de0d771b3f3640ff97cc38867946f96a` | `8f9801bd78f346f5a839a5ed829ecd77` | —                                                                      |
 | A-01 Manager sign-in                 | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                                                                      |
-| M-10 Dashboard                       | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                                                                      |
+| M-10 Dashboard                       | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | `5a0d37c82c6a419eb3968364824075a5`                                     |
 | M-20 Orders list                     | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                                                                      |
 | M-21 Order detail                    | `dd6b7a8e57994a808b4bb091dc366d0e` | `b8414f3cda494766b6b6dfebdb796961` | —                                                                      |
 | M-30 New order                       | `a9730928a6cd4a448907b4cd55d3f03d` | `b91d3b2fb2af416aacb2c4cc1a015ffe` | —                                                                      |
@@ -96,27 +96,29 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | M-42 Categories                      | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | `ad0cdf5ebcd646c79a4808c52582fd35` | —                                                                      |
 | M-43 Stock adjustment                | `c74519cfa4064318b2726a958fe5bedf` | `08a0258259cb44e88adf8bd68913cfde` | —                                                                      |
 | M-50 Expenses list                   | `251415a589154a9e92e0e250f6eb8976` | `969886d60bb642619532a2bab9344df6` | —                                                                      |
-| M-51 Expense sheet                   | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | —                                                                      |
+| M-51 Expense sheet                   | `b94ec8d1081247d7b7453a34110ec32f` | `973623bb8eb3456583c7e39bf13ee8e3` | `05c7e6556e2e4ea78318327a175bf6e6`                                     |
 | M-60 Settings hub                    | `6e8ffc50ac7c4811b656ef660a024e9f` | `39826731f08b48bb9c77481a2fd53f11` | —                                                                      |
 | M-61 Account section                 | `bfc76ad7c1614f5b9238da67a6310910` | `dc62c013cf5b46019408cbf09df9b4f2` | —                                                                      |
 | M-62 Business profile                | `ea7f25f130ac435c97189a109f4fa833` | `e36913afc5404a63babe254e31b241d5` | —                                                                      |
-| M-63 Ordering settings               | `46c2f6a34b44457595003154aee0bcdc` | `3a9a481af1954700bc75109ec7aaa1ed` | —                                                                      |
+| M-63 Ordering settings               | `46c2f6a34b44457595003154aee0bcdc` | `3a9a481af1954700bc75109ec7aaa1ed` | `c7ab561b16284f1c97bea56179bac590`                                     |
 | M-64 Payment settings                | `466a1d7f374942e9895e789831633b69` | `5f6c2683efbf46e48baa48a2b909ed93` | —                                                                      |
 | M-65 Inventory & finance             | `6988aebd933e47bda20be9ec53adc21d` | `aded4036b64f473cb6b8ecaa408d1518` | —                                                                      |
 | M-67 Notifications & app             | `8ee29f8193974f6089b549ea3e13114e` | `016523a07f9c4ee5b8987b58a552e981` | —                                                                      |
 | M-70 Customers list                  | `e7ecfb1ddb65480099a05b44683ce239` | `c02a041e162045c8a1c381feb1cf0d6f` | —                                                                      |
 | M-71 Customer detail                 | `f71153b9f4e441adafc8610a8fcd7867` | `822b2692324546cf9e05cd7edea2a3ed` | `01e712f983ba43658ec5d408f89ddb0e` (bottom nav removed)                |
-| C-01 Storefront home                 | `88a3d8834b634b5a8f5a03c9510afb1a` | `a985c052286b4238a38168800da36704` | `f7ad34729a9749f8bdcd5f284d6693f2`                                     |
+| C-01 Storefront home                 | `88a3d8834b634b5a8f5a03c9510afb1a` | `a985c052286b4238a38168800da36704` | `f7ad34729a9749f8bdcd5f284d6693f2`, `caaeda031d3e4b5189e97da9106f760a` |
 | C-01b Home scrolled                  | `804d3dca797e4c118b57f1eaa8add586` | `3005e593cf1b42d4bcd505b78eaf930a` | —                                                                      |
 | C-01c Menu sheet                     | `50648308382f414aba7e112f8577b3be` | `dfe0fbe514704cc0a937e2bdecdd2093` | —                                                                      |
 | C-01d Menu search                    | `06f565fadb934e929f259471ff6ca128` | `328b2ad44c2d408ca17012d8d92f1543` | —                                                                      |
-| C-02 Product detail                  | `31776ef14a914be581b5a86ef8c30e84` | `bb598bc9306f4399b5cfff1e0181f96d` | `9204ca8308d64d1fb0cdffdceb556ca3`                                     |
-| C-02b Product detail – drink add-ons | `291fe471d40b422c90688110f35d9777` | `d439a1fe074342d885b04c5ec8a9cd96` | —                                                                      |
+| C-02 Product detail                  | `9d3cb99b53ac4d67a65baf4d87f3c968` | `bb1bfed50e974c4ab15be218d151e196` | `9204ca8308d64d1fb0cdffdceb556ca3`                                     |
+| C-02b Product detail – drink add-ons | `40865c54700f4a7e8883bbae427cd0b1` | `21cfbf1d3c2e424a929eebd858fe698f` | —                                                                      |
 | C-03 Shop info                       | `b4a31879979f4acbb3a4ca25b2362d18` | `3f4a49a2985849dcbe315153581174c2` | `938e3829952c47c0bba19080058b1a4e`                                     |
 | C-10 Cart                            | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                                                                      |
 | C-11 Checkout                        | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                                                                      |
 | C-12 Confirmation                    | `e23f423142a5463c9055b697bec49db2` | `65f2f70e9e1544d7bdcc02244828337d` | —                                                                      |
 | C-20 Order tracking                  | `2b5aa769f2f54703bc7f21206a36867e` | `ff98b79d1c504a0f8fbf3b67ae2f43b1` | —                                                                      |
+
+Not on the Stitch canvas (reachable by ID via `get_screen` only): C-01 dark, C-01b light, C-01d dark, M-70 light and dark. C-02b light/dark and C-01d dark use a desktop frame around mobile-width content.
 
 ## Customer behaviour (#66)
 
