@@ -242,6 +242,10 @@ describe("Storefront UI components (#80, #81, #82, #83)", () => {
         name: /100% Organic Flours & Artisanal Baking/i,
       });
       expect(bakeryInfoLink.getAttribute("href")).toBe("/en/info");
+
+      const categoryGroup = screen.getByTestId("category-group-cat-1");
+      expect(categoryGroup.className).toContain("divide-y");
+      expect(categoryGroup.className).toContain("rounded-xl");
     });
   });
 });

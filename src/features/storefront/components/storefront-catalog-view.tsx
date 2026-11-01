@@ -93,19 +93,22 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         <div className="flex flex-col gap-6">
           {filteredGroups.map((group, groupIdx) => (
             <section key={group.id} aria-labelledby={`category-heading-${group.id}`}>
-              <div className="border-border/60 mb-3 flex items-center justify-between border-b pb-1.5">
+              <div className="mb-2 flex items-center justify-between">
                 <h2
                   id={`category-heading-${group.id}`}
-                  className="text-foreground text-sm font-bold tracking-tight"
+                  className="text-foreground text-base font-semibold tracking-tight"
                 >
                   {group.name}
                 </h2>
-                <span className="text-muted-foreground text-xs tabular-nums">
+                <span className="text-muted-foreground text-xs font-medium tabular-nums">
                   {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                data-testid={`category-group-${group.id}`}
+                className="border-border bg-card divide-border divide-y overflow-hidden rounded-xl border sm:grid sm:grid-cols-2 sm:gap-3 sm:divide-y-0 sm:border-0 sm:bg-transparent lg:grid-cols-3"
+              >
                 {group.products.map((product, productIdx) => (
                   <ProductCatalogCard
                     key={product.id}
