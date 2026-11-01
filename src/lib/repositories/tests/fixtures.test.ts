@@ -120,6 +120,20 @@ describe("Demo fixtures validity", () => {
     expect(spanDays).toBeGreaterThanOrEqual(55);
   });
 
+  it("creates recent, schema-valid orders relative to an injected clock without changing counts or fixed fixtures", () => {
+    const now = new Date("2030-03-15T12:00:00.000Z");
+    const fixtures = createDefaultFixtures(now);
+    expect(fixtures.orders).toHaveLength(40);
+    const recent = fixtures.orders.filter(
+      (order) => Date.parse(order.createdAt) >= now.getTime() - 7 * 86_400_000,
+    );
+    expect(recent).toHaveLength(4);
+    expect(recent.every((order) => Date.parse(order.createdAt) <= now.getTime())).toBe(true);
+    for (const order of recent) expect(() => orderSchema.parse(order)).not.toThrow();
+    expect(createDefaultFixtures(now)).toEqual(fixtures);
+    expect(demoOrders.at(-1)?.createdAt).toContain("2026-10-09");
+  });
+
   it("createDefaultFixtures returns fresh deep clones", () => {
     const f1 = createDefaultFixtures();
     const f2 = createDefaultFixtures();

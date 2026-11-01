@@ -140,6 +140,8 @@ export const enDictionary: Dictionary = {
     privacy: "Privacy policy",
     openHours: "Opening hours",
 
+    featuredItems: "Featured items",
+    mostOrdered: "most ordered",
     allCategories: "All",
     menu: "Menu",
     dismiss: "Dismiss",

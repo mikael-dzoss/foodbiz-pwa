@@ -6,6 +6,10 @@ test("storefront sticky category bar appears after scrolling past first category
   page,
 }) => {
   await page.goto("/en");
+  const featured = page.getByTestId("featured-section");
+  await expect(featured).toBeVisible();
+  await expect(featured.getByRole("article").first()).toBeVisible();
+  await expect(featured.getByRole("article")).not.toHaveCount(0);
   await expect(page.getByTestId("category-nav-sentinel")).toBeVisible();
   await expect(page.getByTestId("sticky-category-nav")).toHaveCount(0);
 
@@ -16,6 +20,14 @@ test("storefront sticky category bar appears after scrolling past first category
   const sheet = page.getByTestId("category-nav-sheet");
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Menu" })).toBeVisible();
+  await expect(sheet.getByRole("navigation").getByRole("button").first()).toHaveText(
+    "Featured items",
+  );
+  await page.getByTestId("category-nav-sheet-item-featured").click();
+  await expect(page.locator("#category-heading-featured")).toBeFocused();
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(page.getByTestId("sticky-category-nav")).toBeVisible();
+  await page.getByTestId("category-nav-menu-button").click();
 
   await page.getByTestId("category-nav-sheet-item-22222222-2222-4222-8222-222222222202").click();
   await expect(sheet).toBeHidden();
@@ -50,7 +62,10 @@ for (const [locale, method, recipient, phone] of [
   }) => {
     await page.goto(`/${locale}`);
     await page.getByTestId("service-mode-pickup").click();
-    await page.getByRole("button", { name: /: Country Sourdough Loaf$/ }).click();
+    await page
+      .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
+      .getByRole("button", { name: /: Country Sourdough Loaf$/ })
+      .click();
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
       await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
@@ -83,6 +98,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
 }) => {
   await page.goto("/en");
   await page
+    .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
     .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
     .click();
   await page.goto("/en/cart");

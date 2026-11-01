@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockRepositories } from "@/lib/repositories/mock";
 import { demoGuests } from "@/lib/repositories/mock/fixtures/guests";
-import { demoOrders } from "@/lib/repositories/mock/fixtures/orders";
 import { attachGuestNames } from "@/domain/order";
 import { getCustomer, listCustomers } from "../customer-data";
 import { updateCustomerAction } from "../customer-actions";
@@ -58,6 +57,7 @@ describe("customer reads", () => {
 
 describe("canonical customer edits", () => {
   it("persists name and notes, resolves linked order names and preserves order audit data", async () => {
+    const originalOrders = await repos.orders.list(guest.businessId, { guestId: guest.id });
     const result = await updateCustomerAction(input);
     expect(result).toMatchObject({
       success: true,
@@ -66,7 +66,7 @@ describe("canonical customer edits", () => {
     const orders = await repos.orders.list(guest.businessId, { guestId: guest.id });
     const guests = await repos.guests.list(guest.businessId);
     expect(attachGuestNames(orders, guests).every((o) => o.guestName === "Alex Martin")).toBe(true);
-    expect(orders).toEqual(demoOrders.filter((o) => o.guestId === guest.id));
+    expect(orders).toEqual(originalOrders);
     expect(revalidatePath).toHaveBeenCalledWith("/manage", "layout");
   });
 

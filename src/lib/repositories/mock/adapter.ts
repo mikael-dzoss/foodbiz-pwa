@@ -1,4 +1,5 @@
 import type { Business, BusinessMember } from "@/domain/business";
+import { sumOrderProductQuantities } from "@/domain/featured";
 import type { Expense } from "@/domain/expense";
 import {
   findOrCreateGuest,
@@ -131,6 +132,12 @@ export function createMockRepositories(
   };
 
   const orders: OrderRepository = {
+    async sumQuantitiesByProduct(bId, filter) {
+      return sumOrderProductQuantities(
+        fixtures.orders.filter((o) => o.businessId === bId),
+        filter,
+      );
+    },
     async findById(bId, id) {
       const o = fixtures.orders.find((x) => x.businessId === bId && x.id === id);
       return o ? structuredClone(o) : null;

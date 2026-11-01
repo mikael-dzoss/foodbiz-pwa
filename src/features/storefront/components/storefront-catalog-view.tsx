@@ -12,6 +12,7 @@ import {
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
 import { ServiceToggleHeader } from "./service-toggle-header";
+import { FeaturedCarousel } from "./featured-carousel";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
 import { MenuSearchDialog } from "./menu-search-dialog";
@@ -28,11 +29,16 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
 
   const groupedCategories = catalog.groupedCategories;
   const hasAnyProducts = groupedCategories.some((g) => g.products.length > 0);
-  const sectionIds = useMemo(() => groupedCategories.map((g) => g.id), [groupedCategories]);
+  const hasFeatured = catalog.featuredProducts.length > 0;
   const navItems = useMemo(
-    () => groupedCategories.map((g) => ({ id: g.id, label: g.name })),
-    [groupedCategories],
+    () => [
+      ...(hasFeatured ? [{ id: "featured", label: dict.featuredItems }] : []),
+      ...groupedCategories.map((g) => ({ id: g.id, label: g.name })),
+    ],
+    [hasFeatured, dict.featuredItems, groupedCategories],
   );
+
+  const sectionIds = useMemo(() => navItems.map((item) => item.id), [navItems]);
 
   const { activeId, setActiveId } = useScrollSpy(sectionIds);
   const { sentinelRef, isPast } = useScrollPastSentinel(hasAnyProducts);
@@ -108,6 +114,14 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
       {/* Catalog Grouped by Category (Stitch C-01 / C-01b) */}
       {hasAnyProducts ? (
         <div className="flex flex-col gap-6">
+          <FeaturedCarousel
+            products={catalog.featuredProducts}
+            locale={locale}
+            dict={dict}
+            disabled={!catalog.isAcceptingOrders}
+            headingRef={hasFeatured ? sentinelRef : undefined}
+            headingActions={!isPast ? searchLauncherButton : undefined}
+          />
           {groupedCategories.map((group, groupIdx) => (
             <section
               key={group.id}
@@ -115,8 +129,8 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
               aria-labelledby={`category-heading-${group.id}`}
             >
               <div
-                ref={groupIdx === 0 ? sentinelRef : undefined}
-                data-testid={groupIdx === 0 ? "category-nav-sentinel" : undefined}
+                ref={groupIdx === 0 && !hasFeatured ? sentinelRef : undefined}
+                data-testid={groupIdx === 0 && !hasFeatured ? "category-nav-sentinel" : undefined}
                 className="mb-2 flex min-h-11 items-center justify-between gap-2"
               >
                 <div className="flex items-baseline gap-2">
@@ -131,7 +145,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
                     {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
                   </span>
                 </div>
-                {groupIdx === 0 && !isPast && searchLauncherButton}
+                {groupIdx === 0 && !hasFeatured && !isPast && searchLauncherButton}
               </div>
 
               <div

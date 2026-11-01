@@ -29,7 +29,12 @@ export interface MockFixtures {
   orders: Order[];
 }
 
-export function createDefaultFixtures(): MockFixtures {
+export function createDefaultFixtures(now: Date = new Date()): MockFixtures {
+  // Keep the fixed historical fixtures intact; date-shift four recent orders at creation time.
+  const recentOrders = demoOrders.slice(-4);
+  const anchor = Date.parse(recentOrders[recentOrders.length - 1].createdAt);
+  const shift = now.getTime() - 3_600_000 - anchor;
+  const shiftDate = (date: string) => new Date(Date.parse(date) + shift).toISOString();
   return {
     business: structuredClone(demoBusiness),
     settings: structuredClone(demoSettings),
@@ -38,7 +43,22 @@ export function createDefaultFixtures(): MockFixtures {
     products: structuredClone(demoProducts),
     guests: structuredClone(demoGuests),
     expenses: structuredClone(demoExpenses),
-    orders: structuredClone(demoOrders),
+    orders: structuredClone(demoOrders).map((order) =>
+      recentOrders.some((recent) => recent.id === order.id)
+        ? {
+            ...order,
+            createdAt: shiftDate(order.createdAt),
+            updatedAt: shiftDate(order.updatedAt),
+            requestedDate: shiftDate(order.createdAt).slice(0, 10),
+            paidAt: order.paidAt ? shiftDate(order.paidAt) : order.paidAt,
+            refundedAt: order.refundedAt ? shiftDate(order.refundedAt) : order.refundedAt,
+            statusHistory: order.statusHistory?.map((event) => ({
+              ...event,
+              timestamp: shiftDate(event.timestamp),
+            })),
+          }
+        : order,
+    ),
   };
 }
 

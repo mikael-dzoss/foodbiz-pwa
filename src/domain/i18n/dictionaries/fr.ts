@@ -142,6 +142,8 @@ export const frDictionary: Dictionary = {
     privacy: "Politique de confidentialité",
     openHours: "Heures d'ouverture",
 
+    featuredItems: "Articles à la une",
+    mostOrdered: "le plus commandé",
     allCategories: "Tous",
     menu: "Menu",
     dismiss: "Fermer",

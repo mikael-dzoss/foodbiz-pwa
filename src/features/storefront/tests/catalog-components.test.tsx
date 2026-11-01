@@ -1,9 +1,9 @@
-import { act, cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { act, cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StorefrontCartBar } from "../components/storefront-cart-bar";
 import { StorefrontCatalogView } from "../components/storefront-catalog-view";
 import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
-import { enDictionary } from "@/domain/i18n";
+import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
 
 type ObserverCallback = IntersectionObserverCallback;
@@ -144,6 +144,7 @@ const mockCatalog: StorefrontCatalogData = {
       ],
     },
   ],
+  featuredProducts: [],
   totalVisibleProducts: 2,
   isAcceptingOrders: true,
   isOpen: true,
@@ -215,6 +216,68 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
   });
 
   describe("StorefrontCatalogView", () => {
+    it("puts featured first in tabs and Menu sheet, observes it and focuses its heading", () => {
+      const product = mockCatalog.groupedCategories[0].products[0];
+      render(
+        <CartProvider>
+          <StorefrontCatalogView
+            catalog={{ ...mockCatalog, featuredProducts: [product] }}
+            locale="fr"
+            dict={frDictionary.storefront}
+          />
+        </CartProvider>,
+      );
+      const heading = screen.getByRole("heading", {
+        level: 2,
+        name: frDictionary.storefront.featuredItems,
+      });
+      expect(heading.getAttribute("tabindex")).toBe("-1");
+      expect(heading.className).toContain("scroll-mt-28");
+      const featured = document.getElementById("featured")!;
+      const spy = MockIntersectionObserver.instances.find((observer) =>
+        observer.observedElements.includes(featured),
+      );
+      expect(spy).toBeDefined();
+      const sentinel = screen.getByTestId("category-nav-sentinel");
+      expect(featured.contains(sentinel)).toBe(true);
+      const sentinelObserver = MockIntersectionObserver.instances.find((observer) =>
+        observer.observedElements.includes(sentinel),
+      )!;
+      act(() =>
+        sentinelObserver.trigger([
+          {
+            target: sentinel,
+            isIntersecting: false,
+            boundingClientRect: { top: -20 } as DOMRectReadOnly,
+          },
+        ]),
+      );
+      const nav = screen.getByRole("navigation", {
+        name: frDictionary.storefront.browseCategories,
+      });
+      const tab = within(nav).getAllByRole("button")[0];
+      expect(tab.textContent).toBe(frDictionary.storefront.featuredItems);
+      act(() => spy!.trigger([{ target: featured, isIntersecting: true }]));
+      expect(tab.getAttribute("aria-current")).toBe("true");
+      fireEvent.click(tab);
+      expect(document.activeElement).toBe(heading);
+      fireEvent.click(screen.getByTestId("category-nav-menu-button"));
+      const menu = screen.getByRole("navigation", { name: frDictionary.storefront.menu });
+      const firstItem = within(menu).getAllByRole("button")[0];
+      expect(firstItem.textContent).toBe(frDictionary.storefront.featuredItems);
+      fireEvent.click(firstItem);
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it("hides featured and omits its tab when its list is empty", () => {
+      render(
+        <CartProvider>
+          <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
+        </CartProvider>,
+      );
+      expect(screen.queryByRole("heading", { name: "Featured items" })).toBeNull();
+      expect(screen.queryByTestId("featured-carousel")).toBeNull();
+    });
     it("renders all categories and opens full-screen menu search overlay from the launcher (#203)", () => {
       render(
         <CartProvider>
