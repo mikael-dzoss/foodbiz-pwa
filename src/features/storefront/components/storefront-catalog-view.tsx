@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Search, Sparkles } from "lucide-react";
 import {
@@ -14,6 +14,7 @@ import type { StorefrontCatalogData } from "../catalog-data";
 import { ServiceToggleHeader } from "./service-toggle-header";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
+import { MenuSearchDialog } from "./menu-search-dialog";
 
 export interface StorefrontCatalogViewProps {
   catalog: StorefrontCatalogData;
@@ -22,36 +23,15 @@ export interface StorefrontCatalogViewProps {
 }
 
 export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatalogViewProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const launcherRef = useRef<HTMLButtonElement | null>(null);
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-
-  // Filter grouped categories and products based on search query
-  const filteredGroups = useMemo(() => {
-    return catalog.groupedCategories
-      .map((group) => {
-        if (!normalizedQuery) return group;
-        const matchingProducts = group.products.filter((p) => {
-          return (
-            p.name.toLowerCase().includes(normalizedQuery) ||
-            p.description?.toLowerCase().includes(normalizedQuery)
-          );
-        });
-        return {
-          ...group,
-          products: matchingProducts,
-        };
-      })
-      .filter((group): group is (typeof catalog.groupedCategories)[number] => {
-        return group.products.length > 0;
-      });
-  }, [catalog, normalizedQuery]);
-
-  const hasAnyProducts = filteredGroups.some((g) => g.products.length > 0);
-  const sectionIds = useMemo(() => filteredGroups.map((g) => g.id), [filteredGroups]);
+  const groupedCategories = catalog.groupedCategories;
+  const hasAnyProducts = groupedCategories.some((g) => g.products.length > 0);
+  const sectionIds = useMemo(() => groupedCategories.map((g) => g.id), [groupedCategories]);
   const navItems = useMemo(
-    () => filteredGroups.map((g) => ({ id: g.id, label: g.name })),
-    [filteredGroups],
+    () => groupedCategories.map((g) => ({ id: g.id, label: g.name })),
+    [groupedCategories],
   );
 
   const { activeId, setActiveId } = useScrollSpy(sectionIds);
@@ -71,6 +51,27 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
     heading.focus({ preventScroll: true });
   };
 
+  const handleRestoreLauncherFocus = () => {
+    launcherRef.current?.focus({ preventScroll: true });
+  };
+
+  const searchLauncherButton = (
+    <button
+      ref={(node) => {
+        if (node) {
+          launcherRef.current = node;
+        }
+      }}
+      type="button"
+      onClick={() => setSearchOpen(true)}
+      aria-label={dict.searchMenu}
+      data-testid="catalog-search-launcher"
+      className="border-border bg-muted/50 text-foreground hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
+    >
+      <Search className="h-5 w-5" aria-hidden="true" />
+    </button>
+  );
+
   return (
     <div className="flex flex-col pb-6">
       {/* Semantic Accessible Heading for SEO & Screen Readers (Brand shown in TopAppBar per Stitch) */}
@@ -87,6 +88,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
             menuSubtitle={catalog.openingHoursText}
             menuLabel={dict.browseCategories}
             dismissLabel={dict.dismiss}
+            trailing={searchLauncherButton}
           />
         </div>
       )}
@@ -103,26 +105,10 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         dict={dict}
       />
 
-      {/* Non-sticky Search Input (replaced by search launcher in #203) */}
-      <div className="mb-4 flex w-full items-center">
-        <div className="relative flex w-full items-center">
-          <Search className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={dict.searchPlaceholder}
-            aria-label={dict.searchPlaceholder}
-            data-testid="catalog-search-input"
-            className="border-input bg-card text-foreground placeholder:text-muted-foreground focus:border-primary h-11 w-full rounded-lg border pr-3 pl-9 text-base transition-colors focus:outline-hidden sm:text-sm"
-          />
-        </div>
-      </div>
-
       {/* Catalog Grouped by Category (Stitch C-01 / C-01b) */}
       {hasAnyProducts ? (
         <div className="flex flex-col gap-6">
-          {filteredGroups.map((group, groupIdx) => (
+          {groupedCategories.map((group, groupIdx) => (
             <section
               key={group.id}
               id={`category-section-${group.id}`}
@@ -131,18 +117,21 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
               <div
                 ref={groupIdx === 0 ? sentinelRef : undefined}
                 data-testid={groupIdx === 0 ? "category-nav-sentinel" : undefined}
-                className="mb-2 flex items-center justify-between"
+                className="mb-2 flex min-h-11 items-center justify-between gap-2"
               >
-                <h2
-                  id={`category-heading-${group.id}`}
-                  tabIndex={-1}
-                  className="text-foreground scroll-mt-28 text-base font-semibold tracking-tight focus:outline-hidden"
-                >
-                  {group.name}
-                </h2>
-                <span className="text-muted-foreground text-xs font-medium tabular-nums">
-                  {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <h2
+                    id={`category-heading-${group.id}`}
+                    tabIndex={-1}
+                    className="text-foreground scroll-mt-28 text-base font-semibold tracking-tight focus:outline-hidden"
+                  >
+                    {group.name}
+                  </h2>
+                  <span className="text-muted-foreground text-xs font-medium tabular-nums">
+                    {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
+                  </span>
+                </div>
+                {groupIdx === 0 && !isPast && searchLauncherButton}
               </div>
 
               <div
@@ -181,14 +170,25 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         </div>
       ) : (
         <div className="border-border bg-card my-8 flex flex-col items-center justify-center rounded-xl border p-8 text-center">
-          <p className="text-foreground text-sm font-semibold">
-            {searchQuery ? dict.noProductsFound : dict.noProductsInCategory}
-          </p>
+          <p className="text-foreground text-sm font-semibold">{dict.noProductsInCategory}</p>
         </div>
       )}
 
+      {/* Full-Screen Menu Search Overlay (Stitch C-01d, #203) */}
+      <MenuSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onCloseRestoreFocus={handleRestoreLauncherFocus}
+        groupedCategories={groupedCategories}
+        businessName={catalog.business.name}
+        lowStockThreshold={catalog.settings?.lowStockThreshold ?? 5}
+        isAcceptingOrders={catalog.isAcceptingOrders}
+        locale={locale}
+        dict={dict}
+      />
+
       {/* Floating Bottom Cart Bar */}
-      <StorefrontCartBar locale={locale} dict={dict} />
+      {!searchOpen && <StorefrontCartBar locale={locale} dict={dict} />}
     </div>
   );
 }

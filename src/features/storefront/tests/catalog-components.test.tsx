@@ -215,7 +215,7 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
   });
 
   describe("StorefrontCatalogView", () => {
-    it("renders all categories and filters products by non-sticky search query", () => {
+    it("renders all categories and opens full-screen menu search overlay from the launcher (#203)", () => {
       render(
         <CartProvider>
           <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
@@ -228,16 +228,95 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       expect(screen.getByText("Sourdough Loaf")).toBeDefined();
       expect(screen.getByText("Croissant")).toBeDefined();
 
-      // Search input is rendered above categories (non-sticky) and filters across categories
-      const searchInput = screen.getByRole("searchbox");
+      // Inline search input is removed; search icon launcher is reachable before sticky bar appears
+      expect(screen.queryByTestId("catalog-search-input")).toBeNull();
+      const launcher = screen.getByRole("button", { name: "Search the menu" });
+      expect(launcher.getAttribute("data-testid")).toBe("catalog-search-launcher");
+
+      // Open full-screen search dialog
+      fireEvent.click(launcher);
+
+      const dialog = screen.getByRole("dialog", { name: "Search the menu" });
+      expect(dialog).toBeDefined();
+
+      const searchInput = screen.getByTestId("menu-search-input") as HTMLInputElement;
+      expect(searchInput.getAttribute("placeholder")).toBe("Search the menu");
+      expect(document.activeElement).toBe(searchInput);
+
+      // Initial state when query is empty shows hint and no product results
+      expect(screen.getByTestId("menu-search-initial-hint")).toBeDefined();
+      expect(screen.queryByTestId("menu-search-results")).toBeNull();
+      expect(screen.queryByTestId("menu-search-clear-button")).toBeNull();
+
+      // Typing filters products across categories and shows results count + clear button
+      fireEvent.change(searchInput, { target: { value: "o" } });
+      expect(screen.getByTestId("menu-search-results-count").textContent).toContain("2 results");
+
       fireEvent.change(searchInput, { target: { value: "Croissant" } });
+      expect(screen.getByTestId("menu-search-results-count").textContent).toContain("1 result");
+      expect(screen.getByTestId("menu-search-results").textContent).toContain("Croissant");
+      expect(screen.getByTestId("menu-search-results").textContent).not.toContain("Sourdough Loaf");
 
-      expect(screen.queryByText("Sourdough Loaf")).toBeNull();
-      expect(screen.getByText("Croissant")).toBeDefined();
+      // Matching category name shows all products in that category
+      fireEvent.change(searchInput, { target: { value: "breads" } });
+      expect(screen.getByTestId("menu-search-results-count").textContent).toContain("1 result");
+      expect(screen.getByTestId("menu-search-results").textContent).toContain("Sourdough Loaf");
 
-      // Search for non-existent product
+      // Search for non-existent product shows empty state with query
       fireEvent.change(searchInput, { target: { value: "Donut" } });
-      expect(screen.getByText(enDictionary.storefront.noProductsFound)).toBeDefined();
+      expect(screen.getByTestId("menu-search-empty-state").textContent).toContain(
+        'No results for "Donut"',
+      );
+
+      // Clear button resets query and keeps focus on search input
+      const clearBtn = screen.getByTestId("menu-search-clear-button");
+      fireEvent.click(clearBtn);
+      expect(searchInput.value).toBe("");
+      expect(screen.getByTestId("menu-search-initial-hint")).toBeDefined();
+      expect(document.activeElement).toBe(searchInput);
+
+      // Back button closes dialog and restores focus to launcher
+      fireEvent.click(screen.getByTestId("menu-search-back-button"));
+      expect(screen.queryByRole("dialog", { name: "Search the menu" })).toBeNull();
+      expect(document.activeElement).toBe(launcher);
+    });
+
+    it("closes full-screen search on Escape and exposes launcher in sticky CategoryNav trailing slot", () => {
+      render(
+        <CartProvider>
+          <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
+        </CartProvider>,
+      );
+
+      // Scroll past sentinel so sticky CategoryNav is shown
+      const sentinel = screen.getByTestId("category-nav-sentinel");
+      const sentinelObserver = MockIntersectionObserver.instances.find((obs) =>
+        obs.observedElements.includes(sentinel),
+      );
+      act(() => {
+        sentinelObserver!.trigger([
+          {
+            target: sentinel,
+            isIntersecting: false,
+            boundingClientRect: { top: -20 } as DOMRectReadOnly,
+          },
+        ]);
+      });
+
+      const stickyNav = screen.getByTestId("sticky-category-nav");
+      const stickyLauncher = screen.getByRole("button", { name: "Search the menu" });
+      expect(stickyNav.contains(stickyLauncher)).toBe(true);
+
+      fireEvent.click(stickyLauncher);
+      expect(screen.getByRole("dialog", { name: "Search the menu" })).toBeDefined();
+
+      // Press Escape to close
+      fireEvent.keyDown(screen.getByRole("dialog", { name: "Search the menu" }), {
+        key: "Escape",
+        code: "Escape",
+      });
+      expect(screen.queryByRole("dialog", { name: "Search the menu" })).toBeNull();
+      expect(document.activeElement).toBe(stickyLauncher);
     });
 
     it("shows sticky CategoryNav only once the first category title has scrolled past and scrolls/focuses on selection", () => {
@@ -320,6 +399,20 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       const categoryGroup = screen.getByTestId("category-group-cat-1");
       expect(categoryGroup.className).toContain("divide-y");
       expect(categoryGroup.className).toContain("rounded-xl");
+    });
+
+    it("renders empty catalog message when there are no visible products", () => {
+      render(
+        <CartProvider>
+          <StorefrontCatalogView
+            catalog={{ ...mockCatalog, groupedCategories: [], totalVisibleProducts: 0 }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>,
+      );
+
+      expect(screen.getByText(enDictionary.storefront.noProductsInCategory)).toBeDefined();
     });
   });
 });

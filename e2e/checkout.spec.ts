@@ -22,6 +22,23 @@ test("storefront sticky category bar appears after scrolling past first category
   await expect(
     page.locator("#category-heading-22222222-2222-4222-8222-222222222202"),
   ).toBeFocused();
+
+  const searchLauncher = page.getByTestId("catalog-search-launcher");
+  await expect(searchLauncher).toBeVisible();
+  await searchLauncher.click();
+
+  const searchDialog = page.getByRole("dialog", { name: "Search the menu" });
+  await expect(searchDialog).toBeVisible();
+  const searchInput = page.getByTestId("menu-search-input");
+  await expect(searchInput).toBeFocused();
+
+  await searchInput.fill("crois");
+  await expect(page.getByTestId("menu-search-results-count")).toContainText(/result/i);
+  await expect(page.getByTestId("menu-search-results")).toContainText("Croissant");
+
+  await page.getByTestId("menu-search-back-button").click();
+  await expect(searchDialog).toBeHidden();
+  await expect(searchLauncher).toBeFocused();
 });
 
 for (const [locale, method, recipient, phone] of [

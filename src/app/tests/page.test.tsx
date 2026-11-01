@@ -35,17 +35,17 @@ describe("Internationalized storefront pages", () => {
     const page = await LocaleHomePage({ params: Promise.resolve({ locale: "en" }) });
     render(<CartProvider>{page}</CartProvider>);
 
-    // Heading and search should be present
-    expect(screen.getByPlaceholderText(/Search products/i)).toBeDefined();
+    // Heading and search launcher should be present (#203)
+    expect(screen.getByRole("button", { name: /Search the menu/i })).toBeDefined();
     // Category section headings rendered
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
   });
 
-  it("LocaleHomePage renders French catalog with French search placeholder", async () => {
+  it("LocaleHomePage renders French catalog with French search launcher", async () => {
     const page = await LocaleHomePage({ params: Promise.resolve({ locale: "fr" }) });
     render(<CartProvider>{page}</CartProvider>);
 
-    expect(screen.getByPlaceholderText(/Rechercher un produit/i)).toBeDefined();
+    expect(screen.getByRole("button", { name: /Rechercher dans le menu/i })).toBeDefined();
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
   });
 

@@ -4,6 +4,7 @@ export * from "./components/storefront-footer";
 export * from "./components/service-toggle-header";
 export * from "./components/product-catalog-card";
 export * from "./components/storefront-cart-bar";
+export * from "./components/menu-search-dialog";
 export * from "./components/storefront-catalog-view";
 export * from "./components/product-detail-view";
 export * from "./components/shop-info-view";

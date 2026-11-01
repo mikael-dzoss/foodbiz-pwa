@@ -182,3 +182,64 @@ export const toggleProductVisibilitySchema = z.object({
 });
 
 export type ToggleProductVisibilityInput = z.infer<typeof toggleProductVisibilitySchema>;
+
+export interface SearchableCategoryGroup<
+  TProduct extends Pick<Product, "name" | "description"> = Product,
+> {
+  id: string;
+  name: string;
+  products: readonly TProduct[];
+}
+
+export interface MenuSearchResult<
+  TProduct extends Pick<Product, "name" | "description"> = Product,
+> {
+  product: TProduct;
+  categoryName: string;
+}
+
+/**
+ * Normalizes a string for case-insensitive and diacritics-insensitive search (#203).
+ */
+export function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/œ/gi, "oe")
+    .replace(/æ/gi, "ae")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Pure helper that filters grouped catalog products by a search query (#203).
+ * Matches case- and diacritics-insensitively against product name, description, or category name.
+ * Returns an empty array when the query is blank.
+ */
+export function searchMenuProducts<
+  TProduct extends Pick<Product, "name" | "description"> = Product,
+>(
+  groups: readonly SearchableCategoryGroup<TProduct>[],
+  query: string,
+): MenuSearchResult<TProduct>[] {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const results: MenuSearchResult<TProduct>[] = [];
+  for (const group of groups) {
+    const categoryMatches = normalizeSearchText(group.name).includes(normalizedQuery);
+    for (const product of group.products) {
+      const nameMatches = normalizeSearchText(product.name).includes(normalizedQuery);
+      const descriptionMatches = product.description
+        ? normalizeSearchText(product.description).includes(normalizedQuery)
+        : false;
+      if (nameMatches || descriptionMatches || categoryMatches) {
+        results.push({ product, categoryName: group.name });
+      }
+    }
+  }
+
+  return results;
+}
