@@ -141,6 +141,9 @@ export const enDictionary: Dictionary = {
     openHours: "Opening hours",
 
     allCategories: "All",
+    menu: "Menu",
+    dismiss: "Dismiss",
+    browseCategories: "Browse categories",
     searchPlaceholder: "Search products...",
     noProductsFound: "No products found matching your search",
     noProductsInCategory: "No products available in this category",

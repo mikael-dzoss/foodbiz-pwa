@@ -143,6 +143,9 @@ export const frDictionary: Dictionary = {
     openHours: "Heures d'ouverture",
 
     allCategories: "Tous",
+    menu: "Menu",
+    dismiss: "Fermer",
+    browseCategories: "Parcourir les catégories",
     searchPlaceholder: "Rechercher un produit...",
     noProductsFound: "Aucun produit ne correspond à votre recherche",
     noProductsInCategory: "Aucun produit disponible dans cette catégorie",

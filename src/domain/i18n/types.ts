@@ -33,8 +33,11 @@ export interface StorefrontDictionary {
   privacy: string;
   openHours: string;
 
-  // Catalog & Navigation (#80)
+  // Catalog & Navigation (#80, #200)
   allCategories: string;
+  menu: string;
+  dismiss: string;
+  browseCategories: string;
   searchPlaceholder: string;
   noProductsFound: string;
   noProductsInCategory: string;
