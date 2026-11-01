@@ -83,4 +83,24 @@ describe("Internationalized storefront pages", () => {
     expect(screen.getByTestId("product-addons-group")).toBeDefined();
     expect(screen.getByRole("checkbox", { name: /Double Espresso/i })).toBeDefined();
   });
+
+  it("ProductDetailPage renders a drink with Accompaniments and a snack with no add-on group (#207)", async () => {
+    const drinkPage = await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333313" }),
+    });
+    const { unmount } = render(<CartProvider>{drinkPage}</CartProvider>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Double Espresso" })).toBeDefined();
+    expect(screen.getByText("Accompaniments")).toBeDefined();
+    expect(screen.getByRole("checkbox", { name: /Madeleines x3/i })).toBeDefined();
+    unmount();
+
+    const snackPage = await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333316" }),
+    });
+    render(<CartProvider>{snackPage}</CartProvider>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Madeleines x3" })).toBeDefined();
+    expect(screen.queryByTestId("product-addons-group")).toBeNull();
+  });
 });

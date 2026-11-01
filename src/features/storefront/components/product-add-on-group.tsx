@@ -28,7 +28,8 @@ export function ProductAddOnGroup({
     return null;
   }
 
-  const title = dict.addOnsDrinksTitle;
+  const title =
+    addOns.kind === "accompaniments" ? dict.addOnsAccompanimentsTitle : dict.addOnsDrinksTitle;
 
   return (
     <fieldset

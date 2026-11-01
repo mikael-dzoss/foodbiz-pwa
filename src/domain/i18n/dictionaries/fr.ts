@@ -200,6 +200,7 @@ export const frDictionary: Dictionary = {
     freshlyPreparedToday: "Fraîchement préparé aujourd'hui",
     addQuantityToCart: "Ajouter {count} au panier",
     addOnsDrinksTitle: "Boissons",
+    addOnsAccompanimentsTitle: "Accompagnements",
     addOnsSubtitle: "Au choix",
     addOnsOptionalBadge: "Optionnel",
 

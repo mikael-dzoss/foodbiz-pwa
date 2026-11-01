@@ -21,7 +21,7 @@ function makeProduct(id: string, patch: Partial<Product> = {}): Product {
   };
 }
 
-describe("getAddOnCandidates (#206)", () => {
+describe("getAddOnCandidates (#206, #207)", () => {
   it("returns visible in-stock drinks sorted by category sortOrder then name for a regular product", () => {
     const categories: ProductCategory[] = [
       makeCategory("cat-regular", { role: "regular", sortOrder: 1 }),
@@ -122,15 +122,71 @@ describe("getAddOnCandidates (#206)", () => {
     expect(getAddOnCandidates(dish, demoCategories, demoProducts)).toBeNull();
   });
 
-  it("returns null for products in drinks or snacks categories", () => {
+  it("returns visible in-stock accompaniments from snacks categories sorted by sortOrder then name for a drink product", () => {
+    const categories: ProductCategory[] = [
+      makeCategory("cat-drinks", { role: "drinks", sortOrder: 1 }),
+      makeCategory("cat-snacks-late", { role: "snacks", sortOrder: 4 }),
+      makeCategory("cat-snacks-early", { role: "snacks", sortOrder: 2 }),
+    ];
+    const drink = makeProduct("drink-1", {
+      categoryId: "cat-drinks",
+      suggestAddOns: true,
+    });
+    const products: Product[] = [
+      drink,
+      makeProduct("snack-late", {
+        categoryId: "cat-snacks-late",
+        name: "Almond Biscotti",
+        stock: 5,
+        visible: true,
+      }),
+      makeProduct("snack-early-z", {
+        categoryId: "cat-snacks-early",
+        name: "Mini Cookies",
+        stock: 5,
+        visible: true,
+      }),
+      makeProduct("snack-early-a", {
+        categoryId: "cat-snacks-early",
+        name: "Madeleines x3",
+        stock: 5,
+        visible: true,
+      }),
+      makeProduct("snack-hidden", {
+        categoryId: "cat-snacks-early",
+        name: "Hidden Snack",
+        stock: 5,
+        visible: false,
+      }),
+      makeProduct("snack-oos", {
+        categoryId: "cat-snacks-early",
+        name: "Sold Out Snack",
+        stock: 0,
+        visible: true,
+      }),
+    ];
+
+    expect(getAddOnCandidates(drink, categories, products)).toEqual({
+      kind: "accompaniments",
+      products: [products[3], products[2], products[1]],
+    });
+  });
+
+  it("returns null for a drink product when suggestAddOns is false or no snacks are available, and null for snacks products", () => {
     const drinkProduct = demoProducts.find(
       (p) => p.categoryId === "22222222-2222-4222-8222-222222222203",
     )!;
     const snackProduct = demoProducts.find(
       (p) => p.categoryId === "22222222-2222-4222-8222-222222222204",
     )!;
+    const noSnacks = demoProducts.filter(
+      (p) => p.categoryId !== "22222222-2222-4222-8222-222222222204",
+    );
 
-    expect(getAddOnCandidates(drinkProduct, demoCategories, demoProducts)).toBeNull();
+    expect(
+      getAddOnCandidates({ ...drinkProduct, suggestAddOns: false }, demoCategories, demoProducts),
+    ).toBeNull();
+    expect(getAddOnCandidates(drinkProduct, demoCategories, noSnacks)).toBeNull();
     expect(getAddOnCandidates(snackProduct, demoCategories, demoProducts)).toBeNull();
   });
 

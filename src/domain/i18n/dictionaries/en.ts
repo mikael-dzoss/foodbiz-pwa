@@ -197,6 +197,7 @@ export const enDictionary: Dictionary = {
     freshlyPreparedToday: "Freshly prepared today",
     addQuantityToCart: "Add {count} to cart",
     addOnsDrinksTitle: "Drinks",
+    addOnsAccompanimentsTitle: "Accompaniments",
     addOnsSubtitle: "Choose any",
     addOnsOptionalBadge: "Optional",
 
