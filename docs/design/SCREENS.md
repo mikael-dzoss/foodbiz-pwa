@@ -85,6 +85,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | Screen                   | Light (active)                     | Dark (active)                      | Superseded (to delete)                                  |
 | ------------------------ | ---------------------------------- | ---------------------------------- | ------------------------------------------------------- |
 | P-01 Patterns reference  | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                                                       |
+| S-00 Storefront shell    | `de0d771b3f3640ff97cc38867946f96a` | `8f9801bd78f346f5a839a5ed829ecd77` | —                                                       |
 | A-01 Manager sign-in     | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                                                       |
 | M-10 Dashboard           | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                                                       |
 | M-20 Orders list         | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                                                       |

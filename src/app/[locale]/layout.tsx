@@ -6,7 +6,7 @@ import {
   getDictionary,
   type SupportedLocale,
 } from "@/domain/i18n";
-import { StorefrontShell } from "@/features/storefront";
+import { getStorefrontCatalog, StorefrontShell } from "@/features/storefront";
 
 export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
@@ -24,10 +24,17 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     : DEFAULT_LOCALE;
 
   const dict = getDictionary(locale);
+  const { business, currentYear } = await getStorefrontCatalog();
 
   return (
     <div lang={locale} className="flex min-h-full flex-1 flex-col">
-      <StorefrontShell locale={locale} dict={dict.storefront} businessName="La Petite Boulangerie">
+      <StorefrontShell
+        locale={locale}
+        dict={dict.storefront}
+        businessName={business.name}
+        business={business}
+        currentYear={currentYear}
+      >
         {children}
       </StorefrontShell>
     </div>

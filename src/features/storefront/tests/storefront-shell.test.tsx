@@ -62,7 +62,7 @@ describe("Storefront Shell (#30)", () => {
     expect(screen.getByText("3")).toBeDefined();
   });
 
-  it("renders footer with legal and contact links in French", () => {
+  it("renders footer with shop info link and copyright in French", () => {
     render(
       <StorefrontShell locale="fr" dict={frDictionary.storefront} cartCount={1}>
         <div>Contenu Catalogue</div>
@@ -70,9 +70,9 @@ describe("Storefront Shell (#30)", () => {
     );
 
     expect(screen.getByRole("contentinfo")).toBeDefined();
-    expect(screen.getByRole("link", { name: frDictionary.storefront.contact })).toBeDefined();
-    expect(screen.getByRole("link", { name: frDictionary.storefront.terms })).toBeDefined();
-    expect(screen.getByRole("link", { name: frDictionary.storefront.privacy })).toBeDefined();
+    expect(screen.getByRole("link", { name: frDictionary.storefront.shopInfo })).toBeDefined();
+    expect(screen.queryByRole("link", { name: frDictionary.storefront.terms })).toBeNull();
+    expect(screen.queryByRole("link", { name: frDictionary.storefront.privacy })).toBeNull();
   });
 
   it("renders business name and explicit [ EN | FR ] toggle in header", () => {
@@ -87,7 +87,7 @@ describe("Storefront Shell (#30)", () => {
       </StorefrontShell>,
     );
 
-    expect(screen.getByText("La Petite Boulangerie")).toBeDefined();
+    expect(screen.getAllByText("La Petite Boulangerie").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("EN")).toBeDefined();
     expect(screen.getByText("FR")).toBeDefined();
   });

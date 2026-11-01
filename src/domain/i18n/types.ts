@@ -115,6 +115,9 @@ export interface StorefrontDictionary {
   returnToCatalog: string;
   share: string;
   allRightsReserved: string;
+  socialOnInstagram: string;
+  socialOnFacebook: string;
+  socialOnTikTok: string;
   bakeryInfo: string;
   mapEmbedTitle: string;
   osmAttribution: string;

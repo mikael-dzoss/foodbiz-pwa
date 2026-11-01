@@ -1,4 +1,5 @@
 import { Suspense, type ReactNode } from "react";
+import type { Business } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { StorefrontHeader } from "./storefront-header";
 import { StorefrontFooter } from "./storefront-footer";
@@ -9,6 +10,8 @@ export interface StorefrontShellProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   businessName?: string;
+  business?: Business;
+  currentYear?: number;
   cartCount?: number;
 }
 
@@ -17,8 +20,12 @@ export function StorefrontShell({
   locale,
   dict,
   businessName,
+  business,
+  currentYear,
   cartCount,
 }: StorefrontShellProps) {
+  const resolvedName = business?.name?.trim() || businessName;
+
   return (
     <CartProvider>
       <div className="bg-background text-foreground flex min-h-screen flex-col">
@@ -26,13 +33,19 @@ export function StorefrontShell({
           <StorefrontHeader
             locale={locale}
             dict={dict}
-            businessName={businessName}
+            businessName={resolvedName}
             cartCount={cartCount}
           />
         </Suspense>
         <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">{children}</main>
         <Suspense fallback={null}>
-          <StorefrontFooter locale={locale} dict={dict} businessName={businessName} />
+          <StorefrontFooter
+            locale={locale}
+            dict={dict}
+            business={business}
+            businessName={resolvedName}
+            currentYear={currentYear}
+          />
         </Suspense>
       </div>
     </CartProvider>
