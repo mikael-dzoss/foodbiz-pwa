@@ -10,6 +10,11 @@ test.beforeEach(async ({ page }) => {
 test("product CRUD persists edits and soft deletion", async ({ page }) => {
   const name = `E2E bread ${randomUUID()}`;
   await page.goto("/manage/products");
+  await expect(page.getByTestId("manager-category-nav")).toBeVisible();
+  await page.getByTestId("category-nav-tab-22222222-2222-4222-8222-222222222202").click();
+  await expect(
+    page.locator("#category-heading-22222222-2222-4222-8222-222222222202"),
+  ).toBeFocused();
   await page.getByRole("button", { name: /add product/i }).click();
   await page.getByTestId("product-name-input").fill(name);
   await page.getByTestId("product-price-input").fill("8.50");
