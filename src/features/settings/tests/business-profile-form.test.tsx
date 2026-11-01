@@ -171,4 +171,59 @@ describe("BusinessProfileForm component", () => {
       expect(screen.getByText("This web address is already in use by another shop")).toBeDefined();
     });
   });
+
+  it("renders, submits, discards, and validates optional latitude and longitude inputs (#195)", async () => {
+    const businessWithCoords: Business = {
+      ...mockBusiness,
+      latitude: 48.8553,
+      longitude: 2.3726,
+    };
+
+    render(<BusinessProfileForm business={businessWithCoords} dict={dict} />);
+
+    expect(screen.getByText(dict.business.coordinatesHelper)).toBeDefined();
+
+    const latInput = screen.getByTestId("input-business-latitude") as HTMLInputElement;
+    const lngInput = screen.getByTestId("input-business-longitude") as HTMLInputElement;
+    expect(latInput.value).toBe("48.8553");
+    expect(lngInput.value).toBe("2.3726");
+
+    fireEvent.change(latInput, { target: { value: "48.86" } });
+    fireEvent.change(lngInput, { target: { value: "2.35" } });
+    fireEvent.click(screen.getByTestId("button-discard"));
+    expect(latInput.value).toBe("48.8553");
+    expect(lngInput.value).toBe("2.3726");
+
+    fireEvent.change(latInput, { target: { value: "48.86" } });
+    fireEvent.change(lngInput, { target: { value: "2.35" } });
+    fireEvent.click(screen.getByTestId("button-save-profile"));
+    await waitFor(() => {
+      expect(actions.updateBusinessProfileAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: 48.86,
+          longitude: 2.35,
+        }),
+      );
+    });
+
+    // Wait for the first save transition to settle before submitting again.
+    await waitFor(() =>
+      expect((screen.getByTestId("button-save-profile") as HTMLButtonElement).disabled).toBe(false),
+    );
+
+    vi.mocked(actions.updateBusinessProfileAction).mockResolvedValueOnce({
+      success: false,
+      error: "Invalid coordinates",
+      fieldErrors: {
+        latitude: ["Latitude must be between -90 and 90"],
+        longitude: ["Longitude must be between -180 and 180"],
+      },
+    });
+
+    fireEvent.click(screen.getByTestId("button-save-profile"));
+    await waitFor(() => {
+      expect(screen.getByText("Latitude must be between -90 and 90")).toBeDefined();
+      expect(screen.getByText("Longitude must be between -180 and 180")).toBeDefined();
+    });
+  });
 });

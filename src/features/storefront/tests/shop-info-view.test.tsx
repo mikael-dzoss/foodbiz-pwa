@@ -184,4 +184,51 @@ describe("ShopInfoView (#83)", () => {
     });
     expect(returnLink.getAttribute("href")).toBe("/en");
   });
+
+  it("renders OpenStreetMap embed iframe and attribution link when coordinates are set (#195)", () => {
+    const businessWithCoords: Business = {
+      ...mockBusiness,
+      latitude: 48.8553,
+      longitude: 2.3726,
+    };
+
+    render(
+      <ShopInfoView
+        business={businessWithCoords}
+        settings={mockSettings}
+        locale="en"
+        dict={enDictionary.storefront}
+      />,
+    );
+
+    const iframe = screen.getByTestId("shop-info-osm-map") as HTMLIFrameElement;
+    expect(iframe.getAttribute("src")).toBe(
+      "https://www.openstreetmap.org/export/embed.html?bbox=2.3686,48.8513,2.3766,48.8593&layer=mapnik&marker=48.8553,2.3726",
+    );
+    expect(iframe.getAttribute("loading")).toBe("lazy");
+    expect(iframe.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(iframe.getAttribute("title")).toBe("Map showing La Boulangerie location");
+
+    const attrLink = screen.getByTestId("osm-attribution-link");
+    expect(attrLink.getAttribute("href")).toBe("https://www.openstreetmap.org/copyright");
+    expect(attrLink.textContent).toBe("© OpenStreetMap contributors");
+    expect(screen.queryByTestId("shop-info-map-placeholder")).toBeNull();
+  });
+
+  it("renders neutral placeholder when coordinates are missing while keeping Directions link (#195)", () => {
+    render(
+      <ShopInfoView
+        business={mockBusiness}
+        settings={mockSettings}
+        locale="en"
+        dict={enDictionary.storefront}
+      />,
+    );
+
+    expect(screen.getByTestId("shop-info-map-placeholder")).toBeDefined();
+    expect(screen.queryByTestId("shop-info-osm-map")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: new RegExp(enDictionary.storefront.getDirections) }),
+    ).toBeDefined();
+  });
 });

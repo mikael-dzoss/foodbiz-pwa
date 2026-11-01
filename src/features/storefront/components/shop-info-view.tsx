@@ -16,7 +16,11 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
-import type { Business, BusinessSettings } from "@/domain/business";
+import {
+  buildOpenStreetMapEmbedUrl,
+  type Business,
+  type BusinessSettings,
+} from "@/domain/business";
 import { SoonBadge } from "@/components/feedback";
 
 export interface ShopInfoViewProps {
@@ -48,6 +52,15 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
   const mapsUrl = business.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`
     : "";
+
+  const hasCoordinates =
+    typeof business.latitude === "number" &&
+    Number.isFinite(business.latitude) &&
+    typeof business.longitude === "number" &&
+    Number.isFinite(business.longitude);
+  const osmEmbedUrl = hasCoordinates
+    ? buildOpenStreetMapEmbedUrl(business.latitude!, business.longitude!)
+    : null;
 
   // Days for the weekly schedule
   const days = [
@@ -294,16 +307,43 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           aria-labelledby="address-heading"
           className="border-border/80 bg-card flex flex-col overflow-hidden rounded-xl border"
         >
-          {/* Visual Map Placeholder Graphic Snippet */}
-          <div className="bg-muted/80 border-border relative flex h-32 w-full items-center justify-center overflow-hidden border-b">
-            <div className="absolute inset-0 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:16px_16px] opacity-30" />
-            <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 via-transparent to-transparent p-3">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white">
-                <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
-                {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
-              </span>
+          {osmEmbedUrl ? (
+            <div className="p-4 pb-0">
+              <div className="border-border bg-muted relative h-44 w-full overflow-hidden rounded-lg border">
+                <iframe
+                  src={osmEmbedUrl}
+                  title={dict.mapEmbedTitle.replace("{business}", business.name)}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  data-testid="shop-info-osm-map"
+                  className="h-full w-full rounded-lg border-0"
+                />
+              </div>
+              <a
+                href="https://www.openstreetmap.org/copyright"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="osm-attribution-link"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-1 inline-flex min-h-6 items-center rounded text-xs underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-hidden"
+              >
+                {dict.osmAttribution}
+              </a>
             </div>
-          </div>
+          ) : (
+            /* Visual Map Placeholder Graphic Snippet */
+            <div
+              data-testid="shop-info-map-placeholder"
+              className="bg-muted/80 border-border relative flex h-32 w-full items-center justify-center overflow-hidden border-b"
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:16px_16px] opacity-30" />
+              <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 via-transparent to-transparent p-3">
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+                  {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 p-4">
             <div>

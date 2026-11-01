@@ -107,7 +107,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | M-71 Customer detail     | `f71153b9f4e441adafc8610a8fcd7867` | `822b2692324546cf9e05cd7edea2a3ed` | `01e712f983ba43658ec5d408f89ddb0e` (bottom nav removed) |
 | C-01 Storefront home     | `88a3d8834b634b5a8f5a03c9510afb1a` | `a985c052286b4238a38168800da36704` | `f7ad34729a9749f8bdcd5f284d6693f2`                      |
 | C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                                                       |
-| C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                                                       |
+| C-03 Shop info           | `b4a31879979f4acbb3a4ca25b2362d18` | `3f4a49a2985849dcbe315153581174c2` | `938e3829952c47c0bba19080058b1a4e`                      |
 | C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                                                       |
 | C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                                                       |
 | C-12 Confirmation        | `e23f423142a5463c9055b697bec49db2` | `65f2f70e9e1544d7bdcc02244828337d` | —                                                       |

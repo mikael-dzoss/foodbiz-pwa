@@ -6,6 +6,34 @@ const socialUrlSchema = z
   .optional()
   .or(z.literal(""));
 
+export const latitudeSchema = z
+  .number()
+  .min(-90, "Latitude must be between -90 and 90")
+  .max(90, "Latitude must be between -90 and 90")
+  .optional()
+  .nullable();
+
+export const longitudeSchema = z
+  .number()
+  .min(-180, "Longitude must be between -180 and 180")
+  .max(180, "Longitude must be between -180 and 180")
+  .optional()
+  .nullable();
+
+export function buildOpenStreetMapEmbedUrl(
+  latitude: number,
+  longitude: number,
+  delta = 0.004,
+): string {
+  const minLng = Number((longitude - delta).toFixed(6));
+  const minLat = Number((latitude - delta).toFixed(6));
+  const maxLng = Number((longitude + delta).toFixed(6));
+  const maxLat = Number((latitude + delta).toFixed(6));
+  const lat = Number(latitude.toFixed(6));
+  const lng = Number(longitude.toFixed(6));
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${lat},${lng}`;
+}
+
 export const businessSchema = z.object({
   id: uuidSchema,
   name: z.string().trim().min(1),
@@ -19,6 +47,8 @@ export const businessSchema = z.object({
   facebookUrl: socialUrlSchema,
   tiktokUrl: socialUrlSchema,
   address: z.string().trim().optional(),
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
   logoUrl: z.string().trim().optional().nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
@@ -41,6 +71,8 @@ export const updateBusinessProfileSchema = z.object({
   facebookUrl: socialUrlSchema,
   tiktokUrl: socialUrlSchema,
   address: z.string().trim().optional(),
+  latitude: latitudeSchema,
+  longitude: longitudeSchema,
   logoUrl: z.string().trim().optional().nullable(),
 });
 

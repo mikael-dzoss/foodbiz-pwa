@@ -221,6 +221,8 @@ export const frDictionary: Dictionary = {
     share: "Partager la boutique",
     allRightsReserved: "Tous droits réservés.",
     bakeryInfo: "Infos boulangerie",
+    mapEmbedTitle: "Carte indiquant l'emplacement de {business}",
+    osmAttribution: "© OpenStreetMap contributors",
 
     // Cart (#85)
     yourCart: "Votre Panier",
@@ -349,6 +351,9 @@ export const frDictionary: Dictionary = {
       emailLabel: "Adresse e-mail du commerce",
       whatsappLabel: "Commandes et demandes WhatsApp",
       addressLabel: "Adresse de la boutique",
+      latitudeLabel: "Latitude",
+      longitudeLabel: "Longitude",
+      coordinatesHelper: "Utilisé pour la carte sur votre page boutique",
       brandingSection: "Personnalisation de la marque",
       saveButton: "Enregistrer le profil",
       saveSuccess: "Profil du commerce mis à jour avec succès",

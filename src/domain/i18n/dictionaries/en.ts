@@ -218,6 +218,8 @@ export const enDictionary: Dictionary = {
     share: "Share store",
     allRightsReserved: "All rights reserved.",
     bakeryInfo: "Bakery Info",
+    mapEmbedTitle: "Map showing {business} location",
+    osmAttribution: "© OpenStreetMap contributors",
 
     // Cart (#85)
     yourCart: "Your Cart",
@@ -346,6 +348,9 @@ export const enDictionary: Dictionary = {
       emailLabel: "Store Email Address",
       whatsappLabel: "WhatsApp Orders & Enquiries",
       addressLabel: "Storefront Address",
+      latitudeLabel: "Latitude",
+      longitudeLabel: "Longitude",
+      coordinatesHelper: "Used for the map on your shop page",
       brandingSection: "Storefront Branding",
       saveButton: "Save Profile",
       saveSuccess: "Business profile updated successfully",

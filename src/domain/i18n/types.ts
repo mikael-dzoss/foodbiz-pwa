@@ -113,6 +113,8 @@ export interface StorefrontDictionary {
   share: string;
   allRightsReserved: string;
   bakeryInfo: string;
+  mapEmbedTitle: string;
+  osmAttribution: string;
 
   // Cart (#85)
   yourCart: string;
@@ -299,6 +301,9 @@ export interface SettingsDictionary {
     emailLabel: string;
     whatsappLabel: string;
     addressLabel: string;
+    latitudeLabel: string;
+    longitudeLabel: string;
+    coordinatesHelper: string;
     brandingSection: string;
     saveButton: string;
     saveSuccess: string;

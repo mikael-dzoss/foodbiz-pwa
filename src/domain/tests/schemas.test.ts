@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildOpenStreetMapEmbedUrl,
   businessMemberSchema,
   businessSchema,
   updateBusinessProfileSchema,
@@ -82,6 +83,38 @@ describe("Business schemas", () => {
         email: "not-an-email",
       }).success,
     ).toBe(false);
+  });
+
+  it("validates latitude/longitude ranges (-90..90, -180..180) and builds OpenStreetMap embed URL (#195)", () => {
+    const profile = { name: "Bakery", slug: "bakery" };
+    expect(
+      updateBusinessProfileSchema.safeParse({
+        ...profile,
+        latitude: 48.8553,
+        longitude: 2.3726,
+      }).success,
+    ).toBe(true);
+
+    expect(
+      updateBusinessProfileSchema.safeParse({
+        ...profile,
+        latitude: 95,
+        longitude: 2.3726,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateBusinessProfileSchema.safeParse({
+        ...profile,
+        latitude: 48.8553,
+        longitude: -190,
+      }).success,
+    ).toBe(false);
+
+    const url = buildOpenStreetMapEmbedUrl(48.8553, 2.3726, 0.004);
+    expect(url).toBe(
+      "https://www.openstreetmap.org/export/embed.html?bbox=2.3686,48.8513,2.3766,48.8593&layer=mapnik&marker=48.8553,2.3726",
+    );
   });
 
   it("rejects Business with invalid UUID or non-EUR currency", () => {
