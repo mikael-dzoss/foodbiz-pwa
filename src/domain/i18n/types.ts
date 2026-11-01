@@ -60,6 +60,14 @@ export interface StorefrontDictionary {
   orderReadyTime: string;
   pickupReadyTime: string;
   pickupAndDelivery: string;
+  deliveryToggleLabel: string;
+  pickupToggleLabel: string;
+  noFees: string;
+  deliveryFeeShort: string;
+  minOrderShort: string;
+  notAcceptingOrdersShort: string;
+  pickupUnavailableToast: string;
+  deliveryUnavailableToast: string;
 
   // Product Detail (#81)
   productNotFound: string;

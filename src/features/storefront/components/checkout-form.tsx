@@ -34,7 +34,7 @@ import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useCart } from "../context/cart-context";
+import { useCart, resolveServiceMode } from "../context/cart-context";
 import { placeOrderAction } from "../storefront-actions";
 
 const guestContactListeners = new Set<() => void>();
@@ -110,6 +110,8 @@ export function CheckoutForm({
     totalAmountInCents,
     notes: cartNotes,
     setNotes: setCartNotes,
+    serviceMode,
+    setServiceMode,
     clearCart,
   } = useCart();
   const [idempotencyKey] = useState(() => crypto.randomUUID());
@@ -136,8 +138,16 @@ export function CheckoutForm({
   // Fulfillment State
   const pickupAllowed = settings?.serviceTypes.pickup ?? true;
   const deliveryAllowed = settings?.serviceTypes.delivery ?? true;
-  const defaultService = pickupAllowed ? "pickup" : "delivery";
-  const [serviceType, setServiceType] = useState<"pickup" | "delivery">(defaultService);
+  const preselectedService = resolveServiceMode(serviceMode, {
+    pickup: pickupAllowed,
+    delivery: deliveryAllowed,
+  });
+  const [customServiceType, setCustomServiceType] = useState<"pickup" | "delivery" | null>(null);
+  const serviceType = customServiceType ?? preselectedService;
+  const handleSelectServiceType = (mode: "pickup" | "delivery") => {
+    setCustomServiceType(mode);
+    setServiceMode(mode);
+  };
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
   // Timing State
@@ -481,7 +491,7 @@ export function CheckoutForm({
               type="button"
               role="radio"
               aria-checked={serviceType === "pickup"}
-              onClick={() => setServiceType("pickup")}
+              onClick={() => handleSelectServiceType("pickup")}
               data-testid="service-pickup-button"
               className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
                 serviceType === "pickup"
@@ -499,7 +509,7 @@ export function CheckoutForm({
               type="button"
               role="radio"
               aria-checked={serviceType === "delivery"}
-              onClick={() => setServiceType("delivery")}
+              onClick={() => handleSelectServiceType("delivery")}
               data-testid="service-delivery-button"
               className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
                 serviceType === "delivery"

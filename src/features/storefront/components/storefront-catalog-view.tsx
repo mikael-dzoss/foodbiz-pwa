@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search, Sparkles } from "lucide-react";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
-import { StoreStatusBanner } from "./store-status-banner";
+import { ServiceToggleHeader } from "./service-toggle-header";
 import { CategoryTabs } from "./category-tabs";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
@@ -53,12 +53,15 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
       {/* Semantic Accessible Heading for SEO & Screen Readers (Brand shown in TopAppBar per Stitch) */}
       <h1 className="sr-only">{catalog.business.name}</h1>
 
-      {/* Live Store Status / Availability Banner (Stitch C-01) */}
-      <StoreStatusBanner
+      {/* Live Store Status & Service Mode Toggle Header (Stitch C-01) */}
+      <ServiceToggleHeader
         isAcceptingOrders={catalog.isAcceptingOrders}
         isOpen={catalog.isOpen}
         orderTimingScheduled={catalog.settings?.orderTimingScheduled ?? true}
         openingHoursText={catalog.openingHoursText}
+        businessAddress={catalog.business.address}
+        settings={catalog.settings}
+        locale={locale}
         dict={dict}
       />
 

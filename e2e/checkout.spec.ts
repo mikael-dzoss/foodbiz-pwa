@@ -10,6 +10,7 @@ for (const [locale, method, recipient, phone] of [
     page,
   }) => {
     await page.goto(`/${locale}`);
+    await page.getByTestId("service-mode-pickup").click();
     await page.getByRole("button", { name: /: Country Sourdough Loaf$/ }).click();
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
