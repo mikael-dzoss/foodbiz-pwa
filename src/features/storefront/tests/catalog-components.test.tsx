@@ -1,11 +1,51 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { act, cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CategoryTabs } from "../components/category-tabs";
 import { StorefrontCartBar } from "../components/storefront-cart-bar";
 import { StorefrontCatalogView } from "../components/storefront-catalog-view";
 import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
 import { enDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
+
+type ObserverCallback = IntersectionObserverCallback;
+
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+  callback: ObserverCallback;
+  observedElements: Element[] = [];
+
+  constructor(callback: ObserverCallback) {
+    this.callback = callback;
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  observe(el: Element) {
+    this.observedElements.push(el);
+  }
+
+  unobserve(el: Element) {
+    this.observedElements = this.observedElements.filter((item) => item !== el);
+  }
+
+  disconnect() {}
+
+  trigger(entries: Array<Partial<IntersectionObserverEntry> & { target: Element }>) {
+    this.callback(
+      entries.map(
+        (entry) =>
+          ({
+            isIntersecting: false,
+            intersectionRatio: 0,
+            boundingClientRect: entry.target.getBoundingClientRect(),
+            intersectionRect: entry.target.getBoundingClientRect(),
+            rootBounds: null,
+            time: Date.now(),
+            ...entry,
+          }) as IntersectionObserverEntry,
+      ),
+      this as unknown as IntersectionObserver,
+    );
+  }
+}
 
 const mockCatalog: StorefrontCatalogData = {
   business: {
@@ -129,36 +169,18 @@ function CartBarConsumer() {
   );
 }
 
-describe("Storefront UI components (#80, #81, #82, #83)", () => {
+describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
   beforeEach(() => {
     resetCartStore();
+    MockIntersectionObserver.instances = [];
+    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
   });
 
   afterEach(() => {
     cleanup();
     resetCartStore();
-  });
-
-  describe("CategoryTabs", () => {
-    it("renders All pill and categories, and handles selection", () => {
-      const handleSelect = vi.fn();
-      render(
-        <CategoryTabs
-          categories={mockCatalog.categories}
-          selectedCategoryId="all"
-          onSelectCategory={handleSelect}
-          allLabel={enDictionary.storefront.allCategories}
-        />,
-      );
-
-      expect(
-        screen.getByRole("button", { name: enDictionary.storefront.allCategories }),
-      ).toBeDefined();
-      expect(screen.getByRole("button", { name: "Breads" })).toBeDefined();
-
-      fireEvent.click(screen.getByRole("button", { name: "Breads" }));
-      expect(handleSelect).toHaveBeenCalledWith("cat-1");
-    });
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   describe("StorefrontCartBar", () => {
@@ -193,7 +215,7 @@ describe("Storefront UI components (#80, #81, #82, #83)", () => {
   });
 
   describe("StorefrontCatalogView", () => {
-    it("renders catalog with products and filters by search query", () => {
+    it("renders all categories and filters products by non-sticky search query", () => {
       render(
         <CartProvider>
           <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
@@ -201,10 +223,12 @@ describe("Storefront UI components (#80, #81, #82, #83)", () => {
       );
 
       expect(screen.getByRole("heading", { level: 1, name: "La Boulangerie" })).toBeDefined();
+      expect(screen.getByRole("heading", { level: 2, name: "Breads" })).toBeDefined();
+      expect(screen.getByRole("heading", { level: 2, name: "Pastries" })).toBeDefined();
       expect(screen.getByText("Sourdough Loaf")).toBeDefined();
       expect(screen.getByText("Croissant")).toBeDefined();
 
-      // Search for "Croissant"
+      // Search input is rendered above categories (non-sticky) and filters across categories
       const searchInput = screen.getByRole("searchbox");
       fireEvent.change(searchInput, { target: { value: "Croissant" } });
 
@@ -216,19 +240,69 @@ describe("Storefront UI components (#80, #81, #82, #83)", () => {
       expect(screen.getByText(enDictionary.storefront.noProductsFound)).toBeDefined();
     });
 
-    it("filters products by category selection", () => {
+    it("shows sticky CategoryNav only once the first category title has scrolled past and scrolls/focuses on selection", () => {
+      const scrollIntoViewMock = vi.fn();
+      HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
       render(
         <CartProvider>
           <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
         </CartProvider>,
       );
 
-      // Select "Breads"
-      const breadsTab = screen.getByRole("button", { name: "Breads" });
-      fireEvent.click(breadsTab);
+      // Initially hidden before scrolling past the first category title
+      expect(screen.queryByTestId("sticky-category-nav")).toBeNull();
+      expect(screen.queryByTestId("category-nav")).toBeNull();
 
-      expect(screen.getByText("Sourdough Loaf")).toBeDefined();
-      expect(screen.queryByText("Croissant")).toBeNull();
+      // Trigger sentinel IntersectionObserver as scrolled past top
+      const sentinel = screen.getByTestId("category-nav-sentinel");
+      const sentinelObserver = MockIntersectionObserver.instances.find((obs) =>
+        obs.observedElements.includes(sentinel),
+      );
+      expect(sentinelObserver).toBeDefined();
+
+      act(() => {
+        sentinelObserver!.trigger([
+          {
+            target: sentinel,
+            isIntersecting: false,
+            boundingClientRect: { top: -20 } as DOMRectReadOnly,
+          },
+        ]);
+      });
+
+      const stickyWrapper = screen.getByTestId("sticky-category-nav");
+      expect(stickyWrapper.className).toContain("sticky");
+      expect(stickyWrapper.className).toContain("top-14");
+      expect(screen.getByTestId("category-nav")).toBeDefined();
+
+      // Clicking a horizontal tab scrolls to the section heading and focuses it
+      scrollIntoViewMock.mockClear();
+      fireEvent.click(screen.getByTestId("category-nav-tab-cat-2"));
+
+      const pastriesHeading = screen.getByRole("heading", { level: 2, name: "Pastries" });
+      expect(pastriesHeading.getAttribute("tabindex")).toBe("-1");
+      expect(pastriesHeading.className).toContain("scroll-mt-28");
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "start",
+      });
+      expect(document.activeElement).toBe(pastriesHeading);
+
+      // Opening Menu sheet and selecting a category also scrolls and moves focus to heading
+      fireEvent.click(screen.getByTestId("category-nav-menu-button"));
+      const sheet = screen.getByTestId("category-nav-sheet");
+      expect(sheet.textContent).toContain("08:00 - 18:00");
+
+      scrollIntoViewMock.mockClear();
+      fireEvent.click(screen.getByTestId("category-nav-sheet-item-cat-1"));
+
+      const breadsHeading = screen.getByRole("heading", { level: 2, name: "Breads" });
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "start",
+      });
+      expect(document.activeElement).toBe(breadsHeading);
     });
 
     it("renders Bakery Info link directing to the shop info page", () => {

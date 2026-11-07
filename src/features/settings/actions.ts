@@ -99,6 +99,8 @@ export async function updateBusinessProfileAction(
       facebookUrl: parsed.data.facebookUrl,
       tiktokUrl: parsed.data.tiktokUrl,
       address: parsed.data.address,
+      latitude: parsed.data.latitude,
+      longitude: parsed.data.longitude,
       logoUrl: parsed.data.logoUrl,
     });
 

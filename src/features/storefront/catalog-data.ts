@@ -21,6 +21,7 @@ export interface StorefrontCatalogData {
   isAcceptingOrders: boolean;
   isOpen: boolean;
   openingHoursText: string | null;
+  currentYear?: number;
 }
 
 export interface StorefrontProductData {
@@ -146,7 +147,8 @@ export async function getStorefrontCatalog(
     });
   }
 
-  const operatingStatus = evaluateStoreOperatingStatus(settings);
+  const now = new Date();
+  const operatingStatus = evaluateStoreOperatingStatus(settings, now);
 
   return {
     business,
@@ -157,6 +159,7 @@ export async function getStorefrontCatalog(
     isAcceptingOrders: operatingStatus.isAcceptingOrders,
     isOpen: operatingStatus.isOpen,
     openingHoursText: operatingStatus.scheduleText,
+    currentYear: now.getFullYear(),
   };
 }
 

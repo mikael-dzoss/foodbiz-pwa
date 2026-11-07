@@ -85,6 +85,7 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | Screen                   | Light (active)                     | Dark (active)                      | Superseded (to delete)                                  |
 | ------------------------ | ---------------------------------- | ---------------------------------- | ------------------------------------------------------- |
 | P-01 Patterns reference  | `4b89d3e37632415da28bd4ed0fab6456` | `0d3d1062fa27420e908bebabfc162f05` | —                                                       |
+| S-00 Storefront shell    | `de0d771b3f3640ff97cc38867946f96a` | `8f9801bd78f346f5a839a5ed829ecd77` | —                                                       |
 | A-01 Manager sign-in     | `2ecaa23a39124534acdd75f8e94d8dba` | `d8e6f205ffe4444087e4476302a94fbb` | —                                                       |
 | M-10 Dashboard           | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5063b1f378cb4d4aaea5ffc6f3b0d148` | —                                                       |
 | M-20 Orders list         | `85cd53be973444dcbdff77c6124da920` | `6a21269a11db485188c3a556a930cbcf` | —                                                       |
@@ -106,8 +107,10 @@ One active screen per screen and mode. Any other Stitch card is superseded: list
 | M-70 Customers list      | `e7ecfb1ddb65480099a05b44683ce239` | `c02a041e162045c8a1c381feb1cf0d6f` | —                                                       |
 | M-71 Customer detail     | `f71153b9f4e441adafc8610a8fcd7867` | `822b2692324546cf9e05cd7edea2a3ed` | `01e712f983ba43658ec5d408f89ddb0e` (bottom nav removed) |
 | C-01 Storefront home     | `88a3d8834b634b5a8f5a03c9510afb1a` | `a985c052286b4238a38168800da36704` | `f7ad34729a9749f8bdcd5f284d6693f2`                      |
-| C-02 Product detail      | `9204ca8308d64d1fb0cdffdceb556ca3` | —                                  | —                                                       |
-| C-03 Shop info           | `938e3829952c47c0bba19080058b1a4e` | —                                  | —                                                       |
+| C-01b Home scrolled      | `804d3dca797e4c118b57f1eaa8add586` | `3005e593cf1b42d4bcd505b78eaf930a` | —                                                       |
+| C-01c Menu sheet         | `50648308382f414aba7e112f8577b3be` | `dfe0fbe514704cc0a937e2bdecdd2093` | —                                                       |
+| C-02 Product detail      | `31776ef14a914be581b5a86ef8c30e84` | `bb598bc9306f4399b5cfff1e0181f96d` | `9204ca8308d64d1fb0cdffdceb556ca3`                      |
+| C-03 Shop info           | `b4a31879979f4acbb3a4ca25b2362d18` | `3f4a49a2985849dcbe315153581174c2` | `938e3829952c47c0bba19080058b1a4e`                      |
 | C-10 Cart                | `2b3b671392964f58848147148e39bba6` | `327a8059951745bb9bf84edde773924a` | —                                                       |
 | C-11 Checkout            | `ad3a1b405b404ca78366ed1c8297cc95` | `877f2e4892a34808938b09103ea108c4` | —                                                       |
 | C-12 Confirmation        | `e23f423142a5463c9055b697bec49db2` | `65f2f70e9e1544d7bdcc02244828337d` | —                                                       |

@@ -37,8 +37,8 @@ describe("Internationalized storefront pages", () => {
 
     // Heading and search should be present
     expect(screen.getByPlaceholderText(/Search products/i)).toBeDefined();
-    // Category tabs
-    expect(screen.getByRole("button", { name: /All/i })).toBeDefined();
+    // Category section headings rendered
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
   });
 
   it("LocaleHomePage renders French catalog with French search placeholder", async () => {
@@ -46,7 +46,7 @@ describe("Internationalized storefront pages", () => {
     render(<CartProvider>{page}</CartProvider>);
 
     expect(screen.getByPlaceholderText(/Rechercher un produit/i)).toBeDefined();
-    expect(screen.getByRole("button", { name: /Tous/i })).toBeDefined();
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
   });
 
   it("generateStaticParams returns all supported locales", async () => {

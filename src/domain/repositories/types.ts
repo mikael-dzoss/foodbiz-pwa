@@ -166,6 +166,8 @@ export interface CreateBusinessInput {
   readonly facebookUrl?: string;
   readonly tiktokUrl?: string;
   readonly address?: string;
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
   readonly logoUrl?: string | null;
 }
 

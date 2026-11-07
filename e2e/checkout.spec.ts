@@ -2,6 +2,28 @@ import { expect, test } from "@playwright/test";
 import { getDictionary } from "../src/domain/i18n";
 import { formatMoney } from "../src/domain/formatting";
 
+test("storefront sticky category bar appears after scrolling past first category and Menu sheet navigates", async ({
+  page,
+}) => {
+  await page.goto("/en");
+  await expect(page.getByTestId("category-nav-sentinel")).toBeVisible();
+  await expect(page.getByTestId("sticky-category-nav")).toHaveCount(0);
+
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(page.getByTestId("sticky-category-nav")).toBeVisible();
+
+  await page.getByTestId("category-nav-menu-button").click();
+  const sheet = page.getByTestId("category-nav-sheet");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Menu" })).toBeVisible();
+
+  await page.getByTestId("category-nav-sheet-item-22222222-2222-4222-8222-222222222202").click();
+  await expect(sheet).toBeHidden();
+  await expect(
+    page.locator("#category-heading-22222222-2222-4222-8222-222222222202"),
+  ).toBeFocused();
+});
+
 for (const [locale, method, recipient, phone] of [
   ["en", "revolut", "@boulangerie", "+33600000106"],
   ["fr", "wero", "+33612345678", "+33600000107"],

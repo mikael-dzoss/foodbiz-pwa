@@ -39,6 +39,14 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
   const [email, setEmail] = useState(business.email || "");
   const [whatsappNumber, setWhatsappNumber] = useState(business.whatsappNumber || "");
   const [address, setAddress] = useState(business.address || "");
+  const [latitude, setLatitude] = useState(
+    business.latitude !== undefined && business.latitude !== null ? String(business.latitude) : "",
+  );
+  const [longitude, setLongitude] = useState(
+    business.longitude !== undefined && business.longitude !== null
+      ? String(business.longitude)
+      : "",
+  );
   const [logoUrl, setLogoUrl] = useState<string | null>(business.logoUrl || null);
 
   const [socialLinks, setSocialLinks] = useState({
@@ -60,6 +68,16 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
     setEmail(business.email || "");
     setWhatsappNumber(business.whatsappNumber || "");
     setAddress(business.address || "");
+    setLatitude(
+      business.latitude !== undefined && business.latitude !== null
+        ? String(business.latitude)
+        : "",
+    );
+    setLongitude(
+      business.longitude !== undefined && business.longitude !== null
+        ? String(business.longitude)
+        : "",
+    );
     setLogoUrl(business.logoUrl || null);
     setSocialLinks({
       instagramUrl: business.instagramUrl || "",
@@ -92,6 +110,8 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
     setErrors({});
 
     startTransition(async () => {
+      const parsedLatitude = latitude.trim() === "" ? null : Number(latitude);
+      const parsedLongitude = longitude.trim() === "" ? null : Number(longitude);
       const res = await updateBusinessProfileAction({
         name,
         slug: slug.toLowerCase().trim(),
@@ -101,6 +121,8 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
         whatsappNumber,
         ...socialLinks,
         address,
+        latitude: parsedLatitude,
+        longitude: parsedLongitude,
         logoUrl,
       });
 
@@ -384,6 +406,70 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
                 data-testid="input-business-address"
               />
             </div>
+          </div>
+
+          {/* Optional Map Coordinates (Latitude / Longitude) */}
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label
+                  htmlFor="biz-latitude"
+                  className="text-foreground mb-1.5 block text-sm font-semibold"
+                >
+                  {dict.business.latitudeLabel}
+                </label>
+                <input
+                  id="biz-latitude"
+                  type="number"
+                  step="any"
+                  min="-90"
+                  max="90"
+                  value={latitude}
+                  onChange={(e) => setLatitude(e.target.value)}
+                  placeholder="48.8553"
+                  aria-describedby="biz-coords-helper"
+                  aria-invalid={!!errors.latitude}
+                  className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  data-testid="input-business-latitude"
+                />
+                {errors.latitude && (
+                  <p role="alert" className="text-destructive mt-1 text-xs">
+                    {errors.latitude[0]}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="biz-longitude"
+                  className="text-foreground mb-1.5 block text-sm font-semibold"
+                >
+                  {dict.business.longitudeLabel}
+                </label>
+                <input
+                  id="biz-longitude"
+                  type="number"
+                  step="any"
+                  min="-180"
+                  max="180"
+                  value={longitude}
+                  onChange={(e) => setLongitude(e.target.value)}
+                  placeholder="2.3726"
+                  aria-describedby="biz-coords-helper"
+                  aria-invalid={!!errors.longitude}
+                  className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  data-testid="input-business-longitude"
+                />
+                {errors.longitude && (
+                  <p role="alert" className="text-destructive mt-1 text-xs">
+                    {errors.longitude[0]}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p id="biz-coords-helper" className="text-muted-foreground mt-1.5 text-xs">
+              {dict.business.coordinatesHelper}
+            </p>
           </div>
         </div>
       </div>

@@ -193,6 +193,8 @@ create table businesses (
   instagram_url text check (instagram_url = '' or instagram_url ~ '^https://'),
   facebook_url text check (facebook_url = '' or facebook_url ~ '^https://'),
   tiktok_url text check (tiktok_url = '' or tiktok_url ~ '^https://'),
+  latitude double precision check (latitude is null or latitude between -90 and 90),
+  longitude double precision check (longitude is null or longitude between -180 and 180),
   slug text not null check (slug ~ '^[a-z0-9-]+$'),
   currency text not null default 'EUR' check (currency = 'EUR'),
   created_at timestamptz not null default now(),

@@ -355,6 +355,8 @@ export function createMockRepositories(
         facebookUrl: input.facebookUrl,
         tiktokUrl: input.tiktokUrl,
         address: input.address,
+        latitude: input.latitude,
+        longitude: input.longitude,
         logoUrl: input.logoUrl,
         createdAt: now,
         updatedAt: now,

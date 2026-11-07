@@ -16,6 +16,8 @@ export const demoBusiness: Business = {
   instagramUrl: "https://instagram.com/lapetiteboulangerie",
   facebookUrl: "https://facebook.com/lapetiteboulangerie",
   address: "12 Rue de la Roquette, 75011 Paris, France",
+  latitude: 48.8553,
+  longitude: 2.3726,
   logoUrl: null,
   createdAt: "2026-08-01T08:00:00.000Z",
   updatedAt: "2026-08-01T08:00:00.000Z",

@@ -3,19 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ShoppingBag,
-  Check,
-  UtensilsCrossed,
-  Flame,
-  Store,
-  Lightbulb,
-  AlertTriangle,
-} from "lucide-react";
+import { ShoppingBag, Check, UtensilsCrossed, Lightbulb } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
-import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
+import { getDictionary, type SupportedLocale, type StorefrontDictionary } from "@/domain/i18n";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { SoonBadge } from "@/components/feedback";
 import type { StorefrontProductData } from "../catalog-data";
 import { useCart } from "../context/cart-context";
 
@@ -28,6 +19,7 @@ export interface ProductDetailViewProps {
 export function ProductDetailView({ productData, locale, dict }: ProductDetailViewProps) {
   const { product, categoryName, business, settings, isAcceptingOrders, isOpen } = productData;
   const { addItem, getItemQuantity } = useCart();
+  const productsDict = getDictionary(locale).products;
 
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
@@ -35,10 +27,12 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
   const lowStockThreshold = settings?.lowStockThreshold ?? 5;
   const isOutOfStock = product.stock <= 0;
   const isLowStock = !isOutOfStock && product.stock <= lowStockThreshold;
-  const canOrder = isAcceptingOrders && !isOutOfStock;
+  const isStoreUnavailable = !isAcceptingOrders || !isOpen;
+  const canOrder = !isStoreUnavailable && !isOutOfStock;
 
   const currentCartQty = getItemQuantity(product.id);
   const maxAddable = Math.max(0, product.stock - currentCartQty);
+  const allergens = product.allergens ?? [];
 
   const handleAddToCart = () => {
     if (!canOrder || quantity <= 0) return;
@@ -61,23 +55,16 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
   };
 
   const totalPrice = product.price * quantity;
+  const unavailableShortText = !isAcceptingOrders
+    ? dict.notAcceptingOrdersShort
+    : dict.storeClosedBadge;
+  const unavailableFullNotice = !isAcceptingOrders
+    ? dict.notAcceptingOrdersBanner
+    : dict.storeClosedBanner;
 
   return (
     <div className="flex flex-col gap-4 pb-32">
       <span className="sr-only">{business.name}</span>
-
-      {/* Operational Banner if Store is Closed or Paused */}
-      {(!isAcceptingOrders || !isOpen) && (
-        <section
-          role={!isAcceptingOrders ? "alert" : "status"}
-          aria-live="polite"
-          className="border-border bg-card rounded-xl border p-3.5 text-xs"
-        >
-          <p className="text-foreground font-semibold">
-            {!isAcceptingOrders ? dict.notAcceptingOrdersBanner : dict.storeClosedBanner}
-          </p>
-        </section>
-      )}
 
       {/* Hero Media Showcase Card with Category Pill (Stitch C-02) */}
       <section className="bg-muted border-border/80 relative aspect-4/3 w-full overflow-hidden rounded-2xl border">
@@ -163,35 +150,28 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
         </div>
       </section>
 
-      {/* Prep & Collection Logistics Info Card (Stitch C-02) */}
-      <section className="border-border/80 bg-muted/40 space-y-2.5 rounded-2xl border p-3.5">
-        <div className="flex items-center gap-3">
-          <div className="border-border/60 bg-card text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
-            <Flame className="h-4.5 w-4.5" />
-          </div>
-          <div className="text-xs leading-snug">
-            <p className="text-foreground font-semibold">{dict.freshlyPreparedToday}</p>
-            <p className="text-muted-foreground">{dict.readyToServe}</p>
-          </div>
-        </div>
-        <div className="border-border/60 border-t" />
-        <div className="flex items-center gap-3">
-          <div className="border-border/60 bg-card text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
-            <Store className="h-4.5 w-4.5" />
-          </div>
-          <div className="text-xs leading-snug">
-            <p className="text-foreground font-semibold">{dict.orderReadyTime}</p>
-            <p className="text-muted-foreground truncate">
-              {business.address ?? "12 Rue de la Roquette, Paris"}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Description & Cook's Recommendation Card (Stitch C-02) */}
+      {/* Description, Allergen Badges & Cook's Recommendation Card (Stitch C-02) */}
       <section className="border-border/80 bg-card space-y-3.5 rounded-2xl border p-4">
         {product.description && (
           <p className="text-muted-foreground text-xs leading-relaxed">{product.description}</p>
+        )}
+
+        {allergens.length > 0 && (
+          <ul
+            aria-label={productsDict.allergensLabel}
+            data-testid="product-allergens-list"
+            className="flex flex-wrap gap-1.5"
+          >
+            {allergens.map((allergen) => (
+              <li
+                key={allergen}
+                data-testid={`product-allergen-${allergen}`}
+                className="border-border bg-muted text-muted-foreground inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium"
+              >
+                {productsDict.allergenLabels[allergen] ?? allergen}
+              </li>
+            ))}
+          </ul>
         )}
 
         {/* Cook's Recommendation / Reheating Advice */}
@@ -204,58 +184,6 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
             <p className="text-muted-foreground">{dict.cooksTip}</p>
           </div>
         </div>
-      </section>
-
-      {/* TODO(catalog): Dynamic product ingredients & sourcing provenance (#81) */}
-      <section className="border-border/70 bg-card/75 space-y-3 rounded-2xl border p-4 opacity-85">
-        <div className="flex items-center justify-between">
-          <h2 className="text-foreground font-headline text-sm font-bold">
-            {dict.ingredientsAndSourcing}
-          </h2>
-          <SoonBadge />
-        </div>
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          Organic French wheat flour (T65), French AOP cultured butter, natural sourdough levain,
-          pure filtered water, Guérande sea salt.
-        </p>
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          <span className="border-border/50 bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium">
-            <Check className="text-primary h-3 w-3" />
-            100% Organic Flours
-          </span>
-          <span className="border-border/50 bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium">
-            <Check className="text-primary h-3 w-3" />
-            Vegetarian
-          </span>
-          <span className="border-border/50 bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium">
-            <Check className="text-primary h-3 w-3" />
-            Artisanal
-          </span>
-        </div>
-      </section>
-
-      {/* TODO(catalog): Dynamic allergen labeling & compliance schema (#81) */}
-      <section className="border-border/70 bg-card/75 space-y-2.5 rounded-2xl border p-4 opacity-85">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <h2 className="text-foreground font-headline text-sm font-bold">
-              {dict.allergenNotice}
-            </h2>
-          </div>
-          <SoonBadge />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
-            Gluten (Wheat)
-          </span>
-          <span className="rounded bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
-            Dairy (Butter, Milk)
-          </span>
-        </div>
-        <p className="text-muted-foreground pt-1 text-[11px] leading-tight">
-          Produced in an artisanal kitchen. May contain traces of tree nuts, sesame, and eggs.
-        </p>
       </section>
 
       {/* In-Cart Notification */}
@@ -292,15 +220,27 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
             <button
               type="button"
               disabled
+              data-testid="product-add-button"
               className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-6 text-sm font-semibold opacity-60"
             >
               {dict.outOfStock}
+            </button>
+          ) : isStoreUnavailable ? (
+            <button
+              type="button"
+              disabled
+              data-testid="product-add-button"
+              className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-4 text-center text-xs font-semibold opacity-60"
+            >
+              <span>{unavailableShortText}</span>
+              <span className="sr-only"> — {unavailableFullNotice}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleAddToCart}
               disabled={!canOrder || maxAddable === 0}
+              data-testid="product-add-button"
               className={`focus-visible:ring-ring flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-xs transition-all focus-visible:ring-2 focus-visible:outline-hidden active:scale-98 ${
                 justAdded
                   ? "bg-emerald-600 text-white"

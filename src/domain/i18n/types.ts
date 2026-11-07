@@ -33,8 +33,11 @@ export interface StorefrontDictionary {
   privacy: string;
   openHours: string;
 
-  // Catalog & Navigation (#80)
+  // Catalog & Navigation (#80, #200)
   allCategories: string;
+  menu: string;
+  dismiss: string;
+  browseCategories: string;
   searchPlaceholder: string;
   noProductsFound: string;
   noProductsInCategory: string;
@@ -69,18 +72,15 @@ export interface StorefrontDictionary {
   pickupUnavailableToast: string;
   deliveryUnavailableToast: string;
 
-  // Product Detail (#81)
+  // Product Detail (#81, #202)
   productNotFound: string;
   productUnavailable: string;
   quantity: string;
   total: string;
   cooksRecommendation: string;
   cooksTip: string;
-  ingredientsAndSourcing: string;
-  allergenNotice: string;
   perPiece: string;
   freshlyPreparedToday: string;
-  readyToServe: string;
 
   // Shop Information (#83)
   shopInfo: string;
@@ -112,7 +112,12 @@ export interface StorefrontDictionary {
   returnToCatalog: string;
   share: string;
   allRightsReserved: string;
+  socialOnInstagram: string;
+  socialOnFacebook: string;
+  socialOnTikTok: string;
   bakeryInfo: string;
+  mapEmbedTitle: string;
+  osmAttribution: string;
 
   // Cart (#85)
   yourCart: string;
@@ -299,6 +304,9 @@ export interface SettingsDictionary {
     emailLabel: string;
     whatsappLabel: string;
     addressLabel: string;
+    latitudeLabel: string;
+    longitudeLabel: string;
+    coordinatesHelper: string;
     brandingSection: string;
     saveButton: string;
     saveSuccess: string;

@@ -2,7 +2,6 @@ export * from "./components/storefront-shell";
 export * from "./components/storefront-header";
 export * from "./components/storefront-footer";
 export * from "./components/service-toggle-header";
-export * from "./components/category-tabs";
 export * from "./components/product-catalog-card";
 export * from "./components/storefront-cart-bar";
 export * from "./components/storefront-catalog-view";
