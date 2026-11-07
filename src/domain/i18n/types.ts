@@ -280,6 +280,10 @@ export interface SettingsDictionary {
     slugHelper: string;
     activeBadge: string;
     contactSection: string;
+    socialSection: string;
+    instagramLabel: string;
+    facebookLabel: string;
+    tiktokLabel: string;
     phoneLabel: string;
     emailLabel: string;
     whatsappLabel: string;

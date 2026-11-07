@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
 
+const socialUrlSchema = z
+  .url({ protocol: /^https$/ })
+  .optional()
+  .or(z.literal(""));
+
 export const businessSchema = z.object({
   id: uuidSchema,
   name: z.string().trim().min(1),
@@ -10,6 +15,9 @@ export const businessSchema = z.object({
   phone: z.string().trim().optional(),
   email: z.string().trim().email().optional().or(z.literal("")),
   whatsappNumber: z.string().trim().optional(),
+  instagramUrl: socialUrlSchema,
+  facebookUrl: socialUrlSchema,
+  tiktokUrl: socialUrlSchema,
   address: z.string().trim().optional(),
   logoUrl: z.string().trim().optional().nullable(),
   createdAt: isoDateTimeSchema,
@@ -29,6 +37,9 @@ export const updateBusinessProfileSchema = z.object({
   phone: z.string().trim().optional(),
   email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
   whatsappNumber: z.string().trim().optional(),
+  instagramUrl: socialUrlSchema,
+  facebookUrl: socialUrlSchema,
+  tiktokUrl: socialUrlSchema,
   address: z.string().trim().optional(),
   logoUrl: z.string().trim().optional().nullable(),
 });

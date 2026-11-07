@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { requireAuthenticatedAction } from "@/features/auth";
 import type { Business, BusinessSettings } from "@/domain";
 import {
   getBusinessProfileAction,
@@ -207,6 +208,48 @@ describe("Settings Server Actions", () => {
   });
 
   describe("updateBusinessProfileAction", () => {
+    it("rejects unauthenticated social link updates", async () => {
+      vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
+      expect(
+        await updateBusinessProfileAction({
+          name: "Bakery",
+          slug: "bakery",
+          instagramUrl: "https://instagram.com/bakery",
+        }),
+      ).toEqual({ success: false, error: "Unauthorized" });
+      expect(mockBusinessRepo.update).not.toHaveBeenCalled();
+    });
+    it("validates and persists all social links, including clearing them", async () => {
+      const links = {
+        instagramUrl: "https://instagram.com/bakery",
+        facebookUrl: "https://facebook.com/bakery",
+        tiktokUrl: "https://tiktok.com/@bakery",
+      };
+      expect(
+        await updateBusinessProfileAction({ name: "Bakery", slug: "bakery", ...links }),
+      ).toMatchObject({ success: true, data: links });
+      expect(
+        await updateBusinessProfileAction({
+          name: "Bakery",
+          slug: "bakery",
+          instagramUrl: "",
+          facebookUrl: "",
+          tiktokUrl: "",
+        }),
+      ).toMatchObject({
+        success: true,
+        data: { instagramUrl: "", facebookUrl: "", tiktokUrl: "" },
+      });
+      mockBusinessRepo.update.mockClear();
+      expect(
+        await updateBusinessProfileAction({
+          name: "Bakery",
+          slug: "bakery",
+          instagramUrl: "http://example.com",
+        }),
+      ).toMatchObject({ success: false, fieldErrors: { instagramUrl: expect.any(Array) } });
+      expect(mockBusinessRepo.update).not.toHaveBeenCalled();
+    });
     it("successfully updates business profile and revalidates paths", async () => {
       const updateData = {
         name: "La Grande Boulangerie",

@@ -159,6 +159,9 @@ export interface CreateBusinessInput {
   readonly phone?: string;
   readonly email?: string;
   readonly whatsappNumber?: string;
+  readonly instagramUrl?: string;
+  readonly facebookUrl?: string;
+  readonly tiktokUrl?: string;
   readonly address?: string;
   readonly logoUrl?: string | null;
 }

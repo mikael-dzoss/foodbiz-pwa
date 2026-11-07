@@ -41,6 +41,12 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
   const [address, setAddress] = useState(business.address || "");
   const [logoUrl, setLogoUrl] = useState<string | null>(business.logoUrl || null);
 
+  const [socialLinks, setSocialLinks] = useState({
+    instagramUrl: business.instagramUrl || "",
+    facebookUrl: business.facebookUrl || "",
+    tiktokUrl: business.tiktokUrl || "",
+  });
+
   // Field errors
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [copied, setCopied] = useState(false);
@@ -55,6 +61,11 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
     setWhatsappNumber(business.whatsappNumber || "");
     setAddress(business.address || "");
     setLogoUrl(business.logoUrl || null);
+    setSocialLinks({
+      instagramUrl: business.instagramUrl || "",
+      facebookUrl: business.facebookUrl || "",
+      tiktokUrl: business.tiktokUrl || "",
+    });
     setErrors({});
     showToast("Changes discarded");
   };
@@ -88,6 +99,7 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
         phone,
         email: email || undefined,
         whatsappNumber,
+        ...socialLinks,
         address,
         logoUrl,
       });
@@ -375,6 +387,48 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
           </div>
         </div>
       </div>
+
+      <section className="mb-6" aria-labelledby="social-heading">
+        <h2
+          id="social-heading"
+          className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase"
+        >
+          {dict.business.socialSection}
+        </h2>
+        <div className="border-border bg-card space-y-4 rounded-2xl border p-5 shadow-2xs">
+          {(
+            [
+              ["instagramUrl", dict.business.instagramLabel],
+              ["facebookUrl", dict.business.facebookLabel],
+              ["tiktokUrl", dict.business.tiktokLabel],
+            ] as const
+          ).map(([field, label]) => (
+            <div key={field}>
+              <label
+                htmlFor={`biz-${field}`}
+                className="text-foreground mb-1.5 block text-sm font-semibold"
+              >
+                {label}
+              </label>
+              <input
+                id={`biz-${field}`}
+                type="url"
+                value={socialLinks[field]}
+                onChange={(e) => setSocialLinks({ ...socialLinks, [field]: e.target.value })}
+                aria-invalid={!!errors[field]}
+                aria-describedby={errors[field] ? `error-${field}` : undefined}
+                className="border-input bg-card text-foreground focus-visible:ring-ring min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base focus-visible:ring-2 focus-visible:outline-none"
+                data-testid={`input-business-${field}`}
+              />
+              {errors[field] && (
+                <p id={`error-${field}`} role="alert" className="text-destructive mt-1 text-xs">
+                  {errors[field][0]}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Section 3: Storefront Branding (Upcoming) */}
       <div className="mb-6">

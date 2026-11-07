@@ -95,6 +95,9 @@ export async function updateBusinessProfileAction(
       phone: parsed.data.phone,
       email: parsed.data.email,
       whatsappNumber: parsed.data.whatsappNumber,
+      instagramUrl: parsed.data.instagramUrl,
+      facebookUrl: parsed.data.facebookUrl,
+      tiktokUrl: parsed.data.tiktokUrl,
       address: parsed.data.address,
       logoUrl: parsed.data.logoUrl,
     });

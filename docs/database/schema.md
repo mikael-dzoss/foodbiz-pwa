@@ -189,6 +189,9 @@ create type order_payment_method as enum ('cash', 'revolut', 'wero');
 create table businesses (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(trim(name)) >= 1),
+  instagram_url text check (instagram_url = '' or instagram_url ~ '^https://'),
+  facebook_url text check (facebook_url = '' or facebook_url ~ '^https://'),
+  tiktok_url text check (tiktok_url = '' or tiktok_url ~ '^https://'),
   slug text not null check (slug ~ '^[a-z0-9-]+$'),
   currency text not null default 'EUR' check (currency = 'EUR'),
   created_at timestamptz not null default now(),
