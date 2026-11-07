@@ -47,6 +47,14 @@ for (const locale of ["en", "fr"] as const) {
         expect(screen.getByTestId("confirmation-payment").textContent).toContain(
           `#${order.orderNumber}`,
         );
+        // #234: emphasised reference instruction, no handover note, italic disclaimer
+        expect(screen.getByTestId("confirmation-payment-reference").textContent).toBe(
+          dict.orderConfirmation.paymentReference.replace("{reference}", `#${order.orderNumber}`),
+        );
+        expect(screen.queryByTestId("confirmation-handover-prepare")).toBeNull();
+        const disclaimer = screen.getByTestId("confirmation-payment-disclaimer");
+        expect(disclaimer.textContent?.startsWith("*")).toBe(true);
+        expect(disclaimer.className).toContain("italic");
         expect(
           screen.getByRole("link", { name: dict.storefront.trackOrder }).getAttribute("href"),
         ).toBe(`/${locale}/order/secret-link`);
@@ -64,6 +72,10 @@ for (const locale of ["en", "fr"] as const) {
       );
       expect(screen.getByText(dict.orderConfirmation.handover)).toBeDefined();
       expect(screen.queryByText("@hidden")).toBeNull();
+      expect(screen.getByTestId("confirmation-handover-prepare").textContent).toBe(
+        dict.orderConfirmation.handoverPrepare,
+      );
+      expect(screen.queryByTestId("confirmation-payment-reference")).toBeNull();
     });
 
     it("explains missing configuration instead of inventing a recipient", () => {
@@ -86,7 +98,7 @@ for (const locale of ["en", "fr"] as const) {
         />,
       );
       expect(screen.queryByRole("button", { name: dict.orderConfirmation.copy })).toBeNull();
-      expect(screen.queryByText(dict.orderConfirmation.paymentHelp)).toBeNull();
+      expect(screen.queryByTestId("confirmation-payment-disclaimer")).toBeNull();
     });
 
     it("does not request payment for a cancelled order", () => {
@@ -97,7 +109,7 @@ for (const locale of ["en", "fr"] as const) {
           settings={fixtures.settings}
         />,
       );
-      expect(screen.queryByText(dict.orderConfirmation.paymentHelp)).toBeNull();
+      expect(screen.queryByTestId("confirmation-payment-disclaimer")).toBeNull();
       expect(screen.getByText(dict.orderTracking.statuses.CANCELLED)).toBeDefined();
     });
 

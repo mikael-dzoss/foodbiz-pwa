@@ -337,9 +337,10 @@ export const frDictionary: Dictionary = {
     revolutPay: "Revolut Pay",
     revolutSubtext: "Rapide & Sans frais",
     weroPay: "Wero Paiement Instantané",
-    weroSubtext: "QR Européen • Virement SEPA",
+    weroSubtext: "QR ou alias",
+    weroDescription: "Virement SEPA instantané",
     payOnHandover: "Au retrait (Espèces ou CB)",
-    payOnHandoverSubtext: "Règlement directement au comptoir",
+    payOnHandoverSubtext: "Payez en espèces ou par carte à la réception de votre commande",
     cashBadge: "Espèces",
     contactlessBadge: "CB sans contact",
     orderNotes: "Instructions",
@@ -543,8 +544,10 @@ export const frDictionary: Dictionary = {
     revtag: "Revtag Revolut",
     weroIdentifier: "Identifiant Wero",
     amount: "Montant à envoyer",
-    paymentHelp:
-      "Indiquez la référence de commande avec votre paiement. La boutique vérifie le paiement ; choisir un moyen de paiement ne marque pas la commande comme payée.",
+    paymentReference: "Indiquez la référence de commande {reference} avec votre paiement.",
+    handoverPrepare: "Préparez l'appoint ou présentez votre QR code à la remise de la commande.",
+    paymentDisclaimer:
+      "*La boutique vérifie le paiement ; choisir un moyen de paiement ne marque pas la commande comme payée.",
     unavailable:
       "Coordonnées de paiement indisponibles. Contactez la boutique depuis le suivi avant tout paiement.",
     copy: "Copier le destinataire",

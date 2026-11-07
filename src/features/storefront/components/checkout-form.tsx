@@ -835,7 +835,7 @@ export function CheckoutForm({
                       {dict.weroSubtext}
                     </span>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Direct SEPA instant transfer</p>
+                  <p className="text-muted-foreground text-[11px]">{dict.weroDescription}</p>
                 </div>
               </div>
               <QrCode className="text-muted-foreground h-4 w-4 opacity-60" />

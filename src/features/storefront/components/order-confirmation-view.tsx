@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { BusinessSettings } from "@/domain/business";
@@ -97,7 +98,12 @@ export function OrderConfirmationView({
         {needsPayment ? (
           <>
             {method === "on_handover" ? (
-              <p className="text-sm">{copy.handover}</p>
+              <>
+                <p className="text-sm">{copy.handover}</p>
+                <ImportantNote testId="confirmation-handover-prepare">
+                  {copy.handoverPrepare}
+                </ImportantNote>
+              </>
             ) : recipient?.trim() ? (
               <>
                 <p className="font-semibold">{method === "revolut" ? "Revolut" : "Wero"}</p>
@@ -120,13 +126,21 @@ export function OrderConfirmationView({
                   </div>
                 </dl>
                 <CopyPaymentRecipient recipient={recipient} dict={copy} />
+                <ImportantNote testId="confirmation-payment-reference">
+                  {copy.paymentReference.replace("{reference}", reference)}
+                </ImportantNote>
               </>
             ) : (
               <p role="alert" className="text-sm">
                 {copy.unavailable}
               </p>
             )}
-            <p className="text-muted-foreground text-sm">{copy.paymentHelp}</p>
+            <p
+              data-testid="confirmation-payment-disclaimer"
+              className="text-muted-foreground pt-2 text-xs italic"
+            >
+              {copy.paymentDisclaimer}
+            </p>
             {instructions && <p className="text-sm whitespace-pre-line">{instructions}</p>}
           </>
         ) : (
@@ -149,5 +163,17 @@ export function OrderConfirmationView({
         </Button>
       </nav>
     </div>
+  );
+}
+
+function ImportantNote({ children, testId }: { children: ReactNode; testId: string }) {
+  return (
+    <p
+      data-testid={testId}
+      className="border-primary/30 bg-primary/10 text-foreground flex items-start gap-2 rounded-lg border p-3 text-sm font-semibold"
+    >
+      <AlertCircle className="text-primary mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
   );
 }

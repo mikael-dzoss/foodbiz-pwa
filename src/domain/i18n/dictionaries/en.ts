@@ -332,9 +332,10 @@ export const enDictionary: Dictionary = {
     revolutPay: "Revolut Pay",
     revolutSubtext: "Fast & No fee",
     weroPay: "Wero Instant Pay",
-    weroSubtext: "European QR • SEPA transfer",
+    weroSubtext: "QR or alias",
+    weroDescription: "Instant SEPA transfer",
     payOnHandover: "Pay on Handover (Cash or Card)",
-    payOnHandoverSubtext: "Settle at bakery counter upon pickup",
+    payOnHandoverSubtext: "Pay in cash or by card when you receive your order",
     cashBadge: "Cash",
     contactlessBadge: "Contactless CB",
     orderNotes: "Notes",
@@ -541,8 +542,10 @@ export const enDictionary: Dictionary = {
     revtag: "Revolut revtag",
     weroIdentifier: "Wero identifier",
     amount: "Amount to send",
-    paymentHelp:
-      "Include the order reference with your payment. The shop verifies payment; choosing a payment method does not mark your order as paid.",
+    paymentReference: "Include the order reference {reference} with your payment.",
+    handoverPrepare: "Please prepare exact change or present your QR code on handover.",
+    paymentDisclaimer:
+      "*The shop verifies payment; choosing a payment method does not mark your order as paid.",
     unavailable:
       "Payment details are unavailable. Contact the shop from the tracking page before sending payment.",
     copy: "Copy recipient",

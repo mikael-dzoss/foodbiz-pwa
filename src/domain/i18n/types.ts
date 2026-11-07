@@ -228,6 +228,7 @@ export interface StorefrontDictionary {
   revolutSubtext: string;
   weroPay: string;
   weroSubtext: string;
+  weroDescription: string;
   payOnHandover: string;
   payOnHandoverSubtext: string;
   cashBadge: string;
@@ -490,7 +491,9 @@ export interface OrderConfirmationDictionary {
   revtag: string;
   weroIdentifier: string;
   amount: string;
-  paymentHelp: string;
+  paymentReference: string;
+  handoverPrepare: string;
+  paymentDisclaimer: string;
   unavailable: string;
   copy: string;
   copied: string;
