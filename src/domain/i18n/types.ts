@@ -74,6 +74,14 @@ export interface StorefrontDictionary {
   pickupAndDelivery: string;
   deliveryToggleLabel: string;
   pickupToggleLabel: string;
+  installAppTitle: string;
+  installAppSubtitle: string;
+  installAppButton: string;
+  installIosTitle: string;
+  installIosStep1: string;
+  installIosStep2: string;
+  installIosStep3: string;
+  installAppDone: string;
   menuOpen: string;
   menuDrawerTitle: string;
   menuTrackOrder: string;

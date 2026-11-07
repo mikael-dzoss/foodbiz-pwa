@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useTransition, useSyncExternalStore } from "react";
+import { useState, useTransition } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -21,29 +21,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
 import { Switch, useToast } from "@/components/ui";
 import { updateNotificationSettingsAction } from "../actions";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
-
-function subscribeStandalone(callback: () => void) {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return () => {};
-  }
-  const media = window.matchMedia("(display-mode: standalone)");
-  media.addEventListener("change", callback);
-  return () => media.removeEventListener("change", callback);
-}
-
-function getStandaloneSnapshot(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    (typeof window.matchMedia === "function" &&
-      window.matchMedia("(display-mode: standalone)").matches) ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
+import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
 
 export interface NotificationsAppFormProps {
   settings: BusinessSettings;
@@ -58,37 +36,14 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
   const [inAppAlerts, setInAppAlerts] = useState(settings.inAppAlerts ?? true);
   const [soundAlerts, setSoundAlerts] = useState(settings.soundAlerts ?? true);
 
-  // 2. PWA installation state
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [justInstalled, setJustInstalled] = useState(false);
-  const isRunningStandalone = useSyncExternalStore(
-    subscribeStandalone,
-    getStandaloneSnapshot,
-    () => false,
-  );
-  const isStandalone = isRunningStandalone || justInstalled;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  // 2. PWA installation state (shared hook)
+  const { isStandalone, canPrompt, promptInstall } = usePwaInstall();
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === "accepted") {
-        setJustInstalled(true);
+    if (canPrompt) {
+      if ((await promptInstall()) === "accepted") {
         showToast("FoodBiz Manager PWA installed successfully");
       }
-      setDeferredPrompt(null);
     } else if (isStandalone) {
       showToast("FoodBiz is already installed on this device");
     } else {

@@ -7,6 +7,7 @@ import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { useCartOptional } from "../context/cart-context";
 import { useMenuSearchOptional } from "../context/menu-search-context";
 import { StorefrontMenuDrawer } from "./storefront-menu-drawer";
+import { InstallAppCard } from "./install-app-card";
 
 export interface StorefrontHeaderProps {
   locale: SupportedLocale;
@@ -102,7 +103,12 @@ export function StorefrontHeader({
           </div>
         ) : (
           <div className="flex min-w-0 items-center gap-1">
-            <StorefrontMenuDrawer locale={locale} dict={dict} businessName={businessName} />
+            <StorefrontMenuDrawer
+              locale={locale}
+              dict={dict}
+              businessName={businessName}
+              footer={<InstallAppCard dict={dict} />}
+            />
             <span
               data-testid="header-brand"
               className="text-foreground xs:max-w-[200px] max-w-[160px] truncate text-base font-bold tracking-tight sm:max-w-xs"
