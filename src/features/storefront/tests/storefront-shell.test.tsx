@@ -152,4 +152,21 @@ describe("Storefront Shell (#30)", () => {
     expect(brand.closest("a")).toBeNull();
     expect(brand.textContent).toContain("La Boulangerie");
   });
+
+  it.each([
+    ["/en", true],
+    ["/en/cart", true],
+    ["/en/checkout", true],
+    ["/en/order/tk-1/confirmed", true],
+    ["/en/p/prod-1", false],
+    ["/en/info", false],
+  ])("shows the menu button on %s: %s (#231)", (path, hasMenu) => {
+    mockPathname = path;
+    render(
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+        <div>Content</div>
+      </StorefrontShell>,
+    );
+    expect(screen.queryByTestId("storefront-menu-button") !== null).toBe(hasMenu);
+  });
 });

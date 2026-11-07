@@ -183,6 +183,13 @@ export const frDictionary: Dictionary = {
     pickupAndDelivery: "Retrait & Livraison",
     deliveryToggleLabel: "Livraison",
     pickupToggleLabel: "Retrait",
+    menuOpen: "Ouvrir le menu",
+    menuDrawerTitle: "Menu",
+    menuTrackOrder: "Suivre une commande",
+    orderHistory: "Historique des commandes",
+    shareShopLink: "Partager la boutique",
+    aboutBusiness: "À propos de {business}",
+    linkCopied: "Lien copié",
     trackTitle: "Suivre ma commande",
     trackIntro:
       "Saisissez le numéro de téléphone et le numéro de commande indiqués dans votre confirmation.",

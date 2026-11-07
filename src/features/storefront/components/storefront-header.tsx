@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingCart, Store, ArrowLeft, Share2, Search } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Share2, Search } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { useCartOptional } from "../context/cart-context";
 import { useMenuSearchOptional } from "../context/menu-search-context";
+import { StorefrontMenuDrawer } from "./storefront-menu-drawer";
 
 export interface StorefrontHeaderProps {
   locale: SupportedLocale;
@@ -100,14 +101,12 @@ export function StorefrontHeader({
             </span>
           </div>
         ) : (
-          <div data-testid="header-brand" className="flex min-w-0 items-center gap-2">
-            <div
-              className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-              aria-hidden="true"
+          <div className="flex min-w-0 items-center gap-1">
+            <StorefrontMenuDrawer locale={locale} dict={dict} businessName={businessName} />
+            <span
+              data-testid="header-brand"
+              className="text-foreground xs:max-w-[200px] max-w-[160px] truncate text-base font-bold tracking-tight sm:max-w-xs"
             >
-              <Store className="h-4.5 w-4.5" />
-            </div>
-            <span className="text-foreground xs:max-w-[200px] max-w-[160px] truncate text-base font-bold tracking-tight sm:max-w-xs">
               {businessName}
             </span>
           </div>

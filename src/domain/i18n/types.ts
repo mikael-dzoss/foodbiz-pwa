@@ -74,6 +74,13 @@ export interface StorefrontDictionary {
   pickupAndDelivery: string;
   deliveryToggleLabel: string;
   pickupToggleLabel: string;
+  menuOpen: string;
+  menuDrawerTitle: string;
+  menuTrackOrder: string;
+  orderHistory: string;
+  shareShopLink: string;
+  aboutBusiness: string;
+  linkCopied: string;
   trackTitle: string;
   trackIntro: string;
   trackPhoneLabel: string;
