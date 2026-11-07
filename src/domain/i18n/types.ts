@@ -82,6 +82,11 @@ export interface StorefrontDictionary {
   installIosStep2: string;
   installIosStep3: string;
   installAppDone: string;
+  footerShopInformation: string;
+  footerContactUs: string;
+  footerOpeningHours: string;
+  footerLocation: string;
+  footerOrderingPolicy: string;
   menuOpen: string;
   menuDrawerTitle: string;
   menuTrackOrder: string;
