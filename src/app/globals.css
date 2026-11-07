@@ -144,6 +144,33 @@ body {
   font-weight: 500;
 }
 
+.text-label-strong {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop-in {
+    animation: none;
+  }
+}
+
 .text-label-sm {
   font-size: 0.75rem;
   line-height: 1rem;

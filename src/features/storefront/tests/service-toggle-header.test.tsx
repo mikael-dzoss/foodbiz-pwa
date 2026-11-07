@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ServiceToggleHeader } from "../components/service-toggle-header";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
@@ -248,5 +248,95 @@ describe("ServiceToggleHeader (#193)", () => {
       </ToastProvider>,
     );
     expect(screen.getByTestId("readiness-badge").textContent).toContain("Prêt en ~20 min");
+  });
+
+  it("opens the ordering details card from the badge and tiles and closes on Escape (#227)", async () => {
+    render(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders
+            isOpen
+            openingHoursText="07:30 - 19:30"
+            businessAddress="12 Rue de la Roquette"
+            settings={{
+              serviceTypes: { pickup: true, delivery: true, dineIn: false },
+              deliveryFee: 350,
+              minOrderAmount: 0,
+              orderTimingScheduled: true,
+              leadTimeValue: 1,
+              leadTimeUnit: "business_days",
+              leadTimeNoteEn: "Baked to order",
+              leadTimeNoteFr: "",
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("readiness-badge"));
+    const dialog = await screen.findByTestId("ordering-details-dialog");
+    expect(dialog.textContent).toContain("€3.50");
+    expect(dialog.textContent).toContain(enDictionary.storefront.detailsNoMinimum);
+    expect(dialog.textContent).toContain("07:30 - 19:30");
+    expect(dialog.textContent).toContain("~1 business day");
+    expect(screen.getByTestId("ordering-details-status").textContent).toContain("Closes at 19:30");
+    expect(screen.getByTestId("ordering-details-note").textContent).toBe("Baked to order");
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("ordering-details-dialog")).toBeNull());
+
+    fireEvent.click(screen.getByTestId("service-mode-pickup"));
+    fireEvent.click(screen.getByTestId("service-info-tile"));
+    const pickupDialog = await screen.findByTestId("ordering-details-dialog");
+    expect(pickupDialog.textContent).toContain("12 Rue de la Roquette");
+    expect(pickupDialog.textContent).not.toContain(enDictionary.storefront.detailsDeliveryFee);
+  });
+
+  it("shows closed and paused status in the details card (#227)", async () => {
+    const { rerender } = render(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders
+            isOpen={false}
+            openingHoursText="07:30 - 19:30"
+            settings={{
+              serviceTypes: { pickup: true, delivery: true, dineIn: false },
+              deliveryFee: 0,
+              minOrderAmount: 1500,
+              orderTimingScheduled: true,
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByTestId("store-status-tile"));
+    const dialog = await screen.findByTestId("ordering-details-dialog");
+    expect(dialog.textContent).toContain(enDictionary.storefront.freeDelivery);
+    expect(dialog.textContent).toContain("€15.00");
+    expect(screen.getByTestId("ordering-details-status").textContent).toContain("Opens at 07:30");
+    expect(screen.queryByTestId("ordering-details-note")).toBeNull();
+
+    rerender(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders={false}
+            isOpen={false}
+            settings={null}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+    expect(screen.getByTestId("ordering-details-status").textContent).toBe(
+      enDictionary.storefront.notAcceptingOrdersShort,
+    );
   });
 });

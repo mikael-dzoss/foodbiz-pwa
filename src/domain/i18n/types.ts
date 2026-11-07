@@ -74,6 +74,14 @@ export interface StorefrontDictionary {
   pickupAndDelivery: string;
   deliveryToggleLabel: string;
   pickupToggleLabel: string;
+  orderingDetailsTitle: string;
+  orderingDetailsOpen: string;
+  detailsDeliveryFee: string;
+  detailsMinOrder: string;
+  detailsNoMinimum: string;
+  detailsPickupAddress: string;
+  detailsHours: string;
+  detailsLeadTime: string;
   noFees: string;
   deliveryFeeShort: string;
   minOrderShort: string;

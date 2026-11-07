@@ -113,6 +113,7 @@ Letter spacing 0 except `display` (−0.01em). Max two weights per screen beside
 - Fixed top bars add `env(safe-area-inset-top)`; bottom nav, sticky action bars and toasts add `env(safe-area-inset-bottom)`.
 - Viewport `interactive-widget=resizes-content`; forms scroll, submit buttons are never covered by the keyboard.
 - Touch targets ≥ 44 × 44 px (`min-h-11 min-w-11`), ≥ 8 px apart.
+- Owner-approved exceptions (still ≥ 24 × 24 px, WCAG 2.2 AA 2.5.8): storefront Delivery/Pickup segments are 32 px high so the toggle matches the 38 px readiness badge (#227); the add button on catalog rows is 32 px so it covers less of the photo (#228). Featured cards keep 44 px.
 
 ## 6. Iconography
 
