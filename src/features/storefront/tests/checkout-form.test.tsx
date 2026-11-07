@@ -97,6 +97,19 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(screen.queryByTestId("checkout-form")).toBeNull();
   });
 
+  it("keeps the place-order bar in the page flow above the footer (#237)", () => {
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+    const bar = screen.getByTestId("checkout-action-bar");
+    expect(bar.className).toContain("sticky");
+    expect(bar.className).not.toMatch(/\bfixed\b/);
+    expect(bar.contains(screen.getByTestId("place-order-button"))).toBe(true);
+    expect(screen.getByTestId("checkout-form").className).not.toContain("pb-28");
+  });
+
   it("renders checkout form with sections when items are present", () => {
     render(
       <CartProvider initialItems={mockCartItems}>

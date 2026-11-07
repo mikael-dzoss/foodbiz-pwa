@@ -78,7 +78,7 @@ export function CartView({
   }
 
   return (
-    <div className="space-y-6 pb-28">
+    <div className="space-y-6">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b pb-4">
         <div className="flex items-center gap-2">
@@ -249,8 +249,11 @@ export function CartView({
         )}
       </section>
 
-      {/* Sticky Bottom Actions Bar */}
-      <div className="bg-card/95 border-border pb-safe fixed inset-x-0 bottom-0 z-40 border-t p-4 backdrop-blur-md">
+      {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
+      <div
+        data-testid="cart-action-bar"
+        className="border-border bg-card/95 sticky bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
+      >
         <div className="mx-auto flex max-w-4xl items-center gap-3">
           <Button
             type="button"
