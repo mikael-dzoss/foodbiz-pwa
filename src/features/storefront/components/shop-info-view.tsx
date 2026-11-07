@@ -15,6 +15,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
+import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import {
   buildOpenStreetMapEmbedUrl,
@@ -33,6 +34,7 @@ export interface ShopInfoViewProps {
 export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewProps) {
   // Service types enabled status (#83 AC)
   const pickupEnabled = settings?.serviceTypes?.pickup ?? true;
+  const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
   const deliveryEnabled = settings?.serviceTypes?.delivery ?? false;
 
   // Contact items (rendered ONLY when set - #83 AC)
@@ -137,7 +139,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                   </span>
                 </div>
                 <p className="text-muted-foreground mt-1 text-[11px] tabular-nums">
-                  {dict.pickupReadyTime}
+                  {dict.pickupReadyTime.replace("{leadTime}", leadTimeText)}
                 </p>
               </div>
             )}
@@ -404,7 +406,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
             <span className="text-muted-foreground block text-[10px] uppercase">Est. Time</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              30 – 45 min
+              {leadTimeText}
             </span>
           </div>
 

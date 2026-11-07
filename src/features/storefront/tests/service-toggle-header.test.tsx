@@ -44,9 +44,7 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(deliveryRadio.getAttribute("aria-checked")).toBe("true");
     expect(pickupRadio.getAttribute("aria-checked")).toBe("false");
 
-    expect(screen.getByTestId("readiness-badge").textContent).toContain(
-      enDictionary.storefront.orderReadyTime,
-    );
+    expect(screen.getByTestId("readiness-badge").textContent).toContain("Ready in ~1 business day");
 
     const infoTile = screen.getByTestId("service-info-tile");
     expect(infoTile.textContent).toMatch(/€2\.50 delivery fee|2,50\s*€/);
@@ -226,5 +224,29 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(screen.getByRole("alert")).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.notAcceptingOrdersShort)).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.notAcceptingOrdersBanner)).toBeDefined();
+  });
+
+  it("shows the manager lead time in the readiness badge (#226)", () => {
+    render(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders
+            isOpen
+            settings={{
+              serviceTypes: { pickup: true, delivery: true, dineIn: false },
+              deliveryFee: 0,
+              minOrderAmount: 0,
+              orderTimingScheduled: true,
+              leadTimeValue: 20,
+              leadTimeUnit: "minutes",
+            }}
+            locale="fr"
+            dict={frDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+    expect(screen.getByTestId("readiness-badge").textContent).toContain("Prêt en ~20 min");
   });
 });

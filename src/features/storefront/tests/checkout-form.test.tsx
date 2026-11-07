@@ -253,8 +253,11 @@ describe("CheckoutView & CheckoutForm", () => {
       </CartProvider>,
     );
 
-    // Default ASAP
+    // Default ASAP, labelled with the manager lead time (#226)
     expect(screen.queryByTestId("scheduled-timing-inputs")).toBeNull();
+    expect(screen.getByTestId("timing-asap-option").textContent).toContain(
+      "ASAP (~1 business day)",
+    );
 
     // Select Schedule Later
     const scheduleOption = screen.getByTestId("timing-scheduled-option");

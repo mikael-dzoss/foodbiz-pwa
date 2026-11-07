@@ -71,6 +71,8 @@ describe("ShopInfoView (#83)", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "La Boulangerie" })).toBeDefined();
     expect(screen.getByText("Traditional sourdough and pastries")).toBeDefined();
+    expect(screen.getByText("Pickup ready in ~1 business day")).toBeDefined();
+    expect(screen.getAllByText("~1 business day").length).toBeGreaterThan(0);
 
     // Enabled services
     expect(screen.getByText(enDictionary.storefront.servicePickup)).toBeDefined();

@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Clock } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { BusinessSettings } from "@/domain/business";
+import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { useToastOptional } from "@/components/ui";
 import {
@@ -18,10 +19,13 @@ export interface ServiceToggleHeaderProps {
   orderTimingScheduled?: boolean;
   openingHoursText?: string | null;
   businessAddress?: string | null;
-  settings?: Pick<
-    BusinessSettings,
-    "serviceTypes" | "deliveryFee" | "minOrderAmount" | "orderTimingScheduled"
-  > | null;
+  settings?:
+    | (Pick<
+        BusinessSettings,
+        "serviceTypes" | "deliveryFee" | "minOrderAmount" | "orderTimingScheduled"
+      > &
+        Partial<Pick<BusinessSettings, "leadTimeValue" | "leadTimeUnit">>)
+    | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
 }
@@ -149,7 +153,12 @@ export function ServiceToggleHeader({
           className="border-border bg-card text-muted-foreground inline-flex min-h-9 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium"
         >
           <Clock className="text-primary h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span className="tabular-nums">{dict.orderReadyTime}</span>
+          <span className="tabular-nums">
+            {dict.orderReadyTime.replace(
+              "{leadTime}",
+              formatLeadTime(getLeadTime(settings), locale),
+            )}
+          </span>
         </div>
       </div>
 
