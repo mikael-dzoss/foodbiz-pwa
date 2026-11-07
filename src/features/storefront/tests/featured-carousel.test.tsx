@@ -42,6 +42,7 @@ describe("FeaturedCarousel (#204)", () => {
         else expect(within(card).queryByText(new RegExp(dict.mostOrdered))).toBeNull();
         const button = within(card).getByRole("button");
         expect(button.className).toContain("min-h-11");
+        expect(button.getAttribute("data-size")).toBe("regular");
         expect(button.className).toContain("min-w-11");
       });
       expect(screen.getByTestId(`featured-image-placeholder-${products[0].id}`)).toBeDefined();

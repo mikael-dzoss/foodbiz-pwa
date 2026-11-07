@@ -108,6 +108,7 @@ export function ProductCatalogCard({
           product={product}
           dict={dict}
           disabled={disabled}
+          size="compact"
           data-testid={`add-to-cart-${product.id}`}
         />
       </div>

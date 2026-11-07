@@ -10,11 +10,14 @@ export function ProductAddButton({
   product,
   dict,
   disabled = false,
+  size = "regular",
   "data-testid": testId,
 }: {
   product: Product;
   dict: StorefrontDictionary;
   disabled?: boolean;
+  /** "compact" (32px) is an owner-approved exception for catalog rows (#228). */
+  size?: "regular" | "compact";
   "data-testid": string;
 }) {
   const { addItem, getItemQuantity } = useCart();
@@ -58,16 +61,19 @@ export function ProductAddButton({
       disabled={!canAdd}
       aria-label={`${dict.addToCart}: ${product.name}`}
       data-testid={testId}
-      className={`focus-visible:ring-ring absolute right-1.5 bottom-1.5 z-10 flex min-h-11 min-w-11 items-center justify-center rounded-full border shadow-xs transition-transform duration-150 focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transition-none ${
+      data-size={size}
+      className={`focus-visible:ring-ring absolute z-10 flex items-center ${
+        size === "compact" ? "right-1 bottom-1 h-8 w-8" : "right-1.5 bottom-1.5 min-h-11 min-w-11"
+      } justify-center rounded-full border shadow-xs transition-transform duration-150 focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transition-none ${
         justAdded
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-card text-primary hover:bg-muted"
       } ${!canAdd ? "cursor-not-allowed opacity-50 active:scale-100" : ""}`}
     >
       {justAdded ? (
-        <Check className="h-4 w-4" aria-hidden="true" />
+        <Check className={size === "compact" ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden="true" />
       ) : (
-        <Plus className="h-4 w-4" aria-hidden="true" />
+        <Plus className={size === "compact" ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden="true" />
       )}
       <span className="sr-only">{justAdded ? dict.addedToCart : dict.addToCart}</span>
     </button>
