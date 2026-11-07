@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingCart, Store, ArrowLeft, Share2 } from "lucide-react";
+import { ShoppingCart, Store, ArrowLeft, Share2, Search } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { useCartOptional } from "../context/cart-context";
+import { useMenuSearchOptional } from "../context/menu-search-context";
 
 export interface StorefrontHeaderProps {
   locale: SupportedLocale;
@@ -31,8 +32,24 @@ export function StorefrontHeader({
     ? pathname.replace(`/${locale}`, "/fr")
     : `/fr`;
 
-  const isInfoPage = pathname.includes("/info");
-  const isProductPage = pathname.includes("/p/");
+  const localePrefix = `/${locale}`;
+  const routePath = pathname.startsWith(localePrefix)
+    ? pathname.slice(localePrefix.length) || "/"
+    : pathname;
+  const isInfoPage = routePath.startsWith("/info");
+  const isProductPage = routePath.startsWith("/p/");
+  const isHomePage = routePath === "/";
+  const isTrackingPage =
+    routePath.startsWith("/track") ||
+    (routePath.startsWith("/order/") && !routePath.endsWith("/confirmed"));
+  const rightAction: "search" | "cart" | "share" | null = isHomePage
+    ? "search"
+    : isInfoPage
+      ? "share"
+      : isProductPage || isTrackingPage
+        ? "cart"
+        : null;
+  const menuSearch = useMenuSearchOptional();
 
   const handleShare = async () => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -83,18 +100,17 @@ export function StorefrontHeader({
             </span>
           </div>
         ) : (
-          <Link
-            href={`/${locale}/info`}
-            title={businessName}
-            className="flex items-center gap-2 transition-opacity hover:opacity-90"
-          >
-            <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
+          <div data-testid="header-brand" className="flex min-w-0 items-center gap-2">
+            <div
+              className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+              aria-hidden="true"
+            >
               <Store className="h-4.5 w-4.5" />
             </div>
             <span className="text-foreground xs:max-w-[200px] max-w-[160px] truncate text-base font-bold tracking-tight sm:max-w-xs">
               {businessName}
             </span>
-          </Link>
+          </div>
         )}
 
         {/* Right Side: Language Toggle + Share or Cart */}
@@ -129,8 +145,21 @@ export function StorefrontHeader({
             </Link>
           </div>
 
-          {/* Share Button (on Info Page) or Cart Button */}
-          {isInfoPage ? (
+          {/* Contextual action: search (home), share (info), cart (product/tracking), none elsewhere */}
+          {rightAction === "search" && (
+            <button
+              ref={menuSearch?.launcherRef}
+              type="button"
+              onClick={() => menuSearch?.setOpen(true)}
+              aria-label={dict.searchMenu}
+              aria-haspopup="dialog"
+              data-testid="catalog-search-launcher"
+              className="text-foreground hover:bg-muted focus-visible:ring-ring flex h-11 w-11 items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
+            >
+              <Search className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
+          {rightAction === "share" ? (
             <button
               type="button"
               onClick={handleShare}
@@ -139,9 +168,10 @@ export function StorefrontHeader({
             >
               <Share2 className="h-5 w-5" />
             </button>
-          ) : (
+          ) : rightAction === "cart" ? (
             <Link
               href={`/${locale}/cart`}
+              data-testid="header-cart-link"
               aria-label={`${dict.cart} - ${effectiveCartCount} ${effectiveCartCount === 1 ? dict.item : dict.items}`}
               className="text-muted-foreground hover:bg-muted hover:text-foreground relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
             >
@@ -155,7 +185,7 @@ export function StorefrontHeader({
                 </span>
               )}
             </Link>
-          )}
+          ) : null}
         </div>
       </div>
     </header>

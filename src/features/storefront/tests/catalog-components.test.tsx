@@ -3,8 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StorefrontCartBar } from "../components/storefront-cart-bar";
 import { StorefrontCatalogView } from "../components/storefront-catalog-view";
 import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
+import { MenuSearchProvider } from "../context/menu-search-context";
+import { StorefrontHeader } from "../components/storefront-header";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  usePathname: () => "/en",
+}));
 
 type ObserverCallback = IntersectionObserverCallback;
 
@@ -282,10 +289,17 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       expect(screen.queryByRole("heading", { name: "Featured items" })).toBeNull();
       expect(screen.queryByTestId("featured-carousel")).toBeNull();
     });
-    it("renders all categories and opens full-screen menu search overlay from the launcher (#203)", () => {
+    it("renders all categories and opens full-screen menu search overlay from the header launcher (#203, #229)", () => {
       render(
         <CartProvider>
-          <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
+          <MenuSearchProvider>
+            <StorefrontHeader locale="en" dict={enDictionary.storefront} />
+            <StorefrontCatalogView
+              catalog={mockCatalog}
+              locale="en"
+              dict={enDictionary.storefront}
+            />
+          </MenuSearchProvider>
         </CartProvider>,
       );
 
@@ -295,9 +309,10 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       expect(screen.getByText("Sourdough Loaf")).toBeDefined();
       expect(screen.getByText("Croissant")).toBeDefined();
 
-      // Inline search input is removed; search icon launcher is reachable before sticky bar appears
+      // Inline search input is removed; the only launcher sits in the header (#229)
       expect(screen.queryByTestId("catalog-search-input")).toBeNull();
       const launcher = screen.getByRole("button", { name: "Search the menu" });
+      expect(screen.getByRole("banner").contains(launcher)).toBe(true);
       expect(launcher.getAttribute("data-testid")).toBe("catalog-search-launcher");
 
       // Open full-screen search dialog
@@ -348,10 +363,17 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       expect(document.activeElement).toBe(launcher);
     });
 
-    it("closes full-screen search on Escape and exposes launcher in sticky CategoryNav trailing slot", () => {
+    it("closes full-screen search on Escape and keeps the sticky CategoryNav free of launchers (#229)", () => {
       render(
         <CartProvider>
-          <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
+          <MenuSearchProvider>
+            <StorefrontHeader locale="en" dict={enDictionary.storefront} />
+            <StorefrontCatalogView
+              catalog={mockCatalog}
+              locale="en"
+              dict={enDictionary.storefront}
+            />
+          </MenuSearchProvider>
         </CartProvider>,
       );
 
@@ -371,10 +393,12 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       });
 
       const stickyNav = screen.getByTestId("sticky-category-nav");
-      const stickyLauncher = screen.getByRole("button", { name: "Search the menu" });
-      expect(stickyNav.contains(stickyLauncher)).toBe(true);
+      const launchers = screen.getAllByRole("button", { name: "Search the menu" });
+      expect(launchers).toHaveLength(1);
+      const headerLauncher = launchers[0];
+      expect(stickyNav.contains(headerLauncher)).toBe(false);
 
-      fireEvent.click(stickyLauncher);
+      fireEvent.click(headerLauncher);
       expect(screen.getByRole("dialog", { name: "Search the menu" })).toBeDefined();
 
       // Press Escape to close
@@ -383,7 +407,7 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
         code: "Escape",
       });
       expect(screen.queryByRole("dialog", { name: "Search the menu" })).toBeNull();
-      expect(document.activeElement).toBe(stickyLauncher);
+      expect(document.activeElement).toBe(headerLauncher);
     });
 
     it("shows sticky CategoryNav only once the first category title has scrolled past and scrolls/focuses on selection", () => {

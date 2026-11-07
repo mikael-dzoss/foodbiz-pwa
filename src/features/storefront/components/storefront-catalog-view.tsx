@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import {
   CategoryNav,
   prefersReducedMotion,
@@ -16,6 +16,7 @@ import { FeaturedCarousel } from "./featured-carousel";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
 import { MenuSearchDialog } from "./menu-search-dialog";
+import { useMenuSearchOptional } from "../context/menu-search-context";
 
 export interface StorefrontCatalogViewProps {
   catalog: StorefrontCatalogData;
@@ -24,8 +25,10 @@ export interface StorefrontCatalogViewProps {
 }
 
 export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatalogViewProps) {
-  const [searchOpen, setSearchOpen] = useState(false);
-  const launcherRef = useRef<HTMLButtonElement | null>(null);
+  const menuSearch = useMenuSearchOptional();
+  const [localSearchOpen, setLocalSearchOpen] = useState(false);
+  const searchOpen = menuSearch?.open ?? localSearchOpen;
+  const setSearchOpen = menuSearch?.setOpen ?? setLocalSearchOpen;
 
   const groupedCategories = catalog.groupedCategories;
   const hasAnyProducts = groupedCategories.some((g) => g.products.length > 0);
@@ -58,25 +61,8 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
   };
 
   const handleRestoreLauncherFocus = () => {
-    launcherRef.current?.focus({ preventScroll: true });
+    menuSearch?.launcherRef.current?.focus({ preventScroll: true });
   };
-
-  const searchLauncherButton = (
-    <button
-      ref={(node) => {
-        if (node) {
-          launcherRef.current = node;
-        }
-      }}
-      type="button"
-      onClick={() => setSearchOpen(true)}
-      aria-label={dict.searchMenu}
-      data-testid="catalog-search-launcher"
-      className="border-border bg-muted/50 text-foreground hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
-    >
-      <Search className="h-5 w-5" aria-hidden="true" />
-    </button>
-  );
 
   return (
     <div className="flex flex-col pb-6">
@@ -94,7 +80,6 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
             menuSubtitle={catalog.openingHoursText}
             menuLabel={dict.browseCategories}
             dismissLabel={dict.dismiss}
-            trailing={searchLauncherButton}
           />
         </div>
       )}
@@ -120,7 +105,6 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
             dict={dict}
             disabled={!catalog.isAcceptingOrders}
             headingRef={hasFeatured ? sentinelRef : undefined}
-            headingActions={!isPast ? searchLauncherButton : undefined}
           />
           {groupedCategories.map((group, groupIdx) => (
             <section
@@ -145,7 +129,6 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
                     {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
                   </span>
                 </div>
-                {groupIdx === 0 && !hasFeatured && !isPast && searchLauncherButton}
               </div>
 
               <div

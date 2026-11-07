@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { UtensilsCrossed } from "lucide-react";
@@ -13,14 +12,12 @@ export function FeaturedCarousel({
   dict,
   disabled = false,
   headingRef,
-  headingActions,
 }: {
   products: readonly Product[];
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   disabled?: boolean;
   headingRef?: (node: HTMLElement | null) => void;
-  headingActions?: ReactNode;
 }) {
   if (products.length === 0) return null;
   return (
@@ -37,12 +34,9 @@ export function FeaturedCarousel({
         >
           {dict.featuredItems}
         </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs font-medium tabular-nums">
-            {products.length} {products.length === 1 ? dict.item : dict.items}
-          </span>
-          {headingActions}
-        </div>
+        <span className="text-muted-foreground text-xs font-medium tabular-nums">
+          {products.length} {products.length === 1 ? dict.item : dict.items}
+        </span>
       </div>
       <div
         role="region"
