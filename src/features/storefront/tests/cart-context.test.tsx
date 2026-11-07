@@ -13,6 +13,8 @@ const mockProduct: Product = {
   unitCost: 100,
   stock: 5,
   visible: true,
+  allergens: [],
+  suggestAddOns: true,
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };

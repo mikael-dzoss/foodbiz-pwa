@@ -1,3 +1,5 @@
+import { requireAuthenticatedAction } from "@/features/auth";
+import type { CreateCategoryInput, UpdateCategoryInput } from "@/domain/repositories/types";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   listCategoriesAction,
@@ -35,17 +37,19 @@ const mockCategoryRepo = {
   findById: vi.fn(
     async (_bId: string, id: string) => mockCategories.find((c) => c.id === id) ?? null,
   ),
-  create: vi.fn(async (_bId: string, input: { name: string; sortOrder?: number }) => ({
+  create: vi.fn(async (_bId: string, input: CreateCategoryInput) => ({
     id: "22222222-2222-4222-8222-222222222299",
     businessId: "11111111-1111-4111-8111-111111111111",
     name: input.name,
     sortOrder: input.sortOrder ?? 3,
+    role: input.role ?? "regular",
     createdAt: new Date().toISOString(),
   })),
-  update: vi.fn(async (_bId: string, id: string, input: { name?: string }) => ({
+  update: vi.fn(async (_bId: string, id: string, input: UpdateCategoryInput) => ({
     id,
     businessId: "11111111-1111-4111-8111-111111111111",
     name: input.name ?? "Updated",
+    role: input.role ?? "regular",
     sortOrder: 1,
     createdAt: "2026-08-01T08:00:00.000Z",
   })),
@@ -116,6 +120,28 @@ describe("features: category actions", () => {
   });
 
   describe("createCategoryAction", () => {
+    it("creates and edits category roles with validation", async () => {
+      expect(await createCategoryAction({ name: "Coffee", role: "drinks" })).toMatchObject({
+        success: true,
+        data: { role: "drinks" },
+      });
+      expect(
+        await renameCategoryAction({ id: mockCategories[0].id, name: "Breads", role: "snacks" }),
+      ).toMatchObject({ success: true, data: { role: "snacks" } });
+      expect(await createCategoryAction({ name: "Coffee", role: "invalid" })).toMatchObject({
+        success: false,
+      });
+      expect(
+        await renameCategoryAction({ id: mockCategories[0].id, name: "Breads", role: "invalid" }),
+      ).toMatchObject({ success: false });
+    });
+    it("requires authentication before changing roles", async () => {
+      vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
+      await expect(createCategoryAction({ name: "Coffee", role: "drinks" })).rejects.toThrow(
+        "Unauthorized",
+      );
+      expect(mockCategoryRepo.create).not.toHaveBeenCalled();
+    });
     it("creates a new category when name is valid and unique", async () => {
       const res = await createCategoryAction({ name: "Sandwiches" });
       expect(res.success).toBe(true);

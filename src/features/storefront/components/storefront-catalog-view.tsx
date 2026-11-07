@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search, Sparkles } from "lucide-react";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
-import { StoreStatusBanner } from "./store-status-banner";
+import { ServiceToggleHeader } from "./service-toggle-header";
 import { CategoryTabs } from "./category-tabs";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
@@ -53,12 +53,15 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
       {/* Semantic Accessible Heading for SEO & Screen Readers (Brand shown in TopAppBar per Stitch) */}
       <h1 className="sr-only">{catalog.business.name}</h1>
 
-      {/* Live Store Status / Availability Banner (Stitch C-01) */}
-      <StoreStatusBanner
+      {/* Live Store Status & Service Mode Toggle Header (Stitch C-01) */}
+      <ServiceToggleHeader
         isAcceptingOrders={catalog.isAcceptingOrders}
         isOpen={catalog.isOpen}
         orderTimingScheduled={catalog.settings?.orderTimingScheduled ?? true}
         openingHoursText={catalog.openingHoursText}
+        businessAddress={catalog.business.address}
+        settings={catalog.settings}
+        locale={locale}
         dict={dict}
       />
 
@@ -93,19 +96,22 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         <div className="flex flex-col gap-6">
           {filteredGroups.map((group, groupIdx) => (
             <section key={group.id} aria-labelledby={`category-heading-${group.id}`}>
-              <div className="border-border/60 mb-3 flex items-center justify-between border-b pb-1.5">
+              <div className="mb-2 flex items-center justify-between">
                 <h2
                   id={`category-heading-${group.id}`}
-                  className="text-foreground text-sm font-bold tracking-tight"
+                  className="text-foreground text-base font-semibold tracking-tight"
                 >
                   {group.name}
                 </h2>
-                <span className="text-muted-foreground text-xs tabular-nums">
+                <span className="text-muted-foreground text-xs font-medium tabular-nums">
                   {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                data-testid={`category-group-${group.id}`}
+                className="border-border bg-card divide-border divide-y overflow-hidden rounded-xl border sm:grid sm:grid-cols-2 sm:gap-3 sm:divide-y-0 sm:border-0 sm:bg-transparent lg:grid-cols-3"
+              >
                 {group.products.map((product, productIdx) => (
                   <ProductCatalogCard
                     key={product.id}

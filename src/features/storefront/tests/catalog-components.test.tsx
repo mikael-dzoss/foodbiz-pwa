@@ -46,6 +46,7 @@ const mockCatalog: StorefrontCatalogData = {
       businessId: "biz-1",
       name: "Breads",
       sortOrder: 1,
+      role: "regular" as const,
       createdAt: "2026-01-01T00:00:00Z",
     },
     {
@@ -53,6 +54,7 @@ const mockCatalog: StorefrontCatalogData = {
       businessId: "biz-1",
       name: "Pastries",
       sortOrder: 2,
+      role: "regular" as const,
       createdAt: "2026-01-01T00:00:00Z",
     },
   ],
@@ -72,6 +74,8 @@ const mockCatalog: StorefrontCatalogData = {
           unitCost: 150,
           stock: 10,
           visible: true,
+          allergens: [],
+          suggestAddOns: true,
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
         },
@@ -92,6 +96,8 @@ const mockCatalog: StorefrontCatalogData = {
           unitCost: 80,
           stock: 15,
           visible: true,
+          allergens: [],
+          suggestAddOns: true,
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
         },
@@ -236,6 +242,10 @@ describe("Storefront UI components (#80, #81, #82, #83)", () => {
         name: /100% Organic Flours & Artisanal Baking/i,
       });
       expect(bakeryInfoLink.getAttribute("href")).toBe("/en/info");
+
+      const categoryGroup = screen.getByTestId("category-group-cat-1");
+      expect(categoryGroup.className).toContain("divide-y");
+      expect(categoryGroup.className).toContain("rounded-xl");
     });
   });
 });

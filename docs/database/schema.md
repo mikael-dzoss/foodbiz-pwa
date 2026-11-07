@@ -165,6 +165,7 @@ create extension if not exists "pgcrypto";
 -- ----------------------------------------------------------------------------
 -- Custom ENUM Types
 -- ----------------------------------------------------------------------------
+create type category_role as enum ('regular', 'drinks', 'snacks');
 create type business_member_role as enum ('owner', 'manager', 'staff');
 create type date_format as enum ('DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD');
 
@@ -231,6 +232,7 @@ create table product_categories (
   business_id uuid not null references businesses(id) on delete cascade,
   name text not null check (char_length(trim(name)) between 1 and 50),
   sort_order integer not null default 0 check (sort_order >= 0),
+  role category_role not null default 'regular',
   created_at timestamptz not null default now(),
   constraint product_categories_business_name_unique unique (business_id, name)
 );
@@ -247,6 +249,8 @@ create table products (
   unit_cost integer not null default 0 check (unit_cost >= 0), -- integer cents
   stock integer not null default 0 check (stock >= 0), -- negative inventory prevention
   visible boolean not null default true, -- soft deletion / catalog visibility
+  allergens text[] not null default '{}',
+  suggest_add_ons boolean not null default true,
   image_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -39,6 +39,7 @@ export function describeCategoryRepositoryContract(
       expect(created.id).toBeDefined();
       expect(created.name).toBe("Seasonal Specials");
       expect(created.sortOrder).toBe(10);
+      expect(created.role).toBe("regular");
 
       const found = await repos.categories.findById(businessId, created.id);
       expect(found?.name).toBe("Seasonal Specials");
@@ -48,16 +49,20 @@ export function describeCategoryRepositoryContract(
       const repos = await getRepositories();
       const created = await repos.categories.create(businessId, {
         name: "Temp Cat",
+        role: "drinks",
         sortOrder: 50,
       });
 
       const updated = await repos.categories.update(businessId, created.id, {
         name: "Renamed Cat",
+        role: "snacks",
         sortOrder: 55,
       });
 
       expect(updated.name).toBe("Renamed Cat");
       expect(updated.sortOrder).toBe(55);
+      expect(created.role).toBe("drinks");
+      expect((await repos.categories.findById(businessId, created.id))?.role).toBe("snacks");
     });
 
     it("delete removes category and throws on non-existent", async () => {

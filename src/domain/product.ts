@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { categoryRoleSchema } from "@/domain/category";
+import { allergenSchema } from "@/domain/allergen";
 import { isoDateTimeSchema, moneySchema, uuidSchema } from "./common";
 
 export const productCategorySchema = z.object({
@@ -6,6 +8,7 @@ export const productCategorySchema = z.object({
   businessId: uuidSchema,
   name: z.string().trim().min(1),
   sortOrder: z.number().int().min(0).default(0),
+  role: categoryRoleSchema.default("regular"),
   createdAt: isoDateTimeSchema,
 });
 
@@ -21,6 +24,8 @@ export const productSchema = z.object({
   unitCost: moneySchema.default(0),
   stock: z.number().int().min(0).default(0),
   visible: z.boolean().default(true),
+  suggestAddOns: z.boolean().default(true),
+  allergens: z.array(allergenSchema).default([]),
   imageUrl: z.string().trim().optional().nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
@@ -67,6 +72,8 @@ export const createProductSchema = z.object({
   unitCost: moneySchema.default(0),
   stock: z.number().int().min(0, "Stock cannot be negative").default(0),
   visible: z.boolean().default(true),
+  suggestAddOns: z.boolean().default(true),
+  allergens: z.array(allergenSchema).default([]),
   imageUrl: z.string().trim().optional().nullable(),
 });
 
@@ -81,6 +88,8 @@ export const updateProductSchema = z.object({
   unitCost: moneySchema.optional(),
   stock: z.number().int().min(0, "Stock cannot be negative").optional(),
   visible: z.boolean().optional(),
+  suggestAddOns: z.boolean().default(true),
+  allergens: z.array(allergenSchema).default([]),
   imageUrl: z.string().trim().optional().nullable(),
 });
 
@@ -149,6 +158,11 @@ export const productFormInputSchema = z.object({
     .union([z.boolean(), z.string()])
     .transform((v) => v === true || v === "true" || v === "on")
     .default(true),
+  suggestAddOns: z
+    .union([z.boolean(), z.string()])
+    .transform((v) => v === true || v === "true" || v === "on")
+    .default(true),
+  allergens: z.array(allergenSchema).default([]),
   imageUrl: z.string().trim().optional().nullable(),
 });
 

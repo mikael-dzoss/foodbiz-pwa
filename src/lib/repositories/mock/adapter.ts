@@ -62,6 +62,8 @@ export function createMockRepositories(
         unitCost: input.unitCost ?? 0,
         stock: input.stock ?? 0,
         visible: input.visible ?? true,
+        allergens: [...(input.allergens ?? [])],
+        suggestAddOns: input.suggestAddOns ?? true,
         imageUrl: input.imageUrl ?? null,
         createdAt: now,
         updatedAt: now,
@@ -102,6 +104,7 @@ export function createMockRepositories(
         businessId: bId,
         name: input.name,
         sortOrder: input.sortOrder ?? fixtures.categories.length + 1,
+        role: input.role ?? "regular",
         createdAt: new Date().toISOString(),
       };
       fixtures.categories.push(c);

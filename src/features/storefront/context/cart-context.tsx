@@ -27,6 +27,8 @@ export interface AddItemInput {
   imageUrl?: string | null;
 }
 
+export type StorefrontServiceMode = "delivery" | "pickup";
+
 export interface CartContextValue {
   items: CartItem[];
   addItem: (product: AddItemInput, quantity?: number) => boolean;
@@ -37,6 +39,8 @@ export interface CartContextValue {
   syncPrices: (freshItems: Array<{ id: string; price: number; stock?: number }>) => void;
   notes: string;
   setNotes: (notes: string) => void;
+  serviceMode: StorefrontServiceMode;
+  setServiceMode: (mode: StorefrontServiceMode) => void;
   totalCount: number;
   totalAmountInCents: number;
 }
@@ -45,11 +49,25 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 const STORAGE_KEY = "foodbiz_storefront_cart";
 const NOTES_STORAGE_KEY = "foodbiz_storefront_notes";
+export const SERVICE_MODE_STORAGE_KEY = "foodbiz_storefront_service_mode";
+
+export function resolveServiceMode(
+  storedMode: StorefrontServiceMode,
+  serviceTypes?: { pickup: boolean; delivery: boolean } | null,
+): StorefrontServiceMode {
+  const deliveryEnabled = serviceTypes?.delivery ?? true;
+  const pickupEnabled = serviceTypes?.pickup ?? true;
+  if (storedMode === "delivery" && deliveryEnabled) return "delivery";
+  if (storedMode === "pickup" && pickupEnabled) return "pickup";
+  return deliveryEnabled ? "delivery" : "pickup";
+}
 
 let memoryCart: CartItem[] = [];
 let memoryNotes: string = "";
+let memoryServiceMode: StorefrontServiceMode = "delivery";
 let isInitialized = false;
 let isNotesInitialized = false;
+let isServiceModeInitialized = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -59,12 +77,15 @@ function notify() {
 export function resetCartStore(): void {
   memoryCart = [];
   memoryNotes = "";
+  memoryServiceMode = "delivery";
   isInitialized = false;
   isNotesInitialized = false;
+  isServiceModeInitialized = false;
   if (typeof window !== "undefined") {
     try {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(NOTES_STORAGE_KEY);
+      localStorage.removeItem(SERVICE_MODE_STORAGE_KEY);
     } catch {
       // Storage unavailable
     }
@@ -131,6 +152,34 @@ function saveStoredNotes(newNotes: string) {
   notify();
 }
 
+function getStoredServiceMode(): StorefrontServiceMode {
+  if (typeof window === "undefined") return "delivery";
+  if (!isServiceModeInitialized) {
+    try {
+      const stored = localStorage.getItem(SERVICE_MODE_STORAGE_KEY);
+      if (stored === "delivery" || stored === "pickup") {
+        memoryServiceMode = stored;
+      }
+    } catch {
+      // Storage unavailable
+    }
+    isServiceModeInitialized = true;
+  }
+  return memoryServiceMode;
+}
+
+function saveStoredServiceMode(newMode: StorefrontServiceMode) {
+  memoryServiceMode = newMode;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(SERVICE_MODE_STORAGE_KEY, newMode);
+    } catch {
+      // Storage error
+    }
+  }
+  notify();
+}
+
 function subscribeCart(callback: () => void) {
   listeners.add(callback);
   const handleStorage = (e: StorageEvent) => {
@@ -139,6 +188,9 @@ function subscribeCart(callback: () => void) {
       notify();
     } else if (e.key === NOTES_STORAGE_KEY) {
       isNotesInitialized = false;
+      notify();
+    } else if (e.key === SERVICE_MODE_STORAGE_KEY) {
+      isServiceModeInitialized = false;
       notify();
     }
   };
@@ -155,17 +207,32 @@ export interface CartProviderProps {
   children: ReactNode;
   initialItems?: CartItem[];
   initialNotes?: string;
+  initialServiceMode?: StorefrontServiceMode;
 }
 
-export function CartProvider({ children, initialItems, initialNotes }: CartProviderProps) {
+export function CartProvider({
+  children,
+  initialItems,
+  initialNotes,
+  initialServiceMode,
+}: CartProviderProps) {
   const [localItems, setLocalItems] = useState<CartItem[] | null>(initialItems ?? null);
   const [localNotes, setLocalNotes] = useState<string | null>(initialNotes ?? null);
+  const [localServiceMode, setLocalServiceMode] = useState<StorefrontServiceMode | null>(
+    initialServiceMode ?? null,
+  );
 
   const syncedItems = useSyncExternalStore(subscribeCart, getStoredCart, () => emptyCart);
   const syncedNotes = useSyncExternalStore(subscribeCart, getStoredNotes, () => "");
+  const syncedServiceMode = useSyncExternalStore(
+    subscribeCart,
+    getStoredServiceMode,
+    () => "delivery" as const,
+  );
 
   const items = localItems ?? syncedItems;
   const notes = localNotes ?? syncedNotes;
+  const serviceMode = localServiceMode ?? syncedServiceMode;
 
   const setNotes = useCallback(
     (newNotes: string) => {
@@ -176,6 +243,17 @@ export function CartProvider({ children, initialItems, initialNotes }: CartProvi
       }
     },
     [initialNotes],
+  );
+
+  const setServiceMode = useCallback(
+    (newMode: StorefrontServiceMode) => {
+      if (initialServiceMode !== undefined) {
+        setLocalServiceMode(newMode);
+      } else {
+        saveStoredServiceMode(newMode);
+      }
+    },
+    [initialServiceMode],
   );
 
   const updateCartState = useCallback(
@@ -320,6 +398,8 @@ export function CartProvider({ children, initialItems, initialNotes }: CartProvi
       syncPrices,
       notes,
       setNotes,
+      serviceMode,
+      setServiceMode,
       totalCount,
       totalAmountInCents,
     }),
@@ -333,6 +413,8 @@ export function CartProvider({ children, initialItems, initialNotes }: CartProvi
       syncPrices,
       notes,
       setNotes,
+      serviceMode,
+      setServiceMode,
       totalCount,
       totalAmountInCents,
     ],

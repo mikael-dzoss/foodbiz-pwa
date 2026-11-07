@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { categoryRoleSchema, type CategoryRole } from "@/domain/category";
+import { getDictionary, type ProductsDictionary } from "@/domain/i18n";
 import type { ProductCategory } from "@/domain/product";
 import {
   createCategoryAction,
@@ -15,11 +17,17 @@ import type { CategoryWithProductCount } from "../category-actions";
 
 export interface CategoryManagerProps {
   initialCategories: CategoryWithProductCount[];
+  dict?: ProductsDictionary;
 }
 
-export function CategoryManager({ initialCategories }: CategoryManagerProps) {
+export function CategoryManager({
+  initialCategories,
+  dict = getDictionary().products,
+}: CategoryManagerProps) {
   const [categories, setCategories] = useState<CategoryWithProductCount[]>(initialCategories);
   const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState<CategoryRole>("regular");
+  const [editRole, setEditRole] = useState<CategoryRole>("regular");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -30,19 +38,20 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
     setIsCreating(true);
     setCreateError(null);
 
-    const res = await createCategoryAction({ name: newName });
+    const res = await createCategoryAction({ name: newName, role: newRole });
     setIsCreating(false);
 
     if (res.success) {
       setCategories((prev) => [...prev, { ...res.data, productCount: 0 }]);
       setNewName("");
+      setNewRole("regular");
     } else {
       setCreateError(res.error);
     }
@@ -51,6 +60,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
   const startEditing = (cat: ProductCategory) => {
     setEditingId(cat.id);
     setEditName(cat.name);
+    setEditRole(cat.role);
     setRenameError(null);
   };
 
@@ -64,9 +74,11 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
     if (!editName.trim()) return;
     setRenameError(null);
 
-    const res = await renameCategoryAction({ id, name: editName });
+    const res = await renameCategoryAction({ id, name: editName, role: editRole });
     if (res.success) {
-      setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, name: res.data.name } : c)));
+      setCategories((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, name: res.data.name, role: res.data.role } : c)),
+      );
       setEditingId(null);
       setEditName("");
     } else {
@@ -114,6 +126,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                   if (createError) setCreateError(null);
                 }}
                 className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-12 rounded-lg text-base"
+                data-testid="new-category-name-input"
                 aria-label="New category name"
               />
             </div>
@@ -123,9 +136,33 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
             </p>
           </div>
 
+          <div>
+            <label
+              htmlFor="new-category-role"
+              className="text-muted-foreground mb-1.5 block text-xs font-medium"
+            >
+              {dict.categoryRoleLabel}
+            </label>
+            <select
+              id="new-category-role"
+              value={newRole}
+              onChange={(e) => setNewRole(categoryRoleSchema.parse(e.target.value))}
+              disabled={isCreating}
+              className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              data-testid="new-category-role-select"
+            >
+              {categoryRoleSchema.options.map((role) => (
+                <option key={role} value={role}>
+                  {dict.categoryRoles[role]}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* TODO(design): scale down button from h-12 to min-h-11 (h-10 or h-11) */}
           <Button
             id="create-category-btn"
+            data-testid="create-category-button"
             type="submit"
             disabled={isCreating || !newName.trim()}
             className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary h-12 w-full gap-2 rounded-lg text-sm font-semibold shadow-none"
@@ -151,8 +188,9 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
           <span>{deleteError}</span>
           <button
             type="button"
+            data-testid="dismiss-category-error"
             onClick={() => setDeleteError(null)}
-            className="text-destructive/80 hover:text-destructive text-xs underline"
+            className="text-destructive/80 hover:text-destructive min-h-11 min-w-11 text-xs underline"
           >
             Dismiss
           </button>
@@ -188,25 +226,48 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
               if (isEditing) {
                 return (
                   <div key={cat.id} className="bg-card p-3.5">
+                    <div className="mb-2">
+                      <label
+                        htmlFor={`edit-category-role-${cat.id}`}
+                        className="text-muted-foreground mb-1.5 block text-xs font-medium"
+                      >
+                        {dict.categoryRoleLabel}
+                      </label>
+                      <select
+                        id={`edit-category-role-${cat.id}`}
+                        value={editRole}
+                        onChange={(e) => setEditRole(categoryRoleSchema.parse(e.target.value))}
+                        className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                        data-testid={`edit-category-role-select-${cat.id}`}
+                      >
+                        {categoryRoleSchema.options.map((role) => (
+                          <option key={role} value={role}>
+                            {dict.categoryRoles[role]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Input
                         id={`edit-category-name-${cat.id}`}
+                        data-testid={`edit-category-name-input-${cat.id}`}
                         type="text"
                         value={editName}
                         onChange={(e) => {
                           setEditName(e.target.value);
                           if (renameError) setRenameError(null);
                         }}
-                        className="h-10 flex-1 text-sm"
+                        className="min-h-11 flex-1 text-sm"
                         aria-label="Edit category name"
                         autoFocus
                       />
                       <Button
                         id={`save-category-btn-${cat.id}`}
+                        data-testid={`save-category-button-${cat.id}`}
                         size="sm"
                         onClick={() => handleRename(cat.id)}
                         disabled={!editName.trim()}
-                        className="shrink-0 gap-1"
+                        className="min-h-11 min-w-11 shrink-0 gap-1"
                         aria-label="Save category name"
                       >
                         <Check className="h-4 w-4" />
@@ -216,8 +277,9 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                         type="button"
                         variant="outline"
                         size="sm"
+                        data-testid={`cancel-category-edit-${cat.id}`}
                         onClick={cancelEditing}
-                        className="shrink-0"
+                        className="min-h-11 min-w-11 shrink-0"
                         aria-label="Cancel editing"
                       >
                         <X className="h-4 w-4" />
@@ -244,14 +306,18 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                   <div className="flex min-w-0 items-center gap-3">
                     <button
                       type="button"
+                      data-testid={`reorder-category-${cat.id}`}
                       aria-label={`Reorder ${cat.name}`}
-                      className="text-muted-foreground/60 hover:text-foreground -ml-1 touch-manipulation p-1"
+                      className="text-muted-foreground/60 hover:text-foreground -ml-1 min-h-11 min-w-11 touch-manipulation p-1"
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
                     <div className="min-w-0">
                       <div className="text-foreground truncate text-sm font-semibold">
                         {cat.name}
+                        <span className="text-muted-foreground ml-2 text-xs font-normal">
+                          {dict.categoryRoles[cat.role]}
+                        </span>
                       </div>
                       <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                         <span className="font-medium">
@@ -274,6 +340,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
                       id={`rename-category-btn-${cat.id}`}
+                      data-testid={`rename-category-button-${cat.id}`}
                       variant="ghost"
                       size="sm"
                       onClick={() => startEditing(cat)}
@@ -286,6 +353,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
 
                     <Button
                       id={`delete-category-btn-${cat.id}`}
+                      data-testid={`delete-category-button-${cat.id}`}
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(cat.id)}

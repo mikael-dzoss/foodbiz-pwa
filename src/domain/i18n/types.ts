@@ -1,3 +1,6 @@
+import type { Allergen } from "@/domain/allergen";
+import type { CategoryRole } from "@/domain/category";
+
 export const SUPPORTED_LOCALES = ["en", "fr"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: SupportedLocale = "en";
@@ -57,6 +60,14 @@ export interface StorefrontDictionary {
   orderReadyTime: string;
   pickupReadyTime: string;
   pickupAndDelivery: string;
+  deliveryToggleLabel: string;
+  pickupToggleLabel: string;
+  noFees: string;
+  deliveryFeeShort: string;
+  minOrderShort: string;
+  notAcceptingOrdersShort: string;
+  pickupUnavailableToast: string;
+  deliveryUnavailableToast: string;
 
   // Product Detail (#81)
   productNotFound: string;
@@ -517,6 +528,15 @@ export interface CustomersDictionary {
   retry: string;
 }
 
+export interface ProductsDictionary {
+  categoryRoleLabel: string;
+  categoryRoles: Record<CategoryRole, string>;
+  suggestAddOnsLabel: string;
+  suggestAddOnsHelper: string;
+  allergensLabel: string;
+  allergenLabels: Record<Allergen, string>;
+}
+
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
@@ -528,4 +548,5 @@ export interface Dictionary {
   settings: SettingsDictionary;
   common: CommonDictionary;
   customers: CustomersDictionary;
+  products: ProductsDictionary;
 }

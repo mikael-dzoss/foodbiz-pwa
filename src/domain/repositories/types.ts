@@ -13,6 +13,8 @@ export interface CreateProductInput {
   readonly unitCost?: number;
   readonly stock?: number;
   readonly visible?: boolean;
+  readonly allergens?: Product["allergens"];
+  readonly suggestAddOns?: boolean;
   readonly imageUrl?: string | null;
 }
 
@@ -35,6 +37,7 @@ export interface CreateCategoryInput {
   readonly id?: string;
   readonly name: string;
   readonly sortOrder?: number;
+  readonly role?: ProductCategory["role"];
 }
 
 export type UpdateCategoryInput = Partial<Omit<CreateCategoryInput, "id">>;

@@ -21,7 +21,6 @@ export interface ProductCatalogCardProps {
 
 export function ProductCatalogCard({
   product,
-  categoryName,
   locale,
   dict,
   lowStockThreshold = 5,
@@ -56,121 +55,104 @@ export function ProductCatalogCard({
   };
 
   return (
-    <article className="border-border/60 bg-card group relative flex items-center gap-3 overflow-hidden rounded-lg border p-3 transition-all hover:border-zinc-400 sm:flex-col sm:items-stretch sm:rounded-xl sm:p-4 dark:hover:border-zinc-600">
-      {/* Product Image & Thumbnail */}
-      <Link
-        href={`/${locale}/p/${product.id}`}
-        className="bg-muted relative aspect-square h-20 w-20 shrink-0 overflow-hidden rounded-lg sm:aspect-4/3 sm:h-44 sm:w-full"
-        tabIndex={-1}
-        aria-hidden="true"
-      >
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            priority={priority}
-            sizes="(max-width: 640px) 80px, (max-width: 1024px) 50vw, 33vw"
-            unoptimized={product.imageUrl.startsWith("data:")}
-            className="object-cover transition-transform duration-200 group-hover:scale-105"
-          />
-        ) : (
-          <div className="text-muted-foreground flex h-full w-full items-center justify-center">
-            <UtensilsCrossed className="h-6 w-6 opacity-40 sm:h-8 sm:w-8" />
-          </div>
+    <article
+      data-testid={`product-row-${product.id}`}
+      className="bg-card hover:bg-muted/30 sm:border-border group relative flex min-h-24 items-center justify-between gap-3 p-3.5 transition-colors duration-150 motion-reduce:transition-none sm:rounded-xl sm:border"
+    >
+      {/* Left column: Name, Price, 2-line Clamped Description, Stock state */}
+      <div className="min-w-0 flex-1 pr-2">
+        <h3 className="text-foreground text-sm leading-snug font-bold">
+          <Link
+            href={`/${locale}/p/${product.id}`}
+            data-testid={`product-link-${product.id}`}
+            className="hover:text-primary focus-visible:ring-ring rounded-xs transition-colors duration-150 after:absolute after:inset-0 focus-visible:ring-2 focus-visible:outline-hidden motion-reduce:transition-none"
+          >
+            {product.name}
+          </Link>
+        </h3>
+
+        <p className="text-primary mt-0.5 text-sm font-semibold tabular-nums">
+          {formatMoney(product.price, locale)}
+        </p>
+
+        {product.description && (
+          <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed">
+            {product.description}
+          </p>
         )}
-      </Link>
 
-      {/* Product Content Column */}
-      <div className="flex min-w-0 grow flex-col justify-between">
-        <div>
-          {/* Title & Stock Status Row */}
-          <div className="flex items-start justify-between gap-1">
-            <h3 className="text-foreground truncate text-sm font-semibold tracking-tight sm:text-base">
-              <Link
-                href={`/${locale}/p/${product.id}`}
-                className="hover:text-primary transition-colors focus-visible:underline focus-visible:outline-hidden"
-              >
-                {product.name}
-              </Link>
-            </h3>
-
-            {/* Stock Status Pill */}
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap ${
-                isOutOfStock
-                  ? "bg-muted text-muted-foreground"
-                  : isLowStock
-                    ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
-                    : "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
-              }`}
-            >
-              {isOutOfStock
-                ? dict.outOfStock
-                : isLowStock
-                  ? `${product.stock} ${dict.unitsLeft}`
-                  : dict.inStock}
-            </span>
-          </div>
-
-          {categoryName && (
-            <span className="text-muted-foreground hidden text-xs font-medium sm:block">
-              {categoryName}
-            </span>
-          )}
-
-          {product.description && (
-            <p className="text-muted-foreground mt-0.5 line-clamp-1 text-xs leading-relaxed sm:line-clamp-2">
-              {product.description}
-            </p>
-          )}
-        </div>
-
-        {/* Price & Add to Cart Action */}
-        <div className="border-border/40 mt-2 flex items-center justify-between gap-2 border-t pt-1 sm:mt-4 sm:pt-3">
-          <span className="text-foreground text-sm font-semibold tabular-nums sm:text-base sm:font-bold">
-            {formatMoney(product.price, locale)}
+        {isOutOfStock && (
+          <span
+            data-testid={`product-out-of-stock-${product.id}`}
+            className="bg-muted text-muted-foreground mt-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
+          >
+            {dict.outOfStock}
           </span>
+        )}
 
-          {isOutOfStock ? (
-            <button
-              type="button"
-              disabled
-              className="border-border/40 bg-muted text-muted-foreground flex h-8 cursor-not-allowed items-center rounded-lg border px-3 text-xs font-semibold opacity-60"
-            >
-              {dict.outOfStock}
-            </button>
+        {isLowStock && (
+          <span
+            data-testid={`product-low-stock-${product.id}`}
+            className="bg-warning-soft text-warning-soft-foreground mt-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
+          >
+            {product.stock} {dict.unitsLeft}
+          </span>
+        )}
+      </div>
+
+      {/* Right column: Square rounded image + round icon-only "+" button in bottom-right corner */}
+      <div className="bg-muted border-border relative aspect-square h-24 w-24 shrink-0 overflow-hidden rounded-lg border">
+        <Link
+          href={`/${locale}/p/${product.id}`}
+          data-testid={`product-image-link-${product.id}`}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="relative block h-full w-full"
+        >
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              priority={priority}
+              sizes="96px"
+              unoptimized={product.imageUrl.startsWith("data:")}
+              className="object-cover transition-transform duration-150 group-hover:scale-105 motion-reduce:transition-none"
+            />
           ) : (
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={!canAdd}
-              aria-label={`${dict.addToCart}: ${product.name}`}
-              className={`flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold shadow-xs transition-all active:scale-95 sm:min-w-18 sm:justify-center ${
-                justAdded
-                  ? "bg-emerald-600 text-white"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
-              } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
+            <div
+              data-testid={`product-image-placeholder-${product.id}`}
+              className="text-muted-foreground flex h-full w-full items-center justify-center"
             >
-              {justAdded ? (
-                <>
-                  <Check className="h-3.5 w-3.5" />
-                  <span>{dict.addedToCart}</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>{dict.addToCart}</span>
-                  {currentQty > 0 && (
-                    <span className="bg-primary-foreground/20 py-0.2 ml-0.5 rounded-full px-1.5 text-[10px] font-bold">
-                      {currentQty}
-                    </span>
-                  )}
-                </>
-              )}
-            </button>
+              <UtensilsCrossed className="h-6 w-6 opacity-40" />
+            </div>
           )}
-        </div>
+        </Link>
+
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          disabled={!canAdd}
+          aria-label={`${dict.addToCart}: ${product.name}`}
+          data-testid={`add-to-cart-${product.id}`}
+          className={`focus-visible:ring-ring absolute right-1.5 bottom-1.5 z-10 flex h-9 min-h-11 w-9 min-w-11 items-center justify-center rounded-full border shadow-xs transition-transform duration-150 focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transition-none ${
+            justAdded
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-card text-primary hover:bg-muted"
+          } ${!canAdd ? "cursor-not-allowed opacity-50 active:scale-100" : ""}`}
+        >
+          {justAdded ? (
+            <>
+              <Check className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">{dict.addedToCart}</span>
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">{dict.addToCart}</span>
+            </>
+          )}
+        </button>
       </div>
     </article>
   );

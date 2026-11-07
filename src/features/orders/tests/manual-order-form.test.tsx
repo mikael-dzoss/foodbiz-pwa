@@ -22,6 +22,8 @@ const mockProducts: Product[] = [
     unitCost: 300,
     stock: 5,
     visible: true,
+    allergens: [],
+    suggestAddOns: true,
     imageUrl: null,
     createdAt: "2026-10-01T10:00:00.000Z",
     updatedAt: "2026-10-01T10:00:00.000Z",
@@ -36,6 +38,8 @@ const mockProducts: Product[] = [
     unitCost: 150,
     stock: 0, // Out of stock
     visible: true,
+    allergens: [],
+    suggestAddOns: true,
     imageUrl: null,
     createdAt: "2026-10-01T10:00:00.000Z",
     updatedAt: "2026-10-01T10:00:00.000Z",

@@ -1,7 +1,7 @@
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDictionary } from "@/domain/i18n";
-import { CartProvider, resetCartStore } from "../context/cart-context";
+import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
 import { CheckoutView } from "../components/checkout-view";
 import { resetGuestContactCache } from "../components/checkout-form";
 import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
@@ -174,7 +174,7 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(screen.queryByTestId("saved-name-toast")).toBeNull();
   });
 
-  it("shows delivery address field when Local Delivery is selected", () => {
+  it("shows delivery address field when Local Delivery is selected and hides it for Pickup", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
@@ -187,15 +187,53 @@ describe("CheckoutView & CheckoutForm", () => {
       </CartProvider>,
     );
 
-    // Default pickup
+    // Default delivery when delivery is enabled (#193)
+    expect(screen.getByTestId("delivery-address-container")).toBeDefined();
+
+    // Select pickup
+    const pickupBtn = screen.getByTestId("service-pickup-button");
+    fireEvent.click(pickupBtn);
     expect(screen.queryByTestId("delivery-address-container")).toBeNull();
 
-    // Select delivery
+    // Select delivery again
     const deliveryBtn = screen.getByTestId("service-delivery-button");
     fireEvent.click(deliveryBtn);
 
     expect(screen.getByTestId("delivery-address-container")).toBeDefined();
     expect(screen.getByTestId("checkout-address-input")).toBeDefined();
+  });
+
+  it("preselects persisted service mode from localStorage if enabled, and falls back when disabled (#193)", () => {
+    localStorage.setItem(SERVICE_MODE_STORAGE_KEY, "pickup");
+
+    const { unmount } = render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("service-pickup-button").getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByTestId("delivery-address-container")).toBeNull();
+    unmount();
+
+    // If persisted mode is delivery, but delivery is disabled in settings -> falls back to pickup
+    resetCartStore();
+    localStorage.setItem(SERVICE_MODE_STORAGE_KEY, "delivery");
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView
+          business={mockBusiness}
+          settings={{
+            ...mockSettings,
+            serviceTypes: { pickup: true, delivery: false, dineIn: false },
+          }}
+          locale="en"
+          dict={dict}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("service-pickup-button").getAttribute("aria-checked")).toBe("true");
   });
 
   it("shows date and time pickers when Schedule for Later is selected", () => {
@@ -224,7 +262,7 @@ describe("CheckoutView & CheckoutForm", () => {
 
   it("gates Place Order button until valid name and phone are entered", () => {
     render(
-      <CartProvider initialItems={mockCartItems}>
+      <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
           business={mockBusiness}
           settings={mockSettings}
@@ -258,7 +296,7 @@ describe("CheckoutView & CheckoutForm", () => {
     const onSubmitOrder = vi.fn();
 
     render(
-      <CartProvider initialItems={mockCartItems}>
+      <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
           business={mockBusiness}
           settings={mockSettings}
@@ -368,7 +406,7 @@ describe("CheckoutView & CheckoutForm", () => {
       });
 
     render(
-      <CartProvider initialItems={mockCartItems}>
+      <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
           business={mockBusiness}
           settings={mockSettings}
@@ -416,7 +454,7 @@ describe("CheckoutView & CheckoutForm", () => {
     });
 
     render(
-      <CartProvider initialItems={mockCartItems}>
+      <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
           business={mockBusiness}
           settings={mockSettings}

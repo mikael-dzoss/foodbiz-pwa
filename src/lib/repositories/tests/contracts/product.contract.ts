@@ -65,6 +65,32 @@ export function describeProductRepositoryContract(
       expect(created.name).toBe("Artisan Brioche Loaf");
       expect(created.price).toBe(520);
       expect(created.visible).toBe(true);
+      expect(created.suggestAddOns).toBe(true);
+      const optedOut = await repos.products.create(businessId, {
+        categoryId: category.id,
+        name: "No add-ons",
+        price: 100,
+        suggestAddOns: false,
+      });
+      expect(optedOut.suggestAddOns).toBe(false);
+      expect((await repos.products.findById(businessId, optedOut.id))?.suggestAddOns).toBe(false);
+      const optedIn = await repos.products.update(businessId, optedOut.id, { suggestAddOns: true });
+      expect(optedIn.suggestAddOns).toBe(true);
+      const updatedWithoutPreference = await repos.products.update(businessId, optedOut.id, {
+        price: 200,
+      });
+      expect(updatedWithoutPreference.suggestAddOns).toBe(true);
+      expect(created.allergens).toEqual([]);
+      const tagged = await repos.products.update(businessId, created.id, {
+        allergens: ["gluten", "milk"],
+      });
+      expect(tagged.allergens).toEqual(["gluten", "milk"]);
+      expect((await repos.products.findById(businessId, created.id))?.allergens).toEqual([
+        "gluten",
+        "milk",
+      ]);
+      const cleared = await repos.products.update(businessId, created.id, { allergens: [] });
+      expect(cleared.allergens).toEqual([]);
       expect(created.createdAt).toBeDefined();
 
       const found = await repos.products.findById(businessId, created.id);

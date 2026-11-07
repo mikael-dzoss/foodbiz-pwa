@@ -18,7 +18,6 @@ import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { SoonBadge } from "@/components/feedback";
 import type { StorefrontProductData } from "../catalog-data";
 import { useCart } from "../context/cart-context";
-import { StoreStatusBanner } from "./store-status-banner";
 
 export interface ProductDetailViewProps {
   productData: StorefrontProductData;
@@ -69,13 +68,15 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
 
       {/* Operational Banner if Store is Closed or Paused */}
       {(!isAcceptingOrders || !isOpen) && (
-        <StoreStatusBanner
-          isAcceptingOrders={isAcceptingOrders}
-          isOpen={isOpen}
-          orderTimingScheduled={settings?.orderTimingScheduled ?? true}
-          openingHoursText={settings?.openingHours}
-          dict={dict}
-        />
+        <section
+          role={!isAcceptingOrders ? "alert" : "status"}
+          aria-live="polite"
+          className="border-border bg-card rounded-xl border p-3.5 text-xs"
+        >
+          <p className="text-foreground font-semibold">
+            {!isAcceptingOrders ? dict.notAcceptingOrdersBanner : dict.storeClosedBanner}
+          </p>
+        </section>
       )}
 
       {/* Hero Media Showcase Card with Category Pill (Stitch C-02) */}

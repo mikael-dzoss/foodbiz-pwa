@@ -1,3 +1,4 @@
+import { getDictionary } from "@/domain/i18n";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { CategoryManager } from "../components/category-manager";
@@ -14,6 +15,7 @@ const mockCategories = [
     businessId: "11111111-1111-4111-8111-111111111111",
     name: "Breads",
     sortOrder: 1,
+    role: "regular" as const,
     createdAt: "2026-08-01T08:00:00.000Z",
   },
   {
@@ -21,11 +23,62 @@ const mockCategories = [
     businessId: "11111111-1111-4111-8111-111111111111",
     name: "Pastries",
     sortOrder: 2,
+    role: "regular" as const,
     createdAt: "2026-08-01T08:00:00.000Z",
   },
 ];
 
 describe("CategoryManager component", () => {
+  it("creates and edits roles and shows the saved role", async () => {
+    vi.spyOn(categoryActions, "createCategoryAction").mockResolvedValueOnce({
+      success: true,
+      data: { ...mockCategories[0], id: "new", name: "Coffee", role: "drinks" },
+    });
+    vi.spyOn(categoryActions, "renameCategoryAction").mockResolvedValueOnce({
+      success: true,
+      data: { ...mockCategories[0], role: "snacks" },
+    });
+    render(<CategoryManager initialCategories={mockCategories} />);
+    fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "Coffee" } });
+    fireEvent.change(screen.getByLabelText("Category role"), { target: { value: "drinks" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Category" }));
+    await waitFor(() =>
+      expect(categoryActions.createCategoryAction).toHaveBeenCalledWith({
+        name: "Coffee",
+        role: "drinks",
+      }),
+    );
+    await waitFor(() =>
+      expect((screen.getByLabelText("Category role") as HTMLSelectElement).value).toBe("regular"),
+    );
+    fireEvent.click(screen.getByLabelText("Rename Breads"));
+    fireEvent.change(screen.getByTestId(`edit-category-role-select-${mockCategories[0].id}`), {
+      target: { value: "snacks" },
+    });
+    fireEvent.click(screen.getByLabelText("Save category name"));
+    await waitFor(() =>
+      expect(categoryActions.renameCategoryAction).toHaveBeenCalledWith({
+        id: mockCategories[0].id,
+        name: "Breads",
+        role: "snacks",
+      }),
+    );
+    await waitFor(() => expect(screen.getByText("Snacks", { selector: "span" })).toBeDefined());
+    fireEvent.click(screen.getByLabelText("Rename Breads"));
+    expect(
+      (screen.getByTestId(`edit-category-role-select-${mockCategories[0].id}`) as HTMLSelectElement)
+        .value,
+    ).toBe("snacks");
+    fireEvent.click(screen.getByLabelText("Cancel editing"));
+    expect(screen.queryByLabelText("Edit category name")).toBeNull();
+  });
+  it("renders French role labels", () => {
+    render(
+      <CategoryManager initialCategories={mockCategories} dict={getDictionary("fr").products} />,
+    );
+    expect(screen.getByLabelText("Rôle de la catégorie")).toBeDefined();
+    expect(screen.getByRole("option", { name: "Boissons" })).toBeDefined();
+  });
   it("renders initial categories list", () => {
     render(<CategoryManager initialCategories={mockCategories} />);
 
@@ -42,6 +95,7 @@ describe("CategoryManager component", () => {
         businessId: "11111111-1111-4111-8111-111111111111",
         name: "Beverages",
         sortOrder: 3,
+        role: "regular" as const,
         createdAt: "2026-08-01T08:00:00.000Z",
       },
     });
@@ -86,6 +140,7 @@ describe("CategoryManager component", () => {
         businessId: "11111111-1111-4111-8111-111111111111",
         name: "Artisan Breads",
         sortOrder: 1,
+        role: "regular" as const,
         createdAt: "2026-08-01T08:00:00.000Z",
       },
     });
