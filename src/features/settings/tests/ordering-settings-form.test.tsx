@@ -24,6 +24,10 @@ const mockSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 350, // 3.50 EUR
   minOrderAmount: 1500, // 15.00 EUR
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days" as const,
+  leadTimeNoteEn: "",
+  leadTimeNoteFr: "",
   revolutRevtag: "lapetiteboulangerie",
   weroIdentifier: "+33612345678",
   paymentMethods: {
@@ -144,6 +148,10 @@ describe("OrderingSettingsForm component (M-63)", () => {
         expect.objectContaining({
           deliveryFee: 420,
           minOrderAmount: 2000,
+          leadTimeValue: 1,
+          leadTimeUnit: "business_days" as const,
+          leadTimeNoteEn: "",
+          leadTimeNoteFr: "",
           acceptingOrders: true,
           openingHours: "Mon-Sat 07:00-19:30",
         }),
@@ -186,6 +194,10 @@ describe("OrderingSettingsForm component (M-63)", () => {
       orderTimingTimeOptional: false,
       deliveryFee: 0,
       minOrderAmount: 0,
+      leadTimeValue: 1,
+      leadTimeUnit: "business_days" as const,
+      leadTimeNoteEn: "",
+      leadTimeNoteFr: "",
       revolutRevtag: "",
       weroIdentifier: "",
       paymentMethods: { cash: true, revolut: false, wero: false },
@@ -264,9 +276,76 @@ describe("OrderingSettingsForm component (M-63)", () => {
         expect.objectContaining({
           deliveryFee: 0,
           minOrderAmount: 0,
+          leadTimeValue: 1,
+          leadTimeUnit: "business_days" as const,
+          leadTimeNoteEn: "",
+          leadTimeNoteFr: "",
         }),
       );
       expect(mockShowToast).toHaveBeenCalledWith("Failed to save ordering settings");
     });
+  });
+
+  it("edits the preparation lead time with a live preview and submits it (#225)", async () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+
+    expect(screen.getByTestId("lead-time-preview").textContent).toBe(
+      "Customers will see: Ready in ~1 business day",
+    );
+
+    fireEvent.change(screen.getByTestId("input-lead-time-value"), { target: { value: "20" } });
+    fireEvent.change(screen.getByTestId("select-lead-time-unit"), {
+      target: { value: "minutes" },
+    });
+    expect(screen.getByTestId("lead-time-preview").textContent).toBe(
+      "Customers will see: Ready in ~20 min",
+    );
+
+    fireEvent.change(screen.getByTestId("select-lead-time-unit"), { target: { value: "bogus" } });
+    expect((screen.getByTestId("select-lead-time-unit") as HTMLSelectElement).value).toBe(
+      "minutes",
+    );
+
+    fireEvent.change(screen.getByTestId("input-lead-time-note-en"), {
+      target: { value: "Baked fresh" },
+    });
+    fireEvent.change(screen.getByTestId("input-lead-time-note-fr"), {
+      target: { value: "Cuit minute" },
+    });
+
+    fireEvent.click(screen.getByTestId("save-ordering-button"));
+    await waitFor(() =>
+      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          leadTimeValue: 20,
+          leadTimeUnit: "minutes",
+          leadTimeNoteEn: "Baked fresh",
+          leadTimeNoteFr: "Cuit minute",
+        }),
+      ),
+    );
+  });
+
+  it("hides the lead time preview for invalid values and resets on discard (#225)", () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} locale="fr" />);
+    expect(screen.getByTestId("lead-time-preview").textContent).toContain("~1 jour ouvré");
+
+    fireEvent.change(screen.getByTestId("input-lead-time-value"), { target: { value: "0" } });
+    expect(screen.queryByTestId("lead-time-preview")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("discard-button"));
+    expect((screen.getByTestId("input-lead-time-value") as HTMLInputElement).value).toBe("1");
+    expect(screen.getByTestId("lead-time-preview")).toBeDefined();
+  });
+
+  it("shows a lead time field error returned by the action (#225)", async () => {
+    vi.mocked(actions.updateOrderingSettingsAction).mockResolvedValueOnce({
+      success: false,
+      error: "Validation failed",
+      fieldErrors: { leadTimeValue: ["Lead time must be at least 1"] },
+    });
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+    fireEvent.click(screen.getByTestId("save-ordering-button"));
+    await waitFor(() => expect(screen.getByText("Lead time must be at least 1")).toBeDefined());
   });
 });

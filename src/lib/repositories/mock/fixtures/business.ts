@@ -45,6 +45,10 @@ export const demoSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 350, // €3.50 in cents
   minOrderAmount: 1500, // €15.00 in cents
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
+  leadTimeNoteEn: "Everything is baked to order, so we need one working day to prepare it.",
+  leadTimeNoteFr: "Tout est préparé à la commande : nous avons besoin d'un jour ouvré.",
 
   // Payment (#72)
   revolutRevtag: "@boulangerie",

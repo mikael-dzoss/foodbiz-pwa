@@ -222,6 +222,12 @@ create table business_settings (
   low_stock_threshold integer not null default 5 check (low_stock_threshold >= 0),
   tax_percentage numeric(5, 2) not null default 0 check (tax_percentage >= 0 and tax_percentage <= 100),
   notifications boolean not null default true,
+  -- Display-only preparation lead time (#225); '~' is added on display
+  lead_time_value integer not null default 1 check (lead_time_value between 1 and 999),
+  lead_time_unit text not null default 'business_days'
+    check (lead_time_unit in ('minutes', 'hours', 'business_days')),
+  lead_time_note_en text not null default '' check (char_length(lead_time_note_en) <= 280),
+  lead_time_note_fr text not null default '' check (char_length(lead_time_note_fr) <= 280),
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );

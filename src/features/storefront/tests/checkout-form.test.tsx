@@ -48,6 +48,10 @@ const mockSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 250,
   minOrderAmount: 0,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
+  leadTimeNoteEn: "",
+  leadTimeNoteFr: "",
   revolutRevtag: "petiteboulangerie",
   weroIdentifier: "wero@petiteboulangerie.fr",
   paymentMethods: {

@@ -360,6 +360,17 @@ export interface SettingsDictionary {
     deliveryFeeHelper: string;
     minOrderLabel: string;
     minOrderHelper: string;
+    leadTimeSection: string;
+    leadTimeLabel: string;
+    leadTimeHelper: string;
+    leadTimeUnitLabel: string;
+    leadTimeUnitMinutes: string;
+    leadTimeUnitHours: string;
+    leadTimeUnitBusinessDays: string;
+    leadTimePreview: string;
+    leadTimeNoteEnLabel: string;
+    leadTimeNoteFrLabel: string;
+    leadTimeNoteHelper: string;
     soonSection: string;
     saveButton: string;
     saveSuccess: string;

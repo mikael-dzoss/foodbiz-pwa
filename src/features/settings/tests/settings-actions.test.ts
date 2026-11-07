@@ -64,6 +64,10 @@ let mockSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 350,
   minOrderAmount: 1500,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
+  leadTimeNoteEn: "",
+  leadTimeNoteFr: "",
   revolutRevtag: "@boulangerie",
   weroIdentifier: "+33612345678",
   paymentMethods: {
@@ -387,6 +391,10 @@ describe("Settings Server Actions", () => {
         orderTimingTimeOptional: false,
         deliveryFee: 500,
         minOrderAmount: 2000,
+        leadTimeValue: 1,
+        leadTimeUnit: "business_days",
+        leadTimeNoteEn: "",
+        leadTimeNoteFr: "",
       });
 
       expect(res.success).toBe(true);
@@ -416,6 +424,45 @@ describe("Settings Server Actions", () => {
       if (!res.success) {
         expect(res.fieldErrors).toBeDefined();
         expect(res.fieldErrors?.serviceTypes).toBeDefined();
+      }
+    });
+  });
+
+  describe("updateOrderingSettingsAction lead time (#225)", () => {
+    const base = {
+      acceptingOrders: true,
+      serviceTypes: { pickup: true, delivery: true, dineIn: false },
+      deliveryFee: 0,
+      minOrderAmount: 0,
+    };
+
+    it("persists the lead time and notes", async () => {
+      const res = await updateOrderingSettingsAction({
+        ...base,
+        leadTimeValue: 3,
+        leadTimeUnit: "hours",
+        leadTimeNoteEn: "  Fresh daily  ",
+        leadTimeNoteFr: "Frais",
+      });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.leadTimeValue).toBe(3);
+        expect(res.data.leadTimeUnit).toBe("hours");
+        expect(res.data.leadTimeNoteEn).toBe("Fresh daily");
+        expect(res.data.leadTimeNoteFr).toBe("Frais");
+      }
+    });
+
+    it("rejects an unknown unit and an out-of-range value", async () => {
+      const res = await updateOrderingSettingsAction({
+        ...base,
+        leadTimeValue: 0,
+        leadTimeUnit: "weeks",
+      });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.fieldErrors?.leadTimeValue).toBeDefined();
+        expect(res.fieldErrors?.leadTimeUnit).toBeDefined();
       }
     });
   });

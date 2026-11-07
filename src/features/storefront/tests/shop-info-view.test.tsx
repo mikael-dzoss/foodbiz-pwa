@@ -37,6 +37,10 @@ const mockSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 350,
   minOrderAmount: 0,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
+  leadTimeNoteEn: "",
+  leadTimeNoteFr: "",
   revolutRevtag: "",
   weroIdentifier: "",
   paymentMethods: {

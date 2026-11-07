@@ -55,6 +55,10 @@ const sampleProductData: StorefrontProductData = {
     orderTimingTimeOptional: true,
     deliveryFee: 0,
     minOrderAmount: 0,
+    leadTimeValue: 1,
+    leadTimeUnit: "business_days",
+    leadTimeNoteEn: "",
+    leadTimeNoteFr: "",
     revolutRevtag: "",
     weroIdentifier: "",
     paymentMethods: {

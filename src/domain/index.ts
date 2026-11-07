@@ -8,6 +8,7 @@ export * from "./dashboard";
 export * from "./expense";
 export * from "./guest";
 export * from "./kpis";
+export * from "./lead-time";
 export * from "./order";
 export * from "./order-lifecycle";
 export * from "./payment";

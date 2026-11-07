@@ -30,6 +30,10 @@ const baseSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 200,
   minOrderAmount: 0,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
+  leadTimeNoteEn: "",
+  leadTimeNoteFr: "",
   revolutRevtag: "",
   weroIdentifier: "",
   paymentMethods: {
