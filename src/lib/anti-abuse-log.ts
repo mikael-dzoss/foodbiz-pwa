@@ -14,7 +14,13 @@ export function hashIdentifier(val: string): string {
 
 export interface AntiAbuseRejectionEvent {
   readonly reason:
-    "honeypot" | "rate_limit_ip" | "rate_limit_phone" | "max_line_quantity" | "max_order_quantity";
+    | "honeypot"
+    | "rate_limit_ip"
+    | "rate_limit_phone"
+    | "max_line_quantity"
+    | "max_order_quantity"
+    | "lookup_rate_limit_ip"
+    | "lookup_rate_limit_phone";
   readonly ip?: string | null;
   readonly phone?: string | null;
   readonly details?: Record<string, unknown>;

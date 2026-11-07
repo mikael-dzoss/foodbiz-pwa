@@ -541,6 +541,17 @@ to support that contract; never resolve it through a public full-order query. Ap
 active-business/public-storefront eligibility check alongside `p.visible` once that
 policy is available. Add RPC permission/tenant/privacy tests in #116.
 
+### Public order lookup (#230)
+
+`/[locale]/track` resolves a tracking token from a ticket number and the guest's phone
+through `OrderRepository.findTrackingTokenByTicketAndPhone`, which returns **only the
+token** (never order or guest data). The Server Action validates with zod, rate-limits
+per IP (10) and per normalized phone (5) per 10 minutes, rejects honeypot submissions
+and answers unknown orders and phone mismatches with the same generic error. In #116,
+back it with a `security definer` RPC `storefront_order_tracking_token(business_id,
+order_number, phone_e164)` returning a single `text` column, granted to `anon`, with
+the search path locked and the phone compared in normalized E.164 form.
+
 ---
 
 ## 6. Domain Model Mapping

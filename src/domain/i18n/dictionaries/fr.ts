@@ -183,6 +183,18 @@ export const frDictionary: Dictionary = {
     pickupAndDelivery: "Retrait & Livraison",
     deliveryToggleLabel: "Livraison",
     pickupToggleLabel: "Retrait",
+    trackTitle: "Suivre ma commande",
+    trackIntro:
+      "Saisissez le numéro de téléphone et le numéro de commande indiqués dans votre confirmation.",
+    trackPhoneLabel: "Numéro de téléphone",
+    trackOrderNumberLabel: "Numéro de commande",
+    trackSubmit: "Retrouver ma commande",
+    trackSubmitting: "Recherche…",
+    trackPrivacyNote: "Nous n'affichons que les commandes correspondant aux deux informations.",
+    trackErrorNotFound:
+      "Aucune commande ne correspond à ces informations. Vérifiez-les et réessayez.",
+    trackErrorInvalid: "Saisissez un numéro de téléphone et un numéro de commande valides.",
+    trackErrorRateLimited: "Trop de tentatives. Patientez quelques minutes puis réessayez.",
     orderingDetailsTitle: "Détails de commande",
     orderingDetailsOpen: "Afficher les détails de commande",
     detailsDeliveryFee: "Frais de livraison",

@@ -1,0 +1,88 @@
+"use server";
+
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getRepositories } from "@/lib/repositories";
+import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { getGlobalRateLimiter } from "@/lib/rate-limiter";
+import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
+import { normalizePhoneNumber } from "@/domain/guest";
+import { isSupportedLocale, DEFAULT_LOCALE } from "@/domain/i18n";
+import {
+  LOOKUP_RATE_LIMIT_IP_MAX_REQUESTS,
+  LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
+  RATE_LIMIT_WINDOW_MS,
+  validateHoneypot,
+} from "@/domain/anti-abuse";
+import { orderLookupInputSchema, type OrderLookupState } from "@/domain/order-lookup";
+
+/**
+ * Public order lookup (#230): phone + order number → tracking page.
+ * Unknown orders and phone mismatches share one generic error; no order data is echoed.
+ */
+export async function lookupOrderAction(
+  _prev: OrderLookupState,
+  formData: FormData,
+): Promise<OrderLookupState> {
+  const values = {
+    phone: String(formData.get("phone") ?? "").slice(0, 30),
+    orderNumber: String(formData.get("orderNumber") ?? "").slice(0, 10),
+  };
+  const fail = (code: "INVALID" | "NOT_FOUND" | "RATE_LIMITED"): OrderLookupState => ({
+    status: "error",
+    code,
+    values,
+  });
+  const rawLocale = String(formData.get("locale") ?? "");
+  const locale = isSupportedLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+
+  const parsed = orderLookupInputSchema.safeParse({
+    phone: formData.get("phone"),
+    orderNumber: formData.get("orderNumber"),
+    website: formData.get("website") ?? undefined,
+  });
+  if (!parsed.success) return fail("INVALID");
+
+  // Bots filling the hidden field get the same answer as a miss.
+  if (!validateHoneypot(parsed.data.website).ok) return fail("NOT_FOUND");
+
+  let phone: string;
+  try {
+    phone = normalizePhoneNumber(parsed.data.phone);
+  } catch {
+    return fail("INVALID");
+  }
+
+  const reqHeaders = await headers();
+  const forwarded = reqHeaders.get("x-forwarded-for");
+  const clientIp = (forwarded?.split(",")[0] ?? reqHeaders.get("x-real-ip"))?.trim() || null;
+  const limiter = getGlobalRateLimiter();
+
+  if (
+    clientIp &&
+    !limiter.check(`lookup-ip:${clientIp}`, LOOKUP_RATE_LIMIT_IP_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS)
+      .allowed
+  ) {
+    logAntiAbuseRejection({ reason: "lookup_rate_limit_ip", ip: clientIp, phone });
+    return fail("RATE_LIMITED");
+  }
+  if (
+    !limiter.check(
+      `lookup-phone:${phone}`,
+      LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
+      RATE_LIMIT_WINDOW_MS,
+    ).allowed
+  ) {
+    logAntiAbuseRejection({ reason: "lookup_rate_limit_phone", ip: clientIp, phone });
+    return fail("RATE_LIMITED");
+  }
+
+  const trackingToken = await getRepositories().orders.findTrackingTokenByTicketAndPhone(
+    DEMO_BUSINESS_ID,
+    parsed.data.orderNumber,
+    phone,
+  );
+  if (!trackingToken) return fail("NOT_FOUND");
+
+  redirect(`/${locale}/order/${encodeURIComponent(trackingToken)}`);
+}

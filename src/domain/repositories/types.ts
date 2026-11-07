@@ -97,6 +97,12 @@ export interface OrderRepository {
     orderNumber: number,
     phone: string,
   ): Promise<PublicOrder | null>;
+  /** Public lookup (#230): returns only the tracking token when ticket n° and guest phone match. */
+  findTrackingTokenByTicketAndPhone(
+    businessId: string,
+    orderNumber: number,
+    phone: string,
+  ): Promise<string | null>;
   list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
   create(businessId: string, input: CreateOrderInput): Promise<Order>;
   update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;

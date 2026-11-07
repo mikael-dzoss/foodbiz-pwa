@@ -208,6 +208,31 @@ export function describeOrderRepositoryContract(
       expect(notFound).toBeNull();
     });
 
+    it("findTrackingTokenByTicketAndPhone returns only the token on an exact match (#230)", async () => {
+      const repos = await getRepositories();
+      const guests = await repos.guests.list(businessId);
+      const guest = guests.find((g) => Boolean(g.phone))!;
+      const [order] = await repos.orders.list(businessId, { guestId: guest.id });
+
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(
+          businessId,
+          order.orderNumber!,
+          guest.phone!,
+        ),
+      ).resolves.toBe(order.trackingToken);
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(
+          businessId,
+          order.orderNumber!,
+          "+33699999999",
+        ),
+      ).resolves.toBeNull();
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(businessId, 999999, guest.phone!),
+      ).resolves.toBeNull();
+    });
+
     it("findByTicketAndPhone validates ticket n° against guest phone", async () => {
       const repos = await getRepositories();
       const guests = await repos.guests.list(businessId);

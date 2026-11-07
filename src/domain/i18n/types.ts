@@ -74,6 +74,16 @@ export interface StorefrontDictionary {
   pickupAndDelivery: string;
   deliveryToggleLabel: string;
   pickupToggleLabel: string;
+  trackTitle: string;
+  trackIntro: string;
+  trackPhoneLabel: string;
+  trackOrderNumberLabel: string;
+  trackSubmit: string;
+  trackSubmitting: string;
+  trackPrivacyNote: string;
+  trackErrorNotFound: string;
+  trackErrorInvalid: string;
+  trackErrorRateLimited: string;
   orderingDetailsTitle: string;
   orderingDetailsOpen: string;
   detailsDeliveryFee: string;

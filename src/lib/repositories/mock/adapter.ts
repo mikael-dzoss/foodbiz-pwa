@@ -131,6 +131,26 @@ export function createMockRepositories(
     },
   };
 
+  const findOrderByTicketAndPhone = (bId: string, orderNumber: number, phone: string) => {
+    let targetPhone: string;
+    try {
+      targetPhone = normalizePhoneNumber(phone);
+    } catch {
+      targetPhone = phone.trim();
+    }
+    return fixtures.orders.find((x) => {
+      if (x.businessId !== bId || x.orderNumber !== orderNumber) return false;
+      if (!x.guestId) return false;
+      const guest = fixtures.guests.find((g) => g.id === x.guestId);
+      if (!guest || !guest.phone) return false;
+      try {
+        return normalizePhoneNumber(guest.phone) === targetPhone;
+      } catch {
+        return guest.phone === targetPhone;
+      }
+    });
+  };
+
   const orders: OrderRepository = {
     async sumQuantitiesByProduct(bId, filter) {
       return sumOrderProductQuantities(
@@ -147,24 +167,11 @@ export function createMockRepositories(
       return o ? publicOrderSchema.parse(o) : null;
     },
     async findByTicketAndPhone(bId, orderNumber, phone) {
-      let targetPhone: string;
-      try {
-        targetPhone = normalizePhoneNumber(phone);
-      } catch {
-        targetPhone = phone.trim();
-      }
-      const o = fixtures.orders.find((x) => {
-        if (x.businessId !== bId || x.orderNumber !== orderNumber) return false;
-        if (!x.guestId) return false;
-        const guest = fixtures.guests.find((g) => g.id === x.guestId);
-        if (!guest || !guest.phone) return false;
-        try {
-          return normalizePhoneNumber(guest.phone) === targetPhone;
-        } catch {
-          return guest.phone === targetPhone;
-        }
-      });
+      const o = findOrderByTicketAndPhone(bId, orderNumber, phone);
       return o ? publicOrderSchema.parse(o) : null;
+    },
+    async findTrackingTokenByTicketAndPhone(bId, orderNumber, phone) {
+      return findOrderByTicketAndPhone(bId, orderNumber, phone)?.trackingToken ?? null;
     },
     async list(bId, filter) {
       let res = fixtures.orders.filter((o) => o.businessId === bId);
