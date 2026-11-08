@@ -10,3 +10,4 @@
 - [ ] No secrets; only `NEXT_PUBLIC_*` values reach the browser
 - [ ] New tables have RLS policies (if applicable)
 - [ ] Docs updated (if applicable)
+- [ ] For bug fixes: the `bug` label is applied to this PR

@@ -15,7 +15,7 @@ Branch model, branch names, commit/PR format and the validation gate: [`docs/CON
 - **Size:** ~100 lines per commit is easy to review; split anything approaching ~1000.
 - **Before each commit:** `git diff --staged`, and check it for secrets (`git diff --staged | grep -iE "secret|password|api_key|token|service_role"`).
 - **Splitting a messy tree:** `git add -p` per concern, commit, repeat; `git stash` the rest.
-- **Going back:** prefer `git restore <file>` or `git revert`. Ask before anything that discards work (`reset --hard`, `clean -f`, force-push).
+- **Going back:** prefer `git restore <file>` or `git revert`. Ask before anything that discards work (`reset --hard`, `clean -f`, force-push outside stacked PR rebases with `--force-with-lease`).
 
 ## Parallel agents: worktrees
 
@@ -27,6 +27,10 @@ git worktree remove ../foodbiz-42   # after merge
 ```
 
 Never run two agents on the same branch or worktree. Database migrations stay sequential.
+
+## Stacked PRs & Batch Implementation
+
+When implementing batches of stories (epics or backlog waves), prefer grouping for 2–4 small sibling stories (recommended ≤ ~2000 production lines total; flexible recommendation that may be exceptionally bypassed for tightly coupled work). For broader requirements, use stacked PRs with linear chaining, `git rebase --onto` upstream updates, and cascading merges up to review gates. See [`stacked-pr-workflow`](../stacked-pr-workflow/SKILL.md).
 
 ## PR change summary
 

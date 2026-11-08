@@ -30,7 +30,7 @@ Never commit or push directly to `develop`, `staging` or `main`. Branch off `dev
 1. Pick or create an issue (agents: [`github_issue.instructions.md`](../.agents/rules/github_issue.instructions.md); create issues only via the `issue-logger` skill).
 2. Branch off `develop` (see [Branches](#branches)) and commit small working slices.
 3. Pass the [validation gate](#validation-gate).
-4. Open a PR against `develop`; the [PR template](../.github/pull_request_template.md) is the checklist.
+4. Open a PR against `develop`; the [PR template](../.github/pull_request_template.md) is the checklist. For bug fixes (`fix(...)` / `bug/`), always attach the `bug` label.
 5. Promotion to `staging`/`main`: [`DEPLOYMENT.md#releasing`](DEPLOYMENT.md#releasing).
 
 ## Commits and PR titles
