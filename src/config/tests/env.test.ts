@@ -84,12 +84,37 @@ describe("parseServerEnv", () => {
     );
   });
 
+  it("accepts valid APP_ENV values and optional ALLOWED_MANAGER_EMAILS", () => {
+    const env = parseServerEnv({
+      DATA_SOURCE: "supabase",
+      NODE_ENV: "production",
+      APP_ENV: "staging",
+      ALLOWED_MANAGER_EMAILS: "admin@lapetiteboulangerie.fr",
+    });
+    expect(env.APP_ENV).toBe("staging");
+    expect(env.ALLOWED_MANAGER_EMAILS).toBe("admin@lapetiteboulangerie.fr");
+  });
+
+  it("rejects invalid APP_ENV values", () => {
+    expect(() =>
+      parseServerEnv({
+        DATA_SOURCE: "mock",
+        NODE_ENV: "development",
+        APP_ENV: "invalid-env" as never,
+      }),
+    ).toThrow(/Invalid server environment variables/);
+  });
+
   it("reads from process.env via getServerEnv", () => {
     vi.stubEnv("DATA_SOURCE", "mock");
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APP_ENV", "test");
+    vi.stubEnv("ALLOWED_MANAGER_EMAILS", "qa@example.com");
     try {
       const env = getServerEnv();
       expect(env.DATA_SOURCE).toBe("mock");
+      expect(env.APP_ENV).toBe("test");
+      expect(env.ALLOWED_MANAGER_EMAILS).toBe("qa@example.com");
     } finally {
       vi.unstubAllEnvs();
     }

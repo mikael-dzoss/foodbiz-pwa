@@ -39,6 +39,8 @@ const serverEnvSchema = z
   .object({
     DATA_SOURCE: dataSourceSchema.default("mock"),
     NODE_ENV: z.string().optional(),
+    APP_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
+    ALLOWED_MANAGER_EMAILS: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -71,5 +73,7 @@ export function getServerEnv(): ServerEnv {
   return parseServerEnv({
     DATA_SOURCE: process.env.DATA_SOURCE,
     NODE_ENV: process.env.NODE_ENV,
+    APP_ENV: process.env.APP_ENV,
+    ALLOWED_MANAGER_EMAILS: process.env.ALLOWED_MANAGER_EMAILS,
   });
 }

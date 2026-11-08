@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { getServerEnv } from "@/config/env";
 import { MOCK_AUTH_COOKIE_NAME, MOCK_MANAGER_SESSION, type ManagerSession } from "@/domain/auth";
 import { createClient } from "@/lib/supabase/server";
+import {
+  isDevOrTestEnvironment,
+  isEmailInAllowedManagerList,
+  parseAllowedManagerEmails,
+} from "./access";
 
 export { MOCK_AUTH_COOKIE_NAME };
 
@@ -38,7 +43,6 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
   // TODO(supabase): Complete Supabase auth integration when database schema & Auth provider are configured (#117, #38, #40):
   // 1. Verify access token with Supabase Auth server via supabase.auth.getUser().
   // 2. Query 'business_members' table for verified role (owner/manager) and associated business (#40).
-  // 3. Enforce dev/test allowed-email whitelist when configured (#39).
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,10 +52,39 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     return null;
   }
 
-  const businessId = (user.user_metadata?.business_id as string) ?? "";
+  const isDevOrTest = isDevOrTestEnvironment({
+    nodeEnv: env.NODE_ENV,
+    appEnv: env.APP_ENV,
+  });
+
+  const rawBusinessId = (user.user_metadata?.business_id as string) ?? "";
   const role = (user.user_metadata?.role as "owner" | "manager" | "staff") ?? "manager";
   const businessName = (user.user_metadata?.business_name as string) ?? "Business";
   const businessSlug = (user.user_metadata?.business_slug as string) ?? "business";
+
+  let business = {
+    id: rawBusinessId,
+    name: businessName,
+    slug: businessSlug,
+    currency: "EUR" as const,
+  };
+
+  if (isDevOrTest) {
+    const isAllowedDevManager = isEmailInAllowedManagerList(user.email, {
+      allowedEmailsRaw: env.ALLOWED_MANAGER_EMAILS,
+      nodeEnv: env.NODE_ENV,
+      appEnv: env.APP_ENV,
+    });
+    const configuredAllowedEmails = parseAllowedManagerEmails(env.ALLOWED_MANAGER_EMAILS);
+
+    if (configuredAllowedEmails.length > 0 && !isAllowedDevManager && !rawBusinessId) {
+      return null;
+    }
+
+    if (isAllowedDevManager && !rawBusinessId) {
+      business = MOCK_MANAGER_SESSION.business;
+    }
+  }
 
   return {
     user: {
@@ -59,14 +92,9 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
       email: user.email ?? "",
       name: (user.user_metadata?.name as string) ?? user.email ?? "Manager",
       role,
-      businessId,
+      businessId: business.id,
     },
-    business: {
-      id: businessId,
-      name: businessName,
-      slug: businessSlug,
-      currency: "EUR",
-    },
+    business,
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
   };
 }
