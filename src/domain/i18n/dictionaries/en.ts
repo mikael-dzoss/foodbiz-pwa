@@ -613,4 +613,13 @@ export const enDictionary: Dictionary = {
     retry: "Try again",
     back: "Back",
   },
+  auth: {
+    continueWithGoogle: "Continue with Google",
+    errors: {
+      cancelled: "Sign-in was cancelled. Please try again when you're ready.",
+      denied: "Google sign-in was denied. Please grant access to continue.",
+      no_access: "Your account does not have manager access to this business.",
+      auth_failed: "Unable to complete sign-in. Please try again.",
+    },
+  },
 };

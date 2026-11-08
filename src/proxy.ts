@@ -7,19 +7,21 @@ export async function proxy(request: NextRequest) {
   const env = getServerEnv();
   const { pathname } = request.nextUrl;
 
-  // Convenience redirect for unauthenticated /manage routes
-  if (pathname.startsWith("/manage") && !pathname.startsWith("/manage/login")) {
-    const mockCookie = request.cookies.get(MOCK_AUTH_COOKIE_NAME)?.value;
-    if (mockCookie !== "active") {
-      const loginUrl = new URL("/manage/login", request.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+  // Mock data source: convenience redirect for unauthenticated /manage routes
+  if (env.DATA_SOURCE === "mock") {
+    if (pathname.startsWith("/manage") && !pathname.startsWith("/manage/login")) {
+      const mockCookie = request.cookies.get(MOCK_AUTH_COOKIE_NAME)?.value;
+      if (mockCookie !== "active") {
+        const loginUrl = new URL("/manage/login", request.url);
+        loginUrl.searchParams.set("next", pathname);
+        return NextResponse.redirect(loginUrl);
+      }
     }
+    return NextResponse.next({ request });
   }
 
-  // TODO(supabase): When Supabase Auth is active, check Supabase JWT session claims in proxy
-  // as convenience redirect to /manage/login before hitting Server Components (#37, #38).
-  return env.DATA_SOURCE === "mock" ? NextResponse.next({ request }) : updateSession(request);
+  // Supabase data source: refresh session and redirect unauthenticated /manage requests
+  return updateSession(request);
 }
 
 export const config = {
