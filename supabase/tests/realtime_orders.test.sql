@@ -50,11 +50,18 @@ values
   ('ba000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid, 'owner')
 on conflict (business_id, user_id) do nothing;
 
--- 5. Seed Orders for Biz A and Biz B
+-- 5. Seed Guests and Orders for Biz A and Biz B
+insert into public.guests (id, business_id, name, phone)
+values
+  ('9a000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Customer A', '+33600000101'),
+  ('9b000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'Customer B', '+33600000201')
+on conflict (id) do nothing;
+
 insert into public.orders (
   id,
   business_id,
   order_number,
+  guest_id,
   tracking_token,
   submitted_name,
   service_type,
@@ -69,6 +76,7 @@ insert into public.orders (
     '0a000000-0000-0000-0000-000000000001'::uuid,
     '10000000-0000-0000-0000-000000000001'::uuid,
     101,
+    '9a000000-0000-0000-0000-000000000001'::uuid,
     'tk_live_test_biz_a_order',
     'Customer A',
     'pickup',
@@ -83,6 +91,7 @@ insert into public.orders (
     '0b000000-0000-0000-0000-000000000002'::uuid,
     '20000000-0000-0000-0000-000000000002'::uuid,
     201,
+    '9b000000-0000-0000-0000-000000000002'::uuid,
     'tk_live_test_biz_b_order',
     'Customer B',
     'delivery',
