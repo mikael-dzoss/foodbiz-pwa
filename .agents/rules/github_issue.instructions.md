@@ -73,6 +73,9 @@ gh pr create --base develop --title "<type>(<scope>): <description> (#<number>)"
 gh issue edit <number> --remove-label "status: in-progress" --add-label "status: in-review"
 ```
 
+> [!IMPORTANT]
+> **Bug Label Requirement**: Every bug fix PR (`fix(...)` / `bug/<number>-<slug>`) **must** carry the `bug` label. Pass `--label "bug"` upon PR creation, or attach it immediately with `gh pr edit <pr> --add-label "bug"`. Never ship a bug fix PR without the `bug` label.
+
 ## 7. Merge (agent)
 
 Merge your own PR only when **all** hold; otherwise leave it for a maintainer and say why:
