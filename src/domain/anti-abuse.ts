@@ -5,6 +5,10 @@ export const RATE_LIMIT_IP_MAX_REQUESTS = 5;
 export const RATE_LIMIT_PHONE_MAX_REQUESTS = 3;
 export const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
+// Order lookup (#230): enough for a few typos, low enough to block enumeration.
+export const LOOKUP_RATE_LIMIT_IP_MAX_REQUESTS = 10;
+export const LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS = 5;
+
 export type HoneypotValidationResult =
   { readonly ok: true } | { readonly ok: false; readonly reason: "HONEYPOT_TRIGGERED" };
 

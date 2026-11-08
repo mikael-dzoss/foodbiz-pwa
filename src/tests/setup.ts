@@ -1,4 +1,5 @@
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
 
 class MockResizeObserver {
   observe() {}
@@ -20,3 +21,7 @@ vi.mock("next/cache", () => ({
   cacheTag: vi.fn(),
   cacheLife: vi.fn(),
 }));
+
+afterEach(() => {
+  cleanup();
+});

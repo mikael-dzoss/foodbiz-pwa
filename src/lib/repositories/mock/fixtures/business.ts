@@ -45,6 +45,8 @@ export const demoSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 350, // €3.50 in cents
   minOrderAmount: 1500, // €15.00 in cents
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
 
   // Payment (#72)
   revolutRevtag: "@boulangerie",
@@ -54,9 +56,8 @@ export const demoSettings: BusinessSettings = {
     revolut: true,
     wero: true,
   },
-  paymentInstructionsEn: "Please prepare exact change or present your QR code on handover.",
-  paymentInstructionsFr:
-    "Merci de préparer l'appoint ou de présenter votre code QR lors du retrait.",
+  paymentInstructionsEn: "Questions about payment? Message us on WhatsApp.",
+  paymentInstructionsFr: "Une question sur le paiement ? Écrivez-nous sur WhatsApp.",
 
   // Notifications & Sound (#74)
   inAppAlerts: true,

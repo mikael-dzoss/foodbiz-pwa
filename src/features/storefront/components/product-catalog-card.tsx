@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Check, UtensilsCrossed } from "lucide-react";
+import { UtensilsCrossed } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import type { Product } from "@/domain/product";
-import { useCart } from "../context/cart-context";
-import { useState } from "react";
+import { ProductAddButton } from "./product-add-button";
 
 export interface ProductCatalogCardProps {
   product: Product;
@@ -27,32 +26,8 @@ export function ProductCatalogCard({
   disabled = false,
   priority = false,
 }: ProductCatalogCardProps) {
-  const { addItem, getItemQuantity } = useCart();
-  const [justAdded, setJustAdded] = useState(false);
-
-  const currentQty = getItemQuantity(product.id);
   const isOutOfStock = product.stock <= 0;
   const isLowStock = !isOutOfStock && product.stock <= lowStockThreshold;
-  const canAdd = !isOutOfStock && !disabled && currentQty < product.stock;
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!canAdd) return;
-
-    const added = addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      stock: product.stock,
-      imageUrl: product.imageUrl,
-    });
-
-    if (added) {
-      setJustAdded(true);
-      setTimeout(() => setJustAdded(false), 1200);
-    }
-  };
 
   return (
     <article
@@ -129,30 +104,13 @@ export function ProductCatalogCard({
           )}
         </Link>
 
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          disabled={!canAdd}
-          aria-label={`${dict.addToCart}: ${product.name}`}
+        <ProductAddButton
+          product={product}
+          dict={dict}
+          disabled={disabled}
+          size="compact"
           data-testid={`add-to-cart-${product.id}`}
-          className={`focus-visible:ring-ring absolute right-1.5 bottom-1.5 z-10 flex h-9 min-h-11 w-9 min-w-11 items-center justify-center rounded-full border shadow-xs transition-transform duration-150 focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transition-none ${
-            justAdded
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-card text-primary hover:bg-muted"
-          } ${!canAdd ? "cursor-not-allowed opacity-50 active:scale-100" : ""}`}
-        >
-          {justAdded ? (
-            <>
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">{dict.addedToCart}</span>
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span className="sr-only">{dict.addToCart}</span>
-            </>
-          )}
-        </button>
+        />
       </div>
     </article>
   );

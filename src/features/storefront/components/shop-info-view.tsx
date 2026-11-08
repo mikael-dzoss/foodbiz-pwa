@@ -15,6 +15,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
+import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import {
   buildOpenStreetMapEmbedUrl,
@@ -33,6 +34,7 @@ export interface ShopInfoViewProps {
 export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewProps) {
   // Service types enabled status (#83 AC)
   const pickupEnabled = settings?.serviceTypes?.pickup ?? true;
+  const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
   const deliveryEnabled = settings?.serviceTypes?.delivery ?? false;
 
   // Contact items (rendered ONLY when set - #83 AC)
@@ -83,7 +85,11 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
   return (
     <div className="flex flex-col gap-6 pb-12">
       {/* 1. Store Header & Identity Bento Card (Stitch C-03) */}
-      <section className="border-border/80 bg-card flex flex-col gap-3.5 rounded-xl border p-4 shadow-none">
+      <section
+        id="overview"
+        aria-labelledby="overview-heading"
+        className="border-border/80 bg-card flex scroll-mt-20 flex-col gap-3.5 rounded-xl border p-4 shadow-none"
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="border-border/60 bg-muted text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border font-bold">
@@ -98,7 +104,10 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                   {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
                 </span>
               </div>
-              <h1 className="text-foreground mt-0.5 text-lg leading-snug font-bold tracking-tight">
+              <h1
+                id="overview-heading"
+                className="text-foreground mt-0.5 text-lg leading-snug font-bold tracking-tight"
+              >
                 {business.name}
               </h1>
             </div>
@@ -137,7 +146,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                   </span>
                 </div>
                 <p className="text-muted-foreground mt-1 text-[11px] tabular-nums">
-                  {dict.pickupReadyTime}
+                  {dict.pickupReadyTime.replace("{leadTime}", leadTimeText)}
                 </p>
               </div>
             )}
@@ -165,7 +174,11 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
 
       {/* 2. Direct Contact & Orders (Stitch C-03) */}
       {(hasWhatsApp || hasPhone || hasEmail) && (
-        <section aria-labelledby="contact-heading" className="flex flex-col gap-2">
+        <section
+          id="contact"
+          aria-labelledby="contact-heading"
+          className="flex scroll-mt-20 flex-col gap-2"
+        >
           <h2
             id="contact-heading"
             className="text-muted-foreground px-1 text-xs font-semibold tracking-wider uppercase"
@@ -252,8 +265,9 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       {/* 3. Weekly Opening Hours Table (Stitch C-03) */}
       {hasOpeningHours && (
         <section
+          id="hours"
           aria-labelledby="hours-heading"
-          className="border-border/80 bg-card flex flex-col gap-3 rounded-xl border p-4"
+          className="border-border/80 bg-card flex scroll-mt-20 flex-col gap-3 rounded-xl border p-4"
         >
           <div className="flex items-center gap-2">
             <Clock className="text-primary h-4 w-4" />
@@ -304,8 +318,9 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       {/* 4. Physical Address & Map Snippet Card (Stitch C-03) */}
       {hasAddress && (
         <section
+          id="location"
           aria-labelledby="address-heading"
-          className="border-border/80 bg-card flex flex-col overflow-hidden rounded-xl border"
+          className="border-border/80 bg-card flex scroll-mt-20 flex-col overflow-hidden rounded-xl border"
         >
           {osmEmbedUrl ? (
             <div className="p-4 pb-0">
@@ -347,7 +362,9 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
 
           <div className="flex flex-col gap-3 p-4">
             <div>
-              <span className="sr-only">{dict.address}</span>
+              <h2 id="address-heading" className="sr-only">
+                {dict.address}
+              </h2>
               <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
                 Bakery &amp; Flour Lab
               </span>
@@ -377,10 +394,17 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       )}
 
       {/* 5. Delivery & Ordering Policy Card (Stitch C-03) */}
-      <section className="border-border/80 bg-card flex flex-col gap-3 rounded-xl border p-4">
+      <section
+        id="ordering-policy"
+        aria-labelledby="ordering-policy-heading"
+        className="border-border/80 bg-card flex scroll-mt-20 flex-col gap-3 rounded-xl border p-4"
+      >
         <div className="flex items-center gap-2">
           <Truck className="text-primary h-4 w-4" />
-          <h2 className="text-foreground font-headline text-sm font-semibold">
+          <h2
+            id="ordering-policy-heading"
+            className="text-foreground font-headline text-sm font-semibold"
+          >
             {dict.deliveryPolicy}
           </h2>
         </div>
@@ -404,7 +428,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
             <span className="text-muted-foreground block text-[10px] uppercase">Est. Time</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              30 – 45 min
+              {leadTimeText}
             </span>
           </div>
 

@@ -2,6 +2,7 @@ import { cacheLife, cacheTag, revalidateTag, revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
 import type { Repositories } from "@/domain/repositories";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { Product, ProductCategory } from "@/domain/product";
 
@@ -17,6 +18,7 @@ export interface StorefrontCatalogData {
   settings: BusinessSettings | null;
   categories: ProductCategory[];
   groupedCategories: GroupedCategory[];
+  featuredProducts: Product[];
   totalVisibleProducts: number;
   isAcceptingOrders: boolean;
   isOpen: boolean;
@@ -147,7 +149,20 @@ export async function getStorefrontCatalog(
     });
   }
 
+  // Clock is read within use cache, so it advances when the hours cache revalidates.
   const now = new Date();
+  const recentQuantities = await repos.orders.sumQuantitiesByProduct(
+    businessId,
+    featuredDateRange(now, 7),
+  );
+  const recentFeatured = rankFeaturedQuantities(visibleProducts, recentQuantities);
+  const featuredProducts =
+    recentFeatured.length > 0
+      ? recentFeatured
+      : rankFeaturedQuantities(
+          visibleProducts,
+          await repos.orders.sumQuantitiesByProduct(businessId, featuredDateRange(now, 30)),
+        );
   const operatingStatus = evaluateStoreOperatingStatus(settings, now);
 
   return {
@@ -155,6 +170,7 @@ export async function getStorefrontCatalog(
     settings,
     categories,
     groupedCategories,
+    featuredProducts,
     totalVisibleProducts: visibleProducts.length,
     isAcceptingOrders: operatingStatus.isAcceptingOrders,
     isOpen: operatingStatus.isOpen,

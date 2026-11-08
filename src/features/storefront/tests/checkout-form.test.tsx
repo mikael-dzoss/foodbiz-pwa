@@ -48,6 +48,8 @@ const mockSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 250,
   minOrderAmount: 0,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
   revolutRevtag: "petiteboulangerie",
   weroIdentifier: "wero@petiteboulangerie.fr",
   paymentMethods: {
@@ -249,8 +251,15 @@ describe("CheckoutView & CheckoutForm", () => {
       </CartProvider>,
     );
 
-    // Default ASAP
+    // Default ASAP, labelled with the manager lead time (#226)
     expect(screen.queryByTestId("scheduled-timing-inputs")).toBeNull();
+    expect(screen.getByTestId("timing-asap-option").textContent).toContain(
+      "ASAP (~1 business day)",
+    );
+    // #234: neutral pay-on-handover copy and compact Wero badge
+    expect(screen.getByText("Pay in cash or by card when you receive your order")).toBeDefined();
+    expect(screen.getByText("QR or alias")).toBeDefined();
+    expect(screen.getByText("Instant SEPA transfer")).toBeDefined();
 
     // Select Schedule Later
     const scheduleOption = screen.getByTestId("timing-scheduled-option");

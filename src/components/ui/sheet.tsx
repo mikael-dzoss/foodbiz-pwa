@@ -41,6 +41,8 @@ export const SheetContent = React.forwardRef<
         side === "bottom" &&
           "border-border inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-xl border-t pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
         side === "right" && "border-border inset-y-0 right-0 h-full w-3/4 max-w-sm border-l",
+        side === "left" &&
+          "border-border inset-y-0 left-0 flex h-full w-4/5 max-w-xs flex-col border-r pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
         className,
       )}
       data-testid={testId}

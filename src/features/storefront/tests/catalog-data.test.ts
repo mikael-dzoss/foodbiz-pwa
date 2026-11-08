@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   evaluateStoreOperatingStatus,
   getStorefrontCatalog,
@@ -6,6 +6,9 @@ import {
   revalidateStorefrontCatalog,
 } from "../catalog-data";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { getMockRepositories } from "@/lib/repositories/mock";
+import { createDefaultFixtures } from "@/lib/repositories/mock/fixtures";
+import { rankFeaturedProducts } from "@/domain/featured";
 import type { BusinessSettings } from "@/domain/business";
 
 const baseSettings: BusinessSettings = {
@@ -27,6 +30,8 @@ const baseSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 200,
   minOrderAmount: 0,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
   revolutRevtag: "",
   weroIdentifier: "",
   paymentMethods: {
@@ -98,6 +103,60 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
   });
 
   describe("getStorefrontCatalog", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each(["recent", "fallback", "empty"] as const)(
+      "ranks %s featured items using aggregate-only reads",
+      async (scenario) => {
+        const now = new Date("2026-11-01T12:00:00.000Z");
+        vi.useFakeTimers({ now, toFake: ["Date"] });
+        try {
+          const fixtures = createDefaultFixtures(now);
+          fixtures.settings.openingHours = "";
+          const candidate = fixtures.products[0];
+          fixtures.orders =
+            scenario === "empty"
+              ? []
+              : [
+                  {
+                    ...fixtures.orders[0],
+                    status: "COMPLETED",
+                    paid: "paid",
+                    createdAt:
+                      scenario === "recent"
+                        ? "2026-10-31T12:00:00.000Z"
+                        : "2026-10-10T12:00:00.000Z",
+                    items: [
+                      {
+                        productId: candidate.id,
+                        productName: candidate.name,
+                        quantity: 3,
+                        unitPrice: candidate.price,
+                        totalPrice: candidate.price * 3,
+                      },
+                    ],
+                  },
+                ];
+          const repos = getMockRepositories();
+          repos.reset(fixtures);
+          const privateRead = vi
+            .spyOn(repos.orders, "list")
+            .mockRejectedValue(new Error("Private orders must not reach storefront"));
+          const aggregateRead = vi.spyOn(repos.orders, "sumQuantitiesByProduct");
+          const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
+          expect(catalog.featuredProducts).toEqual(
+            rankFeaturedProducts(fixtures.products, fixtures.orders, now),
+          );
+          expect(aggregateRead).toHaveBeenCalledTimes(scenario === "recent" ? 1 : 2);
+          expect(privateRead).not.toHaveBeenCalled();
+          expect(catalog).not.toHaveProperty("orders");
+          expect(catalog).not.toHaveProperty("guests");
+        } finally {
+          vi.useRealTimers();
+          getMockRepositories().reset();
+        }
+      },
+    );
     it("returns grouped categories with visible products for the demo business", async () => {
       const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
       expect(catalog.business.id).toBe(DEMO_BUSINESS_ID);

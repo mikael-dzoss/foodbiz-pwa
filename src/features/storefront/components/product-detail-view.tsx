@@ -1,27 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingBag, Check, UtensilsCrossed, Lightbulb } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
+import type { AddOnCandidates } from "@/domain/add-ons";
 import { getDictionary, type SupportedLocale, type StorefrontDictionary } from "@/domain/i18n";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import type { StorefrontProductData } from "../catalog-data";
 import { useCart } from "../context/cart-context";
+import { ProductAddOnGroup } from "./product-add-on-group";
 
 export interface ProductDetailViewProps {
   productData: StorefrontProductData;
+  addOns?: AddOnCandidates | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
 }
 
-export function ProductDetailView({ productData, locale, dict }: ProductDetailViewProps) {
+export function ProductDetailView({
+  productData,
+  addOns = null,
+  locale,
+  dict,
+}: ProductDetailViewProps) {
   const { product, categoryName, business, settings, isAcceptingOrders, isOpen } = productData;
   const { addItem, getItemQuantity } = useCart();
   const productsDict = getDictionary(locale).products;
 
   const [quantity, setQuantity] = useState(1);
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
   const [justAdded, setJustAdded] = useState(false);
 
   const lowStockThreshold = settings?.lowStockThreshold ?? 5;
@@ -33,6 +42,17 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
   const currentCartQty = getItemQuantity(product.id);
   const maxAddable = Math.max(0, product.stock - currentCartQty);
   const allergens = product.allergens ?? [];
+
+  const selectedAddOns = useMemo(
+    () => (addOns ? addOns.products.filter((item) => selectedAddOnIds.includes(item.id)) : []),
+    [addOns, selectedAddOnIds],
+  );
+
+  const handleToggleAddOn = (addOnId: string) => {
+    setSelectedAddOnIds((prev) =>
+      prev.includes(addOnId) ? prev.filter((id) => id !== addOnId) : [...prev, addOnId],
+    );
+  };
 
   const handleAddToCart = () => {
     if (!canOrder || quantity <= 0) return;
@@ -49,12 +69,26 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
     );
 
     if (added) {
+      for (const addOn of selectedAddOns) {
+        addItem(
+          {
+            id: addOn.id,
+            name: addOn.name,
+            price: addOn.price,
+            stock: addOn.stock,
+            imageUrl: addOn.imageUrl,
+          },
+          quantity,
+        );
+      }
+      setSelectedAddOnIds([]);
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1500);
     }
   };
 
-  const totalPrice = product.price * quantity;
+  const addOnsUnitPrice = selectedAddOns.reduce((sum, item) => sum + item.price, 0);
+  const totalPrice = (product.price + addOnsUnitPrice) * quantity;
   const unavailableShortText = !isAcceptingOrders
     ? dict.notAcceptingOrdersShort
     : dict.storeClosedBadge;
@@ -186,6 +220,17 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
         </div>
       </section>
 
+      {addOns && (
+        <ProductAddOnGroup
+          addOns={addOns}
+          selectedIds={selectedAddOnIds}
+          onToggle={handleToggleAddOn}
+          locale={locale}
+          dict={dict}
+          disabled={!canOrder}
+        />
+      )}
+
       {/* In-Cart Notification */}
       {currentCartQty > 0 && (
         <div className="border-border bg-muted mt-2 flex items-center justify-between rounded-lg border p-3 text-xs">
@@ -256,7 +301,8 @@ export function ProductDetailView({ productData, locale, dict }: ProductDetailVi
                 <>
                   <ShoppingBag className="h-5 w-5" />
                   <span>
-                    {dict.addToCart} · {formatMoney(totalPrice, locale)}
+                    {dict.addQuantityToCart.replace("{count}", String(quantity))} •{" "}
+                    {formatMoney(totalPrice, locale)}
                   </span>
                 </>
               )}

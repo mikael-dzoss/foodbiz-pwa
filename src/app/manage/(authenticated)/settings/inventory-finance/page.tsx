@@ -34,6 +34,8 @@ export default async function InventoryFinancePage() {
           orderTimingTimeOptional: true,
           deliveryFee: 0,
           minOrderAmount: 0,
+          leadTimeValue: 1,
+          leadTimeUnit: "business_days" as const,
           revolutRevtag: "",
           weroIdentifier: "",
           paymentMethods: { cash: true, revolut: true, wero: true },

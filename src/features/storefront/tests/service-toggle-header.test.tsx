@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ServiceToggleHeader } from "../components/service-toggle-header";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
@@ -44,9 +44,7 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(deliveryRadio.getAttribute("aria-checked")).toBe("true");
     expect(pickupRadio.getAttribute("aria-checked")).toBe("false");
 
-    expect(screen.getByTestId("readiness-badge").textContent).toContain(
-      enDictionary.storefront.orderReadyTime,
-    );
+    expect(screen.getByTestId("readiness-badge").textContent).toContain("Ready in ~1 business day");
 
     const infoTile = screen.getByTestId("service-info-tile");
     expect(infoTile.textContent).toMatch(/€2\.50 delivery fee|2,50\s*€/);
@@ -226,5 +224,116 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(screen.getByRole("alert")).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.notAcceptingOrdersShort)).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.notAcceptingOrdersBanner)).toBeDefined();
+  });
+
+  it("shows the manager lead time in the readiness badge (#226)", () => {
+    render(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders
+            isOpen
+            settings={{
+              serviceTypes: { pickup: true, delivery: true, dineIn: false },
+              deliveryFee: 0,
+              minOrderAmount: 0,
+              orderTimingScheduled: true,
+              leadTimeValue: 20,
+              leadTimeUnit: "minutes",
+            }}
+            locale="fr"
+            dict={frDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+    expect(screen.getByTestId("readiness-badge").textContent).toContain("Prêt en ~20 min");
+  });
+
+  it("opens the ordering details card from the badge and tiles and closes on Escape (#227)", async () => {
+    render(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders
+            isOpen
+            openingHoursText="07:30 - 19:30"
+            businessAddress="12 Rue de la Roquette"
+            settings={{
+              serviceTypes: { pickup: true, delivery: true, dineIn: false },
+              deliveryFee: 350,
+              minOrderAmount: 0,
+              orderTimingScheduled: true,
+              leadTimeValue: 1,
+              leadTimeUnit: "business_days",
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("readiness-badge"));
+    const dialog = await screen.findByTestId("ordering-details-dialog");
+    expect(dialog.textContent).toContain("€3.50");
+    expect(dialog.textContent).toContain(enDictionary.storefront.detailsNoMinimum);
+    expect(dialog.textContent).toContain("07:30 - 19:30");
+    expect(dialog.textContent).toContain("~1 business day");
+    expect(screen.getByTestId("ordering-details-status").textContent).toContain("Closes at 19:30");
+    expect(screen.queryByTestId("ordering-details-note")).toBeNull();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("ordering-details-dialog")).toBeNull());
+
+    fireEvent.click(screen.getByTestId("service-mode-pickup"));
+    fireEvent.click(screen.getByTestId("service-info-tile"));
+    const pickupDialog = await screen.findByTestId("ordering-details-dialog");
+    expect(pickupDialog.textContent).toContain("12 Rue de la Roquette");
+    expect(pickupDialog.textContent).not.toContain(enDictionary.storefront.detailsDeliveryFee);
+  });
+
+  it("shows closed and paused status in the details card (#227)", async () => {
+    const { rerender } = render(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders
+            isOpen={false}
+            openingHoursText="07:30 - 19:30"
+            settings={{
+              serviceTypes: { pickup: true, delivery: true, dineIn: false },
+              deliveryFee: 0,
+              minOrderAmount: 1500,
+              orderTimingScheduled: true,
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByTestId("store-status-tile"));
+    const dialog = await screen.findByTestId("ordering-details-dialog");
+    expect(dialog.textContent).toContain(enDictionary.storefront.freeDelivery);
+    expect(dialog.textContent).toContain("€15.00");
+    expect(screen.getByTestId("ordering-details-status").textContent).toContain("Opens at 07:30");
+
+    rerender(
+      <ToastProvider>
+        <CartProvider>
+          <ServiceToggleHeader
+            isAcceptingOrders={false}
+            isOpen={false}
+            settings={null}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>
+      </ToastProvider>,
+    );
+    expect(screen.getByTestId("ordering-details-status").textContent).toBe(
+      enDictionary.storefront.notAcceptingOrdersShort,
+    );
   });
 });

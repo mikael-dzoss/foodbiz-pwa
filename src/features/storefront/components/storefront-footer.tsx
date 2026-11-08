@@ -3,11 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, ChevronRight, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { LEGAL_PAGES_AVAILABLE } from "@/config/app";
 import { FacebookIcon, InstagramIcon, TikTokIcon } from "@/components/icons";
 import type { Business } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+
+/** Anchors on the shop info page (#233), in page order. */
+export const SHOP_INFO_SECTIONS = [
+  ["overview", "footerShopInformation"],
+  ["contact", "footerContactUs"],
+  ["hours", "footerOpeningHours"],
+  ["location", "footerLocation"],
+  ["ordering-policy", "footerOrderingPolicy"],
+] as const satisfies ReadonlyArray<readonly [string, keyof StorefrontDictionary]>;
 
 export interface StorefrontFooterProps {
   locale: SupportedLocale;
@@ -36,11 +45,6 @@ export function StorefrontFooter({
   const displayName = business?.name?.trim() || businessName;
   const description = business?.description?.trim() || "";
   const logoSrc = business?.logoUrl?.trim() || "/icons/icon.svg";
-  const phone = business?.phone?.trim() || "";
-  const email = business?.email?.trim() || "";
-  const whatsappNumber = business?.whatsappNumber?.trim() || "";
-  const whatsappDigits = whatsappNumber.replace(/\D/g, "");
-  const address = business?.address?.trim() || "";
 
   const instagramUrl = business?.instagramUrl?.trim() || "";
   const facebookUrl = business?.facebookUrl?.trim() || "";
@@ -48,10 +52,10 @@ export function StorefrontFooter({
   const hasSocials = Boolean(instagramUrl || facebookUrl || tiktokUrl);
 
   return (
-    <footer data-testid="storefront-footer" className="border-border bg-card mt-auto border-t py-6">
+    <footer data-testid="storefront-footer" className="border-border bg-card mt-auto border-t py-5">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         {/* Row 1: Brand identity, contact lines, and Shop info link */}
-        <div data-testid="footer-row-1" className="space-y-4">
+        <div data-testid="footer-row-1" className="space-y-3">
           <div className="flex items-center gap-3">
             <Image
               src={logoSrc}
@@ -80,95 +84,38 @@ export function StorefrontFooter({
             </div>
           </div>
 
-          <div className="border-border space-y-1 border-t pt-3">
-            {phone && (
-              <a
-                href={`tel:${phone}`}
-                data-testid="footer-phone-link"
-                className="text-foreground hover:text-primary focus-visible:ring-ring group flex min-h-11 items-center justify-between rounded-md px-1 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
-              >
-                <span className="flex items-center gap-3">
-                  <Phone
-                    className="text-muted-foreground group-hover:text-primary h-4 w-4 shrink-0 transition-colors"
-                    aria-hidden="true"
-                  />
-                  <span className="font-medium tabular-nums">{phone}</span>
-                </span>
-                <ChevronRight
-                  className="text-muted-foreground h-4 w-4 shrink-0"
-                  aria-hidden="true"
-                />
-              </a>
-            )}
-
-            {email && (
-              <a
-                href={`mailto:${email}`}
-                data-testid="footer-email-link"
-                className="text-foreground hover:text-primary focus-visible:ring-ring group flex min-h-11 items-center justify-between rounded-md px-1 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
-              >
-                <span className="flex items-center gap-3">
-                  <Mail
-                    className="text-muted-foreground group-hover:text-primary h-4 w-4 shrink-0 transition-colors"
-                    aria-hidden="true"
-                  />
-                  <span className="font-medium">{email}</span>
-                </span>
-                <ChevronRight
-                  className="text-muted-foreground h-4 w-4 shrink-0"
-                  aria-hidden="true"
-                />
-              </a>
-            )}
-
-            {whatsappNumber && whatsappDigits && (
-              <a
-                href={`https://wa.me/${whatsappDigits}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="footer-whatsapp-link"
-                className="text-foreground hover:text-primary focus-visible:ring-ring group flex min-h-11 items-center justify-between rounded-md px-1 py-1 text-xs transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
-              >
-                <span className="flex items-center gap-3">
-                  <MessageCircle
-                    className="text-muted-foreground group-hover:text-primary h-4 w-4 shrink-0 transition-colors"
-                    aria-hidden="true"
-                  />
-                  <span className="font-medium tabular-nums">{whatsappNumber}</span>
-                </span>
-                <ChevronRight
-                  className="text-muted-foreground h-4 w-4 shrink-0"
-                  aria-hidden="true"
-                />
-              </a>
-            )}
-
-            {address && (
-              <div
-                data-testid="footer-address"
-                className="text-foreground flex min-h-11 items-center gap-3 px-1 py-1 text-xs"
-              >
-                <MapPin className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="font-medium">{address}</span>
-              </div>
-            )}
-
-            <Link
-              href={`/${locale}/info`}
-              data-testid="footer-shop-info-link"
-              className="text-primary focus-visible:ring-ring inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-semibold hover:underline focus-visible:ring-2 focus-visible:outline-hidden"
+          <nav aria-label={dict.shopInfo}>
+            <ul
+              data-testid="footer-section-links"
+              className="border-border divide-border divide-y overflow-hidden rounded-xl border"
             >
-              <span>{dict.shopInfo}</span>
-              <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            </Link>
-          </div>
+              {SHOP_INFO_SECTIONS.map(([anchor, labelKey]) => (
+                <li key={anchor}>
+                  <Link
+                    href={`/${locale}/info#${anchor}`}
+                    data-testid={`footer-link-${anchor}`}
+                    className="text-foreground hover:bg-muted focus-visible:ring-ring flex min-h-11 items-center justify-between px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-hidden focus-visible:ring-inset"
+                  >
+                    <span>{dict[labelKey]}</span>
+                    <ChevronRight
+                      className="text-muted-foreground h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
 
         {/* Thin divider */}
-        <hr className="border-border my-4 border-t" />
+        <hr className="border-border my-3 border-t" />
 
         {/* Row 2: Social links, conditional legal links, and dynamic copyright */}
-        <div data-testid="footer-row-2" className="space-y-3">
+        <div
+          data-testid="footer-row-2"
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
+        >
           {hasSocials && (
             <div
               data-testid="footer-social-links"
@@ -236,7 +183,7 @@ export function StorefrontFooter({
 
           <div
             data-testid="footer-copyright"
-            className="text-muted-foreground pt-0.5 text-xs tabular-nums"
+            className="text-muted-foreground text-xs tabular-nums"
           >
             © {currentYear} {displayName}
           </div>

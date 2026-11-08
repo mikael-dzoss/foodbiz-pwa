@@ -4,8 +4,9 @@ import { StorefrontShell } from "../components/storefront-shell";
 import { useCart, resetCartStore } from "../context/cart-context";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 
+let mockPathname = "/en";
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/en",
+  usePathname: () => mockPathname,
 }));
 
 function AddItemTestButton() {
@@ -28,6 +29,7 @@ function AddItemTestButton() {
 
 beforeEach(() => {
   resetCartStore();
+  mockPathname = "/en/p/prod-baguette";
 });
 
 afterEach(() => {
@@ -63,6 +65,7 @@ describe("Storefront Shell (#30)", () => {
   });
 
   it("renders footer with shop info link and copyright in French", () => {
+    mockPathname = "/fr";
     render(
       <StorefrontShell locale="fr" dict={frDictionary.storefront} cartCount={1}>
         <div>Contenu Catalogue</div>
@@ -113,5 +116,57 @@ describe("Storefront Shell (#30)", () => {
     const badge = screen.getByTestId("header-cart-badge");
     expect(badge).toBeDefined();
     expect(badge.textContent).toBe("1");
+  });
+
+  it.each([
+    ["/en", "search"],
+    ["/en/p/prod-1", "cart"],
+    ["/en/order/tk-1", "cart"],
+    ["/en/track", "cart"],
+    ["/en/info", "share"],
+    ["/en/cart", null],
+    ["/en/checkout", null],
+    ["/en/order/tk-1/confirmed", null],
+  ])("shows the right header action on %s (#229)", (path, action) => {
+    mockPathname = path;
+    render(
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+        <div>Content</div>
+      </StorefrontShell>,
+    );
+    expect(screen.queryByTestId("catalog-search-launcher") !== null).toBe(action === "search");
+    expect(screen.queryByTestId("header-cart-link") !== null).toBe(action === "cart");
+    expect(screen.queryByRole("button", { name: enDictionary.storefront.share }) !== null).toBe(
+      action === "share",
+    );
+  });
+
+  it("never links the business name (#229)", () => {
+    mockPathname = "/en/cart";
+    render(
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+        <div>Content</div>
+      </StorefrontShell>,
+    );
+    const brand = screen.getByTestId("header-brand");
+    expect(brand.closest("a")).toBeNull();
+    expect(brand.textContent).toContain("La Boulangerie");
+  });
+
+  it.each([
+    ["/en", true],
+    ["/en/cart", true],
+    ["/en/checkout", true],
+    ["/en/order/tk-1/confirmed", true],
+    ["/en/p/prod-1", false],
+    ["/en/info", false],
+  ])("shows the menu button on %s: %s (#231)", (path, hasMenu) => {
+    mockPathname = path;
+    render(
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+        <div>Content</div>
+      </StorefrontShell>,
+    );
+    expect(screen.queryByTestId("storefront-menu-button") !== null).toBe(hasMenu);
   });
 });

@@ -33,6 +33,69 @@ export function describeOrderRepositoryContract(
       ).toBe(true);
     });
 
+    it("sumQuantitiesByProduct returns tenant-scoped aggregates without private order/guest data", async () => {
+      const repos = await getRepositories();
+      const product = (await repos.products.list(businessId))[0];
+      const guest = (await repos.guests.list(businessId))[0];
+      const input = {
+        guestId: guest.id,
+        serviceType: "pickup" as const,
+        channel: "storefront" as const,
+        status: "COMPLETED" as const,
+        paid: "paid" as const,
+        paymentPreference: "on_handover" as const,
+        requestedDate: "2030-01-01",
+        items: [
+          {
+            productId: product.id,
+            productName: product.name,
+            quantity: 2,
+            unitPrice: product.price,
+            totalPrice: product.price * 2,
+          },
+        ],
+        totalAmount: product.price * 2,
+      };
+      const first = await repos.orders.create(businessId, input);
+      await repos.orders.create(businessId, input);
+      await repos.orders.create(businessId, { ...input, status: "CANCELLED" });
+      await repos.orders.create(businessId, { ...input, paid: "refunded" });
+      await repos.orders.create(businessId, { ...input, status: "NEW" });
+      const filter = {
+        fromDate: first.createdAt,
+        toDate: new Date().toISOString(),
+        excludeStatuses: ["NEW" as const],
+      };
+      const totals = await repos.orders.sumQuantitiesByProduct(businessId, filter);
+      const total = totals.find((row) => row.productId === product.id);
+      expect(total).toEqual({
+        productId: product.id,
+        quantity: 4,
+        lastOrderedAt: expect.any(String),
+      });
+      expect(
+        totals.every(
+          (row) => Object.keys(row).toSorted().join(",") === "lastOrderedAt,productId,quantity",
+        ),
+      ).toBe(true);
+      expect(
+        await repos.orders.sumQuantitiesByProduct("00000000-0000-4000-8000-000000000099", filter),
+      ).toEqual([]);
+      expect(
+        await repos.orders.sumQuantitiesByProduct(businessId, {
+          ...filter,
+          fromDate: "1999-01-01T00:00:00.000Z",
+          toDate: "1999-01-02T00:00:00.000Z",
+        }),
+      ).toEqual([]);
+      total!.quantity = 999;
+      expect(
+        (await repos.orders.sumQuantitiesByProduct(businessId, filter)).find(
+          (row) => row.productId === product.id,
+        )?.quantity,
+      ).toBe(4);
+    });
+
     it("findById returns order or null", async () => {
       const repos = await getRepositories();
       const first = (await repos.orders.list(businessId))[0];
@@ -143,6 +206,31 @@ export function describeOrderRepositoryContract(
 
       const notFound = await repos.orders.findByTrackingToken("non-existent-token");
       expect(notFound).toBeNull();
+    });
+
+    it("findTrackingTokenByTicketAndPhone returns only the token on an exact match (#230)", async () => {
+      const repos = await getRepositories();
+      const guests = await repos.guests.list(businessId);
+      const guest = guests.find((g) => Boolean(g.phone))!;
+      const [order] = await repos.orders.list(businessId, { guestId: guest.id });
+
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(
+          businessId,
+          order.orderNumber!,
+          guest.phone!,
+        ),
+      ).resolves.toBe(order.trackingToken);
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(
+          businessId,
+          order.orderNumber!,
+          "+33699999999",
+        ),
+      ).resolves.toBeNull();
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(businessId, 999999, guest.phone!),
+      ).resolves.toBeNull();
     });
 
     it("findByTicketAndPhone validates ticket n° against guest phone", async () => {

@@ -33,12 +33,21 @@ export interface StorefrontDictionary {
   privacy: string;
   openHours: string;
 
-  // Catalog & Navigation (#80, #200)
+  // Catalog & Navigation (#80, #200, #203, #204)
+  featuredItems: string;
+  mostOrdered: string;
   allCategories: string;
   menu: string;
   dismiss: string;
   browseCategories: string;
+  searchMenu: string;
   searchPlaceholder: string;
+  clearSearch: string;
+  closeSearch: string;
+  searchInitialHint: string;
+  searchResultSingular: string;
+  searchResultPlural: string;
+  searchNoResultsFor: string;
   noProductsFound: string;
   noProductsInCategory: string;
   addToCart: string;
@@ -65,6 +74,44 @@ export interface StorefrontDictionary {
   pickupAndDelivery: string;
   deliveryToggleLabel: string;
   pickupToggleLabel: string;
+  installAppTitle: string;
+  installAppSubtitle: string;
+  installAppButton: string;
+  installIosTitle: string;
+  installIosStep1: string;
+  installIosStep2: string;
+  installIosStep3: string;
+  installAppDone: string;
+  footerShopInformation: string;
+  footerContactUs: string;
+  footerOpeningHours: string;
+  footerLocation: string;
+  footerOrderingPolicy: string;
+  menuOpen: string;
+  menuDrawerTitle: string;
+  menuTrackOrder: string;
+  orderHistory: string;
+  shareShopLink: string;
+  aboutBusiness: string;
+  linkCopied: string;
+  trackTitle: string;
+  trackIntro: string;
+  trackPhoneLabel: string;
+  trackOrderNumberLabel: string;
+  trackSubmit: string;
+  trackSubmitting: string;
+  trackPrivacyNote: string;
+  trackErrorNotFound: string;
+  trackErrorInvalid: string;
+  trackErrorRateLimited: string;
+  orderingDetailsTitle: string;
+  orderingDetailsOpen: string;
+  detailsDeliveryFee: string;
+  detailsMinOrder: string;
+  detailsNoMinimum: string;
+  detailsPickupAddress: string;
+  detailsHours: string;
+  detailsLeadTime: string;
   noFees: string;
   deliveryFeeShort: string;
   minOrderShort: string;
@@ -72,7 +119,7 @@ export interface StorefrontDictionary {
   pickupUnavailableToast: string;
   deliveryUnavailableToast: string;
 
-  // Product Detail (#81, #202)
+  // Product Detail (#81, #202, #206, #207)
   productNotFound: string;
   productUnavailable: string;
   quantity: string;
@@ -81,6 +128,11 @@ export interface StorefrontDictionary {
   cooksTip: string;
   perPiece: string;
   freshlyPreparedToday: string;
+  addQuantityToCart: string;
+  addOnsDrinksTitle: string;
+  addOnsAccompanimentsTitle: string;
+  addOnsSubtitle: string;
+  addOnsOptionalBadge: string;
 
   // Shop Information (#83)
   shopInfo: string;
@@ -176,6 +228,7 @@ export interface StorefrontDictionary {
   revolutSubtext: string;
   weroPay: string;
   weroSubtext: string;
+  weroDescription: string;
   payOnHandover: string;
   payOnHandoverSubtext: string;
   cashBadge: string;
@@ -346,6 +399,14 @@ export interface SettingsDictionary {
     deliveryFeeHelper: string;
     minOrderLabel: string;
     minOrderHelper: string;
+    leadTimeSection: string;
+    leadTimeLabel: string;
+    leadTimeHelper: string;
+    leadTimeUnitLabel: string;
+    leadTimeUnitMinutes: string;
+    leadTimeUnitHours: string;
+    leadTimeUnitBusinessDays: string;
+    leadTimePreview: string;
     soonSection: string;
     saveButton: string;
     saveSuccess: string;
@@ -427,7 +488,9 @@ export interface OrderConfirmationDictionary {
   revtag: string;
   weroIdentifier: string;
   amount: string;
-  paymentHelp: string;
+  paymentReference: string;
+  handoverPrepare: string;
+  paymentDisclaimer: string;
   unavailable: string;
   copy: string;
   copied: string;

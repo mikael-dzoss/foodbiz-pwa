@@ -1,4 +1,5 @@
 import type { Business, BusinessMember, BusinessMemberRole, BusinessSettings } from "../business";
+import type { ProductQuantity, ProductQuantityFilter } from "../featured";
 import type { Expense } from "../expense";
 import type { FindOrCreateGuestResult, Guest } from "../guest";
 import type { Order, OrderStatus, PublicOrder } from "../order";
@@ -84,6 +85,11 @@ export interface OrderFilter {
 }
 
 export interface OrderRepository {
+  /** Public aggregate-only read; always excludes cancelled/refunded orders. Inclusive createdAt bounds. */
+  sumQuantitiesByProduct(
+    businessId: string,
+    filter: ProductQuantityFilter,
+  ): Promise<ProductQuantity[]>;
   findById(businessId: string, id: string): Promise<Order | null>;
   findByTrackingToken(trackingToken: string): Promise<PublicOrder | null>;
   findByTicketAndPhone(
@@ -91,6 +97,12 @@ export interface OrderRepository {
     orderNumber: number,
     phone: string,
   ): Promise<PublicOrder | null>;
+  /** Public lookup (#230): returns only the tracking token when ticket n° and guest phone match. */
+  findTrackingTokenByTicketAndPhone(
+    businessId: string,
+    orderNumber: number,
+    phone: string,
+  ): Promise<string | null>;
   list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
   create(businessId: string, input: CreateOrderInput): Promise<Order>;
   update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;

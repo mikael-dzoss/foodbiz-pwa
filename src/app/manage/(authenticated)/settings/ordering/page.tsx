@@ -34,6 +34,8 @@ export default async function OrderingSettingsPage() {
           orderTimingTimeOptional: true,
           deliveryFee: 0,
           minOrderAmount: 0,
+          leadTimeValue: 1,
+          leadTimeUnit: "business_days" as const,
           revolutRevtag: "",
           weroIdentifier: "",
           paymentMethods: { cash: true, revolut: true, wero: true },
@@ -43,5 +45,5 @@ export default async function OrderingSettingsPage() {
           soundAlerts: true,
         };
 
-  return <OrderingSettingsForm settings={settings} dict={dict.settings} />;
+  return <OrderingSettingsForm settings={settings} dict={dict.settings} locale={DEFAULT_LOCALE} />;
 }

@@ -9,6 +9,9 @@ import {
   parseEuroStringToCents,
   centsToEuroString,
   calculateGrossMargin,
+  normalizeSearchText,
+  searchMenuProducts,
+  type SearchableCategoryGroup,
 } from "../product";
 
 describe("Product Domain & Schemas", () => {
@@ -225,6 +228,69 @@ describe("Product Domain & Schemas", () => {
         visible: false,
       });
       expect(res.success).toBe(true);
+    });
+  });
+
+  describe("normalizeSearchText & searchMenuProducts (#203)", () => {
+    const sampleGroups: SearchableCategoryGroup<{
+      id: string;
+      name: string;
+      description: string | null;
+    }>[] = [
+      {
+        id: "cat-1",
+        name: "Pâtisserie Fine",
+        products: [
+          {
+            id: "p-1",
+            name: "Éclair au Café",
+            description: "Choux pastry filled with crème pâtissière",
+          },
+          {
+            id: "p-2",
+            name: "Tarte au Citron",
+            description: "Tangy lemon curd tartlet",
+          },
+        ],
+      },
+      {
+        id: "cat-2",
+        name: "Boulangerie",
+        products: [
+          {
+            id: "p-3",
+            name: "Fougasse aux Olives",
+            description: null,
+          },
+        ],
+      },
+    ];
+
+    it("normalizes case, accents, and ligatures", () => {
+      expect(normalizeSearchText("  Éclair Crème Cœur  ")).toBe("eclair creme coeur");
+    });
+
+    it("returns empty array when query is empty or whitespace", () => {
+      expect(searchMenuProducts(sampleGroups, "")).toEqual([]);
+      expect(searchMenuProducts(sampleGroups, "   ")).toEqual([]);
+    });
+
+    it("matches case- and diacritics-insensitively on product name, description, and category name", () => {
+      // Match product name without accents
+      const byName = searchMenuProducts(sampleGroups, "eclair");
+      expect(byName.map((r) => r.product.id)).toEqual(["p-1"]);
+      expect(byName[0]?.categoryName).toBe("Pâtisserie Fine");
+
+      // Match product description without accents
+      const byDesc = searchMenuProducts(sampleGroups, "CREME");
+      expect(byDesc.map((r) => r.product.id)).toEqual(["p-1"]);
+
+      // Match category name without accents
+      const byCategory = searchMenuProducts(sampleGroups, "patisserie");
+      expect(byCategory.map((r) => r.product.id)).toEqual(["p-1", "p-2"]);
+
+      // Non-matching query
+      expect(searchMenuProducts(sampleGroups, "croissant")).toEqual([]);
     });
   });
 });

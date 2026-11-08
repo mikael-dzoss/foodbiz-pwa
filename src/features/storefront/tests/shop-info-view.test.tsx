@@ -37,6 +37,8 @@ const mockSettings: BusinessSettings = {
   orderTimingTimeOptional: true,
   deliveryFee: 350,
   minOrderAmount: 0,
+  leadTimeValue: 1,
+  leadTimeUnit: "business_days",
   revolutRevtag: "",
   weroIdentifier: "",
   paymentMethods: {
@@ -67,6 +69,8 @@ describe("ShopInfoView (#83)", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "La Boulangerie" })).toBeDefined();
     expect(screen.getByText("Traditional sourdough and pastries")).toBeDefined();
+    expect(screen.getByText("Pickup ready in ~1 business day")).toBeDefined();
+    expect(screen.getAllByText("~1 business day").length).toBeGreaterThan(0);
 
     // Enabled services
     expect(screen.getByText(enDictionary.storefront.servicePickup)).toBeDefined();
@@ -230,5 +234,23 @@ describe("ShopInfoView (#83)", () => {
     expect(
       screen.getByRole("link", { name: new RegExp(enDictionary.storefront.getDirections) }),
     ).toBeDefined();
+  });
+
+  it("exposes anchor targets for every footer section link (#233)", () => {
+    const { container } = render(
+      <ShopInfoView
+        business={mockBusiness}
+        settings={mockSettings}
+        locale="en"
+        dict={enDictionary.storefront}
+      />,
+    );
+    for (const id of ["overview", "contact", "hours", "location", "ordering-policy"]) {
+      const section = container.querySelector(`section#${id}`);
+      expect(section, id).not.toBeNull();
+      const labelledBy = section!.getAttribute("aria-labelledby");
+      expect(labelledBy && container.querySelector(`#${labelledBy}`), id).not.toBeNull();
+      expect(section!.className).toContain("scroll-mt-20");
+    }
   });
 });

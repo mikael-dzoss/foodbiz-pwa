@@ -1,8 +1,9 @@
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ProductDetailView } from "../components/product-detail-view";
-import { CartProvider } from "../context/cart-context";
+import { CartProvider, resetCartStore, useCart } from "../context/cart-context";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import type { AddOnCandidates } from "@/domain/add-ons";
 import type { StorefrontProductData } from "../catalog-data";
 
 const sampleProductData: StorefrontProductData = {
@@ -54,6 +55,8 @@ const sampleProductData: StorefrontProductData = {
     orderTimingTimeOptional: true,
     deliveryFee: 0,
     minOrderAmount: 0,
+    leadTimeValue: 1,
+    leadTimeUnit: "business_days",
     revolutRevtag: "",
     weroIdentifier: "",
     paymentMethods: {
@@ -70,9 +73,10 @@ const sampleProductData: StorefrontProductData = {
   isOpen: true,
 };
 
-describe("ProductDetailView (#81, #82, #202)", () => {
+describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
   afterEach(() => {
     cleanup();
+    resetCartStore();
     localStorage.clear();
   });
 
@@ -178,14 +182,294 @@ describe("ProductDetailView (#81, #82, #202)", () => {
     fireEvent.click(incButton); // quantity is now 3
 
     // Click add to cart
-    const addButton = screen.getByRole("button", {
-      name: new RegExp(`${enDictionary.storefront.addToCart}`),
-    });
+    const addButton = screen.getByTestId("product-add-button");
+    expect(addButton.textContent).toContain("Add 3 to cart");
     fireEvent.click(addButton);
 
     // Should display added feedback and in-cart note
     expect(screen.getByText(enDictionary.storefront.addedToCart)).toBeDefined();
     expect(screen.getByText(/Currently in your cart:/i)).toBeDefined();
+  });
+
+  it("renders the optional Drinks group below the description card in EN and FR and hides it when addOns is null", () => {
+    const sampleDrinks: AddOnCandidates = {
+      kind: "drinks",
+      products: [
+        {
+          ...sampleProductData.product,
+          id: "drink-espresso",
+          name: "Double Espresso",
+          price: 220,
+          stock: 10,
+          imageUrl: "/images/espresso.jpg",
+        },
+        {
+          ...sampleProductData.product,
+          id: "drink-juice",
+          name: "Fresh Orange Juice",
+          price: 400,
+          stock: 5,
+          imageUrl: null,
+        },
+      ],
+    };
+
+    const { unmount } = render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          addOns={{ kind: "drinks", products: [] }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+    expect(screen.queryByTestId("product-addons-group")).toBeNull();
+    unmount();
+
+    const { unmount: unmountEn } = render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          addOns={sampleDrinks}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    const group = screen.getByTestId("product-addons-group");
+    expect(group.tagName).toBe("FIELDSET");
+    expect(screen.getByText("Drinks")).toBeDefined();
+    expect(screen.getByText("Choose any")).toBeDefined();
+    expect(screen.getByTestId("product-addons-optional-badge").textContent).toBe("Optional");
+    expect(screen.getByRole("checkbox", { name: /Double Espresso/i })).toBeDefined();
+    expect(screen.getByRole("checkbox", { name: /Fresh Orange Juice/i })).toBeDefined();
+    expect(screen.getByTestId("product-addon-placeholder-drink-juice")).toBeDefined();
+    expect(screen.getByText(/\+€2\.20|\+2,20\s*€/)).toBeDefined();
+
+    const cooksEl = screen.getByText(enDictionary.storefront.cooksRecommendation);
+    expect(cooksEl.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    unmountEn();
+
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          addOns={sampleDrinks}
+          locale="fr"
+          dict={frDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.getByText("Boissons")).toBeDefined();
+    expect(screen.getByText("Au choix")).toBeDefined();
+    expect(screen.getByTestId("product-addons-optional-badge").textContent).toBe("Optionnel");
+    expect(screen.getByTestId("product-add-button").textContent).toMatch(
+      /Ajouter 1 au panier • 6,50\s*€/,
+    );
+  });
+
+  it("updates CTA total when drinks are selected, adds separate cart lines with main quantity, and resets selections", () => {
+    const sampleDrinks: AddOnCandidates = {
+      kind: "drinks",
+      products: [
+        {
+          ...sampleProductData.product,
+          id: "drink-espresso",
+          name: "Double Espresso",
+          price: 220,
+          stock: 10,
+          imageUrl: "/images/espresso.jpg",
+        },
+        {
+          ...sampleProductData.product,
+          id: "drink-juice",
+          name: "Fresh Orange Juice",
+          price: 400,
+          stock: 3,
+          imageUrl: "/images/orange-juice.jpg",
+        },
+      ],
+    };
+
+    function CartInspector() {
+      const { items } = useCart();
+      return (
+        <ul data-testid="cart-inspector">
+          {items.map((item) => (
+            <li key={item.productId} data-testid={`cart-line-${item.productId}`}>
+              {item.name}:{item.quantity}:{item.price}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          addOns={sampleDrinks}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+        <CartInspector />
+      </CartProvider>,
+    );
+
+    const addButton = screen.getByTestId("product-add-button");
+    expect(addButton.textContent).toContain("Add 1 to cart • €6.50");
+
+    // Tick both drinks: (650 + 220 + 400) * 1 = 1270 (€12.70)
+    const espressoCheckbox = screen.getByRole("checkbox", { name: /Double Espresso/i });
+    const juiceCheckbox = screen.getByRole("checkbox", { name: /Fresh Orange Juice/i });
+    fireEvent.click(espressoCheckbox);
+    fireEvent.click(juiceCheckbox);
+    expect(addButton.textContent).toContain("Add 1 to cart • €12.70");
+
+    // Untick juice: (650 + 220) * 1 = 870 (€8.70)
+    fireEvent.click(juiceCheckbox);
+    expect(addButton.textContent).toContain("Add 1 to cart • €8.70");
+
+    // Increase quantity to 2: (650 + 220) * 2 = 1740 (€17.40)
+    const incButton = screen.getByRole("button", { name: /increase quantity/i });
+    fireEvent.click(incButton);
+    expect(addButton.textContent).toContain("Add 2 to cart • €17.40");
+
+    // Add to cart -> creates main line (qty 2) + espresso line (qty 2) and resets selection
+    fireEvent.click(addButton);
+
+    expect(screen.getByTestId("cart-line-prod-pastry-1").textContent).toBe(
+      "Artisan Sourdough Loaf:2:650",
+    );
+    expect(screen.getByTestId("cart-line-drink-espresso").textContent).toBe(
+      "Double Espresso:2:220",
+    );
+    expect(espressoCheckbox.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("disables add-on checkboxes when the store is not accepting orders", () => {
+    const sampleDrinks: AddOnCandidates = {
+      kind: "drinks",
+      products: [
+        {
+          ...sampleProductData.product,
+          id: "drink-espresso",
+          name: "Double Espresso",
+          price: 220,
+          stock: 10,
+          imageUrl: "/images/espresso.jpg",
+        },
+      ],
+    };
+
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={{ ...sampleProductData, isAcceptingOrders: false }}
+          addOns={sampleDrinks}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    const group = screen.getByTestId("product-addons-group") as HTMLFieldSetElement;
+    expect(group.disabled).toBe(true);
+    const checkbox = screen.getByRole("checkbox", { name: /Double Espresso/i });
+    expect(checkbox).toHaveProperty("disabled", true);
+  });
+
+  it("renders the Accompaniments group on a drink product in EN and FR and adds selected snacks as separate cart lines (#207)", () => {
+    const drinkProductData: StorefrontProductData = {
+      ...sampleProductData,
+      product: {
+        ...sampleProductData.product,
+        id: "prod-drink-1",
+        name: "Double Espresso",
+        price: 220,
+      },
+      categoryName: "Hot & Cold Beverages",
+    };
+    const sampleAccompaniments: AddOnCandidates = {
+      kind: "accompaniments",
+      products: [
+        {
+          ...sampleProductData.product,
+          id: "snack-madeleines",
+          name: "Madeleines x3",
+          price: 300,
+          stock: 20,
+          imageUrl: null,
+        },
+        {
+          ...sampleProductData.product,
+          id: "snack-cookies",
+          name: "Mini Cookies",
+          price: 250,
+          stock: 15,
+          imageUrl: null,
+        },
+      ],
+    };
+
+    const { unmount } = render(
+      <CartProvider>
+        <ProductDetailView
+          productData={drinkProductData}
+          addOns={sampleAccompaniments}
+          locale="fr"
+          dict={frDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.getByText("Accompagnements")).toBeDefined();
+    expect(screen.getByText("Au choix")).toBeDefined();
+    expect(screen.getByTestId("product-addons-optional-badge").textContent).toBe("Optionnel");
+    unmount();
+
+    function CartInspector() {
+      const { items } = useCart();
+      return (
+        <ul data-testid="cart-inspector">
+          {items.map((item) => (
+            <li key={item.productId} data-testid={`cart-line-${item.productId}`}>
+              {item.name}:{item.quantity}:{item.price}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={drinkProductData}
+          addOns={sampleAccompaniments}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+        <CartInspector />
+      </CartProvider>,
+    );
+
+    expect(screen.getByText("Accompaniments")).toBeDefined();
+    const madeleinesCheckbox = screen.getByRole("checkbox", { name: /Madeleines x3/i });
+    fireEvent.click(madeleinesCheckbox);
+
+    const addButton = screen.getByTestId("product-add-button");
+    expect(addButton.textContent).toContain("Add 1 to cart • €5.20");
+    fireEvent.click(addButton);
+
+    expect(screen.getByTestId("cart-line-prod-drink-1").textContent).toBe("Double Espresso:1:220");
+    expect(screen.getByTestId("cart-line-snack-madeleines").textContent).toBe(
+      "Madeleines x3:1:300",
+    );
+    expect(madeleinesCheckbox.getAttribute("aria-checked")).toBe("false");
   });
 
   it("disables add button and renders out-of-stock badge when stock is 0", () => {

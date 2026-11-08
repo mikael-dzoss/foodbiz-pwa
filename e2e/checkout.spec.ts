@@ -6,6 +6,10 @@ test("storefront sticky category bar appears after scrolling past first category
   page,
 }) => {
   await page.goto("/en");
+  const featured = page.getByTestId("featured-section");
+  await expect(featured).toBeVisible();
+  await expect(featured.getByRole("article").first()).toBeVisible();
+  await expect(featured.getByRole("article")).not.toHaveCount(0);
   await expect(page.getByTestId("category-nav-sentinel")).toBeVisible();
   await expect(page.getByTestId("sticky-category-nav")).toHaveCount(0);
 
@@ -16,12 +20,80 @@ test("storefront sticky category bar appears after scrolling past first category
   const sheet = page.getByTestId("category-nav-sheet");
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Menu" })).toBeVisible();
+  await expect(sheet.getByRole("navigation").getByRole("button").first()).toHaveText(
+    "Featured items",
+  );
+  await page.getByTestId("category-nav-sheet-item-featured").click();
+  await expect(page.locator("#category-heading-featured")).toBeFocused();
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(page.getByTestId("sticky-category-nav")).toBeVisible();
+  await page.getByTestId("category-nav-menu-button").click();
 
   await page.getByTestId("category-nav-sheet-item-22222222-2222-4222-8222-222222222202").click();
   await expect(sheet).toBeHidden();
   await expect(
     page.locator("#category-heading-22222222-2222-4222-8222-222222222202"),
   ).toBeFocused();
+
+  const searchLauncher = page.getByTestId("catalog-search-launcher");
+  await expect(searchLauncher).toBeVisible();
+  await searchLauncher.click();
+
+  const searchDialog = page.getByRole("dialog", { name: "Search the menu" });
+  await expect(searchDialog).toBeVisible();
+  const searchInput = page.getByTestId("menu-search-input");
+  await expect(searchInput).toBeFocused();
+
+  await searchInput.fill("crois");
+  await expect(page.getByTestId("menu-search-results-count")).toContainText(/result/i);
+  await expect(page.getByTestId("menu-search-results")).toContainText("Croissant");
+
+  await page.getByTestId("menu-search-back-button").click();
+  await expect(searchDialog).toBeHidden();
+  await expect(searchLauncher).toBeFocused();
+});
+
+test("storefront dish detail adds selected drink as a separate cart line", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/en/p/33333333-3333-4333-8333-333333333301");
+  const addButton = page.getByTestId("product-add-button");
+  if (await addButton.isDisabled()) {
+    const managerContext = await browser.newContext();
+    try {
+      const manager = await managerContext.newPage();
+      await manager.goto("/manage/login");
+      await manager.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+      await expect(manager).toHaveURL("/manage");
+      await manager.goto("/manage/settings/ordering");
+      await manager.getByTestId("input-opening-hours").fill("00:00 - 23:59");
+      await manager
+        .getByTestId("ordering-settings-form")
+        .evaluate((form: HTMLFormElement) => form.requestSubmit());
+      await expect(manager.getByText(/Ordering settings updated successfully/i)).toBeVisible();
+    } finally {
+      await managerContext.close();
+    }
+    await page.reload();
+  }
+
+  const addOnsGroup = page.getByTestId("product-addons-group");
+  await expect(addOnsGroup).toBeVisible();
+  await expect(addOnsGroup).toContainText("Drinks");
+
+  const espressoCheckbox = addOnsGroup.getByRole("checkbox", { name: /Double Espresso/i });
+  await espressoCheckbox.click();
+  await expect(espressoCheckbox).toBeChecked();
+
+  await expect(addButton).toContainText(`Add 1 to cart • ${formatMoney(350, "en")}`);
+  await addButton.click();
+  await expect(espressoCheckbox).not.toBeChecked();
+
+  await page.goto("/en/cart");
+  const cartList = page.getByTestId("cart-items-list");
+  await expect(cartList).toContainText("Traditional Baguette");
+  await expect(cartList).toContainText("Double Espresso");
 });
 
 for (const [locale, method, recipient, phone] of [
@@ -33,7 +105,10 @@ for (const [locale, method, recipient, phone] of [
   }) => {
     await page.goto(`/${locale}`);
     await page.getByTestId("service-mode-pickup").click();
-    await page.getByRole("button", { name: /: Country Sourdough Loaf$/ }).click();
+    await page
+      .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
+      .getByRole("button", { name: /: Country Sourdough Loaf$/ })
+      .click();
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
       await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
@@ -66,6 +141,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
 }) => {
   await page.goto("/en");
   await page
+    .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
     .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
     .click();
   await page.goto("/en/cart");

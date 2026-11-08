@@ -19,6 +19,14 @@ vi.mock("../product-actions", async (importOriginal) => {
 
 const sampleCategories: ProductCategory[] = [
   {
+    id: "cat-2",
+    businessId: "biz-1",
+    name: "Desserts",
+    sortOrder: 2,
+    role: "regular" as const,
+    createdAt: "2026-08-01T08:00:00.000Z",
+  },
+  {
     id: "cat-1",
     businessId: "biz-1",
     name: "Plats",
@@ -27,11 +35,11 @@ const sampleCategories: ProductCategory[] = [
     createdAt: "2026-08-01T08:00:00.000Z",
   },
   {
-    id: "cat-2",
+    id: "cat-3",
     businessId: "biz-1",
-    name: "Desserts",
-    sortOrder: 2,
-    role: "regular" as const,
+    name: "Drinks",
+    sortOrder: 3,
+    role: "drinks" as const,
     createdAt: "2026-08-01T08:00:00.000Z",
   },
 ];
@@ -143,7 +151,7 @@ describe("ProductManager Component (Screen M-40)", () => {
     expect(screen.queryByText("Seasonal Special")).toBeNull();
   });
 
-  it("filters products by category chip and status chips", () => {
+  it("groups products under category section titles sorted by sortOrder and hides empty groups (#205)", () => {
     render(
       <ProductManager
         initialProducts={sampleProducts}
@@ -152,24 +160,114 @@ describe("ProductManager Component (Screen M-40)", () => {
       />,
     );
 
-    // Click Desserts chip
-    const dessertsChip = screen.getByRole("tab", { name: /Desserts/i });
-    fireEvent.click(dessertsChip);
+    // Category section headings are sorted by sortOrder (Plats sortOrder 1, Desserts sortOrder 2)
+    // and empty category (Drinks sortOrder 3) is hidden
+    const platsHeading = screen.getByRole("heading", { level: 2, name: "Plats" });
+    const dessertsHeading = screen.getByRole("heading", { level: 2, name: "Desserts" });
+    expect(dessertsHeading.getAttribute("id")).toBe("category-heading-cat-2");
+    expect(screen.queryByRole("heading", { level: 2, name: "Drinks" })).toBeNull();
 
-    expect(screen.getByText("Tiramisu Maison")).toBeDefined();
-    expect(screen.queryByText("Burger Gourmet")).toBeNull();
+    expect(platsHeading.getAttribute("id")).toBe("category-heading-cat-1");
+    expect(platsHeading.getAttribute("tabindex")).toBe("-1");
+    expect(platsHeading.className).toContain("scroll-mt-");
 
-    // Click Low Stock chip
+    const sections = screen
+      .getAllByRole("region")
+      .filter((el) => el.id.startsWith("category-section-"));
+    expect(sections.map((s) => s.id)).toEqual(["category-section-cat-1", "category-section-cat-2"]);
+
+    // Section counts reflect products in each group
+    expect(screen.getByTestId("category-count-cat-1").textContent).toContain("2");
+    expect(screen.getByTestId("category-count-cat-2").textContent).toContain("1");
+  });
+
+  it("replaces per-category filter chips with sticky CategoryNav and jumps to section on select (#205)", () => {
+    const scrollIntoViewMock = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+    render(
+      <ProductManager
+        initialProducts={sampleProducts}
+        categories={sampleCategories}
+        lowStockThreshold={5}
+      />,
+    );
+
+    // Per-category filter tabs are removed; status filter tabs remain
+    expect(screen.queryByRole("tab", { name: /Plats/i })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /Desserts/i })).toBeNull();
+    expect(screen.getByRole("tab", { name: /All/i })).toBeDefined();
+    expect(screen.getByRole("tab", { name: /Low Stock/i })).toBeDefined();
+    expect(screen.getByRole("tab", { name: /Hidden/i })).toBeDefined();
+
+    // CategoryNav shows tabs for non-empty categories only
+    expect(screen.getByTestId("category-nav-tab-cat-1")).toBeDefined();
+    expect(screen.getByTestId("category-nav-tab-cat-2")).toBeDefined();
+    expect(screen.queryByTestId("category-nav-tab-cat-3")).toBeNull();
+
+    // Selecting a CategoryNav tab scrolls to and focuses the category heading
+    scrollIntoViewMock.mockClear();
+    fireEvent.click(screen.getByTestId("category-nav-tab-cat-2"));
+    const dessertsHeading = screen.getByRole("heading", { level: 2, name: "Desserts" });
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+    expect(document.activeElement).toBe(dessertsHeading);
+
+    // Status filter chips still filter sections and update CategoryNav items
     const lowStockChip = screen.getByRole("tab", { name: /Low Stock/i });
     fireEvent.click(lowStockChip);
     expect(screen.getByText("Tiramisu Maison")).toBeDefined();
     expect(screen.queryByText("Burger Gourmet")).toBeNull();
+    expect(screen.queryByTestId("category-nav-tab-cat-1")).toBeNull();
+    expect(screen.getByTestId("category-nav-tab-cat-2")).toBeDefined();
 
-    // Click Hidden chip
+    // Hidden chip filters to hidden items and updates CategoryNav items
     const hiddenChip = screen.getByRole("tab", { name: /Hidden/i });
     fireEvent.click(hiddenChip);
     expect(screen.getByText("Seasonal Special")).toBeDefined();
-    expect(screen.queryByText("Burger Gourmet")).toBeNull();
+    expect(screen.queryByText("Tiramisu Maison")).toBeNull();
+    expect(screen.getByTestId("category-nav-tab-cat-1")).toBeDefined();
+    expect(screen.queryByTestId("category-nav-tab-cat-2")).toBeNull();
+
+    // All chip restores all categories
+    fireEvent.click(screen.getByRole("tab", { name: /All/i }));
+    expect(screen.getByTestId("category-nav-tab-cat-1")).toBeDefined();
+    expect(screen.getByTestId("category-nav-tab-cat-2")).toBeDefined();
+
+    // Selecting a category via the CategoryNav Menu sheet scrolls and focuses heading
+    scrollIntoViewMock.mockClear();
+    fireEvent.click(screen.getByTestId("category-nav-menu-button"));
+    fireEvent.click(screen.getByTestId("category-nav-sheet-item-cat-1"));
+    const platsHeading = screen.getByRole("heading", { level: 2, name: "Plats" });
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+    expect(document.activeElement).toBe(platsHeading);
+  });
+
+  it("groups products with unknown categoryId under Uncategorized", () => {
+    const uncategorizedProduct: EnrichedProduct = {
+      ...sampleProducts[0]!,
+      id: "prod-uncat",
+      categoryId: "cat-missing",
+      categoryName: "Unknown",
+      name: "Mystery Box",
+    };
+
+    render(
+      <ProductManager
+        initialProducts={[uncategorizedProduct]}
+        categories={sampleCategories}
+        lowStockThreshold={5}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: "Uncategorized" })).toBeDefined();
+    expect(screen.getByTestId("category-nav-tab-uncategorized")).toBeDefined();
+    expect(screen.getByText("Mystery Box")).toBeDefined();
   });
 
   it("shows no-results state when search query doesn't match", () => {

@@ -222,6 +222,10 @@ create table business_settings (
   low_stock_threshold integer not null default 5 check (low_stock_threshold >= 0),
   tax_percentage numeric(5, 2) not null default 0 check (tax_percentage >= 0 and tax_percentage <= 100),
   notifications boolean not null default true,
+  -- Display-only preparation lead time (#225); '~' is added on display
+  lead_time_value integer not null default 1 check (lead_time_value between 1 and 999),
+  lead_time_unit text not null default 'business_days'
+    check (lead_time_unit in ('minutes', 'hours', 'business_days')),
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );
@@ -481,6 +485,70 @@ To allow storefront customers to track orders securely without authenticating, t
      $$ language sql stable;
      ```
    - Enumeration is prevented because callers must supply both the scoped ticket number and the exact matching phone number.
+
+---
+
+### 5.4 Public Featured Products (#204; Supabase follow-up #116)
+
+The storefront uses `OrderRepository.sumQuantitiesByProduct` on the server, never
+`orders.list` or guest records. Rank up to six visible, in-stock products by quantity
+ordered in the inclusive trailing **7 days** ending at an injected `now`; use **30 days**
+only if the seven-day ranking has no eligible products. Use `orders.created_at`, not
+requested fulfilment dates. Exclude `CANCELLED` (the only rejected-equivalent status
+in the current model) and `paid = 'refunded'`, including completed refunds. Other
+statuses and unpaid orders count. Ties use latest order, then product name and ID.
+
+`getStorefrontCatalog` computes the clock inside its `use cache` scope with
+`cacheLife("hours")` and existing catalog tags. The list refreshes with that cache,
+not on every render. Mock fixture creation shifts four existing orders relative to
+its clock (injectable for tests); historical exported fixtures and counts stay intact.
+
+In #116, implement a `security definer` RPC
+`storefront_featured_products(business_id, from, to)` returning **only aggregate
+product IDs and quantities**, not order IDs, guest data, tokens, or item snapshots.
+Grant execution to `anon`; keep direct order/guest reads denied. Because the definer
+bypasses RLS, explicitly reproduce the public catalog's tenant and visibility policy,
+validate bounded trailing windows to prevent arbitrary time-range probing, qualify
+all relations and lock the search path. Illustrative SQL (not a migration):
+
+```sql
+create function public.storefront_featured_products(
+  p_business_id uuid, p_from timestamptz, p_to timestamptz
+)
+returns table (product_id uuid, quantity bigint)
+language sql stable security definer set search_path = '' as $$
+  select p.id, sum(oi.quantity)::bigint
+  from public.orders o
+  join public.order_items oi on oi.order_id = o.id and oi.business_id = o.business_id
+  join public.products p on p.id = oi.product_id and p.business_id = o.business_id
+  where o.business_id = p_business_id
+    and p.visible = true and p.stock > 0
+    and o.status <> 'CANCELLED' and o.paid::text <> 'refunded'
+    and o.created_at between p_from and p_to
+    and p_to <= now() and p_to >= now() - interval '2 hours'
+    and p_to - p_from in (interval '7 days', interval '30 days')
+  group by p.id;
+$$;
+revoke all on function public.storefront_featured_products(uuid, timestamptz, timestamptz) from public;
+grant execute on function public.storefront_featured_products(uuid, timestamptz, timestamptz) to anon, authenticated;
+```
+
+The adapter's aggregate contract also needs `lastOrderedAt` for deterministic ties.
+The production RPC may add `max(o.created_at)` as `last_ordered_at` (still aggregate-only)
+to support that contract; never resolve it through a public full-order query. Apply the
+active-business/public-storefront eligibility check alongside `p.visible` once that
+policy is available. Add RPC permission/tenant/privacy tests in #116.
+
+### Public order lookup (#230)
+
+`/[locale]/track` resolves a tracking token from a ticket number and the guest's phone
+through `OrderRepository.findTrackingTokenByTicketAndPhone`, which returns **only the
+token** (never order or guest data). The Server Action validates with zod, rate-limits
+per IP (10) and per normalized phone (5) per 10 minutes, rejects honeypot submissions
+and answers unknown orders and phone mismatches with the same generic error. In #116,
+back it with a `security definer` RPC `storefront_order_tracking_token(business_id,
+order_number, phone_e164)` returning a single `text` column, granted to `anon`, with
+the search path locked and the phone compared in normalized E.164 form.
 
 ---
 

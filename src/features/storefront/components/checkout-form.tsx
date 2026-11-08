@@ -34,6 +34,7 @@ import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { useCart, resolveServiceMode } from "../context/cart-context";
 import { placeOrderAction } from "../storefront-actions";
 
@@ -136,6 +137,7 @@ export function CheckoutForm({
   const hasLoadedFromStorage = isNameLocked;
 
   // Fulfillment State
+  const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
   const pickupAllowed = settings?.serviceTypes.pickup ?? true;
   const deliveryAllowed = settings?.serviceTypes.delivery ?? true;
   const preselectedService = resolveServiceMode(serviceMode, {
@@ -602,7 +604,9 @@ export function CheckoutForm({
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <span className="text-foreground text-xs font-semibold">{dict.asap}</span>
+                <span className="text-foreground text-xs font-semibold">
+                  {dict.asap.replace("{leadTime}", leadTimeText)}
+                </span>
                 <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold">
                   {dict.recommended}
                 </span>
@@ -831,7 +835,7 @@ export function CheckoutForm({
                       {dict.weroSubtext}
                     </span>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Direct SEPA instant transfer</p>
+                  <p className="text-muted-foreground text-[11px]">{dict.weroDescription}</p>
                 </div>
               </div>
               <QrCode className="text-muted-foreground h-4 w-4 opacity-60" />

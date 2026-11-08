@@ -48,8 +48,11 @@ describe("ProductCatalogCard (#80, #81, #82)", () => {
     const addBtn = screen.getByRole("button", {
       name: `${enDictionary.storefront.addToCart}: ${sampleProduct.name}`,
     });
-    expect(addBtn.className).toContain("min-h-11");
-    expect(addBtn.className).toContain("min-w-11");
+    // Compact 32px row button (owner-approved exception, #228)
+    expect(addBtn.getAttribute("data-size")).toBe("compact");
+    expect(addBtn.className).toContain("h-8");
+    expect(addBtn.className).toContain("w-8");
+    expect(addBtn.className).not.toContain("min-h-11");
     expect(addBtn.className).toContain("rounded-full");
   });
 

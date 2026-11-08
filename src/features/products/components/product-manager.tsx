@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { CategoryNav, prefersReducedMotion, useScrollSpy } from "@/components/navigation";
 import { formatMoney, getStockStatus } from "@/domain";
 import {
   adjustProductStockAction,
@@ -63,14 +64,6 @@ export function ProductManager({
   const outOfStockCount = products.filter((p) => p.stock === 0).length;
   const hiddenCount = products.filter((p) => !p.visible).length;
 
-  const countByCategory = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of products) {
-      map.set(p.categoryId, (map.get(p.categoryId) ?? 0) + 1);
-    }
-    return map;
-  }, [products]);
-
   // Filtering
   const filteredProducts = React.useMemo(() => {
     return products.filter((p) => {
@@ -83,21 +76,75 @@ export function ProductManager({
       }
 
       // Filter chips
-      if (selectedFilter === "all") return true;
       if (selectedFilter === "low_stock") {
         return p.stock > 0 && p.stock <= lowStockThreshold;
-      }
-      if (selectedFilter === "out_of_stock") {
-        return p.stock === 0;
       }
       if (selectedFilter === "hidden") {
         return !p.visible;
       }
 
-      // Category ID filter
-      return p.categoryId === selectedFilter;
+      return true;
     });
   }, [products, searchQuery, selectedFilter, lowStockThreshold]);
+
+  // Group filtered products by category sorted by sortOrder (#205)
+  const groupedCategories = React.useMemo(() => {
+    const sortedCats = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
+    const groupMap = new Map<
+      string,
+      { id: string; name: string; sortOrder: number; products: EnrichedProduct[] }
+    >();
+    for (const cat of sortedCats) {
+      groupMap.set(cat.id, {
+        id: cat.id,
+        name: cat.name,
+        sortOrder: cat.sortOrder,
+        products: [],
+      });
+    }
+
+    const uncategorized: EnrichedProduct[] = [];
+    for (const product of filteredProducts) {
+      const group = groupMap.get(product.categoryId);
+      if (group) {
+        group.products.push(product);
+      } else {
+        uncategorized.push(product);
+      }
+    }
+
+    const groups = Array.from(groupMap.values()).filter((g) => g.products.length > 0);
+    if (uncategorized.length > 0) {
+      groups.push({
+        id: "uncategorized",
+        name: "Uncategorized",
+        sortOrder: 9999,
+        products: uncategorized,
+      });
+    }
+    return groups;
+  }, [categories, filteredProducts]);
+
+  const sectionIds = React.useMemo(() => groupedCategories.map((g) => g.id), [groupedCategories]);
+  const navItems = React.useMemo(
+    () => groupedCategories.map((g) => ({ id: g.id, label: g.name })),
+    [groupedCategories],
+  );
+  const { activeId, setActiveId } = useScrollSpy(sectionIds);
+
+  const handleSelectCategory = (categoryId: string) => {
+    setActiveId(categoryId);
+    const heading = document.getElementById(`category-heading-${categoryId}`);
+    if (!heading) return;
+
+    if (typeof heading.scrollIntoView === "function") {
+      heading.scrollIntoView({
+        behavior: prefersReducedMotion() ? "instant" : "smooth",
+        block: "start",
+      });
+    }
+    heading.focus({ preventScroll: true });
+  };
 
   // Quick Inline Stock Adjustment (+1 / -1)
   const handleQuickStockStep = async (productId: string, delta: number) => {
@@ -260,26 +307,6 @@ export function ProductManager({
             All ({totalCount})
           </button>
 
-          {categories.map((cat) => {
-            const count = countByCategory.get(cat.id) ?? 0;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                role="tab"
-                aria-selected={selectedFilter === cat.id}
-                onClick={() => setSelectedFilter(cat.id)}
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                  selectedFilter === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground hover:bg-muted border"
-                }`}
-              >
-                {cat.name} ({count})
-              </button>
-            );
-          })}
-
           {lowStockCount > 0 && (
             <button
               type="button"
@@ -314,168 +341,222 @@ export function ProductManager({
         </div>
       </div>
 
-      {/* Product List View */}
-      {filteredProducts.length > 0 ? (
-        <div className="space-y-3" data-testid="product-list">
-          {filteredProducts.map((p) => {
-            const stockStatus = getStockStatus(p.stock, lowStockThreshold);
-            return (
-              <div
-                key={p.id}
-                data-testid={`product-card-${p.id}`}
-                className={`border-border bg-card rounded-lg border p-3.5 transition-shadow ${
-                  !p.visible ? "opacity-75" : ""
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Thumbnail Image with Next/Image and product name alt */}
-                  <div className="border-border bg-muted/40 relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border">
-                    {p.imageUrl ? (
-                      <Image
-                        src={p.imageUrl}
-                        alt={p.name}
-                        fill
-                        sizes="64px"
-                        unoptimized={p.imageUrl.startsWith("data:")}
-                        className="object-cover"
-                      />
-                    ) : (
-                      <Package className="text-muted-foreground h-7 w-7" />
-                    )}
-                  </div>
+      {/* Sticky Category Navigation Ribbon (Stitch M-40, #205) */}
+      {navItems.length > 0 && (
+        <div data-testid="manager-category-nav" className="sticky top-0 z-30 -mx-4 sm:mx-0">
+          <CategoryNav
+            items={navItems}
+            activeId={activeId}
+            onSelect={handleSelectCategory}
+            menuTitle="Categories"
+            menuSubtitle={`${filteredProducts.length} ${filteredProducts.length === 1 ? "product" : "products"}`}
+            menuLabel="Browse categories"
+            dismissLabel="Dismiss"
+          />
+        </div>
+      )}
 
-                  {/* Main Product Details */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="text-foreground truncate text-sm font-semibold">{p.name}</h2>
-                      <span className="text-foreground text-sm font-bold tabular-nums">
-                        {formatMoney(p.price)}
-                      </span>
-                    </div>
-
-                    <p className="text-muted-foreground truncate text-xs font-medium">
-                      {p.categoryName}
-                      {p.unitCost > 0 && (
-                        <span className="tabular-nums"> · Cost: {formatMoney(p.unitCost)}</span>
-                      )}
-                    </p>
-
-                    {/* Status & Visibility Badges */}
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {stockStatus === "out_of_stock" && (
-                        <Badge variant="destructive" className="font-semibold tabular-nums">
-                          0 in stock
-                        </Badge>
-                      )}
-                      {stockStatus === "low_stock" && (
-                        <Badge variant="warning" className="font-semibold tabular-nums">
-                          <AlertTriangle className="mr-1 inline h-3 w-3" />
-                          {p.stock} left
-                        </Badge>
-                      )}
-                      {stockStatus === "in_stock" && (
-                        <Badge variant="success" className="font-semibold tabular-nums">
-                          {p.stock} in stock
-                        </Badge>
-                      )}
-
-                      {p.visible ? (
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground gap-1 text-[11px]"
-                        >
-                          <Eye className="h-3 w-3" /> Visible
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1 text-[11px]">
-                          <EyeOff className="h-3 w-3" /> Hidden
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Action Controls Row */}
-                <div className="border-border mt-3 flex items-center justify-between border-t pt-2.5">
-                  {/* Quick Stock Controls (- / count / +) */}
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleQuickStockStep(p.id, -1)}
-                      disabled={p.stock <= 0}
-                      className="text-foreground hover:bg-muted h-9 w-9"
-                      aria-label={`Decrease stock for ${p.name}`}
-                      data-testid={`quick-stock-minus-${p.id}`}
-                    >
-                      -
-                    </Button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenStockSheet(p)}
-                      aria-label={`${p.stock} - Open stock sheet for ${p.name}`}
-                      className="hover:bg-muted text-foreground flex h-9 min-w-10 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors"
-                      data-testid={`quick-stock-count-${p.id}`}
-                    >
-                      {p.stock}
-                    </button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleQuickStockStep(p.id, 1)}
-                      className="text-foreground hover:bg-muted h-9 w-9"
-                      aria-label={`Increase stock for ${p.name}`}
-                      data-testid={`quick-stock-plus-${p.id}`}
-                    >
-                      +
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenStockSheet(p)}
-                      className="text-muted-foreground hover:text-foreground h-9 px-2 text-xs"
-                      aria-label={`Adjust stock for ${p.name}`}
-                    >
-                      <SlidersHorizontal className="mr-1 h-3.5 w-3.5" /> Adjust
-                    </Button>
-                  </div>
-
-                  {/* Edit and Visibility Toggle Actions */}
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleToggleVisibility(p.id)}
-                      className="text-muted-foreground hover:text-foreground h-9 w-9"
-                      aria-label={p.visible ? `Hide ${p.name}` : `Show ${p.name}`}
-                      data-testid={`toggle-visibility-${p.id}`}
-                    >
-                      {p.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleOpenEditForm(p)}
-                      className="text-foreground hover:bg-muted h-9 w-9"
-                      aria-label={`Edit ${p.name}`}
-                      data-testid={`edit-product-${p.id}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
+      {/* Product List View Grouped by Category */}
+      {groupedCategories.length > 0 ? (
+        <div className="space-y-6" data-testid="product-list">
+          {groupedCategories.map((group) => (
+            <section
+              key={group.id}
+              id={`category-section-${group.id}`}
+              aria-labelledby={`category-heading-${group.id}`}
+              data-testid={`category-section-${group.id}`}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-1.5">
+                  <h2
+                    id={`category-heading-${group.id}`}
+                    tabIndex={-1}
+                    className="text-muted-foreground scroll-mt-20 text-xs font-bold tracking-wider uppercase focus:outline-hidden"
+                  >
+                    {group.name}
+                  </h2>
+                  <span
+                    data-testid={`category-count-${group.id}`}
+                    className="text-muted-foreground text-xs font-medium tabular-nums"
+                  >
+                    · {group.products.length}
+                  </span>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="space-y-3" data-testid={`category-group-${group.id}`}>
+                {group.products.map((p) => {
+                  const stockStatus = getStockStatus(p.stock, lowStockThreshold);
+                  return (
+                    <div
+                      key={p.id}
+                      data-testid={`product-card-${p.id}`}
+                      className={`border-border bg-card rounded-lg border p-3.5 transition-shadow ${
+                        !p.visible ? "opacity-75" : ""
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Thumbnail Image with Next/Image and product name alt */}
+                        <div className="border-border bg-muted/40 relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                          {p.imageUrl ? (
+                            <Image
+                              src={p.imageUrl}
+                              alt={p.name}
+                              fill
+                              sizes="64px"
+                              unoptimized={p.imageUrl.startsWith("data:")}
+                              className="object-cover"
+                            />
+                          ) : (
+                            <Package className="text-muted-foreground h-7 w-7" />
+                          )}
+                        </div>
+
+                        {/* Main Product Details */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-foreground truncate text-sm font-semibold">
+                              {p.name}
+                            </h3>
+                            <span className="text-foreground text-sm font-bold tabular-nums">
+                              {formatMoney(p.price)}
+                            </span>
+                          </div>
+
+                          <p className="text-muted-foreground truncate text-xs font-medium">
+                            {p.categoryName}
+                            {p.unitCost > 0 && (
+                              <span className="tabular-nums">
+                                {" "}
+                                · Cost: {formatMoney(p.unitCost)}
+                              </span>
+                            )}
+                          </p>
+
+                          {/* Status & Visibility Badges */}
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {stockStatus === "out_of_stock" && (
+                              <Badge variant="destructive" className="font-semibold tabular-nums">
+                                0 in stock
+                              </Badge>
+                            )}
+                            {stockStatus === "low_stock" && (
+                              <Badge variant="warning" className="font-semibold tabular-nums">
+                                <AlertTriangle className="mr-1 inline h-3 w-3" />
+                                {p.stock} left
+                              </Badge>
+                            )}
+                            {stockStatus === "in_stock" && (
+                              <Badge variant="success" className="font-semibold tabular-nums">
+                                {p.stock} in stock
+                              </Badge>
+                            )}
+
+                            {p.visible ? (
+                              <Badge
+                                variant="outline"
+                                className="text-muted-foreground gap-1 text-[11px]"
+                              >
+                                <Eye className="h-3 w-3" /> Visible
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="gap-1 text-[11px]">
+                                <EyeOff className="h-3 w-3" /> Hidden
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Action Controls Row */}
+                      <div className="border-border mt-3 flex items-center justify-between border-t pt-2.5">
+                        {/* Quick Stock Controls (- / count / +) */}
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleQuickStockStep(p.id, -1)}
+                            disabled={p.stock <= 0}
+                            className="text-foreground hover:bg-muted h-9 w-9"
+                            aria-label={`Decrease stock for ${p.name}`}
+                            data-testid={`quick-stock-minus-${p.id}`}
+                          >
+                            -
+                          </Button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenStockSheet(p)}
+                            aria-label={`${p.stock} - Open stock sheet for ${p.name}`}
+                            className="hover:bg-muted text-foreground flex h-9 min-w-10 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors"
+                            data-testid={`quick-stock-count-${p.id}`}
+                          >
+                            {p.stock}
+                          </button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleQuickStockStep(p.id, 1)}
+                            className="text-foreground hover:bg-muted h-9 w-9"
+                            aria-label={`Increase stock for ${p.name}`}
+                            data-testid={`quick-stock-plus-${p.id}`}
+                          >
+                            +
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenStockSheet(p)}
+                            className="text-muted-foreground hover:text-foreground h-9 px-2 text-xs"
+                            aria-label={`Adjust stock for ${p.name}`}
+                          >
+                            <SlidersHorizontal className="mr-1 h-3.5 w-3.5" /> Adjust
+                          </Button>
+                        </div>
+
+                        {/* Edit and Visibility Toggle Actions */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleToggleVisibility(p.id)}
+                            className="text-muted-foreground hover:text-foreground h-9 w-9"
+                            aria-label={p.visible ? `Hide ${p.name}` : `Show ${p.name}`}
+                            data-testid={`toggle-visibility-${p.id}`}
+                          >
+                            {p.visible ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleOpenEditForm(p)}
+                            className="text-foreground hover:bg-muted h-9 w-9"
+                            aria-label={`Edit ${p.name}`}
+                            data-testid={`edit-product-${p.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       ) : totalCount === 0 ? (
         /* Empty State: No products exist */

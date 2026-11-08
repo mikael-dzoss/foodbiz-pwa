@@ -1,10 +1,17 @@
-import { act, cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { act, cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StorefrontCartBar } from "../components/storefront-cart-bar";
 import { StorefrontCatalogView } from "../components/storefront-catalog-view";
 import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
-import { enDictionary } from "@/domain/i18n";
+import { MenuSearchProvider } from "../context/menu-search-context";
+import { StorefrontHeader } from "../components/storefront-header";
+import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  usePathname: () => "/en",
+}));
 
 type ObserverCallback = IntersectionObserverCallback;
 
@@ -72,6 +79,8 @@ const mockCatalog: StorefrontCatalogData = {
     orderTimingTimeOptional: true,
     deliveryFee: 200,
     minOrderAmount: 0,
+    leadTimeValue: 1,
+    leadTimeUnit: "business_days",
     revolutRevtag: "",
     weroIdentifier: "",
     paymentMethods: { cash: true, revolut: true, wero: true },
@@ -144,6 +153,7 @@ const mockCatalog: StorefrontCatalogData = {
       ],
     },
   ],
+  featuredProducts: [],
   totalVisibleProducts: 2,
   isAcceptingOrders: true,
   isOpen: true,
@@ -215,10 +225,79 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
   });
 
   describe("StorefrontCatalogView", () => {
-    it("renders all categories and filters products by non-sticky search query", () => {
+    it("puts featured first in tabs and Menu sheet, observes it and focuses its heading", () => {
+      const product = mockCatalog.groupedCategories[0].products[0];
+      render(
+        <CartProvider>
+          <StorefrontCatalogView
+            catalog={{ ...mockCatalog, featuredProducts: [product] }}
+            locale="fr"
+            dict={frDictionary.storefront}
+          />
+        </CartProvider>,
+      );
+      const heading = screen.getByRole("heading", {
+        level: 2,
+        name: frDictionary.storefront.featuredItems,
+      });
+      expect(heading.getAttribute("tabindex")).toBe("-1");
+      expect(heading.className).toContain("scroll-mt-28");
+      const featured = document.getElementById("featured")!;
+      const spy = MockIntersectionObserver.instances.find((observer) =>
+        observer.observedElements.includes(featured),
+      );
+      expect(spy).toBeDefined();
+      const sentinel = screen.getByTestId("category-nav-sentinel");
+      expect(featured.contains(sentinel)).toBe(true);
+      const sentinelObserver = MockIntersectionObserver.instances.find((observer) =>
+        observer.observedElements.includes(sentinel),
+      )!;
+      act(() =>
+        sentinelObserver.trigger([
+          {
+            target: sentinel,
+            isIntersecting: false,
+            boundingClientRect: { top: -20 } as DOMRectReadOnly,
+          },
+        ]),
+      );
+      const nav = screen.getByRole("navigation", {
+        name: frDictionary.storefront.browseCategories,
+      });
+      const tab = within(nav).getAllByRole("button")[0];
+      expect(tab.textContent).toBe(frDictionary.storefront.featuredItems);
+      act(() => spy!.trigger([{ target: featured, isIntersecting: true }]));
+      expect(tab.getAttribute("aria-current")).toBe("true");
+      fireEvent.click(tab);
+      expect(document.activeElement).toBe(heading);
+      fireEvent.click(screen.getByTestId("category-nav-menu-button"));
+      const menu = screen.getByRole("navigation", { name: frDictionary.storefront.menu });
+      const firstItem = within(menu).getAllByRole("button")[0];
+      expect(firstItem.textContent).toBe(frDictionary.storefront.featuredItems);
+      fireEvent.click(firstItem);
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it("hides featured and omits its tab when its list is empty", () => {
       render(
         <CartProvider>
           <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
+        </CartProvider>,
+      );
+      expect(screen.queryByRole("heading", { name: "Featured items" })).toBeNull();
+      expect(screen.queryByTestId("featured-carousel")).toBeNull();
+    });
+    it("renders all categories and opens full-screen menu search overlay from the header launcher (#203, #229)", () => {
+      render(
+        <CartProvider>
+          <MenuSearchProvider>
+            <StorefrontHeader locale="en" dict={enDictionary.storefront} />
+            <StorefrontCatalogView
+              catalog={mockCatalog}
+              locale="en"
+              dict={enDictionary.storefront}
+            />
+          </MenuSearchProvider>
         </CartProvider>,
       );
 
@@ -228,16 +307,105 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       expect(screen.getByText("Sourdough Loaf")).toBeDefined();
       expect(screen.getByText("Croissant")).toBeDefined();
 
-      // Search input is rendered above categories (non-sticky) and filters across categories
-      const searchInput = screen.getByRole("searchbox");
+      // Inline search input is removed; the only launcher sits in the header (#229)
+      expect(screen.queryByTestId("catalog-search-input")).toBeNull();
+      const launcher = screen.getByRole("button", { name: "Search the menu" });
+      expect(screen.getByRole("banner").contains(launcher)).toBe(true);
+      expect(launcher.getAttribute("data-testid")).toBe("catalog-search-launcher");
+
+      // Open full-screen search dialog
+      fireEvent.click(launcher);
+
+      const dialog = screen.getByRole("dialog", { name: "Search the menu" });
+      expect(dialog).toBeDefined();
+
+      const searchInput = screen.getByTestId("menu-search-input") as HTMLInputElement;
+      expect(searchInput.getAttribute("placeholder")).toBe("Search the menu");
+      expect(document.activeElement).toBe(searchInput);
+
+      // Initial state when query is empty shows hint and no product results
+      expect(screen.getByTestId("menu-search-initial-hint")).toBeDefined();
+      expect(screen.queryByTestId("menu-search-results")).toBeNull();
+      expect(screen.queryByTestId("menu-search-clear-button")).toBeNull();
+
+      // Typing filters products across categories and shows results count + clear button
+      fireEvent.change(searchInput, { target: { value: "o" } });
+      expect(screen.getByTestId("menu-search-results-count").textContent).toContain("2 results");
+
       fireEvent.change(searchInput, { target: { value: "Croissant" } });
+      expect(screen.getByTestId("menu-search-results-count").textContent).toContain("1 result");
+      expect(screen.getByTestId("menu-search-results").textContent).toContain("Croissant");
+      expect(screen.getByTestId("menu-search-results").textContent).not.toContain("Sourdough Loaf");
 
-      expect(screen.queryByText("Sourdough Loaf")).toBeNull();
-      expect(screen.getByText("Croissant")).toBeDefined();
+      // Matching category name shows all products in that category
+      fireEvent.change(searchInput, { target: { value: "breads" } });
+      expect(screen.getByTestId("menu-search-results-count").textContent).toContain("1 result");
+      expect(screen.getByTestId("menu-search-results").textContent).toContain("Sourdough Loaf");
 
-      // Search for non-existent product
+      // Search for non-existent product shows empty state with query
       fireEvent.change(searchInput, { target: { value: "Donut" } });
-      expect(screen.getByText(enDictionary.storefront.noProductsFound)).toBeDefined();
+      expect(screen.getByTestId("menu-search-empty-state").textContent).toContain(
+        'No results for "Donut"',
+      );
+
+      // Clear button resets query and keeps focus on search input
+      const clearBtn = screen.getByTestId("menu-search-clear-button");
+      fireEvent.click(clearBtn);
+      expect(searchInput.value).toBe("");
+      expect(screen.getByTestId("menu-search-initial-hint")).toBeDefined();
+      expect(document.activeElement).toBe(searchInput);
+
+      // Back button closes dialog and restores focus to launcher
+      fireEvent.click(screen.getByTestId("menu-search-back-button"));
+      expect(screen.queryByRole("dialog", { name: "Search the menu" })).toBeNull();
+      expect(document.activeElement).toBe(launcher);
+    });
+
+    it("closes full-screen search on Escape and keeps the sticky CategoryNav free of launchers (#229)", () => {
+      render(
+        <CartProvider>
+          <MenuSearchProvider>
+            <StorefrontHeader locale="en" dict={enDictionary.storefront} />
+            <StorefrontCatalogView
+              catalog={mockCatalog}
+              locale="en"
+              dict={enDictionary.storefront}
+            />
+          </MenuSearchProvider>
+        </CartProvider>,
+      );
+
+      // Scroll past sentinel so sticky CategoryNav is shown
+      const sentinel = screen.getByTestId("category-nav-sentinel");
+      const sentinelObserver = MockIntersectionObserver.instances.find((obs) =>
+        obs.observedElements.includes(sentinel),
+      );
+      act(() => {
+        sentinelObserver!.trigger([
+          {
+            target: sentinel,
+            isIntersecting: false,
+            boundingClientRect: { top: -20 } as DOMRectReadOnly,
+          },
+        ]);
+      });
+
+      const stickyNav = screen.getByTestId("sticky-category-nav");
+      const launchers = screen.getAllByRole("button", { name: "Search the menu" });
+      expect(launchers).toHaveLength(1);
+      const headerLauncher = launchers[0];
+      expect(stickyNav.contains(headerLauncher)).toBe(false);
+
+      fireEvent.click(headerLauncher);
+      expect(screen.getByRole("dialog", { name: "Search the menu" })).toBeDefined();
+
+      // Press Escape to close
+      fireEvent.keyDown(screen.getByRole("dialog", { name: "Search the menu" }), {
+        key: "Escape",
+        code: "Escape",
+      });
+      expect(screen.queryByRole("dialog", { name: "Search the menu" })).toBeNull();
+      expect(document.activeElement).toBe(headerLauncher);
     });
 
     it("shows sticky CategoryNav only once the first category title has scrolled past and scrolls/focuses on selection", () => {
@@ -320,6 +488,20 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       const categoryGroup = screen.getByTestId("category-group-cat-1");
       expect(categoryGroup.className).toContain("divide-y");
       expect(categoryGroup.className).toContain("rounded-xl");
+    });
+
+    it("renders empty catalog message when there are no visible products", () => {
+      render(
+        <CartProvider>
+          <StorefrontCatalogView
+            catalog={{ ...mockCatalog, groupedCategories: [], totalVisibleProducts: 0 }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>,
+      );
+
+      expect(screen.getByText(enDictionary.storefront.noProductsInCategory)).toBeDefined();
     });
   });
 });

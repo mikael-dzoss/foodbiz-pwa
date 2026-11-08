@@ -35,17 +35,17 @@ describe("Internationalized storefront pages", () => {
     const page = await LocaleHomePage({ params: Promise.resolve({ locale: "en" }) });
     render(<CartProvider>{page}</CartProvider>);
 
-    // Heading and search should be present
-    expect(screen.getByPlaceholderText(/Search products/i)).toBeDefined();
+    // Search launcher lives in the storefront header now (#229), not in the catalog
+    expect(screen.queryByRole("button", { name: /Search the menu/i })).toBeNull();
     // Category section headings rendered
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
   });
 
-  it("LocaleHomePage renders French catalog with French search placeholder", async () => {
+  it("LocaleHomePage renders French catalog without an inline search launcher", async () => {
     const page = await LocaleHomePage({ params: Promise.resolve({ locale: "fr" }) });
     render(<CartProvider>{page}</CartProvider>);
 
-    expect(screen.getByPlaceholderText(/Rechercher un produit/i)).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Rechercher dans le menu/i })).toBeNull();
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(0);
   });
 
@@ -71,5 +71,36 @@ describe("Internationalized storefront pages", () => {
     });
 
     expect(notFoundMock).toHaveBeenCalled();
+  });
+
+  it("ProductDetailPage renders a dish with its optional Drinks add-on group", async () => {
+    const page = await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333301" }),
+    });
+    render(<CartProvider>{page}</CartProvider>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Traditional Baguette" })).toBeDefined();
+    expect(screen.getByTestId("product-addons-group")).toBeDefined();
+    expect(screen.getByRole("checkbox", { name: /Double Espresso/i })).toBeDefined();
+  });
+
+  it("ProductDetailPage renders a drink with Accompaniments and a snack with no add-on group (#207)", async () => {
+    const drinkPage = await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333313" }),
+    });
+    const { unmount } = render(<CartProvider>{drinkPage}</CartProvider>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Double Espresso" })).toBeDefined();
+    expect(screen.getByText("Accompaniments")).toBeDefined();
+    expect(screen.getByRole("checkbox", { name: /Madeleines x3/i })).toBeDefined();
+    unmount();
+
+    const snackPage = await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333316" }),
+    });
+    render(<CartProvider>{snackPage}</CartProvider>);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Madeleines x3" })).toBeDefined();
+    expect(screen.queryByTestId("product-addons-group")).toBeNull();
   });
 });

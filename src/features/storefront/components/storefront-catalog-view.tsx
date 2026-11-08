@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import {
   CategoryNav,
   prefersReducedMotion,
@@ -12,8 +12,11 @@ import {
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import type { StorefrontCatalogData } from "../catalog-data";
 import { ServiceToggleHeader } from "./service-toggle-header";
+import { FeaturedCarousel } from "./featured-carousel";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
+import { MenuSearchDialog } from "./menu-search-dialog";
+import { useMenuSearchOptional } from "../context/menu-search-context";
 
 export interface StorefrontCatalogViewProps {
   catalog: StorefrontCatalogData;
@@ -22,37 +25,23 @@ export interface StorefrontCatalogViewProps {
 }
 
 export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatalogViewProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const menuSearch = useMenuSearchOptional();
+  const [localSearchOpen, setLocalSearchOpen] = useState(false);
+  const searchOpen = menuSearch?.open ?? localSearchOpen;
+  const setSearchOpen = menuSearch?.setOpen ?? setLocalSearchOpen;
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-
-  // Filter grouped categories and products based on search query
-  const filteredGroups = useMemo(() => {
-    return catalog.groupedCategories
-      .map((group) => {
-        if (!normalizedQuery) return group;
-        const matchingProducts = group.products.filter((p) => {
-          return (
-            p.name.toLowerCase().includes(normalizedQuery) ||
-            p.description?.toLowerCase().includes(normalizedQuery)
-          );
-        });
-        return {
-          ...group,
-          products: matchingProducts,
-        };
-      })
-      .filter((group): group is (typeof catalog.groupedCategories)[number] => {
-        return group.products.length > 0;
-      });
-  }, [catalog, normalizedQuery]);
-
-  const hasAnyProducts = filteredGroups.some((g) => g.products.length > 0);
-  const sectionIds = useMemo(() => filteredGroups.map((g) => g.id), [filteredGroups]);
+  const groupedCategories = catalog.groupedCategories;
+  const hasAnyProducts = groupedCategories.some((g) => g.products.length > 0);
+  const hasFeatured = catalog.featuredProducts.length > 0;
   const navItems = useMemo(
-    () => filteredGroups.map((g) => ({ id: g.id, label: g.name })),
-    [filteredGroups],
+    () => [
+      ...(hasFeatured ? [{ id: "featured", label: dict.featuredItems }] : []),
+      ...groupedCategories.map((g) => ({ id: g.id, label: g.name })),
+    ],
+    [hasFeatured, dict.featuredItems, groupedCategories],
   );
+
+  const sectionIds = useMemo(() => navItems.map((item) => item.id), [navItems]);
 
   const { activeId, setActiveId } = useScrollSpy(sectionIds);
   const { sentinelRef, isPast } = useScrollPastSentinel(hasAnyProducts);
@@ -69,6 +58,10 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
       });
     }
     heading.focus({ preventScroll: true });
+  };
+
+  const handleRestoreLauncherFocus = () => {
+    menuSearch?.launcherRef.current?.focus({ preventScroll: true });
   };
 
   return (
@@ -103,46 +96,39 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         dict={dict}
       />
 
-      {/* Non-sticky Search Input (replaced by search launcher in #203) */}
-      <div className="mb-4 flex w-full items-center">
-        <div className="relative flex w-full items-center">
-          <Search className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={dict.searchPlaceholder}
-            aria-label={dict.searchPlaceholder}
-            data-testid="catalog-search-input"
-            className="border-input bg-card text-foreground placeholder:text-muted-foreground focus:border-primary h-11 w-full rounded-lg border pr-3 pl-9 text-base transition-colors focus:outline-hidden sm:text-sm"
-          />
-        </div>
-      </div>
-
       {/* Catalog Grouped by Category (Stitch C-01 / C-01b) */}
       {hasAnyProducts ? (
         <div className="flex flex-col gap-6">
-          {filteredGroups.map((group, groupIdx) => (
+          <FeaturedCarousel
+            products={catalog.featuredProducts}
+            locale={locale}
+            dict={dict}
+            disabled={!catalog.isAcceptingOrders}
+            headingRef={hasFeatured ? sentinelRef : undefined}
+          />
+          {groupedCategories.map((group, groupIdx) => (
             <section
               key={group.id}
               id={`category-section-${group.id}`}
               aria-labelledby={`category-heading-${group.id}`}
             >
               <div
-                ref={groupIdx === 0 ? sentinelRef : undefined}
-                data-testid={groupIdx === 0 ? "category-nav-sentinel" : undefined}
-                className="mb-2 flex items-center justify-between"
+                ref={groupIdx === 0 && !hasFeatured ? sentinelRef : undefined}
+                data-testid={groupIdx === 0 && !hasFeatured ? "category-nav-sentinel" : undefined}
+                className="mb-2 flex min-h-11 items-center justify-between gap-2"
               >
-                <h2
-                  id={`category-heading-${group.id}`}
-                  tabIndex={-1}
-                  className="text-foreground scroll-mt-28 text-base font-semibold tracking-tight focus:outline-hidden"
-                >
-                  {group.name}
-                </h2>
-                <span className="text-muted-foreground text-xs font-medium tabular-nums">
-                  {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <h2
+                    id={`category-heading-${group.id}`}
+                    tabIndex={-1}
+                    className="text-foreground scroll-mt-28 text-base font-semibold tracking-tight focus:outline-hidden"
+                  >
+                    {group.name}
+                  </h2>
+                  <span className="text-muted-foreground text-xs font-medium tabular-nums">
+                    {group.products.length} {group.products.length === 1 ? dict.item : dict.items}
+                  </span>
+                </div>
               </div>
 
               <div
@@ -181,14 +167,25 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         </div>
       ) : (
         <div className="border-border bg-card my-8 flex flex-col items-center justify-center rounded-xl border p-8 text-center">
-          <p className="text-foreground text-sm font-semibold">
-            {searchQuery ? dict.noProductsFound : dict.noProductsInCategory}
-          </p>
+          <p className="text-foreground text-sm font-semibold">{dict.noProductsInCategory}</p>
         </div>
       )}
 
+      {/* Full-Screen Menu Search Overlay (Stitch C-01d, #203) */}
+      <MenuSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onCloseRestoreFocus={handleRestoreLauncherFocus}
+        groupedCategories={groupedCategories}
+        businessName={catalog.business.name}
+        lowStockThreshold={catalog.settings?.lowStockThreshold ?? 5}
+        isAcceptingOrders={catalog.isAcceptingOrders}
+        locale={locale}
+        dict={dict}
+      />
+
       {/* Floating Bottom Cart Bar */}
-      <StorefrontCartBar locale={locale} dict={dict} />
+      {!searchOpen && <StorefrontCartBar locale={locale} dict={dict} />}
     </div>
   );
 }

@@ -57,28 +57,18 @@ describe("StorefrontFooter (#201)", () => {
       "Artisanal organic sourdough bakery and French pastries in Paris.",
     );
 
-    // Row 1: Contact lines
-    const phoneLink = screen.getByTestId("footer-phone-link");
-    expect(phoneLink.getAttribute("href")).toBe("tel:+33 1 43 55 67 89");
-    expect(phoneLink.textContent).toContain("+33 1 43 55 67 89");
-
-    const emailLink = screen.getByTestId("footer-email-link");
-    expect(emailLink.getAttribute("href")).toBe("mailto:bonjour@lapetiteboulangerie.fr");
-    expect(emailLink.textContent).toContain("bonjour@lapetiteboulangerie.fr");
-
-    const waLink = screen.getByTestId("footer-whatsapp-link");
-    expect(waLink.getAttribute("href")).toBe("https://wa.me/33612345678");
-    expect(waLink.getAttribute("target")).toBe("_blank");
-    expect(waLink.getAttribute("rel")).toBe("noopener noreferrer");
-
-    expect(screen.getByTestId("footer-address").textContent).toContain(
-      "12 Rue de la Roquette, 75011 Paris",
-    );
-
-    // Row 1: Shop info link
-    const shopInfoLink = screen.getByTestId("footer-shop-info-link");
-    expect(shopInfoLink.getAttribute("href")).toBe("/en/info");
-    expect(shopInfoLink.textContent).toContain(enDictionary.storefront.shopInfo);
+    // Row 1: no repeated contact details; links to each shop info section (#233)
+    expect(screen.queryByTestId("footer-phone-link")).toBeNull();
+    expect(screen.queryByText("+33 1 43 55 67 89")).toBeNull();
+    expect(screen.queryByText("12 Rue de la Roquette, 75011 Paris, France")).toBeNull();
+    const sectionLinks = screen.getByTestId("footer-section-links").querySelectorAll("a");
+    expect(Array.from(sectionLinks, (a) => [a.textContent, a.getAttribute("href")])).toEqual([
+      ["Shop information", "/en/info#overview"],
+      ["Contact us", "/en/info#contact"],
+      ["Opening hours", "/en/info#hours"],
+      ["Location & address", "/en/info#location"],
+      ["Delivery & ordering policy", "/en/info#ordering-policy"],
+    ]);
 
     // Row 2: Social links with accessible labels and target="_blank"
     const igLink = screen.getByRole("link", { name: "La Petite Boulangerie on Instagram" });
@@ -128,10 +118,10 @@ describe("StorefrontFooter (#201)", () => {
     expect(screen.queryByTestId("footer-address")).toBeNull();
     expect(screen.queryByTestId("footer-social-links")).toBeNull();
 
-    // Shop info link still present in FR
-    const shopInfoLink = screen.getByTestId("footer-shop-info-link");
-    expect(shopInfoLink.getAttribute("href")).toBe("/fr/info");
-    expect(shopInfoLink.textContent).toContain(frDictionary.storefront.shopInfo);
+    // Section links still present in FR
+    const overviewLink = screen.getByTestId("footer-link-overview");
+    expect(overviewLink.getAttribute("href")).toBe("/fr/info#overview");
+    expect(overviewLink.textContent).toBe(frDictionary.storefront.footerShopInformation);
   });
 
   it("computes dynamic copyright year and localizes social labels in French", () => {
