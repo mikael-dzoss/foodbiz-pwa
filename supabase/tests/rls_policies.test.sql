@@ -52,8 +52,8 @@ on conflict (business_id, user_id) do nothing;
 -- 5. Business Settings
 insert into public.business_settings (id, business_id, currency, date_format)
 values
-  ('sa000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'EUR', 'DD/MM/YYYY'),
-  ('sb000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'EUR', 'DD/MM/YYYY')
+  ('5a000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'EUR', 'DD/MM/YYYY'),
+  ('5b000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'EUR', 'DD/MM/YYYY')
 on conflict (business_id) do nothing;
 
 -- 6. Product Categories
@@ -66,17 +66,17 @@ on conflict (id) do nothing;
 -- 7. Products (visible and hidden for both Biz A and Biz B)
 insert into public.products (id, business_id, category_id, name, price, stock, visible)
 values
-  ('pa000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Visible Prod A', 1000, 10, true),
-  ('pa000000-0000-0000-0000-000000000002'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Hidden Prod A', 1200, 10, false),
-  ('pb000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'cb000000-0000-0000-0000-000000000002'::uuid, 'Visible Prod B', 2000, 10, true),
-  ('pb000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'cb000000-0000-0000-0000-000000000002'::uuid, 'Hidden Prod B', 2200, 10, false)
+  ('da000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Visible Prod A', 1000, 10, true),
+  ('da000000-0000-0000-0000-000000000002'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Hidden Prod A', 1200, 10, false),
+  ('db000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'cb000000-0000-0000-0000-000000000002'::uuid, 'Visible Prod B', 2000, 10, true),
+  ('db000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'cb000000-0000-0000-0000-000000000002'::uuid, 'Hidden Prod B', 2200, 10, false)
 on conflict (id) do nothing;
 
 -- 8. Guests
 insert into public.guests (id, business_id, name, phone, email)
 values
-  ('ga000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Alice Customer', '+33612345678', 'alice@example.com'),
-  ('gb000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'Bob Customer', '+33687654321', 'bob@example.com')
+  ('9a000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Alice Customer', '+33612345678', 'alice@example.com'),
+  ('9b000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'Bob Customer', '+33687654321', 'bob@example.com')
 on conflict (id) do nothing;
 
 -- 9. Orders & Order Items
@@ -93,10 +93,10 @@ insert into public.orders (
   total_amount,
   tracking_token
 ) values (
-  'oa000000-0000-0000-0000-000000000001'::uuid,
+  '0a000000-0000-0000-0000-000000000001'::uuid,
   '10000000-0000-0000-0000-000000000001'::uuid,
   1,
-  'ga000000-0000-0000-0000-000000000001'::uuid,
+  '9a000000-0000-0000-0000-000000000001'::uuid,
   'pickup',
   'storefront',
   'NEW',
@@ -105,10 +105,10 @@ insert into public.orders (
   1000,
   'token-order-a-1234'
 ), (
-  'ob000000-0000-0000-0000-000000000002'::uuid,
+  '0b000000-0000-0000-0000-000000000002'::uuid,
   '20000000-0000-0000-0000-000000000002'::uuid,
   1,
-  'gb000000-0000-0000-0000-000000000002'::uuid,
+  '9b000000-0000-0000-0000-000000000002'::uuid,
   'delivery',
   'storefront',
   'NEW',
@@ -121,7 +121,7 @@ on conflict (id) do nothing;
 
 insert into public.order_items (id, order_id, business_id, product_id, product_name, quantity, unit_price, total_price)
 values
-  ('ia000000-0000-0000-0000-000000000001'::uuid, 'oa000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'pa000000-0000-0000-0000-000000000001'::uuid, 'Visible Prod A', 1, 1000, 1000)
+  ('1a000000-0000-0000-0000-000000000001'::uuid, '0a000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'da000000-0000-0000-0000-000000000001'::uuid, 'Visible Prod A', 1, 1000, 1000)
 on conflict (id) do nothing;
 
 -- 10. Expenses
@@ -181,7 +181,7 @@ select throws_ok(
 );
 
 select throws_ok(
-  'insert into orders (business_id, order_number, guest_id, service_type, channel, total_amount, requested_date) values (''10000000-0000-0000-0000-000000000001'', 99, ''ga000000-0000-0000-0000-000000000001'', ''pickup'', ''storefront'', 100, current_date)',
+  'insert into orders (business_id, order_number, guest_id, service_type, channel, total_amount, requested_date) values (''10000000-0000-0000-0000-000000000001'', 99, ''9a000000-0000-0000-0000-000000000001'', ''pickup'', ''storefront'', 100, current_date)',
   '42501',
   null,
   'anon cannot insert orders directly'
