@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
 import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
+import { getServerEnv } from "@/config/env";
+import { parseProductImageDataUrl, uploadProductImageToStorage } from "@/lib/supabase/storage";
 import {
   productFormInputSchema,
   adjustStockSchema,
@@ -284,13 +286,13 @@ const imageUploadSchema = z.object({
 });
 
 /**
- * Handles product image upload (Story #45).
- * Validates format (base64 image payload), stores in mock repository or returns data URL.
+ * Handles product image upload (Story #45, #123).
+ * Validates format, MIME type and size limits; stores in Supabase Storage or returns data URL in mock mode.
  */
 export async function uploadProductImageAction(
   rawInput: unknown,
 ): Promise<ProductActionResult<{ imageUrl: string }>> {
-  await requireAuthenticatedAction();
+  const { businessId } = await requireAuthenticatedAction();
   const parsed = imageUploadSchema.safeParse(rawInput);
 
   if (!parsed.success) {
@@ -298,8 +300,25 @@ export async function uploadProductImageAction(
   }
 
   const { base64Data } = parsed.data;
-  if (!base64Data.startsWith("data:image/")) {
-    return { success: false, error: "Uploaded file must be a valid image data URL." };
+  const imageValidation = parseProductImageDataUrl(base64Data);
+  if (!imageValidation.ok) {
+    return { success: false, error: imageValidation.error };
+  }
+
+  const env = getServerEnv();
+  if (env.DATA_SOURCE === "supabase") {
+    try {
+      const imageUrl = await uploadProductImageToStorage(businessId, parsed.data);
+      return {
+        success: true,
+        data: {
+          imageUrl,
+        },
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to upload image";
+      return { success: false, error: message };
+    }
   }
 
   // In mock environment / adapter, return the compressed image data URL directly.

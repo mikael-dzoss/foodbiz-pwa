@@ -597,6 +597,12 @@ export type Database = {
         };
         Returns: Json;
       };
+      can_manage_product_image: {
+        Args: {
+          object_name: string;
+        };
+        Returns: boolean;
+      };
       replace_order_items: {
         Args: {
           p_business_id: string;

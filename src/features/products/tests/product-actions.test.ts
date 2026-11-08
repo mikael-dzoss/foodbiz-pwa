@@ -18,6 +18,15 @@ vi.mock("next/cache", () => ({
   revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
 }));
 
+const mockUploadProductImageToStorage = vi.fn();
+vi.mock("@/lib/supabase/storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase/storage")>();
+  return {
+    ...actual,
+    uploadProductImageToStorage: (...args: unknown[]) => mockUploadProductImageToStorage(...args),
+  };
+});
+
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const validCategoryId = "22222222-2222-4222-8222-222222222201";
 const validProductId = "33333333-3333-4333-8333-333333333301";
@@ -369,24 +378,94 @@ describe("Product Server Actions", () => {
   });
 
   describe("uploadProductImageAction", () => {
-    it("returns imageUrl for valid base64 data URL", async () => {
-      const res = await uploadProductImageAction({
-        base64Data: "data:image/jpeg;base64,sampleimagepayload",
+    const validBase64 = `data:image/jpeg;base64,${Buffer.from("sampleimagepayload").toString("base64")}`;
+
+    describe("in mock mode", () => {
+      beforeEach(() => {
+        vi.stubEnv("DATA_SOURCE", "mock");
       });
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.imageUrl).toBe("data:image/jpeg;base64,sampleimagepayload");
-      }
+
+      it("returns imageUrl for valid base64 data URL", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: validBase64,
+        });
+        expect(res.success).toBe(true);
+        if (res.success) {
+          expect(res.data.imageUrl).toBe(validBase64);
+        }
+      });
+
+      it("rejects non-image payload", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: "not-an-image",
+        });
+        expect(res.success).toBe(false);
+        if (!res.success) {
+          expect(res.error).toMatch(/valid image/i);
+        }
+      });
+
+      it("rejects disallowed MIME type", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+        });
+        expect(res.success).toBe(false);
+        if (!res.success) {
+          expect(res.error).toMatch(/unsupported image format/i);
+        }
+      });
     });
 
-    it("rejects non-image payload", async () => {
-      const res = await uploadProductImageAction({
-        base64Data: "not-an-image",
+    describe("in supabase mode", () => {
+      beforeEach(() => {
+        vi.stubEnv("DATA_SOURCE", "supabase");
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/valid image/i);
-      }
+
+      it("uploads image to storage and returns remote public URL", async () => {
+        const expectedUrl = `https://storage.example.com/product-images/${testBusinessId}/img.jpg`;
+        mockUploadProductImageToStorage.mockResolvedValueOnce(expectedUrl);
+
+        const res = await uploadProductImageAction({
+          base64Data: validBase64,
+          fileName: "burger.jpg",
+        });
+
+        expect(res.success).toBe(true);
+        if (res.success) {
+          expect(res.data.imageUrl).toBe(expectedUrl);
+        }
+        expect(mockUploadProductImageToStorage).toHaveBeenCalledWith(
+          testBusinessId,
+          expect.objectContaining({
+            base64Data: validBase64,
+            fileName: "burger.jpg",
+          }),
+        );
+      });
+
+      it("catches storage upload failures and returns error", async () => {
+        mockUploadProductImageToStorage.mockRejectedValueOnce(
+          new Error("Supabase Storage permission denied"),
+        );
+
+        const res = await uploadProductImageAction({
+          base64Data: validBase64,
+        });
+
+        expect(res.success).toBe(false);
+        if (!res.success) {
+          expect(res.error).toBe("Supabase Storage permission denied");
+        }
+      });
+
+      it("rejects invalid image payload before storage upload", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: "not-a-valid-data-url",
+        });
+
+        expect(res.success).toBe(false);
+        expect(mockUploadProductImageToStorage).not.toHaveBeenCalled();
+      });
     });
   });
 });
