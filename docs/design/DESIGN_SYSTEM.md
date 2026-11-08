@@ -176,17 +176,16 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 | --------------------- | --------------------------------------------- |
 | Project               | FoodBiz PWA — `10916445985537244105`          |
 | Design system (light) | FoodBiz Light — `assets/14358508387441273017` |
-| Design system (dark)  | FoodBiz Dark — `assets/14014574616527079101`  |
 
-Active screen IDs live in [`SCREENS.md`](SCREENS.md#active-stitch-screens).
+Active screen IDs live in [`SCREENS.md`](SCREENS.md#active-stitch-screens). **Generation of dark theme models in Stitch is strictly banned**; our design tokens in `src/app/globals.css` provide the Dark theme mapping automatically.
 
-**Stitch palette vs our tokens.** Stitch turns the seed and override colours into its own Material palette, and its palette card shows that result, not our table. In FoodBiz Light, background `#f9f9ff`, secondary `#855300`, error `#ba1a1a` and white cards match. But Stitch's `primary` is `#005136` (ours, `#006c49`, becomes `primary_container`) and its `tertiary` is `#004394` (ours, `#005ac2`, becomes `tertiary_container`). Our soft and status tokens (`primary-soft`, `warning-soft`, …) have no equivalent in Stitch. Treat §2 as the spec and the palette card as approximate; prompts give the exact hex values. Other limits: one colour mode per design system (hence light + dark), radius 4/8/12/full, `spacing`/`typography` maps accepted but not shown in Stitch. The HTML export is a visual reference only.
+**Stitch palette vs our tokens.** Stitch turns the seed and override colours into its own Material palette, and its palette card shows that result, not our table. In FoodBiz Light, background `#f9f9ff`, secondary `#855300`, error `#ba1a1a` and white cards match. But Stitch's `primary` is `#005136` (ours, `#006c49`, becomes `primary_container`) and its `tertiary` is `#004394` (ours, `#005ac2`, becomes `tertiary_container`). Our soft and status tokens (`primary-soft`, `warning-soft`, …) have no equivalent in Stitch. Treat §2 as the spec and the palette card as approximate; prompts give the exact hex values. The HTML export is a visual reference only.
 
 ### Working with Stitch (agents)
 
 Every `generate_screen_from_text`, `edit_screens` and `generate_variants` call creates a **new screen card**, and the old card stays. So:
 
-1. **Generate once per screen and mode.** Pass `designSystem` explicitly (light or dark ID above), `deviceType: MOBILE`, and the exact hex values from §2 in the prompt.
+1. **Generate once per screen (Light mode only).** Pass `designSystem` explicitly (`assets/14358508387441273017`), `deviceType: MOBILE`, and the exact hex values from §2 in the prompt. **Generating dark theme models is strictly banned.**
 2. **Never retry on timeout or connection loss.** Generation continues on the server; poll `list_screens` / `get_screen` until the screen appears.
 3. **Inspect before changing** with `get_screen` (screenshot + HTML). Edit only when the owner asks or a real defect exists, and batch all fixes into one `edit_screens` call.
 4. **Don't fix the device type.** Screens may be stored as `DESKTOP`; the HTML is responsive and Stitch Preview → Mobile shows the real layout.

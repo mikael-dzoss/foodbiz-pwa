@@ -19,14 +19,15 @@ Every user-facing screen/modal sheet must exist on the Stitch mobile canvas befo
 When implementing or redesigning any screen from `SCREENS.md`:
 
 1. **Check Canvas**:
-   - If active Light & Dark screen IDs already exist in `SCREENS.md`, inspect them with `get_screen` as the visual model.
-   - If missing (or undergoing a major redesign), generate them in Stitch.
+   - If an active Light screen ID already exists in `SCREENS.md`, inspect it with `get_screen` as the visual model.
+   - If missing (or undergoing a major redesign), generate it in Stitch.
 2. **Generate in Stitch (Mobile only)**:
    - Always set `deviceType: MOBILE` — never generate desktop cards in Stitch.
-   - Generate Light mode (`assets/14358508387441273017`) and Dark mode (`assets/14014574616527079101`) via `generate_screen_from_text`.
+   - Only the **Light mode** Stitch design (`assets/14358508387441273017`) is allowed via `generate_screen_from_text`.
+   - **Generation of dark theme models in Stitch is strictly banned.** Dark mode styling is derived automatically through our well-defined design color tokens in `src/app/globals.css`.
    - Batch minor tweaks into `edit_screens`.
 3. **Update Registry**:
-   - Record active IDs in `SCREENS.md`. If replacing an existing screen, move the old ID to `Superseded (to delete)`.
+   - Record the active Light ID in `SCREENS.md`. If replacing an existing screen, move the old ID to `Superseded (to delete)`.
 4. **Build in Code**:
    - Only the **Light mode** Stitch design is used as the visual reference model for our screens. Dark mode styling is derived automatically through design tokens in `src/app/globals.css`.
    - Rebuild in React using our tokens and `@/components/ui` primitives. Stitch HTML is reference only.
