@@ -60,6 +60,12 @@ describe("CartView", () => {
     expect(screen.getByTestId("cart-count-badge").textContent).toContain("3");
     // Subtotal: 2 * 220 + 140 = 580 cents = €5.80 >= 500
     expect(screen.getByText(enDict.minimumOrderReached)).toBeDefined();
+
+    // #237: actions bar is in-flow sticky, never a fixed overlay over the footer
+    const bar = screen.getByTestId("cart-action-bar");
+    expect(bar.className).toContain("sticky");
+    expect(bar.className).not.toMatch(/\bfixed\b/);
+    expect(bar.contains(screen.getByTestId("proceed-checkout-button"))).toBe(true);
   });
 
   it("displays minimum order warning when subtotal is below minimum threshold", () => {
