@@ -562,6 +562,41 @@ export type Database = {
           last_ordered_at: string;
         }[];
       };
+      find_or_create_guest: {
+        Args: {
+          p_business_id: string;
+          p_name: string;
+          p_phone: string;
+          p_address?: string;
+          p_update_guest_name?: boolean;
+        };
+        Returns: Json;
+      };
+      place_order: {
+        Args: {
+          p_business_id: string;
+          p_guest_name: string;
+          p_guest_phone: string;
+          p_service_type: Database["public"]["Enums"]["order_service_type"];
+          p_channel: Database["public"]["Enums"]["order_channel"];
+          p_requested_date: string;
+          p_items: Json;
+          p_requested_time?: string;
+          p_payment_preference?: Database["public"]["Enums"]["order_payment_preference"];
+          p_delivery_address?: string;
+          p_notes?: string;
+          p_update_guest_name?: boolean;
+        };
+        Returns: Json;
+      };
+      cancel_order: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+          p_cancellation_reason?: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       category_role: "regular" | "drinks" | "snacks";
