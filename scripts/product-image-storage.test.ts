@@ -34,7 +34,6 @@ describe("Product image storage and pgTAP test suite (#123)", () => {
     expect(sql).toContain("set search_path = public");
 
     // 3. RLS policies on storage.objects
-    expect(sql).toMatch(/alter\s+table\s+storage\.objects\s+enable\s+row\s+level\s+security;/i);
     expect(sql).toContain("product_images_select_public");
     expect(sql).toContain("product_images_insert_member");
     expect(sql).toContain("product_images_update_member");

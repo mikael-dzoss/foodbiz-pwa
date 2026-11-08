@@ -47,14 +47,13 @@ as $$
   end;
 $$;
 
-grant execute on function public.can_manage_product_image(text) to anon, authenticated;
+grant execute on function public.can_manage_product_image(text) to anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 3. Row Level Security Policies on storage.objects
 -- ----------------------------------------------------------------------------
 
-alter table storage.objects enable row level security;
-
+-- Note: RLS is enabled by default on storage.objects in Supabase Storage.
 -- Public read access: Anyone (anon or authenticated) can view images in the product-images bucket
 create policy product_images_select_public
   on storage.objects for select to anon, authenticated

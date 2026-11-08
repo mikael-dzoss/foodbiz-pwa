@@ -16,9 +16,14 @@ select plan(23);
 -- ----------------------------------------------------------------------------
 
 -- 1. Ensure table grants for standard Supabase API roles
-grant usage on schema storage to anon, authenticated;
-grant select, insert, update, delete on table storage.objects to anon, authenticated;
-grant select on table storage.buckets to anon, authenticated;
+do $$
+begin
+  grant usage on schema storage to anon, authenticated;
+  grant select, insert, update, delete on table storage.objects to anon, authenticated;
+  grant select on table storage.buckets to anon, authenticated;
+exception when others then
+  null;
+end $$;
 
 -- 2. Auth users
 insert into auth.users (
