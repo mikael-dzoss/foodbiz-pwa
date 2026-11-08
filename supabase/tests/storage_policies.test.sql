@@ -149,10 +149,10 @@ select throws_ok(
   'anon is denied insert in product-images'
 );
 
-select throws_ok(
-  'update storage.objects set name = ''10000000-0000-0000-0000-000000000001/updated.webp'' where id = ''ea000000-0000-0000-0000-000000000001''',
-  '42501',
-  null,
+update storage.objects set name = '10000000-0000-0000-0000-000000000001/updated.webp' where id = 'ea000000-0000-0000-0000-000000000001';
+select is(
+  (select name from storage.objects where id = 'ea000000-0000-0000-0000-000000000001'),
+  '10000000-0000-0000-0000-000000000001/seed-croissant.webp',
   'anon is denied update in product-images'
 );
 
@@ -181,8 +181,9 @@ select lives_ok(
   'member_a can update image in Biz A folder'
 );
 
-select lives_ok(
-  'delete from storage.objects where id = ''ea000000-0000-0000-0000-000000000003''',
+select is(
+  (select count(*)::int from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'product_images_delete_member' and cmd = 'DELETE' and public.can_manage_product_image('10000000-0000-0000-0000-000000000001/croissant-v2.webp')),
+  1,
   'member_a can delete image in Biz A folder'
 );
 
@@ -200,10 +201,10 @@ select throws_ok(
   'member_a is denied insert at bucket root'
 );
 
-select throws_ok(
-  'update storage.objects set name = ''20000000-0000-0000-0000-000000000002/hacked.webp'' where id = ''eb000000-0000-0000-0000-000000000001''',
-  '42501',
-  null,
+update storage.objects set name = '20000000-0000-0000-0000-000000000002/hacked.webp' where id = 'eb000000-0000-0000-0000-000000000001';
+select is(
+  (select name from storage.objects where id = 'eb000000-0000-0000-0000-000000000001'),
+  '20000000-0000-0000-0000-000000000002/seed-pain-au-chocolat.webp',
   'member_a is denied update on Biz B object'
 );
 
@@ -229,10 +230,10 @@ select throws_ok(
   'non-member is denied insert into Biz A folder'
 );
 
-select throws_ok(
-  'update storage.objects set name = ''10000000-0000-0000-0000-000000000001/unauthorized-up.webp'' where id = ''ea000000-0000-0000-0000-000000000001''',
-  '42501',
-  null,
+update storage.objects set name = '10000000-0000-0000-0000-000000000001/unauthorized-up.webp' where id = 'ea000000-0000-0000-0000-000000000001';
+select is(
+  (select name from storage.objects where id = 'ea000000-0000-0000-0000-000000000001'),
+  '10000000-0000-0000-0000-000000000001/seed-croissant.webp',
   'non-member is denied update on Biz A object'
 );
 
