@@ -68,6 +68,17 @@ type OrderRowWithItems = Tables<"orders"> & {
   order_items: Tables<"order_items">[];
 };
 
+function toIsoUtc(value: unknown): string {
+  if (typeof value !== "string" || !value) {
+    return new Date().toISOString();
+  }
+  if (value.endsWith("Z")) {
+    return value;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
 function mapProductRow(row: Tables<"products">): Product {
   return productSchema.parse({
     id: row.id,
@@ -82,8 +93,8 @@ function mapProductRow(row: Tables<"products">): Product {
     allergens: row.allergens as Product["allergens"],
     suggestAddOns: row.suggest_add_ons,
     imageUrl: row.image_url,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoUtc(row.created_at),
+    updatedAt: toIsoUtc(row.updated_at),
   });
 }
 
@@ -94,7 +105,7 @@ function mapCategoryRow(row: Tables<"product_categories">): ProductCategory {
     name: row.name,
     sortOrder: row.sort_order,
     role: row.role,
-    createdAt: row.created_at,
+    createdAt: toIsoUtc(row.created_at),
   });
 }
 
@@ -108,6 +119,13 @@ function mapOrderRow(row: OrderRowWithItems): Order {
     totalPrice: it.total_price,
   }));
 
+  const statusHistory = Array.isArray(row.status_history)
+    ? (row.status_history as Array<Record<string, unknown>>).map((entry) => ({
+        ...entry,
+        timestamp: toIsoUtc(entry.timestamp),
+      }))
+    : [];
+
   return orderSchema.parse({
     id: row.id,
     businessId: row.business_id,
@@ -120,8 +138,8 @@ function mapOrderRow(row: OrderRowWithItems): Order {
     paid: row.paid,
     paymentPreference: row.payment_preference,
     paymentMethod: row.payment_method,
-    paidAt: row.paid_at,
-    refundedAt: row.refunded_at,
+    paidAt: row.paid_at ? toIsoUtc(row.paid_at) : null,
+    refundedAt: row.refunded_at ? toIsoUtc(row.refunded_at) : null,
     requestedDate: row.requested_date,
     requestedTime: row.requested_time ? row.requested_time.slice(0, 5) : null,
     items,
@@ -130,11 +148,9 @@ function mapOrderRow(row: OrderRowWithItems): Order {
     cancellationReason: row.cancellation_reason,
     notes: row.notes,
     deliveryAddress: row.delivery_address,
-    statusHistory: Array.isArray(row.status_history)
-      ? (row.status_history as Order["statusHistory"])
-      : [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    statusHistory,
+    createdAt: toIsoUtc(row.created_at),
+    updatedAt: toIsoUtc(row.updated_at),
   });
 }
 
@@ -147,7 +163,7 @@ function mapGuestRow(row: Tables<"guests">): Guest {
     email: row.email,
     address: row.address,
     notes: row.notes,
-    createdAt: row.created_at,
+    createdAt: toIsoUtc(row.created_at),
   });
 }
 
@@ -159,7 +175,7 @@ function mapExpenseRow(row: Tables<"expenses">): Expense {
     date: row.date,
     description: row.description,
     tags: row.tags ?? [],
-    createdAt: row.created_at,
+    createdAt: toIsoUtc(row.created_at),
   });
 }
 
@@ -180,8 +196,8 @@ function mapBusinessRow(row: Tables<"businesses">): Business {
     latitude: row.latitude ?? undefined,
     longitude: row.longitude ?? undefined,
     logoUrl: row.logo_url ?? undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toIsoUtc(row.created_at),
+    updatedAt: toIsoUtc(row.updated_at),
   });
 }
 
@@ -220,7 +236,7 @@ function mapMemberRow(row: Tables<"business_members">): BusinessMember {
     businessId: row.business_id,
     userId: row.user_id,
     role: row.role,
-    createdAt: row.created_at,
+    createdAt: toIsoUtc(row.created_at),
   });
 }
 
@@ -478,7 +494,7 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
             : null,
         totalAmount: order.total_amount ?? order.totalAmount,
         cancellationReason: order.cancellation_reason ?? order.cancellationReason ?? null,
-        createdAt: order.created_at ?? order.createdAt,
+        createdAt: toIsoUtc(order.created_at ?? order.createdAt),
         items: items.map((it) => ({
           productName: it.product_name ?? it.productName,
           quantity: it.quantity,
@@ -534,7 +550,7 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
             : null,
         totalAmount: order.total_amount ?? order.totalAmount,
         cancellationReason: order.cancellation_reason ?? order.cancellationReason ?? null,
-        createdAt: order.created_at ?? order.createdAt,
+        createdAt: toIsoUtc(order.created_at ?? order.createdAt),
         items: items.map((it) => ({
           productName: it.product_name ?? it.productName,
           quantity: it.quantity,
