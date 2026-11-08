@@ -203,6 +203,11 @@ jobs:
       - name: Run pgTAP database tests
         run: npm run db:test
 
+      - name: Run Supabase adapter live contract tests
+        run: |
+          eval $(supabase status -o env)
+          SUPABASE_TEST_URL="$API_URL" SUPABASE_TEST_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" npx vitest run src/lib/repositories/tests/supabase-adapter.test.ts
+
   # ── Quality Gate: Consolidated Summary Gate ─────────────────
   summary:
     name: Quality Gate - Summary
