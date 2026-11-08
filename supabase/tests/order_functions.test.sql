@@ -53,8 +53,8 @@ on conflict (business_id, user_id) do nothing;
 -- 5. Business Settings
 insert into public.business_settings (id, business_id, currency, date_format)
 values
-  ('sa000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'EUR', 'DD/MM/YYYY'),
-  ('sb000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'EUR', 'DD/MM/YYYY')
+  ('5a000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'EUR', 'DD/MM/YYYY'),
+  ('5b000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'EUR', 'DD/MM/YYYY')
 on conflict (business_id) do nothing;
 
 -- 6. Product Categories
@@ -64,20 +64,20 @@ values
 on conflict (id) do nothing;
 
 -- 7. Products
--- pa01: stock 10, visible true, price 500
--- pa02: stock 1, visible true, price 1200 (for last item concurrency test)
--- pa03: stock 5, visible false, price 800 (hidden product)
+-- da01: stock 10, visible true, price 500
+-- da02: stock 1, visible true, price 1200 (for last item concurrency test)
+-- da03: stock 5, visible false, price 800 (hidden product)
 insert into public.products (id, business_id, category_id, name, price, stock, visible)
 values
-  ('pa000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Croissant', 500, 10, true),
-  ('pa000000-0000-0000-0000-000000000002'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Last Sourdough', 1200, 1, true),
-  ('pa000000-0000-0000-0000-000000000003'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Secret Cake', 800, 5, false)
+  ('da000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Croissant', 500, 10, true),
+  ('da000000-0000-0000-0000-000000000002'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Last Sourdough', 1200, 1, true),
+  ('da000000-0000-0000-0000-000000000003'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Secret Cake', 800, 5, false)
 on conflict (id) do nothing;
 
 -- 8. Existing order for status checks
 insert into public.guests (id, business_id, name, phone)
 values
-  ('ga000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Existing Customer', '+33699990000')
+  ('9a000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Existing Customer', '+33699990000')
 on conflict (id) do nothing;
 
 insert into public.orders (
@@ -93,10 +93,10 @@ insert into public.orders (
   total_amount,
   tracking_token
 ) values (
-  'oa000000-0000-0000-0000-000000000001'::uuid,
+  '0a000000-0000-0000-0000-000000000001'::uuid,
   '10000000-0000-0000-0000-000000000001'::uuid,
   1,
-  'ga000000-0000-0000-0000-000000000001'::uuid,
+  '9a000000-0000-0000-0000-000000000001'::uuid,
   'pickup',
   'storefront',
   'NEW',
@@ -116,10 +116,10 @@ insert into public.order_items (
   unit_price,
   total_price
 ) values (
-  'ia000000-0000-0000-0000-000000000001'::uuid,
-  'oa000000-0000-0000-0000-000000000001'::uuid,
+  '1a000000-0000-0000-0000-000000000001'::uuid,
+  '0a000000-0000-0000-0000-000000000001'::uuid,
   '10000000-0000-0000-0000-000000000001'::uuid,
-  'pa000000-0000-0000-0000-000000000001'::uuid,
+  'da000000-0000-0000-0000-000000000001'::uuid,
   'Croissant',
   1,
   500,
@@ -187,8 +187,9 @@ select public.place_order(
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
   current_date,
-  '[{"product_id": "pa000000-0000-0000-0000-000000000001", "quantity": 2}]'::jsonb
+  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 2}]'::jsonb
 ) as res;
+grant select on t_order_1 to public;
 
 -- Test 6: Returns total_amount = 1000
 select is(
@@ -199,7 +200,7 @@ select is(
 
 -- Test 7: Decrements product stock from 10 to 8
 select is(
-  (select stock from public.products where id = 'pa000000-0000-0000-0000-000000000001'),
+  (select stock from public.products where id = 'da000000-0000-0000-0000-000000000001'),
   8,
   'place_order decrements product stock from 10 to 8'
 );
@@ -226,8 +227,9 @@ select public.place_order(
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
   current_date,
-  '[{"product_id": "pa000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
+  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
 ) as res;
+grant select on t_order_2 to public;
 
 -- Test 10: Canonical guest name preserved
 select is(
@@ -256,13 +258,14 @@ select public.place_order(
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
   current_date,
-  '[{"product_id": "pa000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
+  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference,
   null,
   null,
   true
 ) as res;
+grant select on t_order_3 to public;
 
 -- Test 12: Updates guest name
 select is(
@@ -292,12 +295,13 @@ select public.place_order(
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
   current_date,
-  '[{"product_id": "pa000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
+  '[{"product_id": "da000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
 ) as res;
+grant select on t_order_last to public;
 
 -- Test 14: First order succeeds and decrements stock to 0
 select is(
-  (select stock from public.products where id = 'pa000000-0000-0000-0000-000000000002'),
+  (select stock from public.products where id = 'da000000-0000-0000-0000-000000000002'),
   0,
   'first order for last item succeeds and decrements stock to 0'
 );
@@ -311,7 +315,7 @@ select throws_ok(
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
     current_date,
-    '[{"product_id": "pa000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
+    '[{"product_id": "da000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
   )$$,
   'P0001',
   null,
@@ -320,7 +324,7 @@ select throws_ok(
 
 -- Test 16: Stock remains 0 after failed order rollback
 select is(
-  (select stock from public.products where id = 'pa000000-0000-0000-0000-000000000002'),
+  (select stock from public.products where id = 'da000000-0000-0000-0000-000000000002'),
   0,
   'stock remains 0 after failed order rollback'
 );
@@ -334,7 +338,7 @@ select throws_ok(
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
     current_date,
-    '[{"product_id": "pa000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb
+    '[{"product_id": "da000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb
   )$$,
   'P0003',
   null,
@@ -342,7 +346,7 @@ select throws_ok(
 );
 
 -- Test 18: Aggregated duplicate lines in p_items consolidate quantity
--- Current stock for pa01 is 6 (10 - 2 - 1 - 1 = 6). Ordering 1 + 2 = 3 leaves stock = 3.
+-- Current stock for da01 is 6 (10 - 2 - 1 - 1 = 6). Ordering 1 + 2 = 3 leaves stock = 3.
 create temp table t_order_dups on commit drop as
 select public.place_order(
   '10000000-0000-0000-0000-000000000001'::uuid,
@@ -352,10 +356,11 @@ select public.place_order(
   'storefront'::public.order_channel,
   current_date,
   '[
-    {"product_id": "pa000000-0000-0000-0000-000000000001", "quantity": 1},
-    {"product_id": "pa000000-0000-0000-0000-000000000001", "quantity": 2}
+    {"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1},
+    {"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 2}
   ]'::jsonb
 ) as res;
+grant select on t_order_dups to public;
 
 select is(
   (select quantity from public.order_items where order_id = (select (res->>'order_id')::uuid from t_order_dups)),
@@ -378,6 +383,7 @@ select public.cancel_order(
   (select (res->>'order_id')::uuid from t_order_dups),
   'Customer cancelled order'
 ) as res;
+grant select on t_cancel_res to public;
 
 -- Test 19: Returns CANCELLED status
 select is(
@@ -402,7 +408,7 @@ select is(
 
 -- Test 22: Restores product stock atomically (3 restored: 3 + 3 = 6)
 select is(
-  (select stock from public.products where id = 'pa000000-0000-0000-0000-000000000001'),
+  (select stock from public.products where id = 'da000000-0000-0000-0000-000000000001'),
   6,
   'cancel_order atomically restores product stock'
 );
@@ -415,7 +421,7 @@ set local "request.jwt.claims" = '{}';
 select throws_ok(
   $$select public.cancel_order(
     '10000000-0000-0000-0000-000000000001'::uuid,
-    'oa000000-0000-0000-0000-000000000001'::uuid,
+    '0a000000-0000-0000-0000-000000000001'::uuid,
     'Anon cancel'
   )$$,
   '42501',
@@ -431,7 +437,7 @@ set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 select throws_ok(
   $$select public.cancel_order(
     '10000000-0000-0000-0000-000000000001'::uuid,
-    'oa000000-0000-0000-0000-000000000001'::uuid,
+    '0a000000-0000-0000-0000-000000000001'::uuid,
     'Non-member cancel'
   )$$,
   '42501',
@@ -459,12 +465,12 @@ select throws_ok(
 -- Test 26: Blocks cancelling a COMPLETED order
 update public.orders
 set status = 'COMPLETED'
-where id = 'oa000000-0000-0000-0000-000000000001'::uuid;
+where id = '0a000000-0000-0000-0000-000000000001'::uuid;
 
 select throws_ok(
   $$select public.cancel_order(
     '10000000-0000-0000-0000-000000000001'::uuid,
-    'oa000000-0000-0000-0000-000000000001'::uuid,
+    '0a000000-0000-0000-0000-000000000001'::uuid,
     'Cancel completed'
   )$$,
   '22023',
