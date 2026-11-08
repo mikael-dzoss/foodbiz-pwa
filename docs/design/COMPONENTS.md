@@ -3,7 +3,7 @@
 Complete reference of reusable UI primitives, feedback states, and design system components.
 **Code is the source of truth:** every component enforces design tokens from [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), accessibility (WCAG 2.2 AA), touch targets (≥ 44px), and `data-testid` passthrough.
 
-Visual reference: Stitch screen **P-01 Patterns reference** ([Light: `4b89d3e37632415da28bd4ed0fab6456`](https://stitch.withgoogle.com), [Dark: `0d3d1062fa27420e908bebabfc162f05`](https://stitch.withgoogle.com)).
+Visual reference: Stitch screen **P-01 Patterns reference** ([Light: `4b89d3e37632415da28bd4ed0fab6456`](https://stitch.withgoogle.com)). Dark styling derives automatically through shared design tokens.
 Interactive local inventory: `/patterns` (dev route).
 
 ---
