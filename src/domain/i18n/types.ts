@@ -407,9 +407,6 @@ export interface SettingsDictionary {
     leadTimeUnitHours: string;
     leadTimeUnitBusinessDays: string;
     leadTimePreview: string;
-    leadTimeNoteEnLabel: string;
-    leadTimeNoteFrLabel: string;
-    leadTimeNoteHelper: string;
     soonSection: string;
     saveButton: string;
     saveSuccess: string;

@@ -9,11 +9,6 @@ export const leadTimeValueSchema = z
   .min(1, "Lead time must be at least 1")
   .max(999, "Lead time must be 999 or less");
 
-export const leadTimeNoteSchema = z
-  .string()
-  .trim()
-  .max(280, "Note must be 280 characters or fewer");
-
 export interface LeadTime {
   readonly value: number;
   readonly unit: LeadTimeUnit;
@@ -47,12 +42,4 @@ export function getLeadTime(
     value: settings?.leadTimeValue ?? DEFAULT_LEAD_TIME.value,
     unit: settings?.leadTimeUnit ?? DEFAULT_LEAD_TIME.unit,
   };
-}
-
-export function getLeadTimeNote(
-  settings: { leadTimeNoteEn?: string; leadTimeNoteFr?: string } | null | undefined,
-  locale: "en" | "fr",
-): string | null {
-  const note = (locale === "fr" ? settings?.leadTimeNoteFr : settings?.leadTimeNoteEn)?.trim();
-  return note ? note : null;
 }

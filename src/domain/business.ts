@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
-import { leadTimeNoteSchema, leadTimeUnitSchema, leadTimeValueSchema } from "./lead-time";
+import { leadTimeUnitSchema, leadTimeValueSchema } from "./lead-time";
 
 const socialUrlSchema = z
   .url({ protocol: /^https$/ })
@@ -121,8 +121,6 @@ export const businessSettingsSchema = z.object({
   minOrderAmount: z.number().int().min(0).default(0), // cents
   leadTimeValue: leadTimeValueSchema.default(1),
   leadTimeUnit: leadTimeUnitSchema.default("business_days"),
-  leadTimeNoteEn: leadTimeNoteSchema.optional().default(""),
-  leadTimeNoteFr: leadTimeNoteSchema.optional().default(""),
 
   // Payment settings (#72)
   revolutRevtag: z.string().trim().optional().default(""),
@@ -164,8 +162,6 @@ export const updateOrderingSettingsSchema = z
       .default(0),
     leadTimeValue: leadTimeValueSchema.default(1),
     leadTimeUnit: leadTimeUnitSchema.default("business_days"),
-    leadTimeNoteEn: leadTimeNoteSchema.optional().default(""),
-    leadTimeNoteFr: leadTimeNoteSchema.optional().default(""),
   })
   .refine(
     (data) => data.serviceTypes.pickup || data.serviceTypes.delivery || data.serviceTypes.dineIn,

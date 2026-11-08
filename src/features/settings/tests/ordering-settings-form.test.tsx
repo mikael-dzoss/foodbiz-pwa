@@ -26,8 +26,6 @@ const mockSettings: BusinessSettings = {
   minOrderAmount: 1500, // 15.00 EUR
   leadTimeValue: 1,
   leadTimeUnit: "business_days" as const,
-  leadTimeNoteEn: "",
-  leadTimeNoteFr: "",
   revolutRevtag: "lapetiteboulangerie",
   weroIdentifier: "+33612345678",
   paymentMethods: {
@@ -78,6 +76,8 @@ describe("OrderingSettingsForm component (M-63)", () => {
     expect(screen.getByTestId("switch-service-pickup")).toBeDefined();
     expect(screen.getByTestId("switch-service-delivery")).toBeDefined();
     expect(screen.getByTestId("switch-service-dinein")).toBeDefined();
+    expect(screen.queryByTestId("input-lead-time-note-en")).toBeNull();
+    expect(screen.queryByTestId("input-lead-time-note-fr")).toBeNull();
 
     expect((screen.getByTestId("input-opening-hours") as HTMLInputElement).value).toBe(
       "Mon-Sat 07:00-19:30",
@@ -150,8 +150,6 @@ describe("OrderingSettingsForm component (M-63)", () => {
           minOrderAmount: 2000,
           leadTimeValue: 1,
           leadTimeUnit: "business_days" as const,
-          leadTimeNoteEn: "",
-          leadTimeNoteFr: "",
           acceptingOrders: true,
           openingHours: "Mon-Sat 07:00-19:30",
         }),
@@ -196,8 +194,6 @@ describe("OrderingSettingsForm component (M-63)", () => {
       minOrderAmount: 0,
       leadTimeValue: 1,
       leadTimeUnit: "business_days" as const,
-      leadTimeNoteEn: "",
-      leadTimeNoteFr: "",
       revolutRevtag: "",
       weroIdentifier: "",
       paymentMethods: { cash: true, revolut: false, wero: false },
@@ -278,8 +274,6 @@ describe("OrderingSettingsForm component (M-63)", () => {
           minOrderAmount: 0,
           leadTimeValue: 1,
           leadTimeUnit: "business_days" as const,
-          leadTimeNoteEn: "",
-          leadTimeNoteFr: "",
         }),
       );
       expect(mockShowToast).toHaveBeenCalledWith("Failed to save ordering settings");
@@ -306,21 +300,12 @@ describe("OrderingSettingsForm component (M-63)", () => {
       "minutes",
     );
 
-    fireEvent.change(screen.getByTestId("input-lead-time-note-en"), {
-      target: { value: "Baked fresh" },
-    });
-    fireEvent.change(screen.getByTestId("input-lead-time-note-fr"), {
-      target: { value: "Cuit minute" },
-    });
-
     fireEvent.click(screen.getByTestId("save-ordering-button"));
     await waitFor(() =>
       expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
         expect.objectContaining({
           leadTimeValue: 20,
           leadTimeUnit: "minutes",
-          leadTimeNoteEn: "Baked fresh",
-          leadTimeNoteFr: "Cuit minute",
         }),
       ),
     );

@@ -266,8 +266,6 @@ describe("ServiceToggleHeader (#193)", () => {
               orderTimingScheduled: true,
               leadTimeValue: 1,
               leadTimeUnit: "business_days",
-              leadTimeNoteEn: "Baked to order",
-              leadTimeNoteFr: "",
             }}
             locale="en"
             dict={enDictionary.storefront}
@@ -283,7 +281,7 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(dialog.textContent).toContain("07:30 - 19:30");
     expect(dialog.textContent).toContain("~1 business day");
     expect(screen.getByTestId("ordering-details-status").textContent).toContain("Closes at 19:30");
-    expect(screen.getByTestId("ordering-details-note").textContent).toBe("Baked to order");
+    expect(screen.queryByTestId("ordering-details-note")).toBeNull();
 
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => expect(screen.queryByTestId("ordering-details-dialog")).toBeNull());
@@ -320,7 +318,6 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(dialog.textContent).toContain(enDictionary.storefront.freeDelivery);
     expect(dialog.textContent).toContain("€15.00");
     expect(screen.getByTestId("ordering-details-status").textContent).toContain("Opens at 07:30");
-    expect(screen.queryByTestId("ordering-details-note")).toBeNull();
 
     rerender(
       <ToastProvider>

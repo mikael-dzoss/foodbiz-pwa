@@ -63,8 +63,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
   const [leadTimeUnit, setLeadTimeUnit] = useState<LeadTimeUnit>(
     settings.leadTimeUnit ?? "business_days",
   );
-  const [leadTimeNoteEn, setLeadTimeNoteEn] = useState(settings.leadTimeNoteEn ?? "");
-  const [leadTimeNoteFr, setLeadTimeNoteFr] = useState(settings.leadTimeNoteFr ?? "");
   const parsedLeadTimeValue = Number.parseInt(leadTimeValue, 10);
   const leadTimePreview =
     Number.isInteger(parsedLeadTimeValue) && parsedLeadTimeValue >= 1
@@ -87,8 +85,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     setMinOrderEuros(((settings.minOrderAmount ?? 0) / 100).toFixed(2));
     setLeadTimeValue(String(settings.leadTimeValue ?? 1));
     setLeadTimeUnit(settings.leadTimeUnit ?? "business_days");
-    setLeadTimeNoteEn(settings.leadTimeNoteEn ?? "");
-    setLeadTimeNoteFr(settings.leadTimeNoteFr ?? "");
     setErrors({});
     showToast("Changes discarded");
   };
@@ -127,8 +123,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
         minOrderAmount: minOrderCents,
         leadTimeValue: parsedLeadTimeValue,
         leadTimeUnit,
-        leadTimeNoteEn,
-        leadTimeNoteFr,
       });
 
       if (res.success) {
@@ -520,34 +514,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               <p className="text-danger mt-1 text-xs">{errors.leadTimeValue[0]}</p>
             )}
           </fieldset>
-
-          {(
-            [
-              ["en", leadTimeNoteEn, setLeadTimeNoteEn, dict.ordering.leadTimeNoteEnLabel],
-              ["fr", leadTimeNoteFr, setLeadTimeNoteFr, dict.ordering.leadTimeNoteFrLabel],
-            ] as const
-          ).map(([lang, value, setValue, label]) => (
-            <div key={lang} className="border-border border-t pt-3">
-              <label
-                htmlFor={`lead-time-note-${lang}`}
-                className="text-foreground block text-sm font-semibold"
-              >
-                {label}
-              </label>
-              <p className="text-body-sm text-muted-foreground mt-0.5">
-                {dict.ordering.leadTimeNoteHelper}
-              </p>
-              <textarea
-                id={`lead-time-note-${lang}`}
-                data-testid={`input-lead-time-note-${lang}`}
-                rows={2}
-                maxLength={280}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              />
-            </div>
-          ))}
         </div>
       </div>
 

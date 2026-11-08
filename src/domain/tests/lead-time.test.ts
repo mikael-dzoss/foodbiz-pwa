@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_LEAD_TIME,
-  formatLeadTime,
-  getLeadTime,
-  getLeadTimeNote,
-  leadTimeNoteSchema,
-  leadTimeValueSchema,
-} from "../lead-time";
+import { DEFAULT_LEAD_TIME, formatLeadTime, getLeadTime, leadTimeValueSchema } from "../lead-time";
 import { businessSettingsSchema, updateOrderingSettingsSchema } from "../business";
 
 describe("formatLeadTime", () => {
@@ -26,7 +19,7 @@ describe("formatLeadTime", () => {
   });
 });
 
-describe("getLeadTime / getLeadTimeNote", () => {
+describe("getLeadTime", () => {
   it("falls back to one business day", () => {
     expect(getLeadTime(null)).toEqual(DEFAULT_LEAD_TIME);
     expect(getLeadTime({ leadTimeValue: 15, leadTimeUnit: "minutes" })).toEqual({
@@ -34,35 +27,24 @@ describe("getLeadTime / getLeadTimeNote", () => {
       unit: "minutes",
     });
   });
-
-  it("returns the localized note or null when blank", () => {
-    const settings = { leadTimeNoteEn: "Baked to order", leadTimeNoteFr: "   " };
-    expect(getLeadTimeNote(settings, "en")).toBe("Baked to order");
-    expect(getLeadTimeNote(settings, "fr")).toBeNull();
-    expect(getLeadTimeNote(undefined, "en")).toBeNull();
-  });
 });
 
 describe("lead time schemas", () => {
-  it("bounds the value and note", () => {
+  it("bounds the value", () => {
     expect(leadTimeValueSchema.safeParse(1).success).toBe(true);
     expect(leadTimeValueSchema.safeParse(999).success).toBe(true);
     expect(leadTimeValueSchema.safeParse(0).success).toBe(false);
     expect(leadTimeValueSchema.safeParse(1000).success).toBe(false);
     expect(leadTimeValueSchema.safeParse(1.5).success).toBe(false);
-    expect(leadTimeNoteSchema.safeParse("x".repeat(280)).success).toBe(true);
-    expect(leadTimeNoteSchema.safeParse("x".repeat(281)).success).toBe(false);
   });
 
-  it("defaults settings to one business day without notes", () => {
+  it("defaults settings to one business day", () => {
     const parsed = businessSettingsSchema.parse({
       businessId: "11111111-1111-4111-8111-111111111111",
     });
     expect(parsed).toMatchObject({
       leadTimeValue: 1,
       leadTimeUnit: "business_days",
-      leadTimeNoteEn: "",
-      leadTimeNoteFr: "",
     });
   });
 

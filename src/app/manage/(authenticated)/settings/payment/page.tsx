@@ -36,8 +36,6 @@ export default async function PaymentSettingsPage() {
           minOrderAmount: 0,
           leadTimeValue: 1,
           leadTimeUnit: "business_days" as const,
-          leadTimeNoteEn: "",
-          leadTimeNoteFr: "",
           revolutRevtag: "",
           weroIdentifier: "",
           paymentMethods: { cash: true, revolut: true, wero: true },

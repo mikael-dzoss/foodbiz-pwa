@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Hourglass, MapPin, ShoppingBasket, Truck, Info } from "lucide-react";
+import { Clock, Hourglass, MapPin, ShoppingBasket, Truck } from "lucide-react";
 import type { ReactNode } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { StorefrontDictionary } from "@/domain/i18n";
@@ -16,7 +16,6 @@ export interface OrderingDetailsDialogProps {
   statusText: string;
   isOpenNow: boolean;
   leadTimeText: string;
-  leadTimeNote: string | null;
   dict: StorefrontDictionary;
 }
 
@@ -56,7 +55,6 @@ export function OrderingDetailsDialog({
   statusText,
   isOpenNow,
   leadTimeText,
-  leadTimeNote,
   dict,
 }: OrderingDetailsDialogProps) {
   return (
@@ -105,15 +103,6 @@ export function OrderingDetailsDialog({
             {leadTimeText}
           </DetailRow>
         </ul>
-        {leadTimeNote && (
-          <p
-            data-testid="ordering-details-note"
-            className="border-border bg-muted/60 text-muted-foreground flex items-start gap-2 rounded-xl border p-3 text-xs leading-relaxed"
-          >
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>{leadTimeNote}</span>
-          </p>
-        )}
       </DialogContent>
     </Dialog>
   );

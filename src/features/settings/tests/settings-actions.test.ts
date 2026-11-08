@@ -66,8 +66,6 @@ let mockSettings: BusinessSettings = {
   minOrderAmount: 1500,
   leadTimeValue: 1,
   leadTimeUnit: "business_days",
-  leadTimeNoteEn: "",
-  leadTimeNoteFr: "",
   revolutRevtag: "@boulangerie",
   weroIdentifier: "+33612345678",
   paymentMethods: {
@@ -393,8 +391,6 @@ describe("Settings Server Actions", () => {
         minOrderAmount: 2000,
         leadTimeValue: 1,
         leadTimeUnit: "business_days",
-        leadTimeNoteEn: "",
-        leadTimeNoteFr: "",
       });
 
       expect(res.success).toBe(true);
@@ -436,20 +432,16 @@ describe("Settings Server Actions", () => {
       minOrderAmount: 0,
     };
 
-    it("persists the lead time and notes", async () => {
+    it("persists the lead time", async () => {
       const res = await updateOrderingSettingsAction({
         ...base,
         leadTimeValue: 3,
         leadTimeUnit: "hours",
-        leadTimeNoteEn: "  Fresh daily  ",
-        leadTimeNoteFr: "Frais",
       });
       expect(res.success).toBe(true);
       if (res.success) {
         expect(res.data.leadTimeValue).toBe(3);
         expect(res.data.leadTimeUnit).toBe("hours");
-        expect(res.data.leadTimeNoteEn).toBe("Fresh daily");
-        expect(res.data.leadTimeNoteFr).toBe("Frais");
       }
     });
 

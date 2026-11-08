@@ -226,8 +226,6 @@ create table business_settings (
   lead_time_value integer not null default 1 check (lead_time_value between 1 and 999),
   lead_time_unit text not null default 'business_days'
     check (lead_time_unit in ('minutes', 'hours', 'business_days')),
-  lead_time_note_en text not null default '' check (char_length(lead_time_note_en) <= 280),
-  lead_time_note_fr text not null default '' check (char_length(lead_time_note_fr) <= 280),
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );

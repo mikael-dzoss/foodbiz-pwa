@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Clock, Info } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { BusinessSettings } from "@/domain/business";
-import { formatLeadTime, getLeadTime, getLeadTimeNote } from "@/domain/lead-time";
+import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { useToastOptional } from "@/components/ui";
 import {
@@ -25,12 +25,7 @@ export interface ServiceToggleHeaderProps {
         BusinessSettings,
         "serviceTypes" | "deliveryFee" | "minOrderAmount" | "orderTimingScheduled"
       > &
-        Partial<
-          Pick<
-            BusinessSettings,
-            "leadTimeValue" | "leadTimeUnit" | "leadTimeNoteEn" | "leadTimeNoteFr"
-          >
-        >)
+        Partial<Pick<BusinessSettings, "leadTimeValue" | "leadTimeUnit">>)
     | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
@@ -297,7 +292,6 @@ export function ServiceToggleHeader({
         }
         isOpenNow={isStoreOpen}
         leadTimeText={leadTimeText}
-        leadTimeNote={getLeadTimeNote(settings, locale)}
         dict={dict}
       />
     </section>
