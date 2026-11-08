@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { ShopInfoView } from "../components/shop-info-view";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { Business, BusinessSettings } from "@/domain/business";
@@ -53,10 +53,6 @@ const mockSettings: BusinessSettings = {
 };
 
 describe("ShopInfoView (#83)", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it("renders store name, description, services, contact channels, and address", () => {
     render(
       <ShopInfoView
@@ -252,5 +248,23 @@ describe("ShopInfoView (#83)", () => {
       expect(labelledBy && container.querySelector(`#${labelledBy}`), id).not.toBeNull();
       expect(section!.className).toContain("scroll-mt-20");
     }
+  });
+
+  it("keeps the return-to-catalog bar in the page flow above the footer (#249)", () => {
+    render(
+      <ShopInfoView
+        business={mockBusiness}
+        settings={mockSettings}
+        locale="en"
+        dict={enDictionary.storefront}
+      />,
+    );
+    const bar = screen.getByTestId("shop-info-action-bar");
+    expect(bar.className).toContain("sticky");
+    expect(bar.className).not.toMatch(/\bfixed\b/);
+    const returnLink = screen.getByRole("link", {
+      name: new RegExp(enDictionary.storefront.returnToCatalog),
+    });
+    expect(bar.contains(returnLink)).toBe(true);
   });
 });
