@@ -542,14 +542,6 @@ export type Database = {
         };
         Returns: Json;
       };
-      lookup_order_by_ticket_and_phone: {
-        Args: {
-          p_business_id: string;
-          p_order_number: number;
-          p_phone: string;
-        };
-        Returns: Json;
-      };
       storefront_order_tracking_token: {
         Args: {
           p_business_id: string;

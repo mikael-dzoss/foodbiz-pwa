@@ -2,14 +2,14 @@
 -- Test Suite: rls_policies.test.sql (#120)
 -- Description: pgTAP tests verifying Row Level Security (RLS) enforcement,
 --              tenant isolation between businesses, role segregation (anon vs
---              authenticated member), and privacy of order tracking RPCs.
+--              authenticated member), column-level privileges, and order tracking RPCs.
 -- ============================================================================
 
 begin;
 
 create extension if not exists pgtap;
 
-select plan(43);
+select plan(49);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -18,6 +18,29 @@ select plan(43);
 -- 1. Ensure table grants for standard Supabase API roles
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+
+-- Re-apply column-level privilege restrictions on business_settings for anon (#120 / M8)
+revoke select on public.business_settings from anon;
+grant select (
+  id,
+  business_id,
+  currency,
+  accepting_orders,
+  service_types,
+  opening_hours,
+  order_timing_asap,
+  order_timing_scheduled,
+  order_timing_time_optional,
+  delivery_fee,
+  min_order_amount,
+  lead_time_value,
+  lead_time_unit,
+  revolut_revtag,
+  wero_identifier,
+  payment_methods,
+  payment_instructions_en,
+  payment_instructions_fr
+) on public.business_settings to anon;
 
 -- 2. Auth users
 insert into auth.users (
@@ -146,26 +169,83 @@ select ok(relrowsecurity, 'order_items table has RLS enabled') from pg_class whe
 select ok(relrowsecurity, 'expenses table has RLS enabled') from pg_class where relname = 'expenses';
 
 -- ----------------------------------------------------------------------------
--- Section 2: Anonymous Role Tests (Tests 10-30)
+-- Section 2: Anonymous Role Tests (Tests 10-29)
 -- ----------------------------------------------------------------------------
 
 set local role anon;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claims" = '{}';
 
--- Anon read permissions (Tests 10-19)
-select is((select count(*)::int from businesses), 2, 'anon can read businesses public profiles');
-select is((select count(*)::int from business_settings), 2, 'anon can read business_settings');
-select is((select count(*)::int from product_categories), 2, 'anon can read product_categories');
-select is((select count(*)::int from products), 2, 'anon sees only visible products (2 of 4 total)');
-select is((select count(*)::int from products where visible = false), 0, 'anon sees 0 hidden products');
-select is((select count(*)::int from guests), 0, 'anon cannot read guests directly');
-select is((select count(*)::int from orders), 0, 'anon cannot read orders directly');
-select is((select count(*)::int from order_items), 0, 'anon cannot read order_items directly');
-select is((select count(*)::int from expenses), 0, 'anon cannot read expenses directly');
-select is((select count(*)::int from business_members), 0, 'anon cannot read business_members directly');
+-- Anon read permissions (Tests 10-20)
+-- Scoped to Biz A and Biz B to ensure robustness against seeded businesses (#120 / N1)
+select is(
+  (select count(*)::int from businesses where id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  2,
+  'anon can read businesses public profiles'
+);
 
--- Anon write restrictions (Tests 20-24)
+select is(
+  (select count(id)::int from business_settings where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  2,
+  'anon can read public columns of business_settings'
+);
+
+select throws_ok(
+  'select low_stock_threshold from business_settings',
+  '42501',
+  null,
+  'anon cannot select private column low_stock_threshold from business_settings'
+);
+
+select is(
+  (select count(*)::int from product_categories where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  2,
+  'anon can read product_categories'
+);
+
+select is(
+  (select count(*)::int from products where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  2,
+  'anon sees only visible products of Biz A and Biz B (2 of 4 total)'
+);
+
+select is(
+  (select count(*)::int from products where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid) and visible = false),
+  0,
+  'anon sees 0 hidden products of Biz A and Biz B'
+);
+
+select is(
+  (select count(*)::int from guests where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  0,
+  'anon cannot read guests directly'
+);
+
+select is(
+  (select count(*)::int from orders where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  0,
+  'anon cannot read orders directly'
+);
+
+select is(
+  (select count(*)::int from order_items where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  0,
+  'anon cannot read order_items directly'
+);
+
+select is(
+  (select count(*)::int from expenses where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  0,
+  'anon cannot read expenses directly'
+);
+
+select is(
+  (select count(*)::int from business_members where business_id in ('10000000-0000-0000-0000-000000000001'::uuid, '20000000-0000-0000-0000-000000000002'::uuid)),
+  0,
+  'anon cannot read business_members directly'
+);
+
+-- Anon write restrictions (Tests 21-25)
 select throws_ok(
   'insert into products (business_id, category_id, name, price) values (''10000000-0000-0000-0000-000000000001'', ''ca000000-0000-0000-0000-000000000001'', ''Anon Product'', 100)',
   '42501',
@@ -201,7 +281,7 @@ select throws_ok(
   'anon cannot insert business_members'
 );
 
--- Anon order tracking and storefront RPCs (Tests 25-30)
+-- Anon order tracking and storefront RPCs (Tests 26-29)
 select ok(
   public.get_order_by_tracking_token('token-order-a-1234') is not null,
   'anon can track order via tracking token'
@@ -211,16 +291,6 @@ select ok(
   not (public.get_order_by_tracking_token('token-order-a-1234')::text like '%Alice%')
   and not (public.get_order_by_tracking_token('token-order-a-1234')::text like '%33612345678%'),
   'tracking token RPC omits guest name and phone'
-);
-
-select ok(
-  public.lookup_order_by_ticket_and_phone('10000000-0000-0000-0000-000000000001'::uuid, 1, '+33612345678') is not null,
-  'anon can lookup order by ticket and phone'
-);
-
-select ok(
-  not (public.lookup_order_by_ticket_and_phone('10000000-0000-0000-0000-000000000001'::uuid, 1, '+33612345678')::text like '%Alice%'),
-  'ticket and phone RPC omits guest name'
 );
 
 select is(
@@ -236,14 +306,14 @@ select is(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 3: Authenticated Member Tests (Tests 31-44)
+-- Section 3: Authenticated Member Tests (Tests 30-49)
 -- ----------------------------------------------------------------------------
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
--- Membership helpers verification (Tests 31-33)
+-- Membership helpers verification (Tests 30-32)
 select is(
   public.is_business_member('10000000-0000-0000-0000-000000000001'::uuid),
   true,
@@ -262,7 +332,7 @@ select is(
   'member_a is recognized as owner of Biz A'
 );
 
--- Tenant read scoping (Tests 35-40)
+-- Tenant read scoping (Tests 33-41)
 select is(
   (select count(*)::int from products where business_id = '10000000-0000-0000-0000-000000000001'::uuid),
   2,
@@ -299,7 +369,25 @@ select is(
   'member_a cannot read members of Biz B'
 );
 
--- Tenant write scoping (Tests 41-44)
+select is(
+  (select count(*)::int from business_settings where business_id = '10000000-0000-0000-0000-000000000001'::uuid),
+  1,
+  'member_a can read full business_settings of Biz A'
+);
+
+select is(
+  (select low_stock_threshold from business_settings where business_id = '10000000-0000-0000-0000-000000000001'::uuid),
+  5,
+  'member_a can read private columns like low_stock_threshold of Biz A'
+);
+
+select is(
+  (select count(*)::int from business_settings where business_id = '20000000-0000-0000-0000-000000000002'::uuid),
+  0,
+  'member_a cannot read business_settings of Biz B'
+);
+
+-- Tenant write scoping & mutation restrictions (Tests 42-49)
 select lives_ok(
   'insert into products (business_id, category_id, name, price) values (''10000000-0000-0000-0000-000000000001'', ''ca000000-0000-0000-0000-000000000001'', ''New Member Product'', 500)',
   'member_a can insert product into Biz A'
@@ -322,6 +410,41 @@ select throws_ok(
   '42501',
   null,
   'member_a cannot insert expense into Biz B'
+);
+
+select throws_ok(
+  'insert into businesses (id, name, slug, currency) values (''30000000-0000-0000-0000-000000000003''::uuid, ''Biz C'', ''biz-c'', ''EUR'')',
+  '42501',
+  null,
+  'authenticated user cannot insert businesses'
+);
+
+-- Non-member authenticated user cannot insert businesses (#120 / M7)
+set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "role": "authenticated"}';
+select throws_ok(
+  'insert into businesses (id, name, slug, currency) values (''30000000-0000-0000-0000-000000000003''::uuid, ''Biz C'', ''biz-c'', ''EUR'')',
+  '42501',
+  null,
+  'authenticated non-member cannot insert businesses'
+);
+
+-- Restore member_a context
+set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
+
+select throws_ok(
+  'insert into orders (business_id, order_number, guest_id, service_type, channel, total_amount, requested_date) values (''10000000-0000-0000-0000-000000000001'', 99, ''9a000000-0000-0000-0000-000000000001'', ''pickup'', ''in-person'', 100, current_date)',
+  '42501',
+  null,
+  'authenticated member cannot insert orders directly'
+);
+
+select throws_ok(
+  'insert into order_items (order_id, business_id, product_id, product_name, quantity, unit_price, total_price) values (''0a000000-0000-0000-0000-000000000001'', ''10000000-0000-0000-0000-000000000001'', ''da000000-0000-0000-0000-000000000001'', ''Visible Prod A'', 1, 1000, 1000)',
+  '42501',
+  null,
+  'authenticated member cannot insert order_items directly'
 );
 
 -- Finish pgTAP suite and rollback seeded data
