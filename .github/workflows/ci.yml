@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -197,7 +195,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0
 
       - name: Start Supabase local DB
         run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime,storage-api,realtime
@@ -209,6 +207,10 @@ jobs:
   summary:
     name: Quality Gate - Summary
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     needs: [format, lint, typecheck, test, tooling, build, e2e, db-tests]
     if: always()
     steps:
