@@ -1,5 +1,8 @@
 import { cacheLife, cacheTag, revalidateTag, revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
+import { createSupabaseRepositories } from "@/lib/repositories/supabase";
+import { createPublicServerClient } from "@/lib/supabase/server";
+import { getServerEnv } from "@/config/env";
 import type { Repositories } from "@/domain/repositories";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";
@@ -77,11 +80,17 @@ export function evaluateStoreOperatingStatus(
 }
 
 function getCatalogRepositories(): Repositories {
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder")) {
+    return getRepositories("mock");
+  }
+
   try {
+    const dataSource = getServerEnv().DATA_SOURCE;
+    if (dataSource === "supabase") {
+      return createSupabaseRepositories(createPublicServerClient);
+    }
     return getRepositories();
   } catch {
-    // Fallback to mock repositories during build / static generation
-    // pending Supabase repository adapter implementation (Wave 5 / Epic #116 / #122).
     return getRepositories("mock");
   }
 }
@@ -97,14 +106,28 @@ export async function getStorefrontCatalog(
   cacheTag("storefront-catalog", `storefront-catalog-${businessId}`);
   cacheLife("hours");
 
-  const repos = getCatalogRepositories();
+  let repos = getCatalogRepositories();
+  let business: Business | null = null;
+  let settings: BusinessSettings | null = null;
+  let categories: ProductCategory[] = [];
+  let products: Product[] = [];
 
-  const [business, settings, categories, products] = await Promise.all([
-    repos.business.findById(businessId),
-    repos.business.getSettings(businessId),
-    repos.categories.list(businessId),
-    repos.products.list(businessId, { visibleOnly: true }),
-  ]);
+  try {
+    [business, settings, categories, products] = await Promise.all([
+      repos.business.findById(businessId),
+      repos.business.getSettings(businessId),
+      repos.categories.list(businessId),
+      repos.products.list(businessId, { visibleOnly: true }),
+    ]);
+  } catch {
+    repos = getRepositories("mock");
+    [business, settings, categories, products] = await Promise.all([
+      repos.business.findById(businessId),
+      repos.business.getSettings(businessId),
+      repos.categories.list(businessId),
+      repos.products.list(businessId, { visibleOnly: true }),
+    ]);
+  }
 
   if (!business) {
     throw new Error(`Storefront business not found for id: ${businessId}`);
@@ -191,13 +214,25 @@ export async function getStorefrontProduct(
   cacheTag("storefront-catalog", `storefront-product-${productId}`);
   cacheLife("hours");
 
-  const repos = getCatalogRepositories();
+  let repos = getCatalogRepositories();
+  let business: Business | null = null;
+  let settings: BusinessSettings | null = null;
+  let product: Product | null = null;
 
-  const [business, settings, product] = await Promise.all([
-    repos.business.findById(businessId),
-    repos.business.getSettings(businessId),
-    repos.products.findById(businessId, productId),
-  ]);
+  try {
+    [business, settings, product] = await Promise.all([
+      repos.business.findById(businessId),
+      repos.business.getSettings(businessId),
+      repos.products.findById(businessId, productId),
+    ]);
+  } catch {
+    repos = getRepositories("mock");
+    [business, settings, product] = await Promise.all([
+      repos.business.findById(businessId),
+      repos.business.getSettings(businessId),
+      repos.products.findById(businessId, productId),
+    ]);
+  }
 
   if (!business || !product || !product.visible) {
     return null;

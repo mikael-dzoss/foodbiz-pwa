@@ -34,3 +34,24 @@ export async function createClient() {
     },
   );
 }
+
+/**
+ * Unauthenticated Supabase client for cached / public Server Components and static generation.
+ * Does not read cookies() from next/headers and can safely be used inside "use cache".
+ */
+export function createPublicServerClient() {
+  const env = getPublicEnv();
+
+  return createServerClient<Database>(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {},
+      },
+    },
+  );
+}
