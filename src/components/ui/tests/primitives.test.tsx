@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it, afterEach, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   Button,
   Input,
@@ -25,10 +25,6 @@ import {
 } from "../index";
 
 describe("Base UI Primitives (#28)", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   describe("Button", () => {
     it("renders with default props and handles click", () => {
       const handleClick = vi.fn();

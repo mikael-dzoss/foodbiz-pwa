@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ManualOrderForm } from "../components/manual-order-form";
 import type { Product } from "@/domain";
 import * as actions from "../order-actions";
@@ -49,10 +49,6 @@ const mockProducts: Product[] = [
 describe("ManualOrderForm Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders all form sections and products with stock badges", () => {

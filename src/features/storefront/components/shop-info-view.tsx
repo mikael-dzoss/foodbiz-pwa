@@ -83,7 +83,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
   const isOpen = settings?.acceptingOrders ?? true;
 
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div className="flex flex-col gap-6">
       {/* 1. Store Header & Identity Bento Card (Stitch C-03) */}
       <section
         id="overview"
@@ -464,15 +464,20 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
         </div>
       </section>
 
-      {/* 6. Sticky Bottom CTA: Return to Catalog (Stitch C-03) */}
-      <div className="border-border/60 bg-background/95 fixed bottom-0 left-0 z-40 flex w-full items-center justify-center border-t p-4 backdrop-blur-md">
-        <Link
-          href={`/${locale}`}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-12 w-full max-w-4xl items-center justify-center gap-2 rounded-lg text-sm font-semibold shadow-xs transition-all active:scale-98"
-        >
-          <UtensilsCrossed className="h-4.5 w-4.5" />
-          <span>{dict.returnToCatalog}</span>
-        </Link>
+      {/* In-flow sticky actions bar: settles above the footer at the end of the content (#249) */}
+      <div
+        data-testid="shop-info-action-bar"
+        className="border-border bg-card/95 sticky bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
+      >
+        <div className="mx-auto flex max-w-4xl items-center">
+          <Link
+            href={`/${locale}`}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold shadow-xs transition-all active:scale-98"
+          >
+            <UtensilsCrossed className="h-4.5 w-4.5" />
+            <span>{dict.returnToCatalog}</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

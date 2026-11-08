@@ -1,5 +1,5 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { RecentActivityFeed } from "../components/recent-activity-feed";
 import type { ActivityFeedItem } from "@/domain";
 
@@ -40,10 +40,6 @@ const mockActivity: ActivityFeedItem[] = [
 ];
 
 describe("RecentActivityFeed Component", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it("renders chronological feed of mixed orders and expenses with details", () => {
     render(<RecentActivityFeed items={mockActivity} />);
 

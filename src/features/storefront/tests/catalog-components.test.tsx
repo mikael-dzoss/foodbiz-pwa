@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StorefrontCartBar } from "../components/storefront-cart-bar";
 import { StorefrontCatalogView } from "../components/storefront-catalog-view";
@@ -187,7 +187,6 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
   });
 
   afterEach(() => {
-    cleanup();
     resetCartStore();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

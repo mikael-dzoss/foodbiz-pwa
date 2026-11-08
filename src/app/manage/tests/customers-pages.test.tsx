@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import CustomersPage from "../(authenticated)/customers/page";
 import CustomerDetailPage from "../(authenticated)/customers/[id]/page";
@@ -27,7 +27,6 @@ vi.mock("@/features/customers/customer-data", () => ({
 }));
 vi.mock("@/features/customers/customer-actions", () => ({ updateCustomerAction: vi.fn() }));
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

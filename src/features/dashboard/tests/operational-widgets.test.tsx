@@ -1,5 +1,5 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { render, screen, within } from "@testing-library/react";
 import { OperationalWidgets } from "../components/operational-widgets";
 import type { OperationalTriage } from "@/domain";
 
@@ -63,10 +63,6 @@ const mockTriage: OperationalTriage = {
 };
 
 describe("OperationalWidgets Component", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it("renders 'To prepare' orders count and preview list linking to orders", () => {
     render(<OperationalWidgets triage={mockTriage} />);
 

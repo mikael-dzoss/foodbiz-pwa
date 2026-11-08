@@ -1,11 +1,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import ManageDashboardPage from "../(authenticated)/page";
 import * as auth from "@/lib/auth";
 import * as dashboardActions from "@/features/dashboard/dashboard-actions";
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

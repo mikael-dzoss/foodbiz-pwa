@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StorefrontShell } from "../components/storefront-shell";
 import { useCart, resetCartStore } from "../context/cart-context";
@@ -33,7 +33,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanup();
   resetCartStore();
 });
 

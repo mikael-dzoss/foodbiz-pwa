@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { StockAdjustmentSheet } from "../components/stock-adjustment-sheet";
 import type { EnrichedProduct } from "../product-actions";
 
@@ -35,10 +35,6 @@ describe("StockAdjustmentSheet Component (Screen M-43)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAdjustProductStockAction.mockResolvedValue({ success: true });
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders stock summary and controls when open", () => {

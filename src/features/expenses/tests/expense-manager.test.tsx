@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ExpenseManager } from "../components/expense-manager";
 import type { Expense } from "@/domain";
 import * as actions from "../expense-actions";
@@ -44,10 +44,6 @@ const mockExpenses: Expense[] = [
 describe("ExpenseManager Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders screen header, KPI card, filters, and grouped monthly list", () => {

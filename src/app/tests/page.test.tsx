@@ -1,14 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import LocaleHomePage from "../[locale]/page";
 import ProductDetailPage from "../[locale]/p/[id]/page";
 import ShopInfoPage from "../[locale]/info/page";
 import RootPage from "../page";
 import { CartProvider } from "@/features/storefront";
-
-afterEach(() => {
-  cleanup();
-});
 
 const notFoundMock = vi.fn();
 vi.mock("next/navigation", () => ({

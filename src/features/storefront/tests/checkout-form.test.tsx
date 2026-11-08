@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDictionary } from "@/domain/i18n";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
@@ -82,7 +82,6 @@ describe("CheckoutView & CheckoutForm", () => {
   });
 
   afterEach(() => {
-    cleanup();
     resetCartStore();
     resetGuestContactCache();
     localStorage.clear();

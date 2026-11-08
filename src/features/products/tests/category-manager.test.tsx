@@ -1,11 +1,10 @@
 import { getDictionary } from "@/domain/i18n";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CategoryManager } from "../components/category-manager";
 import * as categoryActions from "../category-actions";
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

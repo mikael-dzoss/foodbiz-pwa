@@ -1,15 +1,11 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ThemeProvider } from "@/components/theme";
 import { ToastProvider } from "@/components/ui";
 import PatternsPage from "./page";
 
 describe("P-01 Patterns Component Inventory Screen", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it("renders all 12 pattern reference sections from Stitch spec", () => {
     render(
       <ThemeProvider>

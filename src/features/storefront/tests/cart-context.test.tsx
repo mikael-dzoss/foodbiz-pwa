@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
 import type { Product } from "@/domain/product";
@@ -100,7 +100,6 @@ describe("CartContext (#81, #82)", () => {
   });
 
   afterEach(() => {
-    cleanup();
     resetCartStore();
   });
 

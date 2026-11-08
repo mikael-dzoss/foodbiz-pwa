@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import CheckoutPage, { generateStaticParams } from "../page";
 import { CartProvider } from "@/features/storefront";
 
@@ -11,10 +11,6 @@ vi.mock("next/cache", () => ({
 }));
 
 describe("CheckoutPage", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   it("exports generateStaticParams for supported locales", async () => {
     const params = await generateStaticParams();
     expect(params).toEqual([{ locale: "en" }, { locale: "fr" }]);

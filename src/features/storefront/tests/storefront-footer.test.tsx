@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StorefrontFooter } from "../components/storefront-footer";
 import { enDictionary, frDictionary } from "@/domain/i18n";
@@ -30,7 +30,6 @@ const fullBusiness: Business = {
 
 describe("StorefrontFooter (#201)", () => {
   afterEach(() => {
-    cleanup();
     mockPathname = "/en";
     vi.useRealTimers();
   });

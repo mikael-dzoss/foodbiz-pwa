@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enDictionary } from "@/domain/i18n";
 import { ToastProvider } from "@/components/ui";
@@ -45,7 +45,6 @@ function firePrompt(outcome: "accepted" | "dismissed") {
 }
 
 afterEach(() => {
-  cleanup();
   vi.unstubAllGlobals();
 });
 

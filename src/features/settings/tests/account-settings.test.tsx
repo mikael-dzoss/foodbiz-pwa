@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { AccountSettings } from "../components/account-settings";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import type { ManagerSession } from "@/domain/auth";
@@ -53,7 +53,6 @@ vi.mock("../actions", () => ({
 }));
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
   mockCurrentTheme = "system";
 });

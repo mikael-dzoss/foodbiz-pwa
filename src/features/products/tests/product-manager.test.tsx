@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ProductManager } from "../components/product-manager";
 import type { EnrichedProduct } from "../product-actions";
 import type { ProductCategory } from "@/domain";
@@ -103,10 +103,6 @@ describe("ProductManager Component (Screen M-40)", () => {
     vi.clearAllMocks();
     mockAdjustProductStockAction.mockResolvedValue({ success: true });
     mockToggleProductVisibilityAction.mockResolvedValue({ success: true });
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders products list with search, filter chips, and badges", () => {

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ProductDetailView } from "../components/product-detail-view";
 import { CartProvider, resetCartStore, useCart } from "../context/cart-context";
@@ -75,7 +75,6 @@ const sampleProductData: StorefrontProductData = {
 
 describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
   afterEach(() => {
-    cleanup();
     resetCartStore();
     localStorage.clear();
   });

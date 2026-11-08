@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProductCatalogCard } from "../components/product-catalog-card";
 import { CartProvider } from "../context/cart-context";
@@ -23,7 +23,6 @@ const sampleProduct: Product = {
 
 describe("ProductCatalogCard (#80, #81, #82)", () => {
   afterEach(() => {
-    cleanup();
     localStorage.clear();
   });
 

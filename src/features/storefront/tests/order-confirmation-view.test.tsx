@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getDictionary } from "@/domain/i18n";
 import { publicOrderSchema } from "@/domain/order";
@@ -7,7 +7,6 @@ import { formatMoney } from "@/domain/formatting";
 import { OrderConfirmationView } from "../components/order-confirmation-view";
 
 afterEach(() => {
-  cleanup();
   vi.unstubAllGlobals();
 });
 

@@ -1,10 +1,8 @@
-import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { OrderLookupState } from "@/domain/order-lookup";
 import { OrderLookupForm } from "../components/order-lookup-form";
-
-afterEach(cleanup);
 
 describe("OrderLookupForm (#230)", () => {
   it("renders labelled fields and shows a generic error while keeping the typed values", async () => {
