@@ -23,8 +23,8 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npx playwright install --with-deps chromium \
     && chmod -R 777 /ms-playwright
 
-# 4. Global npm tooling (Vercel CLI)
-RUN su node -c "npm install -g vercel@latest"
+# 4. Global npm tooling (Vercel CLI & Supabase CLI)
+RUN su node -c "npm install -g vercel@latest supabase@latest"
 
 # Default container environment
 ENV NEXT_TELEMETRY_DISABLED=1

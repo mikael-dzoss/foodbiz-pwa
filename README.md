@@ -10,7 +10,15 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-Or open the folder in VS Code and choose **Reopen in Container** — `.devcontainer/` installs everything.
+Or open the folder in VS Code and choose **Reopen in Container** — `.devcontainer/` installs everything (including `docker-in-docker` and the Supabase CLI).
+
+### Local Supabase stack
+
+```bash
+npm run db:start             # start local Supabase (API :54321, Studio :54323)
+npm run db:reset             # reapply migrations + seed data
+npm run db:stop              # stop local Supabase containers
+```
 
 Stitch (design MCP): Copilot prompts for the key ([`.vscode/mcp.json`](.vscode/mcp.json)); for Antigravity, export `STITCH_API_KEY` on the host before opening the devcontainer.
 
