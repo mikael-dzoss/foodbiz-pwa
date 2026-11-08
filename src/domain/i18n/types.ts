@@ -610,6 +610,8 @@ export interface ProductsDictionary {
 
 export interface AuthDictionary {
   continueWithGoogle: string;
+  noAccessTitle: string;
+  signOutAndSwitch: string;
   errors: {
     cancelled: string;
     denied: string;

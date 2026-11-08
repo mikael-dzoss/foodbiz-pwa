@@ -25,7 +25,8 @@
     "db:status": "supabase status",
     "db:test": "supabase test db",
     "db:types": "node scripts/db-types.mjs",
-    "db:types:check": "node scripts/db-types.mjs --check"
+    "db:types:check": "node scripts/db-types.mjs --check",
+    "db:provision-member": "node scripts/provision-member.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

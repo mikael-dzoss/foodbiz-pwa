@@ -615,6 +615,8 @@ export const enDictionary: Dictionary = {
   },
   auth: {
     continueWithGoogle: "Continue with Google",
+    noAccessTitle: "Access Restricted",
+    signOutAndSwitch: "Sign out & switch account",
     errors: {
       cancelled: "Sign-in was cancelled. Please try again when you're ready.",
       denied: "Google sign-in was denied. Please grant access to continue.",

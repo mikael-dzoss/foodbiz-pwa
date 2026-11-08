@@ -22,6 +22,15 @@ npm run db:stop              # stop local Supabase containers
 
 For local Google OAuth testing with the Supabase CLI, copy `supabase/.env.example` to `supabase/.env` and supply your Google Client ID and Secret (`supabase/.env` is git-ignored).
 
+### Manager provisioning
+
+Provision a manager or staff member for a business (server-side administrative CLI):
+
+```bash
+# Requires SUPABASE_SERVICE_ROLE_KEY (server-only secret, never exposed to clients)
+npm run db:provision-member -- --business-slug <slug> --email <email> --role manager
+```
+
 Stitch (design MCP): Copilot prompts for the key ([`.vscode/mcp.json`](.vscode/mcp.json)); for Antigravity, export `STITCH_API_KEY` on the host before opening the devcontainer.
 
 ## Where next

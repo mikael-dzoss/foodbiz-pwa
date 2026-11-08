@@ -165,6 +165,26 @@ In local development and test environments (`APP_ENV=development` or `APP_ENV=te
 
 Required status check: `Quality gate`. For `develop`, `staging` and `main`: require PRs, require the check to pass, block force pushes and deletions. Note that GitHub only enforces branch protection on private repositories with a paid plan; on the free plan the rules are a team convention.
 
+## Production manager access & provisioning
+
+In production, manager access is strictly restricted to authenticated users provisioned in `public.business_members` (enforced via Supabase RLS). Signed-in users without business membership are rejected with a translated access restricted page.
+
+To provision a manager or staff member for a business:
+
+```bash
+SUPABASE_URL="https://your-project.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
+npm run db:provision-member -- --business-slug <slug> --email <email> --role manager
+```
+
+CLI options:
+
+- `--business-slug <slug>` or `--business-id <uuid>`
+- `--email <email>` or `--user-id <uuid>`
+- `--role <owner|manager|staff>` (defaults to `manager`)
+
+> **Security Note:** `SUPABASE_SERVICE_ROLE_KEY` is an administrative server-only secret that bypasses RLS. It must NEVER be prefixed with `NEXT_PUBLIC_`, never exposed to client code, never committed to git, and is strictly used for offline administrative provisioning.
+
 ## Releasing
 
 Promotions are PRs (never direct pushes) opened and merged by maintainers; hotfixes follow the same path unless maintainers decide otherwise.
