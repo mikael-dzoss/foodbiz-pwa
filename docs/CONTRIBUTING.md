@@ -60,7 +60,7 @@ The devcontainer enables `docker-in-docker` and installs the Supabase CLI (`supa
 
 ```bash
 npm run db:start   # start local Supabase stack
-npm run db:reset   # reset DB, reapply supabase/migrations/, and run seed
+npm run db:reset   # reset DB, reapply supabase/migrations/, and apply supabase/seed.sql
 npm run db:stop    # stop local Supabase containers
 npm run db:status  # print local connection URLs and keys
 ```

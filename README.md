@@ -16,7 +16,7 @@ Or open the folder in VS Code and choose **Reopen in Container** — `.devcontai
 
 ```bash
 npm run db:start             # start local Supabase (API :54321, Studio :54323)
-npm run db:reset             # reapply migrations + seed data
+npm run db:reset             # reapply migrations + seed data (supabase/seed.sql)
 npm run db:stop              # stop local Supabase containers
 ```
 
