@@ -22,6 +22,7 @@ const TOOLING_STATUS = process.env.TOOLING_STATUS || "skipped";
 const AUDIT_STATUS = process.env.AUDIT_STATUS || "skipped";
 const BUILD_STATUS = process.env.BUILD_STATUS || "skipped";
 const E2E_STATUS = process.env.E2E_STATUS || "skipped";
+const DB_TEST_STATUS = process.env.DB_TEST_STATUS || "skipped";
 const PR_TITLE = process.env.PR_TITLE || "";
 
 const MARKER = "<!-- CI-BOT-GATE-SUMMARY -->";
@@ -139,6 +140,7 @@ function buildCommentBody(options = {}) {
   const auditStatus = options.auditStatus || AUDIT_STATUS;
   const buildStatus = options.buildStatus || BUILD_STATUS;
   const e2eStatus = options.e2eStatus || E2E_STATUS;
+  const dbTestStatus = options.dbTestStatus || DB_TEST_STATUS;
   const prTitle = options.prTitle || PR_TITLE;
 
   const isSuccess =
@@ -150,7 +152,8 @@ function buildCommentBody(options = {}) {
     (toolingStatus === "success" || toolingStatus === "skipped") &&
     (auditStatus === "success" || auditStatus === "skipped") &&
     (buildStatus === "success" || buildStatus === "skipped") &&
-    (e2eStatus === "success" || e2eStatus === "skipped");
+    (e2eStatus === "success" || e2eStatus === "skipped") &&
+    (dbTestStatus === "success" || dbTestStatus === "skipped");
 
   const coverage =
     options.coverage !== undefined ? options.coverage : parseJson("coverage/coverage-summary.json");
@@ -278,6 +281,12 @@ function buildCommentBody(options = {}) {
     body += `> **Next.js Production Build Failed**\n>\n`;
     body += `> The Next.js production build failed.\n`;
     body += `> Run \`npm run build\` locally to reproduce and fix build errors.\n\n`;
+  }
+
+  if (dbTestStatus === "failure") {
+    body += `> [!WARNING]\n`;
+    body += `> **Database Tests (pgTAP) Failed**\n>\n`;
+    body += `> Run \`npm run db:test\` locally to inspect database test failures.\n\n`;
   }
 
   return body;

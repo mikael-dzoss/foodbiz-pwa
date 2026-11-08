@@ -524,7 +524,52 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      is_business_member: {
+        Args: {
+          target_business_id: string;
+        };
+        Returns: boolean;
+      };
+      is_business_owner: {
+        Args: {
+          target_business_id: string;
+        };
+        Returns: boolean;
+      };
+      get_order_by_tracking_token: {
+        Args: {
+          p_tracking_token: string;
+        };
+        Returns: Json;
+      };
+      lookup_order_by_ticket_and_phone: {
+        Args: {
+          p_business_id: string;
+          p_order_number: number;
+          p_phone: string;
+        };
+        Returns: Json;
+      };
+      storefront_order_tracking_token: {
+        Args: {
+          p_business_id: string;
+          p_order_number: number;
+          p_phone: string;
+        };
+        Returns: string;
+      };
+      storefront_featured_products: {
+        Args: {
+          p_business_id: string;
+          p_from: string;
+          p_to: string;
+        };
+        Returns: {
+          product_id: string;
+          quantity: number;
+          last_ordered_at: string;
+        }[];
+      };
     };
     Enums: {
       category_role: "regular" | "drinks" | "snacks";
