@@ -9,6 +9,7 @@ export interface ManagerShellProps {
   navDict: NavigationDictionary;
   quickAddDict: QuickAddDictionary;
   soundAlertsEnabled?: boolean;
+  businessId?: string;
 }
 
 export function ManagerShell({
@@ -16,9 +17,10 @@ export function ManagerShell({
   navDict,
   quickAddDict,
   soundAlertsEnabled = true,
+  businessId,
 }: ManagerShellProps) {
   return (
-    <OrderAlertsProvider initialSoundAlerts={soundAlertsEnabled}>
+    <OrderAlertsProvider initialSoundAlerts={soundAlertsEnabled} businessId={businessId}>
       <div className="bg-background text-foreground flex min-h-full flex-col">
         {/* Desktop Sidebar */}
         <ManagerSidebar navDict={navDict} quickAddDict={quickAddDict} />

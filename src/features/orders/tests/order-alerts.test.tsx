@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { OrderAlertsProvider, useOrderAlerts } from "../alerts/order-alerts-context";
 import * as chimeModule from "../alerts/sound-chime";
 import * as actions from "../order-actions";
@@ -89,7 +91,40 @@ function TestConsumer() {
   );
 }
 
-describe("Order Alerts & Notifications (Story #56)", () => {
+type RealtimeCallback = (payload: {
+  new: Partial<Database["public"]["Tables"]["orders"]["Row"]>;
+}) => void;
+
+function createMockSupabaseClient() {
+  let registeredCallback: RealtimeCallback | null = null;
+  let registeredEvent = "";
+  let registeredFilter = {};
+
+  const mockChannel = {
+    on: vi.fn((event: string, filter: Record<string, unknown>, callback: RealtimeCallback) => {
+      registeredEvent = event;
+      registeredFilter = filter;
+      registeredCallback = callback;
+      return mockChannel;
+    }),
+    subscribe: vi.fn(() => mockChannel),
+  };
+
+  const client = {
+    channel: vi.fn(() => mockChannel),
+    removeChannel: vi.fn(() => Promise.resolve("ok")),
+  } as unknown as SupabaseClient<Database>;
+
+  return {
+    client,
+    mockChannel,
+    getRegisteredCallback: () => registeredCallback,
+    getRegisteredEvent: () => registeredEvent,
+    getRegisteredFilter: () => registeredFilter,
+  };
+}
+
+describe("Order Alerts & Notifications (Story #56 & #124)", () => {
   let playChimeSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -236,5 +271,181 @@ describe("Order Alerts & Notifications (Story #56)", () => {
     expect(screen.getByTestId("fallback-sound").textContent).toBe("true");
     expect(() => screen.getByTestId("fallback-toggle").click()).not.toThrow();
     expect(() => screen.getByTestId("fallback-clear").click()).not.toThrow();
+  });
+
+  describe("Realtime postgres_changes subscription (#124)", () => {
+    it("subscribes to orders:business:${businessId} with event INSERT and business_id filter", () => {
+      const mock = createMockSupabaseClient();
+      const testBizId = "biz-custom-789";
+
+      render(
+        <OrderAlertsProvider
+          businessId={testBizId}
+          supabaseClient={mock.client}
+          initialSoundAlerts={true}
+          pollIntervalMs={0}
+        >
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      expect(mock.client.channel).toHaveBeenCalledWith(`orders:business:${testBizId}`);
+      expect(mock.mockChannel.on).toHaveBeenCalledWith(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `business_id=eq.${testBizId}`,
+        },
+        expect.any(Function),
+      );
+      expect(mock.mockChannel.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it("triggers toast, sound chime, and increments count when a NEW order arrives via Realtime", () => {
+      const mock = createMockSupabaseClient();
+      const testBizId = "biz-rt-123";
+
+      render(
+        <OrderAlertsProvider
+          businessId={testBizId}
+          supabaseClient={mock.client}
+          initialSoundAlerts={true}
+          pollIntervalMs={0}
+        >
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      expect(screen.getByTestId("test-count").textContent).toBe("0");
+
+      const callback = mock.getRegisteredCallback();
+      expect(callback).toBeDefined();
+
+      act(() => {
+        callback?.({
+          new: {
+            id: "ord-realtime-55",
+            business_id: testBizId,
+            order_number: 55,
+            submitted_name: "Realtime Pierre",
+            service_type: "delivery",
+            channel: "storefront",
+            status: "NEW",
+            paid: "unpaid",
+            payment_preference: "on_handover",
+            total_amount: 2450,
+            created_at: "2026-10-18T10:00:00.000Z",
+            updated_at: "2026-10-18T10:00:00.000Z",
+          },
+        });
+      });
+
+      expect(screen.getByTestId("test-count").textContent).toBe("1");
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+      expect(mockShowToast.mock.calls[0][0]).toContain(
+        "New Order #55 from Realtime Pierre (€24.50)",
+      );
+      expect(mockShowToast.mock.calls[0][2]?.label).toBe("View");
+      expect(playChimeSpy).toHaveBeenCalledTimes(1);
+
+      // Verify clicking View navigates to the order
+      mockShowToast.mock.calls[0][2]?.onClick();
+      expect(mockPush).toHaveBeenCalledWith("/manage/orders/ord-realtime-55");
+    });
+
+    it("ignores duplicate order IDs or non-NEW status rows received over Realtime", () => {
+      const mock = createMockSupabaseClient();
+      const testBizId = "biz-rt-dup";
+
+      render(
+        <OrderAlertsProvider
+          businessId={testBizId}
+          supabaseClient={mock.client}
+          initialSoundAlerts={true}
+          pollIntervalMs={0}
+        >
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      const callback = mock.getRegisteredCallback();
+      expect(callback).toBeDefined();
+
+      // 1. Non-NEW status row should be ignored
+      act(() => {
+        callback?.({
+          new: {
+            id: "ord-rt-ignored",
+            business_id: testBizId,
+            status: "CONFIRMED",
+            order_number: 101,
+          },
+        });
+      });
+      expect(screen.getByTestId("test-count").textContent).toBe("0");
+      expect(mockShowToast).not.toHaveBeenCalled();
+
+      // 2. Missing ID row should be ignored
+      act(() => {
+        callback?.({
+          new: {
+            status: "NEW",
+            order_number: 102,
+          },
+        });
+      });
+      expect(screen.getByTestId("test-count").textContent).toBe("0");
+
+      // 3. Valid NEW order is processed
+      act(() => {
+        callback?.({
+          new: {
+            id: "ord-first-time",
+            business_id: testBizId,
+            status: "NEW",
+            order_number: 103,
+            submitted_name: "Customer A",
+            total_amount: 1500,
+          },
+        });
+      });
+      expect(screen.getByTestId("test-count").textContent).toBe("1");
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+
+      // 4. Duplicate of the same order ID is ignored
+      act(() => {
+        callback?.({
+          new: {
+            id: "ord-first-time",
+            business_id: testBizId,
+            status: "NEW",
+            order_number: 103,
+            submitted_name: "Customer A",
+            total_amount: 1500,
+          },
+        });
+      });
+      expect(screen.getByTestId("test-count").textContent).toBe("1");
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+    });
+
+    it("removes the channel subscription when unmounting", () => {
+      const mock = createMockSupabaseClient();
+      const testBizId = "biz-unmount";
+
+      const { unmount } = render(
+        <OrderAlertsProvider businessId={testBizId} supabaseClient={mock.client} pollIntervalMs={0}>
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      expect(mock.client.removeChannel).not.toHaveBeenCalled();
+
+      unmount();
+
+      expect(mock.client.removeChannel).toHaveBeenCalledWith(mock.mockChannel);
+    });
   });
 });

@@ -2,8 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useToast } from "@/components/ui";
 import { formatMoney } from "@/domain";
+import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/database.types";
+import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import { listOrdersAction, type EnrichedOrder } from "../order-actions";
 import { playOrderChime } from "./sound-chime";
 
@@ -20,6 +24,8 @@ const OrderAlertsContext = React.createContext<OrderAlertsContextValue | undefin
 
 export interface OrderAlertsProviderProps {
   children: React.ReactNode;
+  businessId?: string;
+  supabaseClient?: SupabaseClient<Database> | null;
   initialSoundAlerts?: boolean;
   pollIntervalMs?: number;
   initialNewCount?: number;
@@ -37,8 +43,10 @@ function useSafeToast() {
 
 export function OrderAlertsProvider({
   children,
+  businessId = DEMO_BUSINESS_ID,
+  supabaseClient,
   initialSoundAlerts = true,
-  pollIntervalMs = 10000,
+  pollIntervalMs = 0,
   initialNewCount = 0,
 }: OrderAlertsProviderProps) {
   const router = useRouter();
@@ -92,7 +100,9 @@ export function OrderAlertsProvider({
         for (const o of newOrders) {
           seenOrderIdsRef.current.add(o.id);
         }
-        setNewOrdersCount(newOrders.length);
+        if (initialNewCount === 0) {
+          setNewOrdersCount(newOrders.length);
+        }
         isInitialLoadRef.current = false;
         return;
       }
@@ -107,16 +117,20 @@ export function OrderAlertsProvider({
     } catch {
       // Network/auth error during background poll, retry next tick
     }
-  }, [handleNewOrderArrival]);
+  }, [handleNewOrderArrival, initialNewCount]);
 
-  // Polling loop
+  // Initial check on mount + optional polling interval fallback
   React.useEffect(() => {
-    if (pollIntervalMs <= 0) return;
-
     // Initial check deferred to next tick to avoid synchronous setState during effect setup
     const timeoutId = setTimeout(() => {
       void checkForNewOrders();
     }, 0);
+
+    if (pollIntervalMs <= 0) {
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
 
     const intervalId = setInterval(() => {
       void checkForNewOrders();
@@ -128,12 +142,75 @@ export function OrderAlertsProvider({
     };
   }, [checkForNewOrders, pollIntervalMs]);
 
+  // Supabase Realtime postgres_changes subscription
+  React.useEffect(() => {
+    let client: SupabaseClient<Database> | null = null;
+    if (supabaseClient !== undefined) {
+      client = supabaseClient;
+    } else if (
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    ) {
+      try {
+        client = createClient();
+      } catch {
+        client = null;
+      }
+    }
+
+    if (!client) return;
+
+    const channel = client
+      .channel(`orders:business:${businessId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `business_id=eq.${businessId}`,
+        },
+        (payload) => {
+          const row = payload.new as
+            Partial<Database["public"]["Tables"]["orders"]["Row"]> | undefined;
+          if (!row?.id || row.status !== "NEW") return;
+          if (seenOrderIdsRef.current.has(row.id)) return;
+          seenOrderIdsRef.current.add(row.id);
+          handleNewOrderArrival({
+            id: row.id,
+            businessId: row.business_id ?? businessId,
+            orderNumber: row.order_number ?? undefined,
+            guestId: row.guest_id ?? "00000000-0000-4000-8000-000000000000",
+            guestName: row.submitted_name ?? "",
+            serviceType: row.service_type === "delivery" ? "delivery" : "pickup",
+            channel: row.channel ?? "storefront",
+            status: "NEW",
+            paid: row.paid ?? "unpaid",
+            paymentPreference: row.payment_preference ?? "on_handover",
+            paymentMethod: row.payment_method ?? null,
+            paidAt: row.paid_at ?? null,
+            requestedDate: row.requested_date ?? new Date().toISOString().slice(0, 10),
+            requestedTime: row.requested_time ? row.requested_time.slice(0, 5) : null,
+            items: [],
+            totalAmount: row.total_amount ?? 0,
+            createdAt: row.created_at ?? new Date().toISOString(),
+            updatedAt: row.updated_at ?? new Date().toISOString(),
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [businessId, handleNewOrderArrival, supabaseClient]);
+
   // Manual trigger for testing/simulation
   const triggerMockNewOrder = React.useCallback(
     (customOrder?: Partial<EnrichedOrder>) => {
       const mockNew: EnrichedOrder = {
         id: customOrder?.id ?? `mock-${Date.now()}`,
-        businessId: customOrder?.businessId ?? "biz-1",
+        businessId: customOrder?.businessId ?? businessId,
         orderNumber: customOrder?.orderNumber ?? 99,
         guestId: customOrder?.guestId ?? "00000000-0000-4000-8000-000000000000",
         guestName: customOrder?.guestName ?? "Web Customer",
@@ -156,7 +233,7 @@ export function OrderAlertsProvider({
       seenOrderIdsRef.current.add(mockNew.id);
       handleNewOrderArrival(mockNew);
     },
-    [handleNewOrderArrival],
+    [businessId, handleNewOrderArrival],
   );
 
   return (

@@ -26,6 +26,7 @@ export default async function AuthenticatedManageLayout({
       navDict={dict.nav}
       quickAddDict={dict.quickAdd}
       soundAlertsEnabled={soundAlertsEnabled}
+      businessId={session.user.businessId}
     >
       {children}
     </ManagerShell>
