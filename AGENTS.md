@@ -37,13 +37,14 @@ Create `domain/`, `features/`, `components/` as needed; keep to this separation.
 4. **Security non-negotiables.** Every Server Action parses input with zod and re-checks auth. Supabase only via `src/lib/supabase/*`, one server client per request. The service-role key is never `NEXT_PUBLIC_*`, never client-side, never committed. Every table has RLS; schema changes only in `supabase/migrations/`. Env is parsed in `src/config/env.ts`; update `.env.example` when adding variables.
 5. **Immutability.** Never mutate state/props in place (spread, `map`, `filter`, `toSorted`).
 6. **Done = validation gate green** ([CONTRIBUTING.md#validation-gate](docs/CONTRIBUTING.md#validation-gate)). Never lower coverage floors, add coverage excludes or skip tests to pass.
-7. **Git.** Never commit or push to `develop`, `staging` or `main`; work on a `feature/`, `bug/` or `utils/` branch and open the PR against `develop` ([CONTRIBUTING.md#branches](docs/CONTRIBUTING.md#branches)). Create issues only via the `issue-logger` skill.
+7. **Git.** Never commit or push to `develop`, `staging` or `main`; work on a `feature/`, `bug/` or `utils/` branch and open the PR against `develop` (or preceding stack branch for stacked PRs: see [.agents/skills/stacked-pr-workflow/SKILL.md](.agents/skills/stacked-pr-workflow/SKILL.md)). Create issues only via the `issue-logger` skill.
 
 ## Where to look
 
 Read only the section you need.
 
 - **Pick up or implement an issue** ("next N items"): [github_issue.instructions.md](.agents/rules/github_issue.instructions.md)
+- **Stacked PRs & batch implementation:** [.agents/skills/stacked-pr-workflow/SKILL.md](.agents/skills/stacked-pr-workflow/SKILL.md)
 - **Break a need into an epic/stories:** `planning-and-task-breakdown` skill, then `issue-logger`
 - **Edit `src/`** (UI, routes, actions): [web.instructions.md](.agents/rules/web.instructions.md) (auto-applied)
 - **SQL, migrations, RLS:** [backend.instructions.md](.agents/rules/backend.instructions.md) (auto-applied on `supabase/**`)
