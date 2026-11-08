@@ -62,10 +62,15 @@ begin
   -- Existing guest record found
   -- Require p_update_guest_name is true and public.is_business_member(p_business_id) (or service_role)
   if v_guest.name <> v_clean_name then
-    if p_update_guest_name is true and (
-      public.is_business_member(p_business_id) is true
-      or current_user = 'service_role'
-      or coalesce(current_setting('request.jwt.claim.role', true), '') = 'service_role'
+    if (
+      (p_update_guest_name is true and public.is_business_member(p_business_id))
+      or (
+        p_update_guest_name is true and (
+          auth.role() = 'service_role'
+          or coalesce(current_setting('role', true), '') = 'service_role'
+          or coalesce(current_setting('request.jwt.claim.role', true), '') = 'service_role'
+        )
+      )
     ) then
       update public.guests
       set name = v_clean_name
