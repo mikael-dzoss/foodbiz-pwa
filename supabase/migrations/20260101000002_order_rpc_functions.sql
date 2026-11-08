@@ -60,8 +60,13 @@ begin
   end if;
 
   -- Existing guest record found
+  -- Require p_update_guest_name is true and public.is_business_member(p_business_id) (or service_role)
   if v_guest.name <> v_clean_name then
-    if p_update_guest_name is true and public.is_business_member(p_business_id) is true then
+    if p_update_guest_name is true and (
+      public.is_business_member(p_business_id) is true
+      or current_user = 'service_role'
+      or coalesce(current_setting('request.jwt.claim.role', true), '') = 'service_role'
+    ) then
       update public.guests
       set name = v_clean_name
       where id = v_guest.id;
@@ -83,7 +88,7 @@ end;
 $$;
 
 revoke all on function public.find_or_create_guest(uuid, text, text, text, boolean) from public;
-grant execute on function public.find_or_create_guest(uuid, text, text, text, boolean) to anon, authenticated;
+grant execute on function public.find_or_create_guest(uuid, text, text, text, boolean) to anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 2. public.place_order
@@ -290,7 +295,7 @@ end;
 $$;
 
 revoke all on function public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean) from public;
-grant execute on function public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean) to anon, authenticated;
+grant execute on function public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean) to anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 3. public.cancel_order
@@ -367,4 +372,4 @@ end;
 $$;
 
 revoke all on function public.cancel_order(uuid, uuid, text) from public;
-grant execute on function public.cancel_order(uuid, uuid, text) to authenticated;
+grant execute on function public.cancel_order(uuid, uuid, text) to authenticated, service_role;

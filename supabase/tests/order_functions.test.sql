@@ -18,6 +18,7 @@ select plan(27);
 -- 1. Ensure table grants for standard Supabase API roles
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+grant temp on database postgres to anon, authenticated;
 
 -- 2. Auth users
 insert into auth.users (
