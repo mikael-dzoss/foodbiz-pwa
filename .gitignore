@@ -46,6 +46,9 @@ next-env.d.ts
 # knowledge graph
 /graphify-out
 
+# supabase cli temp
+/supabase/.temp
+
 # python
 __pycache__/
 *.py[cod]
