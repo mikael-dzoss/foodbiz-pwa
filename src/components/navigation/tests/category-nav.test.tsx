@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CategoryNav, useScrollPastSentinel, useScrollSpy } from "../index";
 
@@ -59,7 +59,6 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
   });
 
   afterEach(() => {
-    cleanup();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

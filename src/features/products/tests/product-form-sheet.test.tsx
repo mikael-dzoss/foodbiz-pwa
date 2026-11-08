@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ProductFormSheet } from "../components/product-form-sheet";
 import { getDictionary } from "@/domain/i18n";
 import type { ProductCategory } from "@/domain";
@@ -72,10 +72,6 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
       success: true,
       data: { imageUrl: "data:image/jpeg;base64,mockedcompressedpayload" },
     });
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("toggles allergen chips and submits selected tags without mutating the product", async () => {

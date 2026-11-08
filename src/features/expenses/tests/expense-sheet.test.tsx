@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ExpenseSheet } from "../components/expense-sheet";
 import type { Expense } from "@/domain";
 import * as actions from "../expense-actions";
@@ -17,10 +17,6 @@ const mockExpense: Expense = {
 describe("ExpenseSheet Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders create mode when no expense is provided", () => {

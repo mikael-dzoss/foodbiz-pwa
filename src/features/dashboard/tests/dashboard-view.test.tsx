@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DashboardView } from "../components/dashboard-view";
 import type { DashboardData } from "@/domain";
 import * as actions from "../dashboard-actions";
@@ -114,10 +114,6 @@ const mockData: DashboardData = {
 describe("DashboardView Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders screen header, active status, period picker and all 5 KPI cards", () => {

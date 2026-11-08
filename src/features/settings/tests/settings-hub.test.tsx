@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { SettingsHub } from "../components/settings-hub";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import type { ManagerSession } from "@/domain/auth";
@@ -34,7 +34,6 @@ vi.mock("@/components/ui", async (importOriginal) => {
 });
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

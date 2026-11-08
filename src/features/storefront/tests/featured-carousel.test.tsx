@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FeaturedCarousel } from "../components/featured-carousel";
 import { CartProvider, resetCartStore } from "../context/cart-context";
@@ -9,7 +9,6 @@ const products = demoProducts
   .slice(0, 4)
   .map((p, i) => ({ ...p, stock: 1, imageUrl: i === 0 ? null : p.imageUrl }));
 afterEach(() => {
-  cleanup();
   resetCartStore();
   vi.useRealTimers();
 });

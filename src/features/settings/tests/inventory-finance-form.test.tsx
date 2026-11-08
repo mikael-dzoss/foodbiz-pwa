@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { InventoryFinanceForm } from "../components/inventory-finance-form";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import type { BusinessSettings } from "@/domain/business";
@@ -60,7 +60,6 @@ vi.mock("../actions", () => ({
 }));
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

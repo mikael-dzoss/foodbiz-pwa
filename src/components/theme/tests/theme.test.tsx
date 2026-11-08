@@ -1,6 +1,6 @@
-import { render, screen, act, cleanup } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { ThemeProvider, useTheme, THEME_STORAGE_KEY } from "../theme-provider";
 import { ThemeScript } from "../theme-script";
 
@@ -29,10 +29,6 @@ describe("ThemeProvider", () => {
     localStorage.clear();
     document.documentElement.className = "";
     vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("provides default theme and mounts correctly", () => {

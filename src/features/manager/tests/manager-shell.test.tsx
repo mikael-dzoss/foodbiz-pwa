@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ManagerShell } from "../components/manager-shell";
 import { enDictionary } from "@/domain/i18n";
 
@@ -15,10 +15,6 @@ vi.mock("next/navigation", () => ({
     prefetch: vi.fn(),
   }),
 }));
-
-afterEach(() => {
-  cleanup();
-});
 
 beforeEach(() => {
   pathname.mockReturnValue("/manage");

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDictionary } from "@/domain/i18n";
 import { ToastProvider } from "@/components/ui";
@@ -13,7 +13,6 @@ describe("CartView", () => {
   });
 
   afterEach(() => {
-    cleanup();
     resetCartStore();
   });
 

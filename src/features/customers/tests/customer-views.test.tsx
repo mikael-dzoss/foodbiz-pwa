@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import axe from "axe-core";
 import { getDictionary, summarizeCustomers } from "@/domain";
@@ -10,7 +10,6 @@ import { updateCustomerAction } from "../customer-actions";
 
 vi.mock("../customer-actions", () => ({ updateCustomerAction: vi.fn() }));
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 const summaries = summarizeCustomers(demoGuests, demoOrders);

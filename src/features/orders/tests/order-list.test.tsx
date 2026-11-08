@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { OrderList } from "../components/order-list";
 import type { ListOrdersResult } from "../order-actions";
 
@@ -11,7 +11,6 @@ vi.mock("next/navigation", () => ({
 }));
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

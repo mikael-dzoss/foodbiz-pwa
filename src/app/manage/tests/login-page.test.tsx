@@ -1,10 +1,6 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
 import ManagerLoginPage from "../login/page";
-
-afterEach(() => {
-  cleanup();
-});
 
 describe("ManagerLoginPage", () => {
   it("renders manager sign-in heading and demo sign-in button", () => {

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { OrderDetail } from "../components/order-detail";
 import type { EnrichedOrder } from "../order-actions";
 import * as actions from "../order-actions";
@@ -55,10 +55,6 @@ const mockOrder: EnrichedOrder = {
 describe("OrderDetail Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("renders order reference, guest details, items, and notes", () => {

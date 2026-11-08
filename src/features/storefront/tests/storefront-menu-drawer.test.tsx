@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 import { ToastProvider } from "@/components/ui";
@@ -22,7 +22,6 @@ function renderDrawer(locale: "en" | "fr" = "en") {
 
 beforeEach(() => resetCartStore());
 afterEach(() => {
-  cleanup();
   resetCartStore();
   vi.unstubAllGlobals();
 });

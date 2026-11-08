@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ServiceToggleHeader } from "../components/service-toggle-header";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
@@ -12,7 +12,6 @@ describe("ServiceToggleHeader (#193)", () => {
   });
 
   afterEach(() => {
-    cleanup();
     resetCartStore();
     localStorage.clear();
   });

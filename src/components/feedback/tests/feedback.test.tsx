@@ -1,15 +1,11 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it, afterEach, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui";
 import { subscribeFeatureInterest } from "@/domain/features";
 import { SoonBadge, SoonItem, EmptyState, ErrorState } from "../index";
 
 describe("Feedback Components & States (#33, #34)", () => {
-  afterEach(() => {
-    cleanup();
-  });
-
   describe("SoonBadge", () => {
     it("renders default label and custom label", () => {
       render(

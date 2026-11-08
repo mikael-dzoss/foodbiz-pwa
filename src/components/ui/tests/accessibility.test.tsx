@@ -1,11 +1,10 @@
-import { cleanup, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import axe from "axe-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { Button, Checkbox, Input, QuantityStepper, Switch, Textarea } from "../index";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../dialog";
 
 afterEach(() => {
-  cleanup();
   document.documentElement.classList.remove("dark");
 });
 

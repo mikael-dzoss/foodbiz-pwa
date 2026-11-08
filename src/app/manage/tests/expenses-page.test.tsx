@@ -1,11 +1,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import ExpensesPage from "../(authenticated)/expenses/page";
 import NewExpensePage from "../(authenticated)/expenses/new/page";
 import * as auth from "@/lib/auth";
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 

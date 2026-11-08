@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, cleanup } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import { OrderAlertsProvider, useOrderAlerts } from "../alerts/order-alerts-context";
 import * as chimeModule from "../alerts/sound-chime";
 import * as actions from "../order-actions";
@@ -114,7 +114,6 @@ describe("Order Alerts & Notifications (Story #56)", () => {
   });
 
   afterEach(() => {
-    cleanup();
     vi.restoreAllMocks();
   });
 

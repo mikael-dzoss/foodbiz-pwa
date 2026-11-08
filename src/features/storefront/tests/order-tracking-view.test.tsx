@@ -1,12 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { OrderTrackingView } from "../components/order-tracking-view";
 import { getDictionary } from "@/domain/i18n";
 import type { Order, Business } from "@/domain";
-
-afterEach(() => {
-  cleanup();
-});
 
 const mockBusiness: Business = {
   id: "biz-1",

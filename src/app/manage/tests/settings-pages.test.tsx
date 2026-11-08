@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import SettingsPage from "../(authenticated)/settings/page";
 import AccountSettingsPage from "../(authenticated)/settings/account/page";
 import BusinessProfilePage from "../(authenticated)/settings/business/page";
@@ -43,7 +43,6 @@ const mockBusiness = {
 };
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 
