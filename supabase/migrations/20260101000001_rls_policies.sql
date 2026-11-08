@@ -50,7 +50,6 @@
 --   drop policy if exists businesses_select_authenticated on businesses;
 --   drop policy if exists businesses_select_anon on businesses;
 --   drop function if exists public.is_business_owner(uuid);
---   drop function if exists auth.is_business_member(uuid);
 --   drop function if exists public.is_business_member(uuid);
 -- ============================================================================
 
@@ -73,16 +72,6 @@ as $$
   );
 $$;
 
-create or replace function auth.is_business_member(target_business_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select public.is_business_member(target_business_id);
-$$;
-
 create or replace function public.is_business_owner(target_business_id uuid)
 returns boolean
 language sql
@@ -99,9 +88,8 @@ as $$
   );
 $$;
 
-grant execute on function public.is_business_member(uuid) to anon, authenticated;
-grant execute on function auth.is_business_member(uuid) to anon, authenticated;
-grant execute on function public.is_business_owner(uuid) to anon, authenticated;
+grant execute on function public.is_business_member(uuid) to anon, authenticated, service_role;
+grant execute on function public.is_business_owner(uuid) to anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 2. Ensure Row Level Security is Enabled on All 9 Tables
@@ -318,6 +306,8 @@ as $$
       'service_type', o.service_type,
       'status', o.status,
       'paid', o.paid,
+      'payment_preference', o.payment_preference,
+      'cancellation_reason', o.cancellation_reason,
       'requested_date', o.requested_date,
       'requested_time', o.requested_time,
       'total_amount', o.total_amount,
@@ -334,7 +324,7 @@ as $$
 $$;
 
 revoke all on function public.get_order_by_tracking_token(text) from public;
-grant execute on function public.get_order_by_tracking_token(text) to anon, authenticated;
+grant execute on function public.get_order_by_tracking_token(text) to anon, authenticated, service_role;
 
 create or replace function public.lookup_order_by_ticket_and_phone(
   p_business_id uuid,
@@ -355,6 +345,8 @@ as $$
       'service_type', o.service_type,
       'status', o.status,
       'paid', o.paid,
+      'payment_preference', o.payment_preference,
+      'cancellation_reason', o.cancellation_reason,
       'requested_date', o.requested_date,
       'requested_time', o.requested_time,
       'total_amount', o.total_amount,
@@ -374,7 +366,7 @@ as $$
 $$;
 
 revoke all on function public.lookup_order_by_ticket_and_phone(uuid, integer, text) from public;
-grant execute on function public.lookup_order_by_ticket_and_phone(uuid, integer, text) to anon, authenticated;
+grant execute on function public.lookup_order_by_ticket_and_phone(uuid, integer, text) to anon, authenticated, service_role;
 
 create or replace function public.storefront_order_tracking_token(
   p_business_id uuid,
@@ -397,7 +389,7 @@ as $$
 $$;
 
 revoke all on function public.storefront_order_tracking_token(uuid, integer, text) from public;
-grant execute on function public.storefront_order_tracking_token(uuid, integer, text) to anon, authenticated;
+grant execute on function public.storefront_order_tracking_token(uuid, integer, text) to anon, authenticated, service_role;
 
 create or replace function public.storefront_featured_products(
   p_business_id uuid,
@@ -430,4 +422,4 @@ as $$
 $$;
 
 revoke all on function public.storefront_featured_products(uuid, timestamptz, timestamptz) from public;
-grant execute on function public.storefront_featured_products(uuid, timestamptz, timestamptz) to anon, authenticated;
+grant execute on function public.storefront_featured_products(uuid, timestamptz, timestamptz) to anon, authenticated, service_role;

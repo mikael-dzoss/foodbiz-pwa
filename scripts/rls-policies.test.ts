@@ -33,7 +33,6 @@ describe("RLS policies and pgTAP test suite (#120)", () => {
 
     // 2. Membership and ownership helpers
     expect(sql).toMatch(/create\s+(?:or\s+replace\s+)?function\s+public\.is_business_member\s*\(/i);
-    expect(sql).toMatch(/create\s+(?:or\s+replace\s+)?function\s+auth\.is_business_member\s*\(/i);
     expect(sql).toMatch(/create\s+(?:or\s+replace\s+)?function\s+public\.is_business_owner\s*\(/i);
     expect(sql).toContain("(select auth.uid())");
     expect(sql).toContain("security definer");

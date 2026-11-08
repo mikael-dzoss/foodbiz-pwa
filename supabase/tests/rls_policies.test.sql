@@ -9,7 +9,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(44);
+select plan(43);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -243,7 +243,7 @@ set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
--- Membership helpers verification (Tests 31-34)
+-- Membership helpers verification (Tests 31-33)
 select is(
   public.is_business_member('10000000-0000-0000-0000-000000000001'::uuid),
   true,
@@ -254,12 +254,6 @@ select is(
   public.is_business_member('20000000-0000-0000-0000-000000000002'::uuid),
   false,
   'member_a is not recognized as member of Biz B'
-);
-
-select is(
-  auth.is_business_member('10000000-0000-0000-0000-000000000001'::uuid),
-  true,
-  'auth.is_business_member alias works for Biz A'
 );
 
 select is(
