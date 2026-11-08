@@ -54,7 +54,7 @@ describe("Atomic order placement and cancellation functions (#121)", () => {
     expect(sql).toContain("order_items");
 
     // 6. Cancel order stock restoration and status validation
-    expect(sql).toContain("current_user in ('anon', 'authenticated')");
+    expect(sql).toContain("if not public.is_business_member(p_business_id) then");
     expect(sql).toContain("public.is_business_member(p_business_id)");
     expect(sql).toContain("INVALID_STATUS_TRANSITION: cannot cancel a completed order");
     expect(sql).toContain("INVALID_STATUS_TRANSITION: order is already cancelled");

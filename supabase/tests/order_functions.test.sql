@@ -205,6 +205,9 @@ select is(
   'place_order decrements product stock from 10 to 8'
 );
 
+-- Switch to postgres to inspect RLS-protected tables (orders, order_items)
+set local role postgres;
+
 -- Test 8: Creates order with guest_id NOT NULL and submitted_name IS NULL
 select ok(
   (select guest_id is not null and submitted_name is null from public.orders where id = (select (res->>'order_id')::uuid from t_order_1)),
@@ -218,6 +221,11 @@ select is(
   'place_order creates order_items snapshot row'
 );
 
+-- Switch back to anon for repeat order test
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claims" = '{}';
+
 -- Test 10-11: Repeat place_order by anon with differing name preserves canonical name and sets submitted_name
 create temp table t_order_2 on commit drop as
 select public.place_order(
@@ -230,6 +238,9 @@ select public.place_order(
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
 ) as res;
 grant select on t_order_2 to public;
+
+-- Switch to postgres to inspect RLS-protected tables (guests, orders)
+set local role postgres;
 
 -- Test 10: Canonical guest name preserved
 select is(
@@ -361,6 +372,9 @@ select public.place_order(
   ]'::jsonb
 ) as res;
 grant select on t_order_dups to public;
+
+-- Switch to postgres to inspect RLS-protected order_items table
+set local role postgres;
 
 select is(
   (select quantity from public.order_items where order_id = (select (res->>'order_id')::uuid from t_order_dups)),

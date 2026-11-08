@@ -317,8 +317,7 @@ declare
   v_order public.orders%rowtype;
 begin
   -- Authorization check: caller must be a member of the target business
-  if (current_user in ('anon', 'authenticated') or coalesce(current_setting('request.jwt.claim.role', true), '') in ('anon', 'authenticated'))
-     and not public.is_business_member(p_business_id) then
+  if not public.is_business_member(p_business_id) then
     raise exception 'permission denied for cancel_order' using errcode = '42501';
   end if;
 
