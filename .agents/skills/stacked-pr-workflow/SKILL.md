@@ -1,25 +1,27 @@
 ---
 name: stacked-pr-workflow
-description: Strategy and execution guide for batches of requirements using PR stacks and story grouping. Use when implementing multiple stories, chaining dependent feature PRs, managing rebase cascades, or merging stacks up to review gates.
+description: Strategy and execution guide for batches of requirements using GitHub PR stacks (gh stack) and story grouping. Use when implementing multiple stories, chaining dependent feature PRs in a dedicated GitHub stack, managing cascading rebases, or merging stacks up to review gates.
 ---
 
 # Stacked Pull Request Workflow
 
-Baseline branch model, commit formats, and validation gates: [`docs/CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md). Issue lifecycle and gating rules: [`github_issue.instructions.md`](../../rules/github_issue.instructions.md). This skill governs batch decision logic, stack mechanics, rebase cascades, and sequential merges.
+Baseline branch model, commit formats, and validation gates: [`docs/CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md). Issue lifecycle and gating rules: [`github_issue.instructions.md`](../../rules/github_issue.instructions.md). Official GitHub reference: [About stacked pull requests](https://docs.github.com/en/pull-requests/get-started/about-stacked-prs) and [`gh stack` CLI commands](https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands).
+
+This skill governs batch decision logic, upfront stack planning, dedicated GitHub stack management (`gh stack`), cascading rebases, and selective stack merging up to review gates.
 
 ## 1. Strategy Decision: Grouping vs. Stacking
 
-When assigned a batch of ready stories (e.g. "implement the next N items" or an entire epic wave):
+When assigned a batch of stories (e.g. "implement the next N items" or an entire epic wave):
 
 ```mermaid
 flowchart TD
-  Start["Batch of ready stories"] --> CheckDomain{"Same epic or dependent wave?"}
+  Start["Batch of stories"] --> CheckDomain{"Same epic or dependent wave?"}
   CheckDomain -- No --> Independent["Develop independently on develop"]
   CheckDomain -- Yes --> CheckSize{"Closely related & same area?"}
   CheckSize -- Yes --> CheckTotal{"Total diff ≤ ~2000 lines prod code? (flexible)"}
   CheckTotal -- Yes --> CheckGate{"Any review gates between stories?"}
   CheckGate -- No --> Group["Group 2–4 stories in 1 PR"]
-  CheckGate -- Yes --> Stack["Stack PRs (Linear Chain)"]
+  CheckGate -- Yes --> Stack["GitHub PR Stack (gh stack)"]
   CheckSize -- No --> Stack
   CheckTotal -- No --> Stack
 ```
@@ -40,215 +42,200 @@ Evaluate grouping first when working on multiple small stories:
   - Tick acceptance criteria for all grouped issues.
   - Open a single PR closing all grouped issues (`Closes #A, Closes #B`).
 
-### Path B: Stacking (For Dependent or Broader Sibling Requirements)
+### Path B: GitHub PR Stack (For Dependent or Broader Requirements)
 
-Use PR stacks when requirements are part of the same epic wave or have sequential dependencies, such as:
+Use a dedicated GitHub PR stack when requirements are part of the same epic wave or have sequential dependencies, such as:
 - Sibling stories significantly exceed recommended grouping guidelines (> ~2000 lines combined without close architectural cohesion).
 - Stories span distinct architectural layers or sequential dependencies (Story B builds on Story A's schema/components).
-- Stories contain intermediate review gates (`gate: needs-review` or `gate: design-change`) that would otherwise stall progress.
-- Delivering a full epic wave iteratively (e.g. 5–15 stories).
+- The batch contains review gates (`gate: needs-review` or `gate: design-change`) alongside ungated stories.
+- Delivering a full epic or multi-story wave iteratively (e.g. 3–15 stories).
 
 > [!NOTE]
 > If assigned items are completely independent across distinct domains (e.g. `orders`, `settings`, `analytics`), develop them on independent branches targeting `develop` (or via separate git worktrees) rather than creating artificial dependency chains.
 
 ---
 
-## 2. Stack Architecture & Conventions
+## 2. Core Principles of GitHub PR Stacks
 
-### Linear Chaining Model
+### 2.1 Upfront Planning of the Full Stack
+- **Plan all PR requirements upfront before starting a stack**, regardless of whether individual stories carry a review gate (`gate: needs-review` or `gate: design-change`).
+- **Review gates stop MERGING, not implementing.** Do not pause implementation mid-stack when reaching a gated story. Implement the entire planned chain of PRs in the stack from bottom to top, then use the review gate to determine which PR in the stack to merge up to (§6).
 
-Every PR in the stack builds directly on top of the preceding branch:
+### 2.2 Dedicated GitHub Stack Object (`#<stack-number>`)
+- A stack on GitHub is a **first-class repository object** with its own distinct ID (`#<stack-number>`, viewable at `https://github.com/<owner>/<repo>/stack/<stack-number>`).
+- **Simply setting `gh pr create --base <parent-branch>` is NOT enough.** Chaining branch bases without registering a GitHub Stack object prevents GitHub Actions (`pull_request` targeting `develop`) from running on upper PRs and prevents atomic stack merges.
+- Always manage stacks with the official `gh stack` CLI extension:
+  ```bash
+  # Ensure gh-stack extension is installed
+  gh extension list | grep -q "github/gh-stack" || gh extension install github/gh-stack
+  ```
+
+### 2.3 Linear Chaining Model
 
 ```text
-develop
-  └── feature/203-menu-search           (PR #219, base: develop)
-        └── feature/205-manager-catalog (PR #220, base: feature/203-menu-search)
-              └── feature/204-featured  (PR #221, base: feature/205-manager-catalog)
-                    └── ...
+Stack #259 (trunk: develop)
+  ├── PR #257: feature/118-local-supabase-devcontainer     (base: develop)                                 ← bottom (position 1)
+  ├── PR #258: feature/119-migrations-and-generated-types  (base: feature/118-local-supabase-devcontainer) ← position 2 (PR_pre_gate)
+  ├── PR #260: feature/120-rls-policies                    (base: feature/119-migrations-and-generated-types) [gate: needs-review] ← PR_gate
+  └── PR #261: feature/121-order-rpc-functions             (base: feature/120-rls-policies)                ← top
 ```
 
-### Stack PR Metadata Rules
-
-1. **Base branch**: PR 1 targets `develop`. Each downstream PR N targets the branch of PR N-1.
-   > [!IMPORTANT]
-   > **NEVER target `develop` directly while the stack is in progress.** Targeting `develop` before parent PRs merge pollutes the PR diff with all ancestor commits, making review impossible and triggering bogus CI failures.
-2. **Issue tracking**:
-   - Starting a story:
-     ```bash
-     gh issue edit <id> --remove-label "status: planned" --add-label "status: in-progress"
-     python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py <id> --set-in-progress
-     ```
-   - Opening the PR:
-     ```bash
-     gh issue edit <id> --remove-label "status: in-progress" --add-label "status: in-review"
-     ```
-3. **PR Stack Header**:
-   Include this exact header block in every stacked PR body:
-   ```markdown
-   > **Stacked PR**: Base is `<parent-branch>`. Part of stack for Epic #<epic-number>.
-   > Merge downstream PRs in order after base merges, or cascade-merge into develop.
-   ```
+- **Trunk**: The bottom PR targets `develop`. Each subsequent PR targets the branch immediately below it.
+- **CI Execution**: Once linked in a GitHub Stack (`#<stack-number>`), GitHub Actions automatically evaluates every PR in the stack as if it targets `develop` (exposing `github.event.pull_request.stack`).
+- **PR Stack Header**: Include this callout in every stacked PR body:
+  ```markdown
+  > **Stacked PR**: Base is `<parent-branch>`. Part of Stack #<stack-number> for Epic #<epic-number>.
+  ```
 
 ---
 
-## 3. Autonomous Stack Construction (Continuous Iteration)
+## 3. End-to-End Stack Construction Workflow
 
-Do **NOT** idle between ungated stories. Work iteratively from bottom to top:
+### Step 0: Plan All Stack Layers Upfront
+Before creating branches, inspect all stories in the target batch/epic (`gh issue view <id>`), verify dependencies, and write the upfront implementation plan covering every layer of the stack (`PR_1` through `PR_N`).
 
-For each story in the batch:
+### Step 1: Initialize the Stack (or Check Out an Existing Stack)
+- **Starting a brand-new stack on `develop`**:
+  ```bash
+  git switch develop && git pull origin develop
+  gh stack init --base develop feature/<id-1>-<slug-1>
+  ```
+- **Resuming or extending an existing GitHub stack `#<stack-number>`**:
+  ```bash
+  gh stack checkout <stack-number>
+  gh stack top
+  ```
 
-1. **Branch off previous story**:
+### Step 2: Implement All Planned Layers Sequentially (Bottom to Top)
+Iterate through **every** planned story in the stack (both ungated and gated) without stopping implementation at review gates:
+
+1. **Create the next stack branch** (for layer 2..N; layer 1 was created by `gh stack init`):
    ```bash
-   git switch <parent-branch>   # or 'develop' for PR 1
-   git switch -c feature/<number>-<slug>
+   gh stack add feature/<number>-<slug>
    ```
-
-2. **Implement**:
+2. **Update issue status to `in-progress`**:
+   ```bash
+   gh issue edit <number> --remove-label "status: planned" --add-label "status: in-progress"
+   python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py <number> --set-in-progress
+   ```
+3. **Implement & commit**:
    - Follow ponytail (minimalism) and TDD.
-   - For user-facing screens in [`SCREENS.md`](../../../docs/design/SCREENS.md), inspect/generate the mobile Stitch canvas first ([`design.instructions.md`](../../rules/design.instructions.md)).
-   - Commit each working slice with conventional commits: `<type>(<scope>): <description> (#<number>)`.
-
-3. **Local Slice Validation**:
-   Run the fast validation suite per story slice:
+   - For user-facing screens in [`SCREENS.md`](../../../docs/design/SCREENS.md), inspect or generate the mobile Light-mode Stitch canvas first ([`design.instructions.md`](../../rules/design.instructions.md)).
+   - Commit working slices with conventional commits: `<type>(<scope>): <description> (#<number>)`.
+4. **Run local slice validation**:
    ```bash
    npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run test:tooling
    ```
+5. **Push, create PR, and link into the GitHub Stack**:
+   - Push the branch and open its PR targeting `<parent-branch>` (or `develop` for layer 1):
+     ```bash
+     git push -u origin feature/<number>-<slug>
+     gh pr create --base <parent-branch> --title "<type>(<scope>): <description> (#<number>)" --body "Closes #<number>
 
-4. **Commit & Push**:
-   ```bash
-   git push -u origin feature/<number>-<slug>
-   ```
+     > **Stacked PR**: Base is \`<parent-branch>\`. Part of Stack #<stack-number> for Epic #<epic-number>.
 
-5. **Open Stacked PR**:
-   ```bash
-   gh pr create --base <parent-branch> --title "<type>(<scope>): <description> (#<number>)" --body "Closes #<number>
+     ## Changes
+     - <summary>
 
-   > **Stacked PR**: Base is \`<parent-branch>\`. Part of stack for Epic #<epic-number>.
-   > Merge downstream PRs in order after base merges, or cascade-merge into develop.
+     ## Acceptance criteria
+     - [x] <each AC from the issue> — <how it was verified>
 
-   ## Changes
-   - <summary>
+     ## Verification
+     - [x] Validation gate passes"
+     ```
+   - **Link into the dedicated GitHub Stack** as soon as 2+ branches/PRs exist:
+     ```bash
+     # When creating the stack object from the first two PRs:
+     gh stack link --base develop --open <pr-1> <pr-2>
 
-   ## Acceptance criteria
-   - [x] <each AC from the issue> — <how it was verified>
-
-   ## Verification
-   - [x] Validation gate passes"
-   ```
-
-6. **Update Issue Label**:
+     # When appending a new PR to an existing stack #<stack-number>:
+     gh stack link <stack-number> --open <new-pr>
+     ```
+     *(Alternatively, `gh stack submit --open` or `gh stack sync` links tracked local stack branches into the GitHub stack automatically.)*
+   - Verify stack membership and record the stack ID (`#<stack-number>`):
+     ```bash
+     gh stack view --short
+     ```
+6. **Update issue status to `in-review`**:
    ```bash
    gh issue edit <number> --remove-label "status: in-progress" --add-label "status: in-review"
    ```
-
-7. **Advance or Gated Halt**:
-   - **If the next story is ungated**: Proceed directly to step 1 for the next story without waiting for CI or code review.
-   - **If the next story is gated (`gate: needs-review` or `gate: design-change`)**: **Halt stack construction**. Proceed to §5 and §6 to cascade-merge all ungated predecessors (`PR_first` through `PR_pre_gate`), then present the implementation plan / UI proposal for the gated issue.
+7. **Continue to the next planned story in the stack** until all planned stories (`PR_1` .. `PR_N`) are implemented and linked in Stack `#<stack-number>`.
 
 ---
 
-## 4. Rebase & Upstream Update Discipline
+## 4. Modifying a Lower Layer & Cascading Rebases
 
-When an upstream PR in the stack is amended (e.g. fixing a CI check, lint failure, or review feedback):
-
-### The Golden Rebase Rule
-Always rebase the child branch using explicit `--onto` with the commit hash immediately before the child branch started:
+Never work around a bug in a lower layer from a higher branch. Always fix it in the layer where it belongs and let `gh stack` cascade the rebase upward:
 
 ```bash
-# 1. Fetch latest changes
-git fetch origin
+# 1. Switch to the lower branch that needs a fix
+gh stack checkout feature/<lower-id>-<slug>   # or: gh stack down
 
-# 2. Checkout clean local copy of child branch
-git checkout -B <child-branch> origin/<child-branch>
+# 2. Commit the fix and run local validation
+git add <files>
+git commit -m "fix(<scope>): <description> (#<lower-id>)"
+npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run test:tooling
 
-# 3. Rebase child commits onto the updated parent branch
-# If the child branch has 1 commit (standard), <old-base-parent-commit> is origin/<child-branch>~1.
-# For N child commits, use origin/<child-branch>~N.
-git rebase --onto origin/<parent-branch> origin/<child-branch>~<N> <child-branch>
+# 3. Cascade rebase all branches above it in the stack
+gh stack rebase --upstack
+
+# 4. Atomically push all updated stack branches (--force-with-lease) and return to top
+gh stack push
+gh stack top
 ```
 
-> [!TIP]
-> If git pauses with a clean working tree (due to autostash application), simply run:
-> ```bash
-> git rebase --continue
-> ```
-
-### Validate and Force-Push
-Always run validation gates locally before pushing changes:
-
-```bash
-npm run test:coverage && npm run typecheck && npm run lint && npm run test:tooling
-git push origin <child-branch> --force-with-lease
-```
-
-Repeat this rebase step down the chain for any subsequent branches in the stack.
+- If `develop` (the trunk) has moved ahead on `origin`, rebase the entire stack onto latest `develop` with:
+  ```bash
+  gh stack rebase
+  gh stack push
+  ```
+- If a rebase conflict occurs, resolve the conflicted files, stage with `git add`, and run `gh stack rebase --continue` (or `gh stack rebase --abort` to restore pre-rebase state).
 
 ---
 
 ## 5. Pre-Merge Verification (Quality Gates)
 
-Before merging any PRs in the stack:
+Before merging any portion of the stack:
 
 1. **Verify Full Validation Gate on Stack Top**:
-   On the top branch of the stack, ensure full build and e2e checks pass:
    ```bash
+   gh stack top
    npm run build && npm run test:e2e
    ```
-
-2. **Verify CI Status and Mergeability**:
-   Verify that all PRs in the chain are `MERGEABLE` and have all required CI checks passing (`SUCCESS`):
-   ```bash
-   for pr in <pr-list>; do
-     gh pr view $pr --json number,mergeable,statusCheckRollup --jq '
-       {
-         pr: .number,
-         mergeable: .mergeable,
-         passed: ([.statusCheckRollup[] | select((.state // .conclusion // .status) == "SUCCESS")] | length),
-         total: (.statusCheckRollup | length)
-       } | "#\(.pr): \(.mergeable) (\(.passed)/\(.total) checks passed)"
-     '
-   done
-   ```
-
-If any check fails or shows `CONFLICTING`, resolve the issue and rebase downstream branches before proceeding.
+2. **Verify Stack Integrity and CI Checks**:
+   Confirm that the stack is linear (`needsRebase: false` in `gh stack view --json`) and that all required CI checks pass on every PR up to the merge target (`PR_pre_gate`).
 
 ---
 
-## 6. Cascading Merge Strategy
-
-Once all PRs in the stack are green, merge autonomously from the bottom up to the first review gate:
-
-### Step 1: Find the First Review Gate
-Inspect the stack in order (`PR_1` to `PR_N`):
-- Review gates: `gate: needs-review` or `gate: design-change`.
-- Identify:
-  - `PR_first`: Bottom PR targeting `develop`.
-  - `PR_gate`: The first PR in the stack with a `gate:` label.
-  - `PR_pre_gate`: The PR immediately before `PR_gate`. If no PRs have a gate, `PR_pre_gate` is `PR_N` (the top of the stack).
-
-### Step 2: Execute Cascading Merge with Retargeting Wait Loop
-Merge sequentially from `PR_first` up to `PR_pre_gate`.
+## 6. Merging a Stack & Review Gate Discipline
 
 > [!IMPORTANT]
-> GitHub's automatic base-retargeting runs asynchronously (taking 3–15 seconds). Always wait for GitHub to complete retargeting before issuing the next merge:
+> **Do NOT rebase and retarget PRs onto `develop` one by one as you climb the stack.**
+> In a GitHub stack, merging a pull request **automatically merges all unmerged pull requests below it** in a single atomic operation, and automatically rebases/retargets the remaining pull requests above it onto `develop`.
+
+### Step 1: Identify the Merge Target (`PR_pre_gate`)
+Inspect the ordered PRs in Stack `#<stack-number>` from bottom (`PR_1`) to top (`PR_N`):
+- **`PR_gate`**: The **first** (lowest) PR in the stack whose issue has `gate: needs-review` or `gate: design-change`.
+- **`PR_pre_gate`**: The last ungated PR immediately below `PR_gate`.
+  - If **no** PR in the stack has a review gate, `PR_pre_gate` is `PR_N` (the top PR of the stack).
+  - If **`PR_1`** (the very bottom PR) has a review gate, there is no `PR_pre_gate` — do **not** merge anything; leave the entire stack open for human review.
+
+### Step 2: Merge Up to `PR_pre_gate` in One Command
+When `PR_pre_gate` exists and all CI checks on `PR_1 .. PR_pre_gate` are green, merge `PR_pre_gate` directly using `gh stack merge`:
 
 ```bash
-PRS_TO_MERGE=(<pr_first> ... <pr_pre_gate>)
-
-for pr in "${PRS_TO_MERGE[@]}"; do
-  # Wait for GitHub to retarget PR base to develop after parent merge/deletion
-  while [ "$(gh pr view "$pr" --json baseRefName --jq .baseRefName)" != "develop" ]; do
-    echo "Waiting for PR #$pr to retarget base to develop..."
-    sleep 3
-  done
-
-  # Merge and delete branch
-  gh pr merge "$pr" --merge --delete-branch
-done
+gh stack merge <PR_pre_gate> --merge --yes
 ```
 
-### Why Cascading Merge Works
-1. When `PR_1` merges into `develop` and its branch is deleted on GitHub, GitHub automatically re-targets `PR_2`'s base from `feature/1` to `develop`.
-2. When `PR_2` merges and its branch is deleted, `PR_3` automatically re-targets to `develop`.
-3. When `PR_pre_gate` merges and its branch is deleted, `PR_gate` (the review-gated PR) automatically re-targets to `develop`!
-4. `PR_gate` now cleanly displays only its own changes against `develop` and remains open for human review.
+What GitHub does automatically:
+1. Merges `PR_1` through `PR_pre_gate` into `develop` together in bottom-up order.
+2. Automatically rebases and retargets `PR_gate` to target `develop` directly (making `PR_gate` the new bottom of Stack `#<stack-number>`), keeping `PR_gate .. PR_N` open and linked for human review.
+
+### Step 3: Sync Local Environment & Clean Up Merged Issue Labels
+After the stack merge completes:
+```bash
+# Fast-forward develop, rebase remaining local stack branches onto develop, and prune merged local branches
+gh stack sync --prune
+```
+Ensure each merged issue has its `status: in-review` label removed and is closed (handled automatically by `Closes #<id>` / `Issue status` workflow, or verified via `gh issue view <id>`).

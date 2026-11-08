@@ -71,6 +71,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Check database types are up to date
+        run: npm run db:types:check
+
   # ── Quality Gate: Unit Tests & Coverage Ratchet ─────────────
   test:
     name: Quality Gate - Unit Tests & Coverage

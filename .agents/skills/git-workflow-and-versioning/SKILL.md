@@ -30,7 +30,7 @@ Never run two agents on the same branch or worktree. Database migrations stay se
 
 ## Stacked PRs & Batch Implementation
 
-When implementing batches of stories (epics or backlog waves), prefer grouping for 2–4 small sibling stories (recommended ≤ ~2000 production lines total; flexible recommendation that may be exceptionally bypassed for tightly coupled work). For broader requirements, use stacked PRs with linear chaining, `git rebase --onto` upstream updates, and cascading merges up to review gates. See [`stacked-pr-workflow`](../stacked-pr-workflow/SKILL.md).
+When implementing batches of stories (epics or backlog waves), prefer grouping for 2–4 small sibling stories (recommended ≤ ~2000 production lines total; flexible recommendation that may be exceptionally bypassed for tightly coupled work). For broader requirements, plan all stack requirements upfront, implement the full chain in a dedicated GitHub stack (`#<stack-number>` via `gh stack`), use `gh stack rebase` / `gh stack sync` for cascading updates, and merge up to the last PR before the first review gate (`gh stack merge <PR_pre_gate> --merge --yes`). See [`stacked-pr-workflow`](../stacked-pr-workflow/SKILL.md).
 
 ## PR change summary
 

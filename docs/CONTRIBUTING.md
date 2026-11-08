@@ -54,6 +54,17 @@ npm run build
 npm run test:e2e       # mock-mode Chromium journeys + light/dark WCAG AA checks
 ```
 
+### Local Supabase stack
+
+The devcontainer enables `docker-in-docker` and installs the Supabase CLI (`supabase/config.toml` sets ports `54321` for the API and `54323` for Studio):
+
+```bash
+npm run db:start   # start local Supabase stack
+npm run db:reset   # reset DB, reapply supabase/migrations/, and run seed
+npm run db:stop    # stop local Supabase containers
+npm run db:status  # print local connection URLs and keys
+```
+
 ### Browser and accessibility checks
 
 Install Chromium once with `npx playwright install --with-deps chromium`, then run
