@@ -79,6 +79,109 @@ const mockOrderRepo = {
     mockOrders[idx] = updated;
     return structuredClone(updated);
   }),
+  place: vi.fn(
+    async (
+      bId: string,
+      input: {
+        guestName: string;
+        guestPhone: string;
+        serviceType: Order["serviceType"];
+        channel: Order["channel"];
+        requestedDate: string;
+        requestedTime?: string | null;
+        items: Array<{ productId: string; quantity: number }>;
+        paymentPreference?: Order["paymentPreference"];
+        deliveryAddress?: string | null;
+        notes?: string | null;
+        allowRename?: boolean;
+      },
+    ) => {
+      // 1. Stock check & decrement
+      for (const item of input.items) {
+        const prod = mockProducts.find((p) => p.id === item.productId);
+        if (!prod || prod.stock < item.quantity) {
+          throw new Error("Insufficient stock");
+        }
+      }
+      for (const item of input.items) {
+        const prod = mockProducts.find((p) => p.id === item.productId)!;
+        prod.stock -= item.quantity;
+      }
+
+      // 2. Guest resolution
+      const guestRes = findOrCreateGuest(
+        mockGuests,
+        {
+          businessId: bId,
+          name: input.guestName,
+          phone: input.guestPhone,
+          address: input.deliveryAddress,
+        },
+        { allowRename: input.allowRename },
+      );
+
+      // 3. Totals
+      const orderItems = input.items.map((it) => {
+        const p = mockProducts.find((pr) => pr.id === it.productId)!;
+        return {
+          id: crypto.randomUUID(),
+          productId: p.id,
+          productName: p.name,
+          quantity: it.quantity,
+          unitPrice: p.price,
+          totalPrice: p.price * it.quantity,
+        };
+      });
+      const totalAmount = orderItems.reduce((acc, it) => acc + it.totalPrice, 0);
+
+      const o: Order = {
+        id: crypto.randomUUID(),
+        businessId: bId,
+        orderNumber: mockOrders.length + 1,
+        guestId: guestRes.guestId,
+        submittedName: guestRes.nameMismatch ? input.guestName : null,
+        serviceType: input.serviceType,
+        channel: input.channel,
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: input.paymentPreference ?? "on_handover",
+        requestedDate: input.requestedDate,
+        requestedTime: input.requestedTime ?? null,
+        items: orderItems,
+        totalAmount,
+        trackingToken: "track123",
+        notes: input.notes ?? null,
+        deliveryAddress: input.deliveryAddress ?? null,
+        statusHistory: [{ status: "NEW", timestamp: new Date().toISOString(), note: null }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      mockOrders.push(o);
+      return {
+        orderId: o.id,
+        orderNumber: o.orderNumber!,
+        trackingToken: o.trackingToken!,
+        submittedName: o.submittedName,
+        totalAmount: o.totalAmount,
+      };
+    },
+  ),
+  cancel: vi.fn(async (_bId: string, orderId: string, reason?: string | null) => {
+    const o = mockOrders.find((ord) => ord.id === orderId);
+    if (!o) throw new Error("Order not found");
+    for (const it of o.items) {
+      const prod = mockProducts.find((p) => p.id === it.productId);
+      if (prod) prod.stock += it.quantity;
+    }
+    o.status = "CANCELLED";
+    o.cancellationReason = reason ?? o.cancellationReason;
+    o.updatedAt = new Date().toISOString();
+    return {
+      orderId: o.id,
+      status: "CANCELLED" as const,
+      cancellationReason: o.cancellationReason,
+    };
+  }),
 };
 
 const mockGuestRepo = {
@@ -105,27 +208,6 @@ const mockGuestRepo = {
       mockGuests.push(g);
       return structuredClone(g);
     },
-  ),
-  findOrCreate: vi.fn(
-    async (
-      bId: string,
-      input: {
-        name: string;
-        phone: string;
-        address?: string | null;
-        allowRename?: boolean;
-      },
-    ) =>
-      findOrCreateGuest(
-        mockGuests,
-        {
-          businessId: bId,
-          name: input.name,
-          phone: input.phone,
-          address: input.address,
-        },
-        { allowRename: input.allowRename },
-      ),
   ),
 };
 
@@ -422,6 +504,14 @@ describe("Order Server Actions", () => {
         expect(res.data.orders[1].id).toBe("order-scheduled");
       }
     });
+
+    it("rejects invalid filter input", async () => {
+      const res = await listOrdersAction({ statusTab: "invalid" as unknown as "active" });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid order filter.");
+      }
+    });
   });
 
   describe("getOrderAction", () => {
@@ -432,6 +522,14 @@ describe("Order Server Actions", () => {
         expect(res.data.order.guestName).toBe("Jean Dupont");
         expect(res.data.order.guestPhone).toBe("+33612345678");
         expect(res.data.guest).not.toBeNull();
+      }
+    });
+
+    it("rejects invalid order ID", async () => {
+      const res = await getOrderAction("not-a-uuid");
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid order ID.");
       }
     });
 
@@ -474,6 +572,22 @@ describe("Order Server Actions", () => {
       expect(res.success).toBe(false);
       if (!res.success) {
         expect(res.error).toContain("Insufficient stock");
+      }
+    });
+
+    it("returns error when repos.orders.place rejects", async () => {
+      vi.spyOn(mockOrderRepo, "place").mockRejectedValueOnce(new Error("RPC failed"));
+      const res = await createManualOrderAction({
+        guestPhone: "+33612345678",
+        guestName: "Jean Dupont",
+        serviceType: "pickup",
+        channel: "phone",
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("RPC failed");
       }
     });
 
@@ -645,6 +759,14 @@ describe("Order Server Actions", () => {
       expect(res.success).toBe(true);
       if (res.success) {
         expect(res.data.status).toBe("CONFIRMED");
+      }
+    });
+
+    it("acceptOrderAction rejects invalid order ID", async () => {
+      const res = await acceptOrderAction("not-a-uuid");
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid order ID.");
       }
     });
 

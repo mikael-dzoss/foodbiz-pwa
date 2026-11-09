@@ -8,7 +8,13 @@ import {
   normalizePhoneNumber,
 } from "@/domain/guest";
 import type { Guest } from "@/domain/guest";
-import { publicOrderSchema, type Order } from "@/domain/order";
+import {
+  publicOrderSchema,
+  OrderRepoError,
+  type CancelOrderResult,
+  type Order,
+  type PlacedOrderSummary,
+} from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
 import type {
   BusinessRepository,
@@ -166,9 +172,160 @@ export function createMockRepositories(
       const o = fixtures.orders.find((x) => x.trackingToken === token);
       return o ? publicOrderSchema.parse(o) : null;
     },
-    async findByTicketAndPhone(bId, orderNumber, phone) {
-      const o = findOrderByTicketAndPhone(bId, orderNumber, phone);
-      return o ? publicOrderSchema.parse(o) : null;
+    async place(bId, input): Promise<PlacedOrderSummary> {
+      const settings = fixtures.settings.businessId === bId ? fixtures.settings : null;
+      if (settings?.acceptingOrders === false) {
+        throw new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
+      }
+
+      // 1. Stock check & availability
+      for (const item of input.items) {
+        const product = fixtures.products.find(
+          (p) => p.businessId === bId && p.id === item.productId,
+        );
+        if (!product || (input.channel === "storefront" && !product.visible)) {
+          throw new OrderRepoError("This product is unavailable.", "STOCK_ERROR");
+        }
+        if (product.stock < item.quantity) {
+          throw new OrderRepoError(`Insufficient stock for product ${product.name}`, "STOCK_ERROR");
+        }
+      }
+
+      // 2. Decrement stock
+      for (const item of input.items) {
+        const product = fixtures.products.find(
+          (p) => p.businessId === bId && p.id === item.productId,
+        )!;
+        product.stock -= item.quantity;
+      }
+
+      // 3. Blind guest resolution
+      const guestRes = findOrCreateGuest(
+        fixtures.guests,
+        {
+          businessId: bId,
+          name: input.guestName,
+          phone: input.guestPhone,
+          address: input.deliveryAddress,
+        },
+        { allowRename: input.allowRename },
+      );
+
+      // 4. Calculate totals
+      let subtotal = 0;
+      const orderItems = input.items.map((it) => {
+        const prod = fixtures.products.find((p) => p.businessId === bId && p.id === it.productId)!;
+        const lineTotal = prod.price * it.quantity;
+        subtotal += lineTotal;
+        return {
+          id: crypto.randomUUID(),
+          productId: prod.id,
+          productName: prod.name,
+          quantity: it.quantity,
+          unitPrice: prod.price,
+          totalPrice: lineTotal,
+        };
+      });
+
+      const deliveryFee = input.serviceType === "delivery" ? (settings?.deliveryFee ?? 0) : 0;
+      const minOrder = settings?.minOrderAmount ?? 0;
+      if (input.channel === "storefront" && minOrder > 0 && subtotal < minOrder) {
+        throw new OrderRepoError(
+          `Minimum order amount of ${(minOrder / 100).toFixed(2)} € not met.`,
+          "MINIMUM_ORDER_UNMET",
+        );
+      }
+      const totalAmount = subtotal + deliveryFee;
+
+      // 5. Allocate order number
+      const nextOrderNumber =
+        fixtures.orders
+          .filter((o) => o.businessId === bId)
+          .reduce((max, o) => Math.max(max, o.orderNumber ?? 0), 0) + 1;
+
+      const now = new Date().toISOString();
+      const o: Order = {
+        id: crypto.randomUUID(),
+        businessId: bId,
+        orderNumber: nextOrderNumber,
+        guestId: guestRes.guestId,
+        submittedName: guestRes.nameMismatch ? input.guestName : null,
+        serviceType: input.serviceType,
+        channel: input.channel,
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: input.paymentPreference ?? "on_handover",
+        paymentMethod: null,
+        paidAt: null,
+        refundedAt: null,
+        requestedDate: input.requestedDate,
+        requestedTime: input.requestedTime ?? null,
+        items: orderItems,
+        totalAmount,
+        trackingToken: crypto.randomUUID().replace(/-/g, ""),
+        cancellationReason: null,
+        notes: input.notes ?? null,
+        deliveryAddress: input.deliveryAddress ?? null,
+        statusHistory: [
+          {
+            status: "NEW",
+            timestamp: now,
+            note:
+              input.channel === "storefront"
+                ? "Order placed via online storefront"
+                : `Order placed via ${input.channel}`,
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      fixtures.orders.push(o);
+
+      return {
+        orderId: o.id,
+        orderNumber: o.orderNumber!,
+        trackingToken: o.trackingToken!,
+        submittedName: o.submittedName,
+        totalAmount: o.totalAmount,
+      };
+    },
+
+    async cancel(bId: string, orderId: string, reason?: string | null): Promise<CancelOrderResult> {
+      const order = fixtures.orders.find((o) => o.businessId === bId && o.id === orderId);
+      if (!order) {
+        throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+      }
+      if (order.status === "COMPLETED" || order.status === "CANCELLED") {
+        throw new OrderRepoError(`Cannot cancel order in status ${order.status}`, "INVALID_INPUT");
+      }
+
+      // Restore stock
+      for (const item of order.items) {
+        const prod = fixtures.products.find((p) => p.businessId === bId && p.id === item.productId);
+        if (prod) {
+          prod.stock += item.quantity;
+        }
+      }
+
+      const now = new Date().toISOString();
+      const history = [
+        ...(order.statusHistory ?? [
+          { status: order.status, timestamp: order.createdAt, note: null },
+        ]),
+        { status: "CANCELLED" as const, timestamp: now, note: reason ?? null },
+      ];
+
+      order.status = "CANCELLED";
+      order.cancellationReason = reason ?? order.cancellationReason;
+      order.statusHistory = history;
+      order.updatedAt = now;
+
+      return {
+        orderId: order.id,
+        status: "CANCELLED",
+        cancellationReason: order.cancellationReason,
+      };
     },
     async findTrackingTokenByTicketAndPhone(bId, orderNumber, phone) {
       return findOrderByTicketAndPhone(bId, orderNumber, phone)?.trackingToken ?? null;
@@ -291,13 +448,6 @@ export function createMockRepositories(
       const updated = { ...existing, ...input, name, phone };
       fixtures.guests[idx] = updated;
       return structuredClone(updated);
-    },
-    async findOrCreate(bId, input) {
-      return findOrCreateGuest(
-        fixtures.guests,
-        { businessId: bId, name: input.name, phone: input.phone, address: input.address },
-        { allowRename: input.allowRename },
-      );
     },
   };
 

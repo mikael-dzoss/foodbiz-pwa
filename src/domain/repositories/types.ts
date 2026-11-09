@@ -1,9 +1,19 @@
 import type { Business, BusinessMember, BusinessMemberRole, BusinessSettings } from "../business";
 import type { ProductQuantity, ProductQuantityFilter } from "../featured";
 import type { Expense } from "../expense";
-import type { FindOrCreateGuestResult, Guest } from "../guest";
-import type { Order, OrderStatus, PublicOrder } from "../order";
+import type { Guest } from "../guest";
+import type {
+  CancelOrderResult,
+  Order,
+  OrderStatus,
+  PlaceOrderRepoInput,
+  PlacedOrderSummary,
+  PublicOrder,
+} from "../order";
 import type { Product, ProductCategory } from "../product";
+
+export type { CancelOrderResult, PlaceOrderRepoInput, PlacedOrderSummary } from "../order";
+export { OrderRepoError } from "../order";
 
 export interface CreateProductInput {
   readonly id?: string;
@@ -92,11 +102,6 @@ export interface OrderRepository {
   ): Promise<ProductQuantity[]>;
   findById(businessId: string, id: string): Promise<Order | null>;
   findByTrackingToken(trackingToken: string): Promise<PublicOrder | null>;
-  findByTicketAndPhone(
-    businessId: string,
-    orderNumber: number,
-    phone: string,
-  ): Promise<PublicOrder | null>;
   /** Public lookup (#230): returns only the tracking token when ticket n° and guest phone match. */
   findTrackingTokenByTicketAndPhone(
     businessId: string,
@@ -106,6 +111,10 @@ export interface OrderRepository {
   list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
   create(businessId: string, input: CreateOrderInput): Promise<Order>;
   update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;
+  /** Atomically validates stock, decrements stock, resolves guest, and places the order. */
+  place(businessId: string, input: PlaceOrderRepoInput): Promise<PlacedOrderSummary>;
+  /** Atomically cancels an order and restores product inventory stock. */
+  cancel(businessId: string, orderId: string, reason?: string | null): Promise<CancelOrderResult>;
 }
 
 export interface CreateGuestInput {
@@ -119,26 +128,12 @@ export interface CreateGuestInput {
 
 export type UpdateGuestInput = Partial<Omit<CreateGuestInput, "id">>;
 
-export interface FindOrCreateGuestRepoInput {
-  readonly name: string;
-  readonly phone: string;
-  /** Used only when a new guest is created; never overwrites a matched guest. */
-  readonly address?: string | null;
-  /** Overwrite a matched guest's stored name. Authenticated managers only, on explicit intent. */
-  readonly allowRename?: boolean;
-}
-
 export interface GuestRepository {
   findById(businessId: string, id: string): Promise<Guest | null>;
   findByPhone(businessId: string, phone: string): Promise<Guest | null>;
   list(businessId: string): Promise<Guest[]>;
   create(businessId: string, input: CreateGuestInput): Promise<Guest>;
   update(businessId: string, id: string, input: UpdateGuestInput): Promise<Guest>;
-  /** Blind find-or-create by (businessId, normalised phone); never returns stored guest data. */
-  findOrCreate(
-    businessId: string,
-    input: FindOrCreateGuestRepoInput,
-  ): Promise<FindOrCreateGuestResult>;
 }
 
 export interface CreateExpenseInput {

@@ -7,16 +7,16 @@ import {
   type NamedOrder,
   type Order,
   type OrderStatus,
-  type ServiceType,
   type Guest,
   type Product,
+  type PlacedOrderSummary,
+  serviceTypeSchema,
+  uuidSchema,
   manualOrderInputSchema,
   updateOrderStatusInputSchema,
   recordRefundInputSchema,
   validateOrderTransition,
   validateOrderLineStock,
-  reserveStock,
-  restoreStock,
   normalizePhoneNumber,
   UNKNOWN_GUEST_NAME,
 } from "@/domain";
@@ -44,12 +44,16 @@ export interface ListOrdersResult {
   };
 }
 
-export interface ListOrdersFilter {
-  statusTab?: "active" | "completed" | "cancelled" | "all";
-  serviceType?: ServiceType;
-  unpaidOnly?: boolean;
-  search?: string;
-}
+const listOrdersFilterSchema = z
+  .object({
+    statusTab: z.enum(["active", "completed", "cancelled", "all"]).optional(),
+    serviceType: serviceTypeSchema.optional(),
+    unpaidOnly: z.boolean().optional(),
+    search: z.string().optional(),
+  })
+  .optional();
+
+export type ListOrdersFilter = z.infer<typeof listOrdersFilterSchema>;
 
 const ACTIVE_STATUSES: readonly OrderStatus[] = ["NEW", "CONFIRMED", "PREPARING", "READY"];
 
@@ -57,10 +61,15 @@ const ACTIVE_STATUSES: readonly OrderStatus[] = ["NEW", "CONFIRMED", "PREPARING"
  * Retrieves orders for the manager's business with search, filtering, and priority sorting.
  */
 export async function listOrdersAction(
-  filter?: ListOrdersFilter,
+  filter?: unknown,
 ): Promise<OrderActionResult<ListOrdersResult>> {
   try {
     const { businessId } = await requireAuthenticatedAction();
+    const parsed = listOrdersFilterSchema.safeParse(filter);
+    if (!parsed.success) {
+      return { success: false, error: "Invalid order filter." };
+    }
+    const validFilter = parsed.data;
     const repos = getRepositories();
 
     const [allOrders, allGuests] = await Promise.all([
@@ -96,7 +105,7 @@ export async function listOrdersAction(
     let filtered = enrichedOrders;
 
     // Filter by tab: active (default) | completed | cancelled | all
-    const tab = filter?.statusTab ?? "active";
+    const tab = validFilter?.statusTab ?? "active";
     if (tab !== "all") {
       if (tab === "active") {
         filtered = filtered.filter((o) => ACTIVE_STATUSES.includes(o.status));
@@ -108,18 +117,18 @@ export async function listOrdersAction(
     }
 
     // Filter by unpaid only
-    if (filter?.unpaidOnly) {
+    if (validFilter?.unpaidOnly) {
       filtered = filtered.filter((o) => o.paid === "unpaid");
     }
 
     // Filter by service type
-    if (filter?.serviceType) {
-      filtered = filtered.filter((o) => o.serviceType === filter.serviceType);
+    if (validFilter?.serviceType) {
+      filtered = filtered.filter((o) => o.serviceType === validFilter.serviceType);
     }
 
     // Filter by search query (name, phone, order reference)
-    if (filter?.search && filter.search.trim().length > 0) {
-      const query = filter.search.trim().toLowerCase();
+    if (validFilter?.search && validFilter.search.trim().length > 0) {
+      const query = validFilter.search.trim().toLowerCase();
       const queryDigits = query.replace(/\D/g, "");
 
       filtered = filtered.filter((o) => {
@@ -193,13 +202,17 @@ export async function listOrdersAction(
  * Retrieves a single order with its guest details and items.
  */
 export async function getOrderAction(
-  orderId: string,
+  orderId: unknown,
 ): Promise<OrderActionResult<{ order: EnrichedOrder; guest: Guest | null }>> {
   try {
     const { businessId } = await requireAuthenticatedAction();
+    const parsedId = uuidSchema.safeParse(orderId);
+    if (!parsedId.success) {
+      return { success: false, error: "Invalid order ID." };
+    }
     const repos = getRepositories();
 
-    const order = await repos.orders.findById(businessId, orderId);
+    const order = await repos.orders.findById(businessId, parsedId.data);
     if (!order) {
       return { success: false, error: "Order not found" };
     }
@@ -273,62 +286,38 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
       }
     }
 
-    // 3. Guest find-or-create by normalised phone. The stored name is overwritten only on explicit
-    //    manager intent (updateGuestName); otherwise a differing name is kept as an audit field.
-    const guestResult = await repos.guests.findOrCreate(businessId, {
-      name: data.guestName,
-      phone: data.guestPhone,
-      address: data.deliveryAddress ?? null,
-      allowRename: data.updateGuestName,
-    });
-    const guest = await repos.guests.findById(businessId, guestResult.guestId);
-
-    // 4. Decrement stock for all items
-    for (const item of data.items) {
-      const product = productMap.get(item.productId)!;
-      const reservation = reserveStock(product, item.quantity);
-      if (!reservation.ok) {
-        return { success: false, error: reservation.error.message };
-      }
-      await repos.products.update(businessId, product.id, {
-        stock: reservation.remainingStock,
-      });
-    }
-
-    // 5. Build OrderItems and calculate totals
-    const orderItems = data.items.map((it) => {
-      const p = productMap.get(it.productId)!;
-      return {
-        id: crypto.randomUUID(),
-        productId: p.id,
-        productName: p.name,
-        quantity: it.quantity,
-        unitPrice: p.price,
-        totalPrice: p.price * it.quantity,
-      };
-    });
-
-    const totalAmount = orderItems.reduce((acc, it) => acc + it.totalPrice, 0);
+    // 3. Atomically place order via repository
     const now = new Date().toISOString();
     const todayDate = now.slice(0, 10);
     const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
     const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
 
-    // 6. Create Order as CONFIRMED
-    const order = await repos.orders.create(businessId, {
-      guestId: guestResult.guestId,
-      submittedName: guestResult.nameMismatch ? data.guestName : null,
-      serviceType: data.serviceType,
-      channel: data.channel,
+    let summary: PlacedOrderSummary;
+    try {
+      summary = await repos.orders.place(businessId, {
+        guestName: data.guestName,
+        guestPhone: data.guestPhone,
+        serviceType: data.serviceType,
+        channel: data.channel,
+        requestedDate,
+        requestedTime,
+        items: data.items.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+        })),
+        paymentPreference: data.paymentPreference,
+        deliveryAddress: data.deliveryAddress ?? null,
+        notes: data.notes ?? null,
+        allowRename: data.updateGuestName,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create manual order";
+      return { success: false, error: message };
+    }
+
+    // 4. Manual orders transition directly to CONFIRMED
+    const order = await repos.orders.update(businessId, summary.orderId, {
       status: "CONFIRMED",
-      paid: "unpaid",
-      paymentPreference: data.paymentPreference,
-      requestedDate,
-      requestedTime,
-      items: orderItems,
-      totalAmount,
-      notes: data.notes ?? null,
-      deliveryAddress: data.deliveryAddress ?? guest?.address ?? null,
       statusHistory: [
         {
           status: "CONFIRMED",
@@ -395,19 +384,18 @@ export async function progressOrderStatusAction(input: unknown): Promise<OrderAc
       },
     ];
 
-    // If cancelling, restore stock for items
+    // If cancelling, restore stock atomically via repository cancel
     if (nextStatus === "CANCELLED" && order.status !== "CANCELLED") {
-      for (const item of order.items) {
-        const prod = await repos.products.findById(businessId, item.productId);
-        if (prod) {
-          const restored = restoreStock(prod, item.quantity);
-          if (restored.ok) {
-            await repos.products.update(businessId, prod.id, {
-              stock: restored.updatedStock,
-            });
-          }
-        }
-      }
+      await repos.orders.cancel(businessId, orderId, reason ?? null);
+      const updated = await repos.orders.update(businessId, orderId, {
+        statusHistory: history,
+      });
+
+      revalidatePath("/manage/orders");
+      revalidatePath(`/manage/orders/${orderId}`);
+      revalidatePath("/manage/products");
+
+      return { success: true, data: updated };
     }
 
     const updated = await repos.orders.update(businessId, orderId, {
@@ -435,8 +423,12 @@ export async function progressOrderStatusAction(input: unknown): Promise<OrderAc
 /**
  * Accepts a new web order, transitioning its status to CONFIRMED.
  */
-export async function acceptOrderAction(orderId: string): Promise<OrderActionResult<Order>> {
-  return progressOrderStatusAction({ orderId, nextStatus: "CONFIRMED" });
+export async function acceptOrderAction(orderId: unknown): Promise<OrderActionResult<Order>> {
+  const parsedId = uuidSchema.safeParse(orderId);
+  if (!parsedId.success) {
+    return { success: false, error: "Invalid order ID." };
+  }
+  return progressOrderStatusAction({ orderId: parsedId.data, nextStatus: "CONFIRMED" });
 }
 
 /**

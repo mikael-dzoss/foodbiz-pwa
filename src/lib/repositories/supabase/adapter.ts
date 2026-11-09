@@ -11,14 +11,20 @@ import {
 } from "@/domain/business";
 import { expenseSchema, type Expense } from "@/domain/expense";
 import { sumOrderProductQuantities, type ProductQuantityFilter } from "@/domain/featured";
+import { guestSchema, normalizeGuestName, normalizePhoneNumber, type Guest } from "@/domain/guest";
 import {
-  guestSchema,
-  normalizeGuestName,
-  normalizePhoneNumber,
-  type FindOrCreateGuestResult,
-  type Guest,
-} from "@/domain/guest";
-import { orderSchema, publicOrderSchema, type Order, type PublicOrder } from "@/domain/order";
+  cancelOrderResultSchema,
+  orderSchema,
+  OrderRepoError,
+  placedOrderSummarySchema,
+  publicOrderSchema,
+  type CancelOrderResult,
+  type Order,
+  type OrderStatus,
+  type PlaceOrderRepoInput,
+  type PlacedOrderSummary,
+  type PublicOrder,
+} from "@/domain/order";
 import {
   productCategorySchema,
   productSchema,
@@ -37,7 +43,6 @@ import type {
   CreateProductInput,
   ExpenseFilter,
   ExpenseRepository,
-  FindOrCreateGuestRepoInput,
   GuestRepository,
   MemberRepository,
   OrderFilter,
@@ -63,6 +68,13 @@ import type {
 
 export type SupabaseClientFactory =
   SupabaseClient<Database> | (() => Promise<SupabaseClient<Database>> | SupabaseClient<Database>);
+
+export interface SupabaseRepositoryOptions {
+  readonly publicOnly?: boolean;
+}
+
+export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
+  "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
 type OrderRowWithItems = Tables<"orders"> & {
   order_items: Tables<"order_items">[];
@@ -201,15 +213,18 @@ function mapBusinessRow(row: Tables<"businesses">): Business {
   });
 }
 
-function mapSettingsRow(row: Tables<"business_settings">): BusinessSettings {
+function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSettings {
   return businessSettingsSchema.parse({
     id: row.id,
     businessId: row.business_id,
     currency: (row.currency ?? "EUR") as "EUR",
-    dateFormat: row.date_format,
-    lowStockThreshold: row.low_stock_threshold,
-    taxPercentage: Number(row.tax_percentage),
-    notifications: row.notifications,
+    dateFormat: row.date_format ?? undefined,
+    lowStockThreshold: row.low_stock_threshold ?? undefined,
+    taxPercentage:
+      row.tax_percentage !== undefined && row.tax_percentage !== null
+        ? Number(row.tax_percentage)
+        : undefined,
+    notifications: row.notifications ?? undefined,
     acceptingOrders: row.accepting_orders,
     serviceTypes: row.service_types,
     openingHours: row.opening_hours,
@@ -225,9 +240,50 @@ function mapSettingsRow(row: Tables<"business_settings">): BusinessSettings {
     paymentMethods: row.payment_methods,
     paymentInstructionsEn: row.payment_instructions_en,
     paymentInstructionsFr: row.payment_instructions_fr,
-    inAppAlerts: row.in_app_alerts,
-    soundAlerts: row.sound_alerts,
+    inAppAlerts: row.in_app_alerts ?? undefined,
+    soundAlerts: row.sound_alerts ?? undefined,
   });
+}
+
+function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRepoError {
+  const msg = error.message || "";
+  const code = error.code;
+  switch (code) {
+    case "P0001":
+    case "P0003":
+      return new OrderRepoError(msg, "STOCK_ERROR");
+    case "P0004":
+      return new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
+    case "P0005":
+      return new OrderRepoError(msg, "MINIMUM_ORDER_UNMET");
+    case "42501":
+      return new OrderRepoError(msg, "UNAUTHORIZED");
+    case "22023":
+      return new OrderRepoError(msg, "INVALID_INPUT");
+    default:
+      if (msg.includes("INSUFFICIENT_STOCK") || msg.includes("PRODUCT_NOT_AVAILABLE")) {
+        return new OrderRepoError(msg, "STOCK_ERROR");
+      }
+      return new OrderRepoError(
+        msg || "We could not place your order. Please try again.",
+        "INTERNAL_ERROR",
+      );
+  }
+}
+
+function mapCancelOrderError(error: { code?: string; message?: string }): OrderRepoError {
+  const msg = error.message || "";
+  const code = error.code;
+  switch (code) {
+    case "P0002":
+      return new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    case "22023":
+      return new OrderRepoError(msg, "INVALID_INPUT");
+    case "42501":
+      return new OrderRepoError("Permission denied", "UNAUTHORIZED");
+    default:
+      return new OrderRepoError(msg || "Failed to cancel order", "INTERNAL_ERROR");
+  }
 }
 
 function mapMemberRow(row: Tables<"business_members">): BusinessMember {
@@ -240,7 +296,10 @@ function mapMemberRow(row: Tables<"business_members">): BusinessMember {
   });
 }
 
-export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFactory): Repositories {
+export function createSupabaseRepositories(
+  clientOrFactory?: SupabaseClientFactory,
+  options?: SupabaseRepositoryOptions,
+): Repositories {
   const getClient = async (): Promise<SupabaseClient<Database>> => {
     if (!clientOrFactory) {
       const { createClient } = await import("@/lib/supabase/server");
@@ -504,59 +563,82 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
       });
     },
 
-    async findByTicketAndPhone(
-      businessId: string,
-      orderNumber: number,
-      phone: string,
-    ): Promise<PublicOrder | null> {
+    async place(businessId: string, input: PlaceOrderRepoInput): Promise<PlacedOrderSummary> {
       let normalizedPhone: string;
       try {
-        normalizedPhone = normalizePhoneNumber(phone);
+        normalizedPhone = normalizePhoneNumber(input.guestPhone);
       } catch {
-        return null;
+        normalizedPhone = input.guestPhone.trim();
       }
 
       const client = await getClient();
-      const { data, error } = await client.rpc("lookup_order_by_ticket_and_phone", {
+      const rpcItems = input.items.map((it) => ({
+        product_id: it.productId,
+        quantity: it.quantity,
+      }));
+
+      const { data, error } = await client.rpc("place_order", {
         p_business_id: businessId,
-        p_order_number: orderNumber,
-        p_phone: normalizedPhone,
+        p_guest_name: normalizeGuestName(input.guestName),
+        p_guest_phone: normalizedPhone,
+        p_service_type: input.serviceType,
+        p_channel: input.channel,
+        p_requested_date: input.requestedDate,
+        p_items: rpcItems as unknown as Json,
+        p_requested_time: input.requestedTime ?? undefined,
+        p_payment_preference: input.paymentPreference ?? "on_handover",
+        p_delivery_address: input.deliveryAddress ?? undefined,
+        p_notes: input.notes ?? undefined,
+        p_update_guest_name: input.allowRename ?? false,
       });
 
-      if (error) throw error;
-      if (!data) return null;
+      if (error) {
+        throw mapPlaceOrderError(error);
+      }
 
-      const raw = data as {
-        order?: Record<string, unknown>;
-        items?: Array<Record<string, unknown>>;
+      const res = data as {
+        order_id: string;
+        order_number: number;
+        tracking_token: string;
+        submitted_name?: string | null;
+        total_amount: number;
       };
-      if (!raw.order || Object.keys(raw.order).length === 0) return null;
 
-      const order = raw.order as Record<string, unknown>;
-      const items = Array.isArray(raw.items) ? raw.items : [];
+      return placedOrderSummarySchema.parse({
+        orderId: res.order_id,
+        orderNumber: res.order_number,
+        trackingToken: res.tracking_token,
+        submittedName: res.submitted_name ?? null,
+        totalAmount: res.total_amount,
+      });
+    },
 
-      return publicOrderSchema.parse({
-        businessId: order.business_id ?? order.businessId,
-        orderNumber: order.order_number ?? order.orderNumber,
-        serviceType: order.service_type ?? order.serviceType,
-        status: order.status,
-        paid: order.paid,
-        paymentPreference: order.payment_preference ?? order.paymentPreference ?? "on_handover",
-        requestedDate: order.requested_date ?? order.requestedDate,
-        requestedTime: order.requested_time
-          ? String(order.requested_time).slice(0, 5)
-          : order.requestedTime
-            ? String(order.requestedTime).slice(0, 5)
-            : null,
-        totalAmount: order.total_amount ?? order.totalAmount,
-        cancellationReason: order.cancellation_reason ?? order.cancellationReason ?? null,
-        createdAt: toIsoUtc(order.created_at ?? order.createdAt),
-        items: items.map((it) => ({
-          productName: it.product_name ?? it.productName,
-          quantity: it.quantity,
-          unitPrice: it.unit_price ?? it.unitPrice,
-          totalPrice: it.total_price ?? it.totalPrice,
-        })),
+    async cancel(
+      businessId: string,
+      orderId: string,
+      reason?: string | null,
+    ): Promise<CancelOrderResult> {
+      const client = await getClient();
+      const { data, error } = await client.rpc("cancel_order", {
+        p_business_id: businessId,
+        p_order_id: orderId,
+        p_cancellation_reason: reason ?? undefined,
+      });
+
+      if (error) {
+        throw mapCancelOrderError(error);
+      }
+
+      const res = data as {
+        order_id: string;
+        status: OrderStatus;
+        cancellation_reason?: string | null;
+      };
+
+      return cancelOrderResultSchema.parse({
+        orderId: res.order_id,
+        status: res.status,
+        cancellationReason: res.cancellation_reason ?? null,
       });
     },
 
@@ -730,14 +812,7 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
       if (!updatedOrder) throw new Error(`Order ${id} not found`);
 
       if (input.items !== undefined) {
-        const { error: deleteError } = await client
-          .from("order_items")
-          .delete()
-          .eq("business_id", businessId)
-          .eq("order_id", id);
-        if (deleteError) throw deleteError;
-
-        const itemsToInsert: TablesInsert<"order_items">[] = input.items.map((it) => ({
+        const itemsToInsert = input.items.map((it) => ({
           id: it.id ?? crypto.randomUUID(),
           order_id: id,
           business_id: businessId,
@@ -747,10 +822,12 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
           unit_price: it.unitPrice,
           total_price: it.totalPrice,
         }));
-        if (itemsToInsert.length > 0) {
-          const { error: insertError } = await client.from("order_items").insert(itemsToInsert);
-          if (insertError) throw insertError;
-        }
+        const { error: replaceError } = await client.rpc("replace_order_items", {
+          p_business_id: businessId,
+          p_order_id: id,
+          p_items: itemsToInsert as unknown as Json,
+        });
+        if (replaceError) throw replaceError;
       }
 
       const fetched = await orders.findById(businessId, id);
@@ -889,34 +966,6 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
         throw new Error(`Guest ${id} not found`);
       }
       return mapGuestRow(data);
-    },
-
-    async findOrCreate(
-      businessId: string,
-      input: FindOrCreateGuestRepoInput,
-    ): Promise<FindOrCreateGuestResult> {
-      const normalizedPhone = normalizePhoneNumber(input.phone);
-      const client = await getClient();
-      const { data, error } = await client.rpc("find_or_create_guest", {
-        p_business_id: businessId,
-        p_name: input.name,
-        p_phone: normalizedPhone,
-        p_address: input.address ?? undefined,
-        p_update_guest_name: input.allowRename ?? false,
-      });
-
-      if (error) throw error;
-      const res = data as {
-        guestId: string;
-        isNew: boolean;
-        nameMismatch: boolean;
-      };
-
-      return {
-        guestId: res.guestId,
-        isNew: res.isNew,
-        nameMismatch: res.nameMismatch,
-      };
     },
   };
 
@@ -1099,15 +1148,15 @@ export function createSupabaseRepositories(clientOrFactory?: SupabaseClientFacto
 
     async getSettings(businessId: string): Promise<BusinessSettings | null> {
       const client = await getClient();
-      const { data, error } = await client
-        .from("business_settings")
-        .select()
-        .eq("business_id", businessId)
-        .maybeSingle();
+      const query = options?.publicOnly
+        ? client.from("business_settings").select(PUBLIC_BUSINESS_SETTINGS_COLUMNS)
+        : client.from("business_settings").select();
+
+      const { data, error } = await query.eq("business_id", businessId).maybeSingle();
 
       if (error) throw error;
       if (!data) return null;
-      return mapSettingsRow(data);
+      return mapSettingsRow(data as Partial<Tables<"business_settings">>);
     },
 
     async updateSettings(

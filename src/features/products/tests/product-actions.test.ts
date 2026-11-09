@@ -146,6 +146,14 @@ describe("Product Server Actions", () => {
         expect(res.data.categories).toHaveLength(1);
       }
     });
+
+    it("rejects invalid filter input", async () => {
+      const res = await listProductsAction({ categoryId: "invalid-uuid" as unknown as string });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid product filter");
+      }
+    });
   });
 
   describe("getProductAction", () => {
@@ -155,6 +163,14 @@ describe("Product Server Actions", () => {
       if (res.success) {
         expect(res.data.name).toBe("Burger Gourmet");
         expect(res.data.categoryName).toBe("Plats");
+      }
+    });
+
+    it("rejects invalid product ID with validation error", async () => {
+      const res = await getProductAction("not-a-uuid");
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid product ID");
       }
     });
 
@@ -322,6 +338,14 @@ describe("Product Server Actions", () => {
       expect(res.success).toBe(true);
       expect(mockProductRepo.softDelete).toHaveBeenCalledWith(testBusinessId, validProductId);
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+    });
+
+    it("rejects invalid product ID with validation error", async () => {
+      const res = await softDeleteProductAction("not-a-uuid");
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid product ID");
+      }
     });
   });
 

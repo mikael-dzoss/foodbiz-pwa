@@ -597,6 +597,14 @@ export type Database = {
         };
         Returns: Json;
       };
+      replace_order_items: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+          p_items: Json;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       category_role: "regular" | "drinks" | "snacks";

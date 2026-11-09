@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { beforeEach, describe } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -398,6 +398,21 @@ function createFakeSupabaseClient(
           };
         });
       }
+      if (
+        table === "business_settings" &&
+        selectCols &&
+        !selectCols.includes("low_stock_threshold")
+      ) {
+        const allowedCols = selectCols.split(",").map((c: string) => c.trim());
+        finalResult = finalResult.map((row) => {
+          const rawRow = row as Record<string, unknown>;
+          const filtered: Record<string, unknown> = {};
+          for (const col of allowedCols) {
+            if (col in rawRow) filtered[col] = rawRow[col];
+          }
+          return filtered as unknown as (typeof finalResult)[number];
+        });
+      }
       return { data: finalResult, error: null };
     }
 
@@ -418,22 +433,6 @@ function createFakeSupabaseClient(
           error: null,
         };
       }
-      if (fnName === "lookup_order_by_ticket_and_phone") {
-        const guest = tables.guests.find((g) => g.phone === args.p_phone);
-        if (!guest) return { data: null, error: null };
-        const order = tables.orders.find(
-          (o) =>
-            o.business_id === args.p_business_id &&
-            o.order_number === args.p_order_number &&
-            o.guest_id === guest.id,
-        );
-        if (!order) return { data: null, error: null };
-        const items = tables.order_items.filter((it) => it.order_id === order.id);
-        return {
-          data: { order: structuredClone(order), items: structuredClone(items) },
-          error: null,
-        };
-      }
       if (fnName === "storefront_order_tracking_token") {
         const guest = tables.guests.find((g) => g.phone === args.p_phone);
         if (!guest) return { data: null, error: null };
@@ -445,32 +444,178 @@ function createFakeSupabaseClient(
         );
         return { data: (order?.tracking_token as string) ?? null, error: null };
       }
-      if (fnName === "find_or_create_guest") {
-        const guest = tables.guests.find(
-          (g) => g.business_id === args.p_business_id && g.phone === args.p_phone,
+      if (fnName === "place_order") {
+        const items = (args.p_items as Array<{ product_id: string; quantity: number }>) || [];
+        for (const item of items) {
+          const prod = tables.products.find((p) => p.id === item.product_id);
+          if (!prod) {
+            return {
+              data: null,
+              error: { message: `PRODUCT_NOT_AVAILABLE: ${item.product_id}`, code: "P0003" },
+            };
+          }
+          if (prod.stock < item.quantity) {
+            return {
+              data: null,
+              error: { message: `INSUFFICIENT_STOCK: ${item.product_id}`, code: "P0001" },
+            };
+          }
+        }
+        for (const item of items) {
+          const prod = tables.products.find((p) => p.id === item.product_id)!;
+          prod.stock -= item.quantity;
+        }
+
+        let guest = tables.guests.find(
+          (g) => g.business_id === args.p_business_id && g.phone === args.p_guest_phone,
         );
+        let nameMismatch = false;
         if (!guest) {
-          const cleanName = String(args.p_name).trim().replace(/\s+/g, " ");
-          const newGuest = {
+          const cleanName = String(args.p_guest_name).trim().replace(/\s+/g, " ");
+          guest = {
             id: crypto.randomUUID(),
             business_id: String(args.p_business_id),
             name: cleanName,
-            phone: args.p_phone ? String(args.p_phone) : null,
-            address: args.p_address ? String(args.p_address) : null,
+            phone: args.p_guest_phone ? String(args.p_guest_phone) : null,
+            address: args.p_delivery_address ? String(args.p_delivery_address) : null,
             email: null,
             notes: null,
             created_at: new Date().toISOString(),
           };
-          tables.guests.push(newGuest);
-          return { data: { guestId: newGuest.id, isNew: true, nameMismatch: false }, error: null };
+          tables.guests.push(guest);
+        } else {
+          const cleanName = String(args.p_guest_name).trim().replace(/\s+/g, " ");
+          if (guest.name !== cleanName) {
+            if (args.p_update_guest_name) {
+              guest.name = cleanName;
+            } else {
+              nameMismatch = true;
+            }
+          }
         }
-        const cleanName = String(args.p_name).trim().replace(/\s+/g, " ");
-        let nameMismatch = guest.name !== cleanName;
-        if (args.p_update_guest_name) {
-          guest.name = cleanName;
-          nameMismatch = false;
+
+        const nextOrderNumber =
+          tables.orders
+            .filter((o) => o.business_id === args.p_business_id)
+            .reduce((max, o) => Math.max(max, o.order_number ?? 0), 0) + 1;
+
+        let total = 0;
+        const newOrderId = crypto.randomUUID();
+        for (const it of items) {
+          const prod = tables.products.find((p) => p.id === it.product_id)!;
+          const lineTotal = prod.price * it.quantity;
+          total += lineTotal;
+          tables.order_items.push({
+            id: crypto.randomUUID(),
+            order_id: newOrderId,
+            business_id: String(args.p_business_id),
+            product_id: prod.id,
+            product_name: prod.name,
+            quantity: it.quantity,
+            unit_price: prod.price,
+            total_price: lineTotal,
+            created_at: new Date().toISOString(),
+          });
         }
-        return { data: { guestId: guest.id, isNew: false, nameMismatch }, error: null };
+
+        const newOrder = {
+          id: newOrderId,
+          business_id: String(args.p_business_id),
+          order_number: nextOrderNumber,
+          guest_id: guest.id,
+          submitted_name: nameMismatch ? String(args.p_guest_name).trim() : null,
+          service_type: args.p_service_type as "pickup" | "delivery",
+          channel: args.p_channel as "storefront" | "phone" | "whatsapp" | "in-person",
+          status: "NEW" as const,
+          paid: "unpaid" as const,
+          payment_preference:
+            (args.p_payment_preference as "revolut" | "wero" | "on_handover") ?? "on_handover",
+          payment_method: null,
+          paid_at: null,
+          refunded_at: null,
+          requested_date: String(args.p_requested_date),
+          requested_time: args.p_requested_time ? String(args.p_requested_time) : null,
+          total_amount: total,
+          tracking_token: crypto.randomUUID().replace(/-/g, ""),
+          cancellation_reason: null,
+          notes: args.p_notes ? String(args.p_notes) : null,
+          delivery_address: args.p_delivery_address ? String(args.p_delivery_address) : null,
+          status_history: [{ status: "NEW", timestamp: new Date().toISOString(), note: null }],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        tables.orders.push(newOrder);
+
+        return {
+          data: {
+            order_id: newOrder.id,
+            order_number: newOrder.order_number,
+            tracking_token: newOrder.tracking_token,
+            submitted_name: newOrder.submitted_name,
+            total_amount: newOrder.total_amount,
+          },
+          error: null,
+        };
+      }
+      if (fnName === "cancel_order") {
+        const order = tables.orders.find(
+          (o) => o.business_id === args.p_business_id && o.id === args.p_order_id,
+        );
+        if (!order) {
+          return { data: null, error: { message: "ORDER_NOT_FOUND", code: "P0002" } };
+        }
+        if (order.status === "COMPLETED" || order.status === "CANCELLED") {
+          return {
+            data: null,
+            error: { message: "INVALID_STATUS_TRANSITION", code: "22023" },
+          };
+        }
+
+        const orderItems = tables.order_items.filter((it) => it.order_id === order.id);
+        for (const item of orderItems) {
+          const prod = tables.products.find((p) => p.id === item.product_id);
+          if (prod) {
+            prod.stock += item.quantity;
+          }
+        }
+
+        order.status = "CANCELLED";
+        order.cancellation_reason =
+          (args.p_cancellation_reason as string) ?? order.cancellation_reason;
+        order.updated_at = new Date().toISOString();
+
+        return {
+          data: {
+            order_id: order.id,
+            status: "CANCELLED",
+            cancellation_reason: order.cancellation_reason,
+          },
+          error: null,
+        };
+      }
+      if (fnName === "replace_order_items") {
+        const order = tables.orders.find(
+          (o) => o.business_id === args.p_business_id && o.id === args.p_order_id,
+        );
+        if (!order) {
+          return { data: null, error: { message: "ORDER_NOT_FOUND", code: "P0002" } };
+        }
+        tables.order_items = tables.order_items.filter((it) => it.order_id !== order.id);
+        const newItems = (args.p_items as Array<Record<string, unknown>>) || [];
+        for (const it of newItems) {
+          tables.order_items.push({
+            id: (it.id as string) || crypto.randomUUID(),
+            order_id: order.id,
+            business_id: String(args.p_business_id),
+            product_id: (it.product_id as string) || "00000000-0000-0000-0000-000000000000",
+            product_name: String(it.product_name || "Item"),
+            quantity: Number(it.quantity || 1),
+            unit_price: Number(it.unit_price || 0),
+            total_price: Number(it.total_price || 0),
+            created_at: new Date().toISOString(),
+          });
+        }
+        return { data: null, error: null };
       }
       throw new Error(`Unhandled RPC: ${fnName}`);
     },
@@ -726,6 +871,181 @@ describe("Supabase Repository Adapter", () => {
 
     describeRepositoryContracts("Supabase Adapter (Live DB)", () => liveRepos, {
       businessId: DEMO_BUSINESS_ID,
+    });
+  });
+
+  describe("publicOnly option on createSupabaseRepositories", () => {
+    it("selects only public settings columns and applies domain defaults to private fields", async () => {
+      const fakeClient = createFakeSupabaseClient();
+      const repos = createSupabaseRepositories(fakeClient, { publicOnly: true });
+
+      const settings = await repos.business.getSettings(DEMO_BUSINESS_ID);
+      expect(settings).not.toBeNull();
+      expect(settings?.currency).toBe("EUR");
+      expect(settings?.acceptingOrders).toBe(true);
+      expect(settings?.dateFormat).toBe("DD/MM/YYYY");
+      expect(settings?.lowStockThreshold).toBe(5);
+      expect(settings?.taxPercentage).toBe(0);
+      expect(settings?.notifications).toBe(true);
+    });
+
+    it("selects full settings row when publicOnly is false or omitted", async () => {
+      const fakeClient = createFakeSupabaseClient();
+      const repos = createSupabaseRepositories(fakeClient);
+
+      const settings = await repos.business.getSettings(DEMO_BUSINESS_ID);
+      expect(settings).not.toBeNull();
+      expect(settings?.dateFormat).toBeDefined();
+      expect(settings?.lowStockThreshold).toBeDefined();
+    });
+  });
+
+  describe("error mapping in Supabase adapter", () => {
+    it("maps place_order errors accurately", async () => {
+      const fakeClient = createFakeSupabaseClient();
+      const repos = createSupabaseRepositories(fakeClient);
+
+      // P0001 insufficient stock
+      await expect(
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 99999 }],
+        }),
+      ).rejects.toThrowError("INSUFFICIENT_STOCK");
+
+      // P0003 product not found
+      await expect(
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "99999999-9999-4999-8999-999999999999", quantity: 1 }],
+        }),
+      ).rejects.toThrowError("PRODUCT_NOT_AVAILABLE");
+
+      // Custom error codes via client mock
+      const rpcMock = vi.fn(async () => ({
+        data: null,
+        error: { code: "P0004", message: "ORDERS_NOT_ACCEPTED" },
+      }));
+      const rpcClient = {
+        ...fakeClient,
+        rpc: rpcMock,
+      } as unknown as SupabaseClient<Database>;
+      const rpcRepos = createSupabaseRepositories(rpcClient);
+      await expect(
+        rpcRepos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({ code: "STORE_CLOSED" });
+
+      // P0005 min order
+      rpcMock.mockImplementationOnce(async () => ({
+        data: null,
+        error: { code: "P0005", message: "MINIMUM_ORDER_NOT_MET" },
+      }));
+      await expect(
+        rpcRepos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({ code: "MINIMUM_ORDER_UNMET" });
+
+      // 42501 unauthorized
+      rpcMock.mockImplementationOnce(async () => ({
+        data: null,
+        error: { code: "42501", message: "permission denied" },
+      }));
+      await expect(
+        rpcRepos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+      // 22023 invalid input
+      rpcMock.mockImplementationOnce(async () => ({
+        data: null,
+        error: { code: "22023", message: "INVALID_PARAMETER" },
+      }));
+      await expect(
+        rpcRepos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+
+      // generic error
+      rpcMock.mockImplementationOnce(async () => ({
+        data: null,
+        error: { code: "UNKNOWN", message: "Unexpected failure" },
+      }));
+      await expect(
+        rpcRepos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: "2026-10-15",
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        }),
+      ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+    });
+
+    it("maps cancel_order errors accurately", async () => {
+      const fakeClient = createFakeSupabaseClient();
+      const repos = createSupabaseRepositories(fakeClient);
+
+      // P0002 order not found
+      await expect(
+        repos.orders.cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000099"),
+      ).rejects.toThrowError("Order not found");
+
+      // 22023 invalid status transition
+      const cancelRpcMock = vi.fn(async () => ({
+        data: null,
+        error: { code: "22023", message: "INVALID_STATUS_TRANSITION" },
+      }));
+      const rpcClient = {
+        ...fakeClient,
+        rpc: cancelRpcMock,
+      } as unknown as SupabaseClient<Database>;
+      const rpcRepos = createSupabaseRepositories(rpcClient);
+      await expect(
+        rpcRepos.orders.cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000001"),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+
+      // 42501 unauthorized
+      cancelRpcMock.mockImplementationOnce(async () => ({
+        data: null,
+        error: { code: "42501", message: "permission denied" },
+      }));
+      await expect(
+        rpcRepos.orders.cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000001"),
+      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     });
   });
 });

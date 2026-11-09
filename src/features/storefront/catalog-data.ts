@@ -87,7 +87,7 @@ function getCatalogRepositories(): Repositories {
   try {
     const dataSource = getServerEnv().DATA_SOURCE;
     if (dataSource === "supabase") {
-      return createSupabaseRepositories(createPublicServerClient);
+      return createSupabaseRepositories(createPublicServerClient, { publicOnly: true });
     }
     return getRepositories();
   } catch {

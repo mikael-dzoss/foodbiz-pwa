@@ -11,7 +11,15 @@ import {
   type Product,
   type ProductCategory,
 } from "@/domain";
+import { uuidSchema } from "@/domain/common";
 import { z } from "zod";
+
+const productFilterSchema = z
+  .object({
+    categoryId: uuidSchema.optional(),
+    visibleOnly: z.boolean().optional(),
+  })
+  .optional();
 
 export type ProductActionResult<T = void> =
   | { success: true; data: T }
@@ -31,15 +39,18 @@ export interface ListProductsResult {
  * Lists all products for the authenticated manager's business,
  * enriched with category names and current low-stock threshold.
  */
-export async function listProductsAction(filter?: {
-  categoryId?: string;
-  visibleOnly?: boolean;
-}): Promise<ProductActionResult<ListProductsResult>> {
+export async function listProductsAction(
+  filter?: unknown,
+): Promise<ProductActionResult<ListProductsResult>> {
   const { businessId } = await requireAuthenticatedAction();
+  const parsed = productFilterSchema.safeParse(filter);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid product filter" };
+  }
   const repos = getRepositories();
 
   const [products, categories, settings] = await Promise.all([
-    repos.products.list(businessId, filter),
+    repos.products.list(businessId, parsed.data),
     repos.categories.list(businessId),
     repos.business.getSettings(businessId),
   ]);
@@ -70,12 +81,16 @@ export async function listProductsAction(filter?: {
  * Retrieves a single product by ID for the manager's business.
  */
 export async function getProductAction(
-  productId: string,
+  productId: unknown,
 ): Promise<ProductActionResult<EnrichedProduct>> {
   const { businessId } = await requireAuthenticatedAction();
+  const parsedId = uuidSchema.safeParse(productId);
+  if (!parsedId.success) {
+    return { success: false, error: "Invalid product ID" };
+  }
   const repos = getRepositories();
 
-  const product = await repos.products.findById(businessId, productId);
+  const product = await repos.products.findById(businessId, parsedId.data);
   if (!product) {
     return { success: false, error: "Product not found" };
   }
@@ -211,17 +226,21 @@ export async function toggleProductVisibilityAction(
  * Soft-deletes a product by setting visible: false (no hard delete anywhere).
  */
 export async function softDeleteProductAction(
-  productId: string,
+  productId: unknown,
 ): Promise<ProductActionResult<Product>> {
   const { businessId } = await requireAuthenticatedAction();
+  const parsedId = uuidSchema.safeParse(productId);
+  if (!parsedId.success) {
+    return { success: false, error: "Invalid product ID" };
+  }
   const repos = getRepositories();
 
-  const existing = await repos.products.findById(businessId, productId);
+  const existing = await repos.products.findById(businessId, parsedId.data);
   if (!existing) {
     return { success: false, error: "Product not found" };
   }
 
-  const updated = await repos.products.softDelete(businessId, productId);
+  const updated = await repos.products.softDelete(businessId, parsedId.data);
   revalidatePath("/manage/products");
   await revalidateStorefrontCatalog(businessId);
 
