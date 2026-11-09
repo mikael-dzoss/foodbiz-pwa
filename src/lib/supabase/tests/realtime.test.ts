@@ -104,7 +104,9 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
 
       const sub = subscribeToOrderInserts(stubClient, validUuid, handlers);
 
-      expect(stubClient.channel).toHaveBeenCalledWith(`orders:business:${validUuid}`);
+      expect(stubClient.channel).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`^orders:business:${validUuid}`)),
+      );
       expect(stubChannel.on).toHaveBeenCalledTimes(1);
       expect(getOnEvent()).toBe("postgres_changes");
       expect(getOnFilter()).toEqual({

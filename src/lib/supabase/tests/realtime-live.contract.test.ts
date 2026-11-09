@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/supabase/database.types";
 import {
   subscribeToOrderInserts,
@@ -30,7 +30,7 @@ if (shouldSkip) {
 
 function waitForEvent<T>(
   register: (resolve: (value: T) => void, reject: (err: Error) => void) => void,
-  timeoutMs = 15000,
+  timeoutMs = 20000,
   timeoutMessage = "Timed out waiting for event",
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -76,7 +76,7 @@ describe.skipIf(shouldSkip)(
     const guestBId = crypto.randomUUID();
 
     const createdOrderIds: string[] = [];
-    const activeSubscriptions: OrderInsertSubscription[] = [];
+    let currentSubscription: OrderInsertSubscription | null = null;
 
     beforeAll(async () => {
       if (process.env.CI && (!url || !serviceKey || !anonKey)) {
@@ -150,30 +150,32 @@ describe.skipIf(shouldSkip)(
       if (errAuthA) throw new Error(`Member A sign in failed: ${errAuthA.message}`);
     });
 
-    afterAll(async () => {
-      // 1. Unsubscribe any open channels
-      for (const sub of activeSubscriptions) {
+    afterEach(async () => {
+      if (currentSubscription) {
         try {
-          await sub.unsubscribe();
+          await currentSubscription.unsubscribe();
         } catch {
-          // Best-effort cleanup
+          // Best effort cleanup
         }
+        currentSubscription = null;
       }
+    });
 
+    afterAll(async () => {
       if (!adminClient) return;
       const businessIds = [businessAId, businessBId];
 
-      // 2. Clean up orders
+      // Clean up orders
       if (createdOrderIds.length > 0) {
         await adminClient.from("orders").delete().in("id", createdOrderIds);
       }
 
-      // 3. Clean up guests, members, and businesses
+      // Clean up guests, members, and businesses
       await adminClient.from("guests").delete().in("business_id", businessIds);
       await adminClient.from("business_members").delete().in("business_id", businessIds);
       await adminClient.from("businesses").delete().in("id", businessIds);
 
-      // 4. Delete auth users
+      // Delete auth users
       for (const uid of [userAId, userBId]) {
         if (uid) {
           await adminClient.auth.admin.deleteUser(uid).catch(() => {});
@@ -186,7 +188,7 @@ describe.skipIf(shouldSkip)(
 
       const statusPromise = waitForEvent<RealtimeSubscriptionStatus>(
         (resolve, reject) => {
-          const sub = subscribeToOrderInserts(memberAClient, businessAId, {
+          currentSubscription = subscribeToOrderInserts(memberAClient, businessAId, {
             onStatusChange: (status, err) => {
               statusReceived = status;
               if (status === "SUBSCRIBED") {
@@ -196,8 +198,6 @@ describe.skipIf(shouldSkip)(
               }
             },
           });
-          activeSubscriptions.push(sub);
-          return () => {};
         },
         20000,
         "Timed out waiting for realtime subscription to reach SUBSCRIBED",
@@ -212,33 +212,40 @@ describe.skipIf(shouldSkip)(
       const orderAId = crypto.randomUUID();
       createdOrderIds.push(orderAId);
 
-      let receivedOrderId = "";
+      let resolveInsert: ((orderId: string) => void) | null = null;
+      let rejectInsert: ((err: Error) => void) | null = null;
+      const insertPromise = new Promise<string>((resolve, reject) => {
+        resolveInsert = resolve;
+        rejectInsert = reject;
+      });
 
-      const insertPromise = waitForEvent<string>(
+      const subscribedPromise = waitForEvent<RealtimeSubscriptionStatus>(
         (resolve, reject) => {
-          const sub = subscribeToOrderInserts(memberAClient, businessAId, {
+          currentSubscription = subscribeToOrderInserts(memberAClient, businessAId, {
             onInsert: (orderId) => {
               if (orderId === orderAId) {
-                receivedOrderId = orderId;
-                resolve(orderId);
+                resolveInsert?.(orderId);
               }
             },
             onStatusChange: (status, err) => {
-              if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-                reject(err ?? new Error(`Channel error: ${status}`));
+              if (status === "SUBSCRIBED") {
+                resolve(status);
+              } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                const error = err ?? new Error(`Channel error: ${status}`);
+                reject(error);
+                rejectInsert?.(error);
               }
             },
           });
-          activeSubscriptions.push(sub);
-          return () => {};
         },
         20000,
-        "Timed out waiting for order INSERT realtime event on business A",
+        "Timed out waiting for member A channel to reach SUBSCRIBED",
       );
 
-      // Wait briefly for subscription to settle before inserting
-      await delay(1000);
+      // Wait deterministically for subscription to reach SUBSCRIBED
+      await subscribedPromise;
 
+      // Place order for Business A
       const { error: insertErr } = await adminClient.from("orders").insert({
         id: orderAId,
         business_id: businessAId,
@@ -256,9 +263,16 @@ describe.skipIf(shouldSkip)(
       });
       expect(insertErr).toBeNull();
 
+      const insertTimeout = setTimeout(() => {
+        rejectInsert?.(
+          new Error("Timed out waiting for order INSERT realtime event on business A"),
+        );
+      }, 20000);
+
       const emittedId = await insertPromise;
+      clearTimeout(insertTimeout);
+
       expect(emittedId).toBe(orderAId);
-      expect(receivedOrderId).toBe(orderAId);
     }, 30000);
 
     it("member A does NOT receive an event when an order is placed for business B (tenant isolation)", async () => {
@@ -267,16 +281,28 @@ describe.skipIf(shouldSkip)(
 
       let receivedCountForBizB = 0;
 
-      const sub = subscribeToOrderInserts(memberAClient, businessAId, {
-        onInsert: (orderId) => {
-          if (orderId === orderBId) {
-            receivedCountForBizB++;
-          }
+      const subscribedPromise = waitForEvent<RealtimeSubscriptionStatus>(
+        (resolve, reject) => {
+          currentSubscription = subscribeToOrderInserts(memberAClient, businessAId, {
+            onInsert: (orderId) => {
+              if (orderId === orderBId) {
+                receivedCountForBizB++;
+              }
+            },
+            onStatusChange: (status, err) => {
+              if (status === "SUBSCRIBED") {
+                resolve(status);
+              } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                reject(err ?? new Error(`Channel error: ${status}`));
+              }
+            },
+          });
         },
-      });
-      activeSubscriptions.push(sub);
+        20000,
+        "Timed out waiting for member A channel to reach SUBSCRIBED",
+      );
 
-      await delay(1000);
+      await subscribedPromise;
 
       // Insert order for business B
       const { error: insertErr } = await adminClient.from("orders").insert({
@@ -308,14 +334,26 @@ describe.skipIf(shouldSkip)(
 
       let anonReceivedCount = 0;
 
-      const sub = subscribeToOrderInserts(anonClient, businessAId, {
-        onInsert: () => {
-          anonReceivedCount++;
+      const subscribedPromise = waitForEvent<RealtimeSubscriptionStatus>(
+        (resolve, reject) => {
+          currentSubscription = subscribeToOrderInserts(anonClient, businessAId, {
+            onInsert: () => {
+              anonReceivedCount++;
+            },
+            onStatusChange: (status, err) => {
+              if (status === "SUBSCRIBED") {
+                resolve(status);
+              } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                reject(err ?? new Error(`Channel error: ${status}`));
+              }
+            },
+          });
         },
-      });
-      activeSubscriptions.push(sub);
+        20000,
+        "Timed out waiting for anon channel to reach SUBSCRIBED",
+      );
 
-      await delay(1000);
+      await subscribedPromise;
 
       // Insert another order for business A
       const { error: insertErr } = await adminClient.from("orders").insert({

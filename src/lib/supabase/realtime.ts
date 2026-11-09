@@ -62,7 +62,7 @@ export function subscribeToOrderInserts(
   })?.data?.subscription;
 
   const channel = client
-    .channel(`orders:business:${businessId}`)
+    .channel(`orders:business:${businessId}:${crypto.randomUUID()}`)
     .on(
       "postgres_changes",
       {
