@@ -136,15 +136,11 @@ describe.skipIf(shouldSkip)(
       ]);
       if (errGuests) throw new Error(`Failed to insert guests: ${errGuests.message}`);
 
-      // 6. Initialize anon and member clients
-      anonClient = createClient<Database>(url, anonKey, {
+      // 6. Authenticate User A and retrieve JWT session token
+      const authProbeClient = createClient<Database>(url, anonKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-
-      memberAClient = createClient<Database>(url, anonKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const { data: authDataA, error: errAuthA } = await memberAClient.auth.signInWithPassword({
+      const { data: authDataA, error: errAuthA } = await authProbeClient.auth.signInWithPassword({
         email: memberAEmail,
         password: testPassword,
       });
@@ -152,6 +148,22 @@ describe.skipIf(shouldSkip)(
         throw new Error(`Member A sign in failed: ${errAuthA?.message}`);
       }
       userAToken = authDataA.session.access_token;
+
+      // 7. Initialize anon client and authenticated memberAClient with session token
+      anonClient = createClient<Database>(url, anonKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      memberAClient = createClient<Database>(url, anonKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: {
+          headers: {
+            Authorization: `Bearer ${userAToken}`,
+          },
+        },
+        accessToken: async () => userAToken,
+      });
+
       await memberAClient.realtime.setAuth(userAToken);
     });
 
@@ -169,6 +181,7 @@ describe.skipIf(shouldSkip)(
           // Best effort cleanup
         }
         currentSubscription = null;
+        await delay(50);
       }
     });
 
@@ -273,6 +286,14 @@ describe.skipIf(shouldSkip)(
         requested_date: new Date().toISOString().slice(0, 10),
       });
       expect(insertErr).toBeNull();
+
+      // Verify member A has active RLS SELECT access on the newly placed order
+      const { data: memberCheck, error: memberCheckErr } = await memberAClient
+        .from("orders")
+        .select("id")
+        .eq("id", orderAId);
+      expect(memberCheckErr).toBeNull();
+      expect(memberCheck?.length).toBe(1);
 
       const insertTimeout = setTimeout(() => {
         rejectInsert?.(
