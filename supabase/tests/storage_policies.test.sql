@@ -1,15 +1,15 @@
 -- ============================================================================
 -- Test Suite: storage_policies.test.sql (#123)
 -- Description: pgTAP tests verifying Supabase Storage bucket configuration
---              and RLS policies for product-images (public read, member write,
---              tenant isolation by business ID prefix).
+--              and RLS policies for product-images (member-scoped select/write,
+--              tenant isolation by business ID prefix, anon read via public URL).
 -- ============================================================================
 
 begin;
 
 create extension if not exists pgtap;
 
-select plan(23);
+select plan(26);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds and Role Permissions
@@ -129,7 +129,7 @@ select is(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 3: Anonymous Role Access (Tests 10-13)
+-- Section 3: Anonymous Role Access (Tests 10-14)
 -- ----------------------------------------------------------------------------
 
 set local role anon;
@@ -138,8 +138,15 @@ reset "request.jwt.claims";
 
 select is(
   (select count(*)::int from storage.objects where bucket_id = 'product-images'),
-  2,
-  'anon can select objects in product-images'
+  0,
+  'anon cannot select objects in product-images'
+);
+
+select throws_ok(
+  'select public.can_manage_product_image(''10000000-0000-0000-0000-000000000001/anon.webp'')',
+  '42501',
+  null,
+  'anon cannot execute can_manage_product_image'
 );
 
 select throws_ok(
@@ -164,12 +171,18 @@ select throws_ok(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 4: Authenticated Business Member Access (Tests 14-20)
+-- Section 4: Authenticated Business Member Access (Tests 15-22)
 -- ----------------------------------------------------------------------------
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
+
+select is(
+  (select count(*)::int from storage.objects where bucket_id = 'product-images'),
+  1,
+  'member_a can select only own business objects'
+);
 
 select lives_ok(
   'insert into storage.objects (id, bucket_id, name) values (''ea000000-0000-0000-0000-000000000003'', ''product-images'', ''10000000-0000-0000-0000-000000000001/croissant.webp'')',
@@ -216,12 +229,18 @@ select throws_ok(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 5: Authenticated Non-Member Access (Tests 21-23)
+-- Section 5: Authenticated Non-Member Access (Tests 23-26)
 -- ----------------------------------------------------------------------------
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "role": "authenticated"}';
+
+select is(
+  (select count(*)::int from storage.objects where bucket_id = 'product-images'),
+  0,
+  'non-member cannot select any objects in product-images'
+);
 
 select throws_ok(
   'insert into storage.objects (id, bucket_id, name) values (''ea000000-0000-0000-0000-000000000006'', ''product-images'', ''10000000-0000-0000-0000-000000000001/unauthorized.webp'')',

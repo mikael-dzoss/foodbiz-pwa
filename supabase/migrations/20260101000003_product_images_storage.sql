@@ -7,6 +7,7 @@
 --   drop policy if exists product_images_delete_member on storage.objects;
 --   drop policy if exists product_images_update_member on storage.objects;
 --   drop policy if exists product_images_insert_member on storage.objects;
+--   drop policy if exists product_images_select_member on storage.objects;
 --   drop policy if exists product_images_select_public on storage.objects;
 --   drop function if exists public.can_manage_product_image(text);
 --   delete from storage.buckets where id = 'product-images';
@@ -47,17 +48,19 @@ as $$
   end;
 $$;
 
-grant execute on function public.can_manage_product_image(text) to anon, authenticated, service_role;
+revoke all on function public.can_manage_product_image(text) from public;
+grant execute on function public.can_manage_product_image(text) to authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- 3. Row Level Security Policies on storage.objects
 -- ----------------------------------------------------------------------------
 
 -- Note: RLS is enabled by default on storage.objects in Supabase Storage.
--- Public read access: Anyone (anon or authenticated) can view images in the product-images bucket
-create policy product_images_select_public
-  on storage.objects for select to anon, authenticated
-  using (bucket_id = 'product-images');
+-- Public read of image content is served directly by the public bucket URL without requiring SELECT on storage.objects.
+-- Member select: Authenticated members can list/read objects in their business folder (<business_id>/*)
+create policy product_images_select_member
+  on storage.objects for select to authenticated
+  using (bucket_id = 'product-images' and public.can_manage_product_image(name));
 
 -- Member upload: Authenticated members can only upload to their business folder (<business_id>/*)
 create policy product_images_insert_member
