@@ -86,7 +86,7 @@ begin
 end;
 $$;
 
-revoke all on function public.find_or_create_guest(uuid, text, text, text, boolean) from public;
+revoke all on function public.find_or_create_guest(uuid, text, text, text, boolean) from public, anon, authenticated;
 grant execute on function public.find_or_create_guest(uuid, text, text, text, boolean) to service_role;
 
 -- ----------------------------------------------------------------------------
@@ -444,5 +444,5 @@ begin
 end;
 $$;
 
-revoke all on function public.cancel_order(uuid, uuid, text) from public;
+revoke all on function public.cancel_order(uuid, uuid, text) from public, anon;
 grant execute on function public.cancel_order(uuid, uuid, text) to authenticated, service_role;

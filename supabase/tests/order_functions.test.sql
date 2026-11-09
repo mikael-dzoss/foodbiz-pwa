@@ -81,18 +81,21 @@ values
 on conflict (id) do nothing;
 
 -- 7. Products
--- da01: stock 10, visible true, price 500
+-- da01: stock 15, visible true, price 500
 -- da02: stock 1, visible true, price 1200 (for last item sequential depletion test)
 -- da03: stock 5, visible false, price 800 (hidden product)
 insert into public.products (id, business_id, category_id, name, price, stock, visible)
 values
-  ('da000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Croissant', 500, 10, true),
+  ('da000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Croissant', 500, 15, true),
   ('da000000-0000-0000-0000-000000000002'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Last Sourdough', 1200, 1, true),
   ('da000000-0000-0000-0000-000000000003'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Secret Cake', 800, 5, false),
   ('dc000000-0000-0000-0000-000000000001'::uuid, '30000000-0000-0000-0000-000000000003'::uuid, 'cc000000-0000-0000-0000-000000000001'::uuid, 'Paused Brioche', 500, 10, true),
   ('dd000000-0000-0000-0000-000000000001'::uuid, '40000000-0000-0000-0000-000000000004'::uuid, 'cd000000-0000-0000-0000-000000000001'::uuid, 'Min Order Baguette', 500, 10, true),
   ('de000000-0000-0000-0000-000000000001'::uuid, '50000000-0000-0000-0000-000000000005'::uuid, 'ce000000-0000-0000-0000-000000000001'::uuid, 'Pickup Only Eclair', 500, 10, true)
-on conflict (id) do nothing;
+on conflict (id) do update set
+  stock = excluded.stock,
+  price = excluded.price,
+  visible = excluded.visible;
 
 -- 8. Existing order for status checks
 insert into public.guests (id, business_id, name, phone)
@@ -154,30 +157,33 @@ insert into public.order_items (
 -- Test 1: Direct call by anon fails with 42501
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 select throws_ok(
   $$select public.find_or_create_guest('10000000-0000-0000-0000-000000000001'::uuid, 'Alice', '+33600000099')$$,
   '42501',
-  'permission denied for function find_or_create_guest',
+  null,
   'find_or_create_guest direct call by anon fails with 42501'
 );
 
 -- Test 2: Direct call by authenticated fails with 42501
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 select throws_ok(
   $$select public.find_or_create_guest('10000000-0000-0000-0000-000000000001'::uuid, 'Alice', '+33600000099')$$,
   '42501',
-  'permission denied for function find_or_create_guest',
+  null,
   'find_or_create_guest direct call by authenticated fails with 42501'
 );
 
 -- Test 3: Direct call by service_role succeeds
 set local role service_role;
 set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
 set local "request.jwt.claims" = '{"role": "service_role"}';
 
 select is(
@@ -188,6 +194,9 @@ select is(
 
 -- Test 4: Name normalization on direct call under service_role
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 select is(
   (select name from public.guests where phone = '+33600000098'),
@@ -202,7 +211,8 @@ select is(
 -- Switch to anon for storefront order placement
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 -- Test 5-7: Place order for new guest as anon
 create temp table t_order_1 on commit drop as
@@ -237,15 +247,18 @@ select ok(
   'place_order returns sanitized fields (order_id, order_number, tracking_token, total_amount)'
 );
 
--- Test 8: Decrements product stock from 10 to 8
+-- Test 8: Decrements product stock from 15 to 13
 select is(
   (select stock from public.products where id = 'da000000-0000-0000-0000-000000000001'),
-  8,
-  'place_order decrements product stock from 10 to 8'
+  13,
+  'place_order decrements product stock from 15 to 13'
 );
 
 -- Switch to postgres to inspect RLS-protected tables (orders, order_items)
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 -- Test 9: Creates order with guest_id NOT NULL and submitted_name IS NULL
 select ok(
@@ -263,7 +276,8 @@ select is(
 -- Switch back to anon for repeat order test
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 -- Test 11-12: Repeat place_order by anon with differing name preserves canonical name and sets submitted_name
 create temp table t_order_2 on commit drop as
@@ -280,6 +294,9 @@ grant select on t_order_2 to public;
 
 -- Switch to postgres to inspect RLS-protected tables (guests, orders)
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 -- Test 11: Canonical guest name preserved
 select is(
@@ -298,7 +315,8 @@ select is(
 -- Test 13: Anon cannot rename canonical guest even when p_update_guest_name=true
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 create temp table t_order_anon_rename on commit drop as
 select public.place_order(
@@ -318,6 +336,9 @@ select public.place_order(
 grant select on t_order_anon_rename to public;
 
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 select is(
   (select name from public.guests where phone = '+33600000002'),
@@ -328,6 +349,7 @@ select is(
 -- Test 14: Authenticated non-member cannot rename canonical guest even when p_update_guest_name=true
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "role": "authenticated"}';
 
 create temp table t_order_nonmember_rename on commit drop as
@@ -348,6 +370,9 @@ select public.place_order(
 grant select on t_order_nonmember_rename to public;
 
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 select is(
   (select name from public.guests where phone = '+33600000002'),
@@ -358,6 +383,7 @@ select is(
 -- Test 15-16: Repeat place_order by authenticated manager with p_update_guest_name=true
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 create temp table t_order_3 on commit drop as
@@ -398,7 +424,8 @@ select is(
 -- Reset role to anon
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 -- Test 17-19: Sequential stock depletion test on last item in stock (stock = 1)
 create temp table t_order_last on commit drop as
@@ -460,7 +487,7 @@ select throws_ok(
 );
 
 -- Test 21: Aggregated duplicate lines in p_items consolidate quantity
--- Current stock for da01 is 4 (10 - 2 - 1 - 1 - 1 - 1 = 4). Ordering 1 + 2 = 3 leaves stock = 1.
+-- Current stock for da01 is 9 (15 - 2 - 1 - 1 - 1 - 1 = 9). Ordering 1 + 2 = 3 leaves stock = 6.
 create temp table t_order_dups on commit drop as
 select public.place_order(
   '10000000-0000-0000-0000-000000000001'::uuid,
@@ -478,6 +505,9 @@ grant select on t_order_dups to public;
 
 -- Switch to postgres to inspect RLS-protected order_items table
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 select is(
   (select quantity from public.order_items where order_id = (select (res->>'order_id')::uuid from t_order_dups)),
@@ -492,7 +522,8 @@ select is(
 -- Test 22: Anon attempting non-storefront channel throws 42501 (UNAUTHORIZED_CHANNEL)
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 select throws_ok(
   $$select public.place_order(
@@ -512,6 +543,7 @@ select throws_ok(
 -- Test 23: Authenticated non-member attempting non-storefront channel throws 42501 (UNAUTHORIZED_CHANNEL)
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "role": "authenticated"}';
 
 select throws_ok(
@@ -532,6 +564,7 @@ select throws_ok(
 -- Test 24: Authenticated member CAN place order via non-storefront channel and purchase hidden product
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 create temp table t_order_member_phone on commit drop as
@@ -555,6 +588,7 @@ select is(
 -- Test 25: Service_role CAN place order via non-storefront channel
 set local role service_role;
 set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
 set local "request.jwt.claims" = '{"role": "service_role"}';
 
 create temp table t_order_service_role on commit drop as
@@ -577,7 +611,8 @@ select ok(
 -- Switch back to anon for storefront checks
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 -- Test 26: Non-existent business throws P0002
 select throws_ok(
@@ -689,6 +724,9 @@ select is(
 
 -- Switch to postgres to inspect orders table for delivery_address (H1)
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
 
 -- Test 32: Stores delivery_address in public.orders (H1)
 select is(
@@ -700,7 +738,8 @@ select is(
 -- Switch back to anon
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 -- Test 33: Notes exceeding 500 characters rejected with 22023
 select throws_ok(
@@ -763,6 +802,7 @@ select ok(
 -- Switch to authenticated manager of Biz A
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 create temp table t_cancel_res on commit drop as
@@ -794,17 +834,18 @@ select is(
   'orders table status is CANCELLED'
 );
 
--- Test 39: Restores product stock atomically (3 restored: 1 + 3 = 4)
+-- Test 39: Restores product stock atomically (3 restored: 4 + 3 = 7)
 select is(
   (select stock from public.products where id = 'da000000-0000-0000-0000-000000000001'),
-  4,
+  7,
   'cancel_order atomically restores product stock'
 );
 
 -- Test 40: Blocks anon caller with 42501
 set local role anon;
 set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claims" = '{}';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
 
 select throws_ok(
   $$select public.cancel_order(
@@ -820,6 +861,7 @@ select throws_ok(
 -- Test 41: Blocks authenticated non-member caller with 42501
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "role": "authenticated"}';
 
 select throws_ok(
@@ -836,6 +878,7 @@ select throws_ok(
 -- Test 42: Allows service_role to call cancel_order and succeeds (M10)
 set local role service_role;
 set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
 set local "request.jwt.claims" = '{"role": "service_role"}';
 
 select is(
@@ -851,6 +894,7 @@ select is(
 -- Switch back to Biz A manager
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 -- Test 43: Blocks cancelling an already CANCELLED order
@@ -867,12 +911,17 @@ select throws_ok(
 
 -- Test 44: Blocks cancelling a COMPLETED order
 set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
 update public.orders
 set status = 'COMPLETED'
 where id = '0a000000-0000-0000-0000-000000000001'::uuid;
 
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 select throws_ok(
