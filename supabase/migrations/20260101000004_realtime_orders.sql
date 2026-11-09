@@ -46,3 +46,13 @@ $$;
 -- for CDC replication, allowing both filtering and RLS evaluation across operations.
 
 alter table public.orders replica identity full;
+
+-- ----------------------------------------------------------------------------
+-- 3. Grants for Authenticated Realtime Subscribers
+-- ----------------------------------------------------------------------------
+-- Supabase Realtime CDC worker connects to Postgres and evaluates RLS queries
+-- as the authenticated user (setting role and request.jwt.claim.sub).
+-- This requires table-level SELECT permission on public.orders for the
+-- `authenticated` role so Postgres allows RLS evaluation.
+grant usage on schema public to authenticated;
+grant select on table public.orders to authenticated;

@@ -299,9 +299,7 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
         </OrderAlertsProvider>,
       );
 
-      expect(mock.client.channel).toHaveBeenCalledWith(
-        expect.stringMatching(new RegExp(`^orders:business:${testBizId}`)),
-      );
+      expect(mock.client.channel).toHaveBeenCalledWith(`orders:business:${testBizId}`);
       expect(mock.mockChannel.on).toHaveBeenCalledWith(
         "postgres_changes",
         {
