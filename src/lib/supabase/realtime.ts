@@ -43,23 +43,28 @@ export function subscribeToOrderInserts(
   }
 
   // Ensure client auth token is synced to realtime connection if session exists
-  if (typeof client.realtime?.setAuth === "function") {
-    client.auth
-      ?.getSession?.()
-      .then(({ data }) => {
-        if (data?.session?.access_token && typeof client.realtime?.setAuth === "function") {
-          void client.realtime.setAuth(data.session.access_token);
-        }
-      })
-      .catch(() => {});
-  }
-
-  // Listen to token refresh so long-lived realtime channels maintain valid credentials
-  const authSubscription = client.auth?.onAuthStateChange?.((_event, session) => {
-    if (session?.access_token && typeof client.realtime?.setAuth === "function") {
-      void client.realtime.setAuth(session.access_token);
+  let authSubscription: { unsubscribe: () => void } | undefined;
+  try {
+    if (typeof client.realtime?.setAuth === "function") {
+      client.auth
+        ?.getSession?.()
+        .then(({ data }) => {
+          if (data?.session?.access_token && typeof client.realtime?.setAuth === "function") {
+            void client.realtime.setAuth(data.session.access_token);
+          }
+        })
+        .catch(() => {});
     }
-  })?.data?.subscription;
+
+    // Listen to token refresh so long-lived realtime channels maintain valid credentials
+    authSubscription = client.auth?.onAuthStateChange?.((_event, session) => {
+      if (session?.access_token && typeof client.realtime?.setAuth === "function") {
+        void client.realtime.setAuth(session.access_token);
+      }
+    })?.data?.subscription;
+  } catch {
+    // When SupabaseClient is configured with custom accessToken option, accessing auth throws
+  }
 
   const channel = client
     .channel(`orders:business:${businessId}`)
