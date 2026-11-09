@@ -65,6 +65,23 @@ npm run db:stop    # stop local Supabase containers
 npm run db:status  # print local connection URLs and keys
 ```
 
+#### Live repository contract tests
+
+To exercise the live security boundary and concurrency guarantees against local Supabase:
+
+```bash
+npm run db:start
+eval "$(supabase status -o env | grep -E '^[A-Z0-9_]+=')"
+SUPABASE_TEST_URL="$API_URL" SUPABASE_TEST_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" SUPABASE_TEST_ANON_KEY="$ANON_KEY" npm run test:live
+```
+
+What this suite proves (`src/lib/repositories/tests/supabase-live.contract.test.ts`):
+
+- **Real RLS security boundaries:** anonymous callers cannot list orders/guests/expenses or read private `business_settings` columns (`publicOnly: true` enforcement), while storefront order placement works for visible products and is rejected for hidden products or non-storefront channels.
+- **Tenant isolation & CRUD:** authenticated business members have full CRUD on their tenant's resources, cannot view or modify other tenants' rows (cross-tenant denial), and cannot cancel orders from other businesses.
+- **True transactional concurrency (H9):** parallel anonymous checkouts for the last unit of stock via `Promise.all` result in exactly one successful placement and one `STOCK_ERROR` rejection, with 0 final stock and no overselling. Order numbers are strictly unique and sequential under concurrent load.
+- **Atomic order updates & cancel:** `orders.cancel` restores stock atomically, and `orders.update` with items replaces line items transactionally via the `replace_order_items` RPC.
+
 ### Browser and accessibility checks
 
 Install Chromium once with `npx playwright install --with-deps chromium`, then run

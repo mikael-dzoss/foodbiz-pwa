@@ -1,16 +1,10 @@
 // @vitest-environment node
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
-import {
-  createDefaultFixtures,
-  DEMO_BUSINESS_ID,
-  DEMO_MANAGER_USER_ID,
-  DEMO_OWNER_USER_ID,
-  type MockFixtures,
-} from "../mock/fixtures";
+import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
 import { createSupabaseRepositories } from "../supabase";
 import { describeRepositoryContracts } from "./contracts";
 
@@ -625,6 +619,9 @@ function createFakeSupabaseClient(
 }
 
 describe("Supabase Repository Adapter", () => {
+  // In-memory fake client: retained to provide unit coverage for adapter mappings,
+  // error translations and domain validation without requiring a live database in unit CI gates.
+  // The live contract suite lives in supabase-live.contract.test.ts and runs against local Supabase.
   describe("Supabase Adapter (Mocked Client)", () => {
     let mockRepos: Repositories;
 
@@ -634,244 +631,6 @@ describe("Supabase Repository Adapter", () => {
     });
 
     describeRepositoryContracts("Supabase Adapter (Mocked Client)", () => mockRepos);
-  });
-
-  const hasLiveSupabase = Boolean(
-    process.env.SUPABASE_TEST_URL && process.env.SUPABASE_TEST_SERVICE_ROLE_KEY,
-  );
-
-  describe.skipIf(!hasLiveSupabase)("Supabase Adapter (Live DB)", () => {
-    let liveRepos: Repositories;
-    let adminClient: SupabaseClient<Database>;
-
-    beforeEach(async () => {
-      const url = process.env.SUPABASE_TEST_URL!;
-      const key = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
-
-      adminClient = createClient<Database>(url, key, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-
-      // 1. Truncate / clean up tables in reverse FK order
-      await adminClient
-        .from("order_items")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient.from("orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient.from("expenses").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient.from("guests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient.from("products").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient
-        .from("product_categories")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient
-        .from("business_members")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient
-        .from("business_settings")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-      await adminClient
-        .from("businesses")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-
-      // 2. Ensure auth.users exist for demo members and test users
-      const userIds = [
-        DEMO_OWNER_USER_ID,
-        DEMO_MANAGER_USER_ID,
-        "00000000-0000-4000-8000-000000000088",
-      ];
-      for (const uid of userIds) {
-        await adminClient.auth.admin
-          .createUser({
-            id: uid,
-            email: `user-${uid}@example.com`,
-            password: "Password123!",
-            email_confirm: true,
-          })
-          .catch(() => {});
-      }
-
-      // 3. Seed fixtures
-      const fixtures = createDefaultFixtures();
-
-      // Primary and secondary business
-      await adminClient.from("businesses").insert([
-        {
-          id: fixtures.business.id,
-          name: fixtures.business.name,
-          slug: fixtures.business.slug,
-          currency: fixtures.business.currency,
-          description: fixtures.business.description ?? null,
-          phone: fixtures.business.phone ?? null,
-          email: fixtures.business.email ?? null,
-          whatsapp_number: fixtures.business.whatsappNumber ?? null,
-          instagram_url: fixtures.business.instagramUrl ?? null,
-          facebook_url: fixtures.business.facebookUrl ?? null,
-          tiktok_url: fixtures.business.tiktokUrl ?? null,
-          address: fixtures.business.address ?? null,
-          latitude: fixtures.business.latitude ?? null,
-          longitude: fixtures.business.longitude ?? null,
-          logo_url: fixtures.business.logoUrl ?? null,
-          created_at: fixtures.business.createdAt,
-          updated_at: fixtures.business.updatedAt,
-        },
-        {
-          id: "99999999-9999-4999-8999-999999999999",
-          name: "Secondary Test Bakery",
-          slug: "secondary-test-bakery",
-          currency: "EUR",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]);
-
-      await adminClient.from("business_settings").insert({
-        id: fixtures.settings.id ?? crypto.randomUUID(),
-        business_id: fixtures.settings.businessId,
-        currency: fixtures.settings.currency,
-        date_format: fixtures.settings.dateFormat,
-        low_stock_threshold: fixtures.settings.lowStockThreshold,
-        tax_percentage: fixtures.settings.taxPercentage,
-        notifications: fixtures.settings.notifications,
-        accepting_orders: fixtures.settings.acceptingOrders,
-        service_types: fixtures.settings.serviceTypes as Json,
-        opening_hours: fixtures.settings.openingHours,
-        order_timing_asap: fixtures.settings.orderTimingAsap,
-        order_timing_scheduled: fixtures.settings.orderTimingScheduled,
-        order_timing_time_optional: fixtures.settings.orderTimingTimeOptional,
-        delivery_fee: fixtures.settings.deliveryFee,
-        min_order_amount: fixtures.settings.minOrderAmount,
-        lead_time_value: fixtures.settings.leadTimeValue,
-        lead_time_unit: fixtures.settings.leadTimeUnit,
-        revolut_revtag: fixtures.settings.revolutRevtag,
-        wero_identifier: fixtures.settings.weroIdentifier,
-        payment_methods: fixtures.settings.paymentMethods as Json,
-        payment_instructions_en: fixtures.settings.paymentInstructionsEn,
-        payment_instructions_fr: fixtures.settings.paymentInstructionsFr,
-        in_app_alerts: fixtures.settings.inAppAlerts,
-        sound_alerts: fixtures.settings.soundAlerts,
-        updated_at: new Date().toISOString(),
-      });
-
-      await adminClient.from("business_members").insert(
-        fixtures.members.map((m) => ({
-          id: m.id,
-          business_id: m.businessId,
-          user_id: m.userId,
-          role: m.role,
-          created_at: m.createdAt,
-        })),
-      );
-
-      await adminClient.from("product_categories").insert(
-        fixtures.categories.map((c) => ({
-          id: c.id,
-          business_id: c.businessId,
-          name: c.name,
-          sort_order: c.sortOrder,
-          role: c.role,
-          created_at: c.createdAt,
-        })),
-      );
-
-      await adminClient.from("products").insert(
-        fixtures.products.map((p) => ({
-          id: p.id,
-          business_id: p.businessId,
-          category_id: p.categoryId,
-          name: p.name,
-          description: p.description,
-          price: p.price,
-          unit_cost: p.unitCost,
-          stock: p.stock,
-          visible: p.visible,
-          allergens: [...p.allergens],
-          suggest_add_ons: p.suggestAddOns,
-          image_url: p.imageUrl,
-          created_at: p.createdAt,
-          updated_at: p.updatedAt,
-        })),
-      );
-
-      await adminClient.from("guests").insert(
-        fixtures.guests.map((g) => ({
-          id: g.id,
-          business_id: g.businessId,
-          name: g.name,
-          phone: g.phone,
-          email: g.email,
-          address: g.address,
-          notes: g.notes,
-          created_at: g.createdAt,
-        })),
-      );
-
-      await adminClient.from("orders").insert(
-        fixtures.orders.map((o) => ({
-          id: o.id,
-          business_id: o.businessId,
-          order_number: o.orderNumber ?? 0,
-          guest_id: o.guestId,
-          submitted_name: o.submittedName,
-          service_type: o.serviceType,
-          channel: o.channel,
-          status: o.status,
-          paid: o.paid,
-          payment_preference: o.paymentPreference,
-          payment_method: o.paymentMethod,
-          paid_at: o.paidAt,
-          refunded_at: o.refundedAt,
-          requested_date: o.requestedDate,
-          requested_time: o.requestedTime,
-          total_amount: o.totalAmount,
-          tracking_token: o.trackingToken ?? crypto.randomUUID().replace(/-/g, ""),
-          cancellation_reason: o.cancellationReason,
-          notes: o.notes,
-          delivery_address: o.deliveryAddress,
-          status_history: (o.statusHistory ?? []) as Json,
-          created_at: o.createdAt,
-          updated_at: o.updatedAt,
-        })),
-      );
-
-      await adminClient.from("order_items").insert(
-        fixtures.orders.flatMap((o) =>
-          o.items.map((it) => ({
-            id: it.id ?? crypto.randomUUID(),
-            order_id: o.id,
-            business_id: o.businessId,
-            product_id: it.productId,
-            product_name: it.productName,
-            quantity: it.quantity,
-            unit_price: it.unitPrice,
-            total_price: it.totalPrice,
-            created_at: o.createdAt,
-          })),
-        ),
-      );
-
-      await adminClient.from("expenses").insert(
-        fixtures.expenses.map((e) => ({
-          id: e.id,
-          business_id: e.businessId,
-          amount: e.amount,
-          date: e.date,
-          description: e.description,
-          tags: [...e.tags],
-          created_at: e.createdAt,
-        })),
-      );
-
-      liveRepos = createSupabaseRepositories(adminClient);
-    });
-
-    describeRepositoryContracts("Supabase Adapter (Live DB)", () => liveRepos, {
-      businessId: DEMO_BUSINESS_ID,
-    });
   });
 
   describe("publicOnly option on createSupabaseRepositories", () => {

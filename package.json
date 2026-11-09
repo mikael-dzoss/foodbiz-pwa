@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/test-results.json && node scripts/coverage-ratchet.mjs",
     "test:tooling": "vitest run --config vitest.tooling.config.mts && npm run -s test:tooling:py",
     "test:tooling:py": "python3 -B -m trace --count --summary --missing --coverdir=coverage/tooling-py --ignore-dir=\"$(python3 -c \"import os,site,sysconfig as s;print(os.pathsep.join([s.get_paths()['stdlib'],s.get_paths()['purelib'],site.getusersitepackages()]))\")\" --module unittest discover -s .agents/skills/issue-logger/scripts",
+    "test:live": "vitest run src/lib/repositories/tests/supabase-live.contract.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",

@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
@@ -14,6 +14,12 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/tests/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    exclude: [
+      ...configDefaults.exclude,
+      ...(process.env.SUPABASE_TEST_URL || process.env.npm_lifecycle_event === "test:live"
+        ? []
+        : ["src/**/*.contract.test.{ts,tsx}"]),
+    ],
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
