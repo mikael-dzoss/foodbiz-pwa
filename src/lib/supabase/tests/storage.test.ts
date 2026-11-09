@@ -1,117 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  parseProductImageDataUrl,
-  uploadProductImageToStorage,
-  PRODUCT_IMAGES_BUCKET,
-  MAX_PRODUCT_IMAGE_BYTES,
-  ALLOWED_PRODUCT_IMAGE_MIME_TYPES,
-} from "../storage";
+import { uploadProductImage, deleteProductImage, PRODUCT_IMAGES_BUCKET } from "../storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../database.types";
 
-const mockCreateClient = vi.fn();
-vi.mock("../server", () => ({
-  createClient: () => mockCreateClient(),
-}));
+describe("Supabase Storage thin client helpers (#123, T4)", () => {
+  const businessId = "10000000-0000-0000-0000-000000000001";
+  const path = `${businessId}/test-file.webp`;
+  const sampleBytes = new Uint8Array([
+    0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+  ]);
 
-describe("Supabase Storage product images (#123)", () => {
-  describe("parseProductImageDataUrl", () => {
-    it("exports expected allowed MIME types", () => {
-      expect(ALLOWED_PRODUCT_IMAGE_MIME_TYPES).toEqual([
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/avif",
-      ]);
-    });
-
-    it("accepts all allowed MIME types", () => {
-      const allowed = [
-        { mime: "image/jpeg", ext: "jpg" },
-        { mime: "image/png", ext: "png" },
-        { mime: "image/webp", ext: "webp" },
-        { mime: "image/avif", ext: "avif" },
-      ] as const;
-
-      for (const { mime, ext } of allowed) {
-        const payload = Buffer.from("tiny-valid-pixel").toString("base64");
-        const res = parseProductImageDataUrl(`data:${mime};base64,${payload}`);
-        expect(res.ok).toBe(true);
-        if (res.ok) {
-          expect(res.mimeType).toBe(mime);
-          expect(res.extension).toBe(ext);
-          expect(res.bytes.byteLength).toBeGreaterThan(0);
-        }
-      }
-    });
-
-    it("rejects non-data URLs", () => {
-      const res = parseProductImageDataUrl("not-an-image-data-url");
-      expect(res.ok).toBe(false);
-      if (!res.ok) {
-        expect(res.error).toMatch(/valid image data url/i);
-      }
-    });
-
-    it("rejects disallowed MIME types (svg, gif, pdf)", () => {
-      const disallowed = ["image/svg+xml", "image/gif", "application/pdf", "text/plain"];
-
-      for (const mime of disallowed) {
-        const payload = Buffer.from("sample").toString("base64");
-        const res = parseProductImageDataUrl(`data:${mime};base64,${payload}`);
-        expect(res.ok).toBe(false);
-        if (!res.ok) {
-          expect(res.error).toMatch(/unsupported image format/i);
-        }
-      }
-    });
-
-    it("rejects empty payloads", () => {
-      const res = parseProductImageDataUrl("data:image/png;base64,");
-      expect(res.ok).toBe(false);
-      if (!res.ok) {
-        expect(res.error).toMatch(/empty/i);
-      }
-    });
-
-    it("rejects images larger than 5 MB limit", () => {
-      // 5 MB + 1 byte
-      const oversizedBuffer = Buffer.alloc(MAX_PRODUCT_IMAGE_BYTES + 1, 1);
-      const oversizedBase64 = `data:image/jpeg;base64,${oversizedBuffer.toString("base64")}`;
-
-      const res = parseProductImageDataUrl(oversizedBase64);
-      expect(res.ok).toBe(false);
-      if (!res.ok) {
-        expect(res.error).toMatch(/exceeds maximum allowed size/i);
-      }
-    });
-
-    it("accepts images at or under the 5 MB limit", () => {
-      const validBuffer = Buffer.alloc(1024, 1); // 1 KB
-      const res = parseProductImageDataUrl(
-        `data:image/webp;base64,${validBuffer.toString("base64")}`,
-      );
-      expect(res.ok).toBe(true);
-      if (res.ok) {
-        expect(res.bytes.byteLength).toBe(1024);
-      }
-    });
-  });
-
-  describe("uploadProductImageToStorage", () => {
-    const businessId = "10000000-0000-0000-0000-000000000001";
-    const samplePayload = Buffer.from("croissant-bytes").toString("base64");
-    const validDataUrl = `data:image/webp;base64,${samplePayload}`;
-
-    it("uploads image to storage and returns public URL", async () => {
+  describe("uploadProductImage", () => {
+    it("uploads bytes to product-images bucket and returns public URL", async () => {
       const mockUpload = vi.fn().mockResolvedValue({
-        data: { path: `${businessId}/test-file.webp` },
+        data: { path },
         error: null,
       });
+      const expectedUrl = `https://example-supabase.co/storage/v1/object/public/${PRODUCT_IMAGES_BUCKET}/${path}`;
       const mockGetPublicUrl = vi.fn().mockReturnValue({
-        data: {
-          publicUrl: `https://example-supabase.co/storage/v1/object/public/${PRODUCT_IMAGES_BUCKET}/${businessId}/test-file.webp`,
-        },
+        data: { publicUrl: expectedUrl },
       });
 
       const mockClient = {
@@ -123,28 +30,15 @@ describe("Supabase Storage product images (#123)", () => {
         },
       } as unknown as SupabaseClient<Database>;
 
-      const publicUrl = await uploadProductImageToStorage(
-        businessId,
-        { base64Data: validDataUrl },
-        mockClient,
-      );
+      const publicUrl = await uploadProductImage(mockClient, path, sampleBytes, "image/webp");
 
       expect(mockClient.storage.from).toHaveBeenCalledWith(PRODUCT_IMAGES_BUCKET);
-      expect(mockUpload).toHaveBeenCalledWith(
-        expect.stringMatching(new RegExp(`^${businessId}/[0-9a-fA-F-]+\\.webp$`)),
-        expect.any(Uint8Array),
-        { contentType: "image/webp", upsert: false },
-      );
-      expect(mockGetPublicUrl).toHaveBeenCalled();
-      expect(publicUrl).toBe(
-        `https://example-supabase.co/storage/v1/object/public/${PRODUCT_IMAGES_BUCKET}/${businessId}/test-file.webp`,
-      );
-    });
-
-    it("throws when parseProductImageDataUrl fails", async () => {
-      await expect(
-        uploadProductImageToStorage(businessId, { base64Data: "invalid" }),
-      ).rejects.toThrow(/valid image data url/i);
+      expect(mockUpload).toHaveBeenCalledWith(path, sampleBytes, {
+        contentType: "image/webp",
+        upsert: false,
+      });
+      expect(mockGetPublicUrl).toHaveBeenCalledWith(path);
+      expect(publicUrl).toBe(expectedUrl);
     });
 
     it("throws when storage upload returns an error", async () => {
@@ -161,34 +55,50 @@ describe("Supabase Storage product images (#123)", () => {
         },
       } as unknown as SupabaseClient<Database>;
 
-      await expect(
-        uploadProductImageToStorage(businessId, { base64Data: validDataUrl }, mockClient),
-      ).rejects.toThrow(/Storage bucket not accessible/i);
+      await expect(uploadProductImage(mockClient, path, sampleBytes, "image/webp")).rejects.toThrow(
+        /Storage bucket not accessible/i,
+      );
     });
+  });
 
-    it("uses default createClient() when clientOverride is not passed", async () => {
-      const mockUpload = vi.fn().mockResolvedValue({
-        data: { path: `${businessId}/default.png` },
+  describe("deleteProductImage", () => {
+    it("calls remove on product-images bucket with given path", async () => {
+      const mockRemove = vi.fn().mockResolvedValue({
+        data: [{ name: path }],
         error: null,
       });
-      const mockGetPublicUrl = vi.fn().mockReturnValue({
-        data: { publicUrl: "https://example.com/default.png" },
-      });
 
-      mockCreateClient.mockResolvedValue({
+      const mockClient = {
         storage: {
           from: vi.fn().mockReturnValue({
-            upload: mockUpload,
-            getPublicUrl: mockGetPublicUrl,
+            remove: mockRemove,
           }),
         },
+      } as unknown as SupabaseClient<Database>;
+
+      await deleteProductImage(mockClient, path);
+
+      expect(mockClient.storage.from).toHaveBeenCalledWith(PRODUCT_IMAGES_BUCKET);
+      expect(mockRemove).toHaveBeenCalledWith([path]);
+    });
+
+    it("throws when storage remove returns an error", async () => {
+      const mockRemove = vi.fn().mockResolvedValue({
+        data: null,
+        error: new Error("Permission denied deleting object"),
       });
 
-      const pngDataUrl = `data:image/png;base64,${Buffer.from("png").toString("base64")}`;
-      const url = await uploadProductImageToStorage(businessId, { base64Data: pngDataUrl });
+      const mockClient = {
+        storage: {
+          from: vi.fn().mockReturnValue({
+            remove: mockRemove,
+          }),
+        },
+      } as unknown as SupabaseClient<Database>;
 
-      expect(mockCreateClient).toHaveBeenCalled();
-      expect(url).toBe("https://example.com/default.png");
+      await expect(deleteProductImage(mockClient, path)).rejects.toThrow(
+        /Permission denied deleting object/i,
+      );
     });
   });
 });
