@@ -48,7 +48,8 @@ as $$
   end;
 $$;
 
-revoke all on function public.can_manage_product_image(text) from public;
+revoke all on function public.can_manage_product_image(text) from public, anon;
+revoke execute on function public.can_manage_product_image(text) from anon;
 grant execute on function public.can_manage_product_image(text) to authenticated, service_role;
 
 -- ----------------------------------------------------------------------------

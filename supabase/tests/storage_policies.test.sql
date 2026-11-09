@@ -143,7 +143,7 @@ select is(
 );
 
 select throws_ok(
-  'select public.can_manage_product_image(''10000000-0000-0000-0000-000000000001/anon.webp'')',
+  $$select public.can_manage_product_image('10000000-0000-0000-0000-000000000001/anon.webp')$$,
   '42501',
   null,
   'anon cannot execute can_manage_product_image'
@@ -157,11 +157,13 @@ select throws_ok(
 );
 
 update storage.objects set name = '10000000-0000-0000-0000-000000000001/updated.webp' where id = 'ea000000-0000-0000-0000-000000000001';
+reset role;
 select is(
   (select name from storage.objects where id = 'ea000000-0000-0000-0000-000000000001'),
   '10000000-0000-0000-0000-000000000001/seed-croissant.webp',
   'anon is denied update in product-images'
 );
+set local role anon;
 
 select throws_ok(
   'delete from storage.objects where id = ''ea000000-0000-0000-0000-000000000001''',
@@ -215,11 +217,15 @@ select throws_ok(
 );
 
 update storage.objects set name = '20000000-0000-0000-0000-000000000002/hacked.webp' where id = 'eb000000-0000-0000-0000-000000000001';
+reset role;
 select is(
   (select name from storage.objects where id = 'eb000000-0000-0000-0000-000000000001'),
   '20000000-0000-0000-0000-000000000002/seed-pain-au-chocolat.webp',
   'member_a is denied update on Biz B object'
 );
+set local role authenticated;
+set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
 select throws_ok(
   'delete from storage.objects where id = ''eb000000-0000-0000-0000-000000000001''',
@@ -250,11 +256,15 @@ select throws_ok(
 );
 
 update storage.objects set name = '10000000-0000-0000-0000-000000000001/unauthorized-up.webp' where id = 'ea000000-0000-0000-0000-000000000001';
+reset role;
 select is(
   (select name from storage.objects where id = 'ea000000-0000-0000-0000-000000000001'),
   '10000000-0000-0000-0000-000000000001/seed-croissant.webp',
   'non-member is denied update on Biz A object'
 );
+set local role authenticated;
+set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+set local "request.jwt.claims" = '{"sub": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "role": "authenticated"}';
 
 select throws_ok(
   'delete from storage.objects where id = ''ea000000-0000-0000-0000-000000000001''',
