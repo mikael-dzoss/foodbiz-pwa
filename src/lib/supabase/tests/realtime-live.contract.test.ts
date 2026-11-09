@@ -246,12 +246,14 @@ describe.skipIf(shouldSkip)(
       const subscribedPromise = waitForEvent<RealtimeSubscriptionStatus>(
         (resolve, reject) => {
           currentSubscription = subscribeToOrderInserts(memberAClient, businessAId, {
-            onInsert: (orderId) => {
+            onInsert: (orderId, row) => {
+              console.log("[Test onInsert called]:", orderId, row);
               if (orderId === orderAId) {
                 resolveInsert?.(orderId);
               }
             },
             onStatusChange: (status, err) => {
+              console.log("[Test onStatusChange]:", status, err?.message);
               if (status === "SUBSCRIBED") {
                 resolve(status);
               } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {

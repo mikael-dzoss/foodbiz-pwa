@@ -208,6 +208,14 @@ jobs:
           eval "$(supabase status -o env 2>/dev/null | grep -E '^[A-Z0-9_]+=')"
           SUPABASE_TEST_URL="$API_URL" SUPABASE_TEST_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" SUPABASE_TEST_ANON_KEY="$ANON_KEY" npm run test:live
 
+      - name: Dump Supabase Realtime logs on failure
+        if: failure()
+        run: |
+          echo "=== Supabase Containers ==="
+          docker ps -a
+          echo "=== Realtime Container Logs ==="
+          docker logs $(docker ps -q -f name=realtime) --tail 150 2>&1 || true
+
   # ── Quality Gate: Consolidated Summary Gate ─────────────────
   summary:
     name: Quality Gate - Summary
