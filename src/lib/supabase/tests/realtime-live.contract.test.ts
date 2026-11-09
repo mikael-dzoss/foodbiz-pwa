@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/supabase/database.types";
 import {
   subscribeToOrderInserts,
@@ -72,6 +72,7 @@ describe.skipIf(shouldSkip)(
 
     let userAId = "";
     let userBId = "";
+    let userAToken = "";
     const guestAId = crypto.randomUUID();
     const guestBId = crypto.randomUUID();
 
@@ -143,11 +144,21 @@ describe.skipIf(shouldSkip)(
       memberAClient = createClient<Database>(url, anonKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-      const { error: errAuthA } = await memberAClient.auth.signInWithPassword({
+      const { data: authDataA, error: errAuthA } = await memberAClient.auth.signInWithPassword({
         email: memberAEmail,
         password: testPassword,
       });
-      if (errAuthA) throw new Error(`Member A sign in failed: ${errAuthA.message}`);
+      if (errAuthA || !authDataA.session) {
+        throw new Error(`Member A sign in failed: ${errAuthA?.message}`);
+      }
+      userAToken = authDataA.session.access_token;
+      await memberAClient.realtime.setAuth(userAToken);
+    });
+
+    beforeEach(async () => {
+      if (userAToken && memberAClient) {
+        await memberAClient.realtime.setAuth(userAToken);
+      }
     });
 
     afterEach(async () => {
