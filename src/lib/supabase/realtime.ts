@@ -77,7 +77,6 @@ export function subscribeToOrderInserts(
         filter: `business_id=eq.${businessId}`,
       },
       (payload) => {
-        console.log("[realtime.ts raw payload]:", JSON.stringify(payload));
         const row = (payload.new ?? {}) as Partial<OrderRow>;
         if (row.id) {
           handlers.onInsert?.(row.id, row);
