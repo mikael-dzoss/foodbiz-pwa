@@ -5,7 +5,8 @@ import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
 import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import { getServerEnv } from "@/config/env";
-import { parseProductImageDataUrl, uploadProductImageToStorage } from "@/lib/supabase/storage";
+import { parseProductImageDataUrl } from "@/domain/product-image";
+import { uploadProductImage, removeProductImage } from "./product-storage";
 import {
   productFormInputSchema,
   adjustStockSchema,
@@ -190,6 +191,15 @@ export async function updateProductAction(
     }
   }
 
+  // Orphan cleanup (Story #123, L4a): If product image was replaced or cleared, remove old storage object
+  if (
+    parsed.data.imageUrl !== undefined &&
+    existing.imageUrl &&
+    parsed.data.imageUrl !== existing.imageUrl
+  ) {
+    await removeProductImage(businessId, existing.imageUrl);
+  }
+
   const updated = await repos.products.update(businessId, productId, parsed.data);
   revalidatePath("/manage/products");
   await revalidateStorefrontCatalog(businessId);
@@ -240,6 +250,11 @@ export async function softDeleteProductAction(
   const existing = await repos.products.findById(businessId, parsedId.data);
   if (!existing) {
     return { success: false, error: "Product not found" };
+  }
+
+  // Orphan cleanup (Story #123, L4a): Remove storage object on product soft-delete
+  if (existing.imageUrl) {
+    await removeProductImage(businessId, existing.imageUrl);
   }
 
   const updated = await repos.products.softDelete(businessId, parsedId.data);
@@ -308,7 +323,7 @@ export async function uploadProductImageAction(
   const env = getServerEnv();
   if (env.DATA_SOURCE === "supabase") {
     try {
-      const imageUrl = await uploadProductImageToStorage(businessId, parsed.data);
+      const imageUrl = await uploadProductImage(businessId, parsed.data);
       return {
         success: true,
         data: {

@@ -18,14 +18,13 @@ vi.mock("next/cache", () => ({
   revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
 }));
 
-const mockUploadProductImageToStorage = vi.fn();
-vi.mock("@/lib/supabase/storage", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/supabase/storage")>();
-  return {
-    ...actual,
-    uploadProductImageToStorage: (...args: unknown[]) => mockUploadProductImageToStorage(...args),
-  };
-});
+const mockUploadProductImage = vi.fn();
+const mockRemoveProductImage = vi.fn();
+vi.mock("../product-storage", () => ({
+  uploadProductImage: (...args: unknown[]) => mockUploadProductImage(...args),
+  uploadProductImageToStorage: (...args: unknown[]) => mockUploadProductImage(...args),
+  removeProductImage: (...args: unknown[]) => mockRemoveProductImage(...args),
+}));
 
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const validCategoryId = "22222222-2222-4222-8222-222222222201";
@@ -327,6 +326,36 @@ describe("Product Server Actions", () => {
         );
       }
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+      expect(mockRemoveProductImage).not.toHaveBeenCalled();
+    });
+
+    it("cleans up orphaned image when imageUrl is replaced or cleared (#123, L4a)", async () => {
+      const newImageUrl = `https://storage.example.com/product-images/${testBusinessId}/new-image.webp`;
+
+      // 1. Replaced with a new image URL
+      const resReplaced = await updateProductAction(validProductId, {
+        imageUrl: newImageUrl,
+      });
+      expect(resReplaced.success).toBe(true);
+      expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
+
+      mockRemoveProductImage.mockClear();
+
+      // 2. Cleared with null
+      const resCleared = await updateProductAction(validProductId, {
+        imageUrl: null,
+      });
+      expect(resCleared.success).toBe(true);
+      expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
+
+      mockRemoveProductImage.mockClear();
+
+      // 3. Same image URL: no orphan removal
+      const resUnchanged = await updateProductAction(validProductId, {
+        imageUrl: "/images/burger.jpg",
+      });
+      expect(resUnchanged.success).toBe(true);
+      expect(mockRemoveProductImage).not.toHaveBeenCalled();
     });
   });
 
@@ -342,11 +371,23 @@ describe("Product Server Actions", () => {
   });
 
   describe("softDeleteProductAction", () => {
-    it("soft-deletes product without hard delete", async () => {
+    it("soft-deletes product without hard delete and cleans up storage image (#123, L4a)", async () => {
       const res = await softDeleteProductAction(validProductId);
       expect(res.success).toBe(true);
       expect(mockProductRepo.softDelete).toHaveBeenCalledWith(testBusinessId, validProductId);
+      expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+    });
+
+    it("does not call removeProductImage if product has no image", async () => {
+      mockProductRepo.findById.mockResolvedValueOnce({
+        ...mockProducts[0],
+        imageUrl: null,
+      });
+
+      const res = await softDeleteProductAction(validProductId);
+      expect(res.success).toBe(true);
+      expect(mockRemoveProductImage).not.toHaveBeenCalled();
     });
 
     it("rejects invalid product ID with validation error", async () => {
@@ -378,7 +419,10 @@ describe("Product Server Actions", () => {
   });
 
   describe("uploadProductImageAction", () => {
-    const validBase64 = `data:image/jpeg;base64,${Buffer.from("sampleimagepayload").toString("base64")}`;
+    const validJpegBytes = Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+    ]);
+    const validBase64 = `data:image/jpeg;base64,${validJpegBytes.toString("base64")}`;
 
     describe("in mock mode", () => {
       beforeEach(() => {
@@ -423,7 +467,7 @@ describe("Product Server Actions", () => {
 
       it("uploads image to storage and returns remote public URL", async () => {
         const expectedUrl = `https://storage.example.com/product-images/${testBusinessId}/img.jpg`;
-        mockUploadProductImageToStorage.mockResolvedValueOnce(expectedUrl);
+        mockUploadProductImage.mockResolvedValueOnce(expectedUrl);
 
         const res = await uploadProductImageAction({
           base64Data: validBase64,
@@ -434,7 +478,7 @@ describe("Product Server Actions", () => {
         if (res.success) {
           expect(res.data.imageUrl).toBe(expectedUrl);
         }
-        expect(mockUploadProductImageToStorage).toHaveBeenCalledWith(
+        expect(mockUploadProductImage).toHaveBeenCalledWith(
           testBusinessId,
           expect.objectContaining({
             base64Data: validBase64,
@@ -444,7 +488,7 @@ describe("Product Server Actions", () => {
       });
 
       it("catches storage upload failures and returns error", async () => {
-        mockUploadProductImageToStorage.mockRejectedValueOnce(
+        mockUploadProductImage.mockRejectedValueOnce(
           new Error("Supabase Storage permission denied"),
         );
 
@@ -464,7 +508,7 @@ describe("Product Server Actions", () => {
         });
 
         expect(res.success).toBe(false);
-        expect(mockUploadProductImageToStorage).not.toHaveBeenCalled();
+        expect(mockUploadProductImage).not.toHaveBeenCalled();
       });
     });
   });
