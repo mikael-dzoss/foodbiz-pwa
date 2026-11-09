@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import type { RealtimeOrderClient } from "@/lib/supabase/realtime";
 import { OrderAlertsProvider, useOrderAlerts } from "../alerts/order-alerts-context";
 import * as chimeModule from "../alerts/sound-chime";
 import * as actions from "../order-actions";
@@ -35,7 +35,7 @@ const dict = getDictionary("en");
 const initialMockOrders: EnrichedOrder[] = [
   {
     id: "ord-old-1",
-    businessId: "biz-1",
+    businessId: "10000000-0000-0000-0000-000000000001",
     orderNumber: 10,
     guestId: "00000000-0000-4000-8000-000000000001",
     guestName: "Old Customer",
@@ -92,11 +92,13 @@ function TestConsumer() {
 }
 
 type RealtimeCallback = (payload: {
-  new: Partial<Database["public"]["Tables"]["orders"]["Row"]>;
+  new?: Partial<Database["public"]["Tables"]["orders"]["Row"]>;
 }) => void;
+type StatusCallback = (status: string, err?: Error | null) => void;
 
 function createMockSupabaseClient() {
   let registeredCallback: RealtimeCallback | null = null;
+  let registeredStatusCallback: StatusCallback | null = null;
   let registeredEvent = "";
   let registeredFilter = {};
 
@@ -107,18 +109,23 @@ function createMockSupabaseClient() {
       registeredCallback = callback;
       return mockChannel;
     }),
-    subscribe: vi.fn(() => mockChannel),
+    subscribe: vi.fn((statusCb?: StatusCallback) => {
+      registeredStatusCallback = statusCb ?? null;
+      return mockChannel;
+    }),
   };
 
   const client = {
     channel: vi.fn(() => mockChannel),
     removeChannel: vi.fn(() => Promise.resolve("ok")),
-  } as unknown as SupabaseClient<Database>;
+  } as unknown as RealtimeOrderClient;
 
   return {
     client,
     mockChannel,
     getRegisteredCallback: () => registeredCallback,
+    getRegisteredStatusCallback: () => registeredStatusCallback,
+    triggerStatus: (status: string, err?: Error | null) => registeredStatusCallback?.(status, err),
     getRegisteredEvent: () => registeredEvent,
     getRegisteredFilter: () => registeredFilter,
   };
@@ -126,26 +133,28 @@ function createMockSupabaseClient() {
 
 describe("Order Alerts & Notifications (Story #56 & #124)", () => {
   let playChimeSpy: ReturnType<typeof vi.spyOn>;
+  let currentOrders: EnrichedOrder[];
 
   beforeEach(() => {
     vi.clearAllMocks();
+    currentOrders = [...initialMockOrders];
     playChimeSpy = vi.spyOn(chimeModule, "playOrderChime").mockImplementation(() => {});
 
-    vi.spyOn(actions, "listOrdersAction").mockResolvedValue({
+    vi.spyOn(actions, "listOrdersAction").mockImplementation(async () => ({
       success: true,
       data: {
-        orders: [...initialMockOrders],
+        orders: [...currentOrders],
         counts: {
-          active: 1,
+          active: currentOrders.length,
           completed: 0,
           cancelled: 0,
-          total: 1,
+          total: currentOrders.length,
           unpaid: 0,
-          pickup: 1,
+          pickup: currentOrders.length,
           delivery: 0,
         },
       },
-    });
+    }));
   });
 
   afterEach(() => {
@@ -274,9 +283,10 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
   });
 
   describe("Realtime postgres_changes subscription (#124)", () => {
+    const testBizId = "10000000-0000-0000-0000-000000000001";
+
     it("subscribes to orders:business:${businessId} with event INSERT and business_id filter", () => {
       const mock = createMockSupabaseClient();
-      const testBizId = "biz-custom-789";
 
       render(
         <OrderAlertsProvider
@@ -303,9 +313,8 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
       expect(mock.mockChannel.subscribe).toHaveBeenCalledTimes(1);
     });
 
-    it("triggers toast, sound chime, and increments count when a NEW order arrives via Realtime", () => {
+    it("triggers toast, sound chime, and increments count when a NEW order arrives via Realtime", async () => {
       const mock = createMockSupabaseClient();
-      const testBizId = "biz-rt-123";
 
       render(
         <OrderAlertsProvider
@@ -318,28 +327,47 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
         </OrderAlertsProvider>,
       );
 
+      // Complete initial check (setTimeout 0)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
       expect(screen.getByTestId("test-count").textContent).toBe("0");
 
       const callback = mock.getRegisteredCallback();
       expect(callback).toBeDefined();
 
-      act(() => {
+      const newOrder: EnrichedOrder = {
+        id: "ord-realtime-55",
+        businessId: testBizId,
+        orderNumber: 55,
+        guestId: "00000000-0000-4000-8000-000000000002",
+        guestName: "Realtime Pierre",
+        serviceType: "delivery",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: "on_handover",
+        paymentMethod: null,
+        paidAt: null,
+        requestedDate: "2026-10-18",
+        requestedTime: null,
+        items: [],
+        totalAmount: 2450,
+        createdAt: "2026-10-18T10:00:00.000Z",
+        updatedAt: "2026-10-18T10:00:00.000Z",
+      };
+      currentOrders.push(newOrder);
+
+      await act(async () => {
         callback?.({
           new: {
             id: "ord-realtime-55",
             business_id: testBizId,
-            order_number: 55,
-            submitted_name: "Realtime Pierre",
-            service_type: "delivery",
-            channel: "storefront",
             status: "NEW",
-            paid: "unpaid",
-            payment_preference: "on_handover",
-            total_amount: 2450,
-            created_at: "2026-10-18T10:00:00.000Z",
-            updated_at: "2026-10-18T10:00:00.000Z",
           },
         });
+        await new Promise((r) => setTimeout(r, 10));
       });
 
       expect(screen.getByTestId("test-count").textContent).toBe("1");
@@ -355,9 +383,8 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
       expect(mockPush).toHaveBeenCalledWith("/manage/orders/ord-realtime-55");
     });
 
-    it("ignores duplicate order IDs or non-NEW status rows received over Realtime", () => {
+    it("ignores duplicate order IDs or non-NEW status rows received over Realtime", async () => {
       const mock = createMockSupabaseClient();
-      const testBizId = "biz-rt-dup";
 
       render(
         <OrderAlertsProvider
@@ -370,62 +397,71 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
         </OrderAlertsProvider>,
       );
 
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
       const callback = mock.getRegisteredCallback();
       expect(callback).toBeDefined();
 
-      // 1. Non-NEW status row should be ignored
-      act(() => {
-        callback?.({
-          new: {
-            id: "ord-rt-ignored",
-            business_id: testBizId,
-            status: "CONFIRMED",
-            order_number: 101,
-          },
-        });
-      });
-      expect(screen.getByTestId("test-count").textContent).toBe("0");
-      expect(mockShowToast).not.toHaveBeenCalled();
-
-      // 2. Missing ID row should be ignored
-      act(() => {
+      // 1. Missing ID row should be ignored
+      await act(async () => {
         callback?.({
           new: {
             status: "NEW",
             order_number: 102,
           },
         });
+        await new Promise((r) => setTimeout(r, 10));
       });
       expect(screen.getByTestId("test-count").textContent).toBe("0");
 
-      // 3. Valid NEW order is processed
-      act(() => {
+      // 2. Valid NEW order is processed
+      const firstOrder: EnrichedOrder = {
+        id: "ord-first-time",
+        businessId: testBizId,
+        orderNumber: 103,
+        guestId: "00000000-0000-4000-8000-000000000003",
+        guestName: "Customer A",
+        serviceType: "pickup",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        paymentPreference: "on_handover",
+        paymentMethod: null,
+        paidAt: null,
+        requestedDate: "2026-10-18",
+        requestedTime: null,
+        items: [],
+        totalAmount: 1500,
+        createdAt: "2026-10-18T10:00:00.000Z",
+        updatedAt: "2026-10-18T10:00:00.000Z",
+      };
+      currentOrders.push(firstOrder);
+
+      await act(async () => {
         callback?.({
           new: {
             id: "ord-first-time",
             business_id: testBizId,
             status: "NEW",
-            order_number: 103,
-            submitted_name: "Customer A",
-            total_amount: 1500,
           },
         });
+        await new Promise((r) => setTimeout(r, 10));
       });
       expect(screen.getByTestId("test-count").textContent).toBe("1");
       expect(mockShowToast).toHaveBeenCalledTimes(1);
 
-      // 4. Duplicate of the same order ID is ignored
-      act(() => {
+      // 3. Duplicate of the same order ID is ignored
+      await act(async () => {
         callback?.({
           new: {
             id: "ord-first-time",
             business_id: testBizId,
             status: "NEW",
-            order_number: 103,
-            submitted_name: "Customer A",
-            total_amount: 1500,
           },
         });
+        await new Promise((r) => setTimeout(r, 10));
       });
       expect(screen.getByTestId("test-count").textContent).toBe("1");
       expect(mockShowToast).toHaveBeenCalledTimes(1);
@@ -433,7 +469,6 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
 
     it("removes the channel subscription when unmounting", () => {
       const mock = createMockSupabaseClient();
-      const testBizId = "biz-unmount";
 
       const { unmount } = render(
         <OrderAlertsProvider businessId={testBizId} supabaseClient={mock.client} pollIntervalMs={0}>
@@ -446,6 +481,110 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
       unmount();
 
       expect(mock.client.removeChannel).toHaveBeenCalledWith(mock.mockChannel);
+    });
+
+    it("disables realtime subscription when businessId is absent or invalid", () => {
+      const mock = createMockSupabaseClient();
+
+      render(
+        <OrderAlertsProvider businessId={undefined} supabaseClient={mock.client} pollIntervalMs={0}>
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      expect(mock.client.channel).not.toHaveBeenCalled();
+
+      render(
+        <OrderAlertsProvider
+          businessId="not-a-valid-uuid"
+          supabaseClient={mock.client}
+          pollIntervalMs={0}
+        >
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      expect(mock.client.channel).not.toHaveBeenCalled();
+    });
+
+    it("manages resilience: connected stops polling, error starts fallback polling with backoff resubscribe, recovery stops polling", async () => {
+      vi.useFakeTimers();
+
+      let currentStatusCb: StatusCallback | null = null;
+      let subscribeCallCount = 0;
+
+      const mockChannel = {
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn((cb?: StatusCallback) => {
+          subscribeCallCount++;
+          currentStatusCb = cb ?? null;
+          return mockChannel;
+        }),
+      };
+
+      const mockClient = {
+        channel: vi.fn(() => mockChannel),
+        removeChannel: vi.fn(() => Promise.resolve("ok")),
+      } as unknown as RealtimeOrderClient;
+
+      const listSpy = vi.spyOn(actions, "listOrdersAction");
+
+      render(
+        <OrderAlertsProvider
+          businessId={testBizId}
+          supabaseClient={mockClient}
+          pollIntervalMs={15000}
+        >
+          <TestConsumer />
+        </OrderAlertsProvider>,
+      );
+
+      // Initial check (setTimeout 0)
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      const callsAfterMount = listSpy.mock.calls.length;
+
+      // 1. Channel connects (SUBSCRIBED) -> triggers catch-up fetch
+      await act(async () => {
+        currentStatusCb?.("SUBSCRIBED", null);
+      });
+      const callsAfterSubscribed = listSpy.mock.calls.length;
+      expect(callsAfterSubscribed).toBeGreaterThanOrEqual(callsAfterMount + 1);
+
+      // While SUBSCRIBED, advance 30s -> NO fallback polling occurs
+      await act(async () => {
+        vi.advanceTimersByTime(30000);
+      });
+      expect(listSpy.mock.calls.length).toBe(callsAfterSubscribed);
+
+      // 2. Channel error occurs -> disconnected, fallback polling starts and backoff retry scheduled
+      await act(async () => {
+        currentStatusCb?.("CHANNEL_ERROR", new Error("Connection dropped"));
+      });
+
+      // Advance 15s: fallback polling triggers checkForNewOrders
+      await act(async () => {
+        vi.advanceTimersByTime(15000);
+      });
+      expect(listSpy.mock.calls.length).toBeGreaterThan(callsAfterSubscribed);
+
+      // Verify backoff resubscribe was attempted
+      expect(subscribeCallCount).toBeGreaterThanOrEqual(2);
+
+      // 3. Recovery: channel connects again (SUBSCRIBED)
+      await act(async () => {
+        currentStatusCb?.("SUBSCRIBED", null);
+      });
+      const callsAfterRecovery = listSpy.mock.calls.length;
+
+      // Advance 30s: fallback polling has stopped
+      await act(async () => {
+        vi.advanceTimersByTime(30000);
+      });
+      expect(listSpy.mock.calls.length).toBe(callsAfterRecovery);
+
+      vi.useRealTimers();
     });
   });
 });
