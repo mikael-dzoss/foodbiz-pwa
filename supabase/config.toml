@@ -31,7 +31,7 @@ jwt_expiry = 3600
 enable_signup = true
 
 [auth.email]
-enable_signup = false
+enabled = true
 
 [auth.external.google]
 enabled = true

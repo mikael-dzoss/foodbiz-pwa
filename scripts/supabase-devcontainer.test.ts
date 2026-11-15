@@ -33,7 +33,7 @@ describe("local Supabase devcontainer and scripts (#118)", () => {
       'additional_redirect_urls = ["http://localhost:3000/auth/callback**"]',
     );
     expect(configToml).toContain("[auth.email]");
-    expect(configToml).toContain("enable_signup = false");
+    expect(configToml).toContain("enabled = true");
     expect(configToml).toContain("[auth.external.google]");
     expect(configToml).toContain('client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"');
     expect(configToml).toContain('secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"');
