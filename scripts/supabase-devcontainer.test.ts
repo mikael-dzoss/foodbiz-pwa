@@ -28,6 +28,24 @@ describe("local Supabase devcontainer and scripts (#118)", () => {
     expect(configToml).toContain('project_id = "foodbiz-pwa"');
     expect(configToml).toContain("port = 54321");
     expect(configToml).toContain("port = 54323");
+    expect(configToml).toContain('site_url = "http://localhost:3000"');
+    expect(configToml).toContain(
+      'additional_redirect_urls = ["http://localhost:3000/auth/callback**"]',
+    );
+    expect(configToml).toContain("[auth.email]");
+    expect(configToml).toContain("enable_signup = false");
+    expect(configToml).toContain("[auth.external.google]");
+    expect(configToml).toContain('client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"');
+    expect(configToml).toContain('secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"');
+  });
+
+  it("includes supabase/.env.example with empty OAuth variables", () => {
+    const envExamplePath = resolve(root, "supabase/.env.example");
+    expect(existsSync(envExamplePath)).toBe(true);
+
+    const envContent = readFileSync(envExamplePath, "utf8");
+    expect(envContent).toContain("SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=");
+    expect(envContent).toContain("SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=");
   });
 
   it("exposes db:start, db:stop, and db:reset npm scripts and supabase CLI", () => {

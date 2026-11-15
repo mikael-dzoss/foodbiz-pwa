@@ -183,6 +183,9 @@ jobs:
     name: Quality Gate - Database Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci-placeholder-google-client-id
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ci-placeholder-google-secret
     steps:
       - uses: actions/checkout@v7
 

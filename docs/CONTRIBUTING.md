@@ -65,6 +65,8 @@ npm run db:stop    # stop local Supabase containers
 npm run db:status  # print local connection URLs and keys
 ```
 
+To test Google OAuth sign-in locally, copy `supabase/.env.example` to `supabase/.env` (git-ignored) and configure your Google Client ID and Secret.
+
 #### Live repository contract tests
 
 To exercise the live security boundary and concurrency guarantees against local Supabase:

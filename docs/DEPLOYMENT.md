@@ -33,8 +33,104 @@ The build step uses placeholder Supabase values, so CI needs no secrets. Merged 
    - **Production** → production Supabase URL + publishable key.
    - **Preview** → staging/dev Supabase URL + publishable key. Use a branch-specific value for `staging` if staging has its own project.
    - Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` today. Never add the service-role key as `NEXT_PUBLIC_*`.
+   - `NEXT_PUBLIC_SITE_URL`: canonical origin (e.g. `https://foodbiz.app` for production).
 4. **Staging domain:** Settings → Domains → add a domain (e.g. `staging.<your-domain>`) and assign it to the `staging` Git branch.
 5. Optional: enable Deployment Protection on previews/staging.
+
+## Google sign-in (Supabase Auth)
+
+### Flow architecture
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as Manager
+  participant Browser as Browser
+  participant App as Next.js App
+  participant Google as Google Identity
+  participant Supabase as Supabase Auth (GoTrue)
+
+  User->>Browser: Click "Continue with Google"
+  Browser->>App: POST signInWithGoogleAction (/manage/login)
+  App->>Supabase: signInWithOAuth({ provider: 'google', redirectTo: '<app>/auth/callback' })
+  Supabase-->>App: Google OAuth URL (with Supabase callback as redirect_uri)
+  App-->>Browser: Redirect to Google Accounts
+  Browser->>Google: Consent screen
+  Google-->>Browser: 302 Redirect to Supabase Auth callback
+  Browser->>Supabase: GET /auth/v1/callback?code=<google-code>
+  Note over Supabase: Exchanges Google code for profile,<br/>issues Supabase auth code
+  Supabase-->>Browser: 302 Redirect to app redirectTo (?code=<supabase-code>)
+  Browser->>App: GET /auth/callback?code=<supabase-code>&next=/manage
+  App->>Supabase: exchangeCodeForSession(<supabase-code>) (PKCE)
+  App->>App: Verify manager membership (getManagerSession)
+  App-->>Browser: Set session cookie & redirect to /manage (or /manage/login?error=no_access)
+```
+
+The app initiates OAuth with Supabase (`signInWithOAuth`), which directs Google to redirect back to **Supabase Auth (`/auth/v1/callback`)**, NOT the application callback. Supabase exchanges the Google credentials, establishes the user identity, and then redirects the browser to the application's `redirectTo` endpoint (`/auth/callback?code=...`) to complete the PKCE token exchange.
+
+### Google Cloud console configuration
+
+In the Google Cloud Console (APIs & Services > Credentials > OAuth 2.0 Client IDs > Web application):
+
+1. **Authorised redirect URIs**:
+   The redirect URI configured in Google Cloud must point to **Supabase Auth**, not the Next.js app callback:
+
+   | Environment                    | Authorised redirect URI                              |
+   | ------------------------------ | ---------------------------------------------------- |
+   | Local (devcontainer CLI stack) | `http://127.0.0.1:54321/auth/v1/callback`            |
+   | Hosted (Staging / Production)  | `https://<project-ref>.supabase.co/auth/v1/callback` |
+
+2. **Authorised JavaScript origins**:
+   Not required for server redirect OAuth flow (only needed for Google Identity Services / One Tap). Leaving `http://localhost:3000` or production domain is harmless.
+
+### Where secrets live
+
+- **Hosted Supabase Project (Staging & Production):**
+  - Google Client ID and Client Secret are stored **ONLY** in the Supabase Dashboard: **Authentication > Providers > Google**.
+  - Toggle **Enable Sign in with Google** to ON.
+  - Paste the Client ID and Client Secret into the respective fields.
+  - **Never** add Google OAuth credentials to the git repository, `.env` files, or Vercel environment variables.
+- **Local Development (CLI Stack):**
+  - The local Supabase CLI reads credentials via `env()` references in `supabase/config.toml`:
+    - `client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"`
+    - `secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"`
+  - Real values live in `supabase/.env` (which is git-ignored by `.env*`):
+    ```bash
+    cp supabase/.env.example supabase/.env
+    # Add real SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID and SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET
+    ```
+  - `NEXT_PUBLIC_SITE_URL` in `.env.local` sets the canonical origin (e.g. `http://localhost:3000`).
+
+### Supabase URL Configuration (Dashboard)
+
+Navigate to **Authentication > URL Configuration**:
+
+- **Site URL**:
+  - Hosted: `https://<your-production-domain>` (e.g. `https://foodbiz.app`)
+  - Local: `http://localhost:3000`
+- **Redirect URLs (Allow-list)**:
+  Add the explicit callback URLs and preview wildcard pattern:
+  - `https://<your-production-domain>/auth/callback**`
+  - `https://staging.<your-domain>/auth/callback**` (if staging domain configured)
+  - `https://*-<team-slug>.vercel.app/auth/callback**` (wildcard placeholder for Vercel preview deployments)
+  - `http://localhost:3000/auth/callback**` (for local development)
+
+### Google OAuth consent screen
+
+- **User type**: External.
+- **Publishing status**:
+  - During development/testing: set status to **Testing** and add authorized test users (e.g. manager Gmail addresses, up to 100 users).
+  - For production: publish the consent screen to **In production**. Because the app requests only standard non-sensitive scopes (`openid`, `email`, `profile`), Google App Verification is **not** required.
+- **Scopes**: `.../auth/userinfo.email`, `.../auth/userinfo.profile`, `openid`.
+
+### Troubleshooting
+
+| Issue / Error                                              | Root cause                                                                                                                                                                               | Fix                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Redirect lands on `/?code=...` instead of `/auth/callback` | The `redirectTo` parameter sent by the app does not match any entry in Supabase's redirect allow-list. Supabase falls back to `site_url`.                                                | In Supabase Dashboard (or `supabase/config.toml` for local), add `https://<domain>/auth/callback**` (or `http://localhost:3000/auth/callback**`) to **Redirect URLs**.                                                                                         |
+| `redirect_uri_mismatch` on Google consent screen           | The redirect URI registered in Google Cloud Console is pointing to the Next.js app (e.g. `http://localhost:3000/api/auth/callback/google` or `/auth/callback`) instead of Supabase Auth. | In Google Cloud Console > Credentials, change Authorised redirect URI to `http://127.0.0.1:54321/auth/v1/callback` (local) or `https://<project-ref>.supabase.co/auth/v1/callback` (hosted).                                                                   |
+| Redirect to `/manage/login?error=no_access`                | The Google user authenticated successfully with Supabase, but their account email has no active membership in `business_members` table (or allow-list in dev).                           | A business owner or admin must provision membership for that email using `npm run db:provision-member -- --business-slug <slug> --email <email>` or add them to the business. The user can click "Sign out" on the error banner to try another Google account. |
+| `/manage/login?error=auth_failed` in production            | `NEXT_PUBLIC_SITE_URL` is not configured in Vercel environment variables. In production, the app strictly requires a configured canonical origin and refuses forwarded headers.          | Set `NEXT_PUBLIC_SITE_URL=https://<your-domain>` in Vercel project environment variables (Production and Preview).                                                                                                                                             |
 
 ## Branch protection (recommended)
 

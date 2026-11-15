@@ -20,6 +20,8 @@ npm run db:reset             # reapply migrations + seed data (supabase/seed.sql
 npm run db:stop              # stop local Supabase containers
 ```
 
+For local Google OAuth testing with the Supabase CLI, copy `supabase/.env.example` to `supabase/.env` and supply your Google Client ID and Secret (`supabase/.env` is git-ignored).
+
 Stitch (design MCP): Copilot prompts for the key ([`.vscode/mcp.json`](.vscode/mcp.json)); for Antigravity, export `STITCH_API_KEY` on the host before opening the devcontainer.
 
 ## Where next
