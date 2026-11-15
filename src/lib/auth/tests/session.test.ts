@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { MOCK_AUTH_COOKIE_NAME, getManagerSession, requireManagerSession } from "../session";
 import { MOCK_MANAGER_SESSION } from "@/domain/auth";
+import * as devProvisioningModule from "../dev-provisioning";
+import * as adminModule from "@/lib/supabase/admin";
 
 const mockRedirect = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -15,19 +17,62 @@ vi.mock("next/headers", () => ({
 }));
 
 const mockGetUser = vi.fn();
+let mockMembershipData: unknown = null;
+
+const mockSelect = vi.fn();
+const mockEq = vi.fn();
+const mockLimit = vi.fn();
+const mockMaybeSingle = vi.fn();
+
 const mockSupabaseClient = {
   auth: {
     getUser: mockGetUser,
   },
+  from: vi.fn((table: string) => {
+    if (table === "business_members") {
+      return {
+        select: mockSelect.mockReturnValue({
+          eq: mockEq.mockReturnValue({
+            limit: mockLimit.mockReturnValue({
+              maybeSingle: mockMaybeSingle.mockImplementation(async () => ({
+                data: mockMembershipData,
+                error: null,
+              })),
+            }),
+          }),
+        }),
+      };
+    }
+    if (table === "businesses") {
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn(async () => ({
+              data: {
+                id: "11111111-1111-4111-8111-111111111111",
+                name: "La Petite Boulangerie",
+                slug: "la-petite-boulangerie",
+                currency: "EUR",
+              },
+              error: null,
+            })),
+          }),
+        }),
+      };
+    }
+    throw new Error(`Unexpected table: ${table}`);
+  }),
 };
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => mockSupabaseClient),
 }));
 
 describe("lib: auth session", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    mockMembershipData = null;
   });
 
   afterEach(() => {
@@ -80,149 +125,347 @@ describe("lib: auth session", () => {
       expect(session).toBeNull();
     });
 
-    it("grants manager session and falls back to mock business when email is in ALLOWED_MANAGER_EMAILS in development", async () => {
+    it("returns verified session directly from real DB when business_members row exists", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "development");
-      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@lapetiteboulangerie.fr,qa@example.com");
 
       mockGetUser.mockResolvedValue({
         data: {
           user: {
-            id: "user-whitelist-1",
-            email: "DEV@lapetiteboulangerie.fr",
-            user_metadata: {
-              name: "Dev Marie",
-            },
+            id: "user-existing-member",
+            email: "manager@example.com",
+            user_metadata: { name: "Alice Manager" },
           },
         },
       });
 
+      mockMembershipData = {
+        id: "member-1",
+        business_id: "11111111-1111-4111-8111-111111111111",
+        role: "manager",
+        businesses: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "La Petite Boulangerie",
+          slug: "la-petite-boulangerie",
+          currency: "EUR",
+        },
+      };
+
+      const spyProvision = vi.spyOn(devProvisioningModule, "maybeAutoProvisionDevManager");
+
       const session = await getManagerSession();
       expect(session).not.toBeNull();
-      expect(session?.user.email).toBe("DEV@lapetiteboulangerie.fr");
+      expect(session?.user.id).toBe("user-existing-member");
+      expect(session?.user.role).toBe("manager");
+      expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
+      expect(session?.business.name).toBe("La Petite Boulangerie");
+      expect(spyProvision).not.toHaveBeenCalled();
+    });
+
+    it("handles joined businesses array or direct business query fallback", async () => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", "development");
+
+      mockGetUser.mockResolvedValue({
+        data: {
+          user: {
+            id: "user-array-business",
+            email: "owner@example.com",
+            user_metadata: { full_name: "Owner Bob" },
+          },
+        },
+      });
+
+      // 1. Array business join
+      mockMembershipData = {
+        id: "member-2",
+        business_id: "11111111-1111-4111-8111-111111111111",
+        role: "owner",
+        businesses: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "La Petite Boulangerie",
+            slug: "la-petite-boulangerie",
+            currency: "EUR",
+          },
+        ],
+      };
+
+      let session = await getManagerSession();
+      expect(session?.business.name).toBe("La Petite Boulangerie");
+      expect(session?.user.role).toBe("owner");
+
+      // 2. Direct business fallback when businesses join is null
+      mockMembershipData = {
+        id: "member-3",
+        business_id: "11111111-1111-4111-8111-111111111111",
+        role: "staff",
+        businesses: null,
+      };
+
+      session = await getManagerSession();
+      expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
+      expect(session?.business.name).toBe("La Petite Boulangerie");
+      expect(session?.user.role).toBe("staff");
+    });
+
+    it("auto-provisions and returns real membership when allow-listed in development", async () => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("APP_ENV", "development");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
+
+      mockGetUser.mockResolvedValue({
+        data: {
+          user: {
+            id: "user-dev-whitelist",
+            email: "dev@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
+            user_metadata: { name: "Dev Marie" },
+          },
+        },
+      });
+
+      // First query returns null, then after auto-provisioning re-query returns newly created membership
+      mockMembershipData = null;
+      vi.spyOn(devProvisioningModule, "maybeAutoProvisionDevManager").mockImplementation(
+        async () => {
+          mockMembershipData = {
+            id: "member-auto-provisioned",
+            business_id: "11111111-1111-4111-8111-111111111111",
+            role: "manager",
+            businesses: {
+              id: "11111111-1111-4111-8111-111111111111",
+              name: "La Petite Boulangerie",
+              slug: "la-petite-boulangerie",
+              currency: "EUR",
+            },
+          };
+          return true;
+        },
+      );
+
+      const session = await getManagerSession();
+      expect(session).not.toBeNull();
+      expect(session?.user.email).toBe("dev@example.com");
       expect(session?.user.name).toBe("Dev Marie");
-      expect(session?.user.businessId).toBe(MOCK_MANAGER_SESSION.business.id);
-      expect(session?.business).toEqual(MOCK_MANAGER_SESSION.business);
+      expect(session?.user.role).toBe("manager");
+      expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
+      expect(session?.business.slug).toBe("la-petite-boulangerie");
+      expect(devProvisioningModule.maybeAutoProvisionDevManager).toHaveBeenCalled();
     });
 
-    it("preserves provisioned business_id even when email is in ALLOWED_MANAGER_EMAILS in development", async () => {
+    it("auto-provisions and returns real membership in test environment", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
-      vi.stubEnv("NODE_ENV", "development");
-      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@lapetiteboulangerie.fr");
+      vi.stubEnv("NODE_ENV", "test");
+      vi.stubEnv("APP_ENV", "test");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "test@example.com");
 
       mockGetUser.mockResolvedValue({
         data: {
           user: {
-            id: "user-whitelist-2",
-            email: "dev@lapetiteboulangerie.fr",
-            user_metadata: {
-              business_id: "22222222-2222-4222-8222-222222222222",
-              business_name: "Boulangerie Centrale",
-              business_slug: "boulangerie-centrale",
-            },
+            id: "user-test-whitelist",
+            email: "test@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
+            user_metadata: { full_name: "Test Runner" },
           },
         },
       });
 
+      mockMembershipData = null;
+      vi.spyOn(devProvisioningModule, "maybeAutoProvisionDevManager").mockImplementation(
+        async () => {
+          mockMembershipData = {
+            id: "member-test-provisioned",
+            business_id: "11111111-1111-4111-8111-111111111111",
+            role: "manager",
+            businesses: {
+              id: "11111111-1111-4111-8111-111111111111",
+              name: "La Petite Boulangerie",
+              slug: "la-petite-boulangerie",
+              currency: "EUR",
+            },
+          };
+          return true;
+        },
+      );
+
       const session = await getManagerSession();
       expect(session).not.toBeNull();
-      expect(session?.business.id).toBe("22222222-2222-4222-8222-222222222222");
-      expect(session?.business.name).toBe("Boulangerie Centrale");
-      expect(session?.user.businessId).toBe("22222222-2222-4222-8222-222222222222");
+      expect(session?.user.email).toBe("test@example.com");
+      expect(session?.user.name).toBe("Test Runner");
+      expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
     });
 
-    it("returns null when ALLOWED_MANAGER_EMAILS is configured but user email is not in the list (and no business_id is set)", async () => {
+    it("returns null when user email is not in ALLOWED_MANAGER_EMAILS and no membership exists", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "development");
-      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "allowed@lapetiteboulangerie.fr");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
 
       mockGetUser.mockResolvedValue({
         data: {
           user: {
             id: "user-unauthorized",
-            email: "unknown@example.com",
-            user_metadata: {},
+            email: "intruder@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
           },
         },
       });
+
+      mockMembershipData = null;
 
       const session = await getManagerSession();
       expect(session).toBeNull();
     });
 
-    it("allows access if user has business_id provisioned even if unlisted in ALLOWED_MANAGER_EMAILS in dev", async () => {
+    it("returns null when user email is unverified", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "development");
-      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "allowed@lapetiteboulangerie.fr");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
 
       mockGetUser.mockResolvedValue({
         data: {
           user: {
-            id: "user-provisioned",
-            email: "unlisted@example.com",
-            user_metadata: {
-              business_id: "33333333-3333-4333-8333-333333333333",
-              business_name: "Provisioned Store",
-              business_slug: "provisioned-store",
-            },
+            id: "user-unverified",
+            email: "dev@example.com",
+            email_confirmed_at: null,
+            app_metadata: { provider: "google" },
           },
         },
       });
 
+      mockMembershipData = null;
+
       const session = await getManagerSession();
-      expect(session).not.toBeNull();
-      expect(session?.business.id).toBe("33333333-3333-4333-8333-333333333333");
+      expect(session).toBeNull();
     });
 
-    it("unconditionally ignores ALLOWED_MANAGER_EMAILS when NODE_ENV=production", async () => {
+    it("returns null when sign-in provider is not Google", async () => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
+
+      mockGetUser.mockResolvedValue({
+        data: {
+          user: {
+            id: "user-email-auth",
+            email: "dev@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "email" },
+          },
+        },
+      });
+
+      mockMembershipData = null;
+
+      const session = await getManagerSession();
+      expect(session).toBeNull();
+    });
+
+    it("returns null when target business row does not exist", async () => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
+      vi.stubEnv("DEV_BUSINESS_SLUG", "non-existent-bakery");
+
+      mockGetUser.mockResolvedValue({
+        data: {
+          user: {
+            id: "user-missing-biz",
+            email: "dev@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
+          },
+        },
+      });
+
+      mockMembershipData = null;
+      vi.spyOn(devProvisioningModule, "maybeAutoProvisionDevManager").mockResolvedValue(false);
+
+      const session = await getManagerSession();
+      expect(session).toBeNull();
+    });
+
+    it("unconditionally returns null in production when no membership exists (no admin client, no mock business)", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "production");
-      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@lapetiteboulangerie.fr");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
 
       mockGetUser.mockResolvedValue({
         data: {
           user: {
-            id: "user-prod",
-            email: "dev@lapetiteboulangerie.fr",
-            user_metadata: {},
+            id: "user-prod-attempt",
+            email: "dev@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
           },
         },
       });
 
+      mockMembershipData = null;
+      const spyAdmin = vi.spyOn(adminModule, "createAdminClient");
+
       const session = await getManagerSession();
-      expect(session).not.toBeNull();
-      // Must NOT fall back to MOCK_MANAGER_SESSION.business in production
-      expect(session?.business).not.toEqual(MOCK_MANAGER_SESSION.business);
-      expect(session?.business.id).toBe("");
-      expect(session?.user.businessId).toBe("");
+      expect(session).toBeNull();
+      expect(spyAdmin).not.toHaveBeenCalled();
     });
 
-    it("unconditionally ignores ALLOWED_MANAGER_EMAILS when APP_ENV=production", async () => {
+    it("unconditionally returns null when APP_ENV=production", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "development");
       vi.stubEnv("APP_ENV", "production");
-      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@lapetiteboulangerie.fr");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
 
       mockGetUser.mockResolvedValue({
         data: {
           user: {
-            id: "user-prod-app",
-            email: "dev@lapetiteboulangerie.fr",
-            user_metadata: {},
+            id: "user-app-prod",
+            email: "dev@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
           },
         },
       });
 
+      mockMembershipData = null;
+      const spyAdmin = vi.spyOn(adminModule, "createAdminClient");
+
       const session = await getManagerSession();
-      expect(session).not.toBeNull();
-      // Must NOT fall back to MOCK_MANAGER_SESSION.business when APP_ENV is production
-      expect(session?.business).not.toEqual(MOCK_MANAGER_SESSION.business);
-      expect(session?.business.id).toBe("");
+      expect(session).toBeNull();
+      expect(spyAdmin).not.toHaveBeenCalled();
+    });
+
+    it("unconditionally returns null when APP_ENV=staging", async () => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("APP_ENV", "staging");
+      vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
+
+      mockGetUser.mockResolvedValue({
+        data: {
+          user: {
+            id: "user-app-staging",
+            email: "dev@example.com",
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            app_metadata: { provider: "google" },
+          },
+        },
+      });
+
+      mockMembershipData = null;
+      const spyAdmin = vi.spyOn(adminModule, "createAdminClient");
+
+      const session = await getManagerSession();
+      expect(session).toBeNull();
+      expect(spyAdmin).not.toHaveBeenCalled();
     });
   });
 
   describe("requireManagerSession", () => {
-    it("returns session when user is authenticated with active cookie", async () => {
+    it("returns session when user is authenticated with active cookie in mock mode", async () => {
       vi.stubEnv("DATA_SOURCE", "mock");
       vi.stubEnv("NODE_ENV", "development");
       mockCookiesGet.mockReturnValue({ value: "active" });

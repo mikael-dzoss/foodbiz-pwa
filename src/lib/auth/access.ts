@@ -31,8 +31,20 @@ export function parseAllowedManagerEmails(raw?: string | null): string[] {
  * Strictly returns false in "production" or "staging".
  */
 export function isDevOrTestEnvironment(options?: EnvironmentOptions): boolean {
-  const nodeEnv = options?.nodeEnv ?? process.env.NODE_ENV ?? "development";
-  const appEnv = options?.appEnv ?? process.env.APP_ENV ?? nodeEnv;
+  let envNode: string | undefined;
+  let envApp: string | undefined;
+
+  try {
+    const env = getServerEnv();
+    envNode = env.NODE_ENV;
+    envApp = env.APP_ENV;
+  } catch {
+    envNode = process.env.NODE_ENV;
+    envApp = process.env.APP_ENV;
+  }
+
+  const nodeEnv = options?.nodeEnv ?? envNode ?? "development";
+  const appEnv = options?.appEnv ?? envApp ?? nodeEnv;
 
   if (nodeEnv === "production" || appEnv === "production" || appEnv === "staging") {
     return false;
@@ -61,10 +73,14 @@ export function isEmailInAllowedManagerList(
     return false;
   }
 
-  const rawList =
-    options?.allowedEmailsRaw !== undefined
-      ? options.allowedEmailsRaw
-      : getServerEnv().ALLOWED_MANAGER_EMAILS;
+  let rawList = options?.allowedEmailsRaw;
+  if (rawList === undefined) {
+    try {
+      rawList = getServerEnv().ALLOWED_MANAGER_EMAILS;
+    } catch {
+      rawList = process.env.ALLOWED_MANAGER_EMAILS;
+    }
+  }
 
   const allowedList = parseAllowedManagerEmails(rawList);
   return allowedList.includes(normalizedEmail);

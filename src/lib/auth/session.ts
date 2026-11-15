@@ -5,11 +5,7 @@ import { redirect } from "next/navigation";
 import { getServerEnv } from "@/config/env";
 import { MOCK_AUTH_COOKIE_NAME, MOCK_MANAGER_SESSION, type ManagerSession } from "@/domain/auth";
 import { createClient } from "@/lib/supabase/server";
-import {
-  isDevOrTestEnvironment,
-  isEmailInAllowedManagerList,
-  parseAllowedManagerEmails,
-} from "./access";
+import { maybeAutoProvisionDevManager } from "./dev-provisioning";
 
 export { MOCK_AUTH_COOKIE_NAME };
 
@@ -19,17 +15,9 @@ export { MOCK_AUTH_COOKIE_NAME };
  * In production, mock sessions are strictly forbidden and throw.
  */
 export async function getManagerSession(): Promise<ManagerSession | null> {
-  if (process.env.NODE_ENV === "production" && process.env.DATA_SOURCE === "mock") {
-    throw new Error("Mock manager session cannot be enabled in production");
-  }
-
   const env = getServerEnv();
 
   if (env.DATA_SOURCE === "mock") {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("Mock manager session cannot be enabled in production");
-    }
-
     const cookieStore = await cookies();
     const mockCookie = cookieStore.get(MOCK_AUTH_COOKIE_NAME)?.value;
 
@@ -40,9 +28,6 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     return MOCK_MANAGER_SESSION;
   }
 
-  // TODO(supabase): Complete Supabase auth integration when database schema & Auth provider are configured (#117, #38, #40):
-  // 1. Verify access token with Supabase Auth server via supabase.auth.getUser().
-  // 2. Query 'business_members' table for verified role (owner/manager) and associated business (#40).
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,47 +37,78 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     return null;
   }
 
-  const isDevOrTest = isDevOrTestEnvironment({
-    nodeEnv: env.NODE_ENV,
-    appEnv: env.APP_ENV,
-  });
+  // Query 'business_members' table for verified role (owner/manager/staff) and associated business
+  let { data: membership } = await supabase
+    .from("business_members")
+    .select("id, business_id, role, businesses(id, name, slug, currency)")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
 
-  const rawBusinessId = (user.user_metadata?.business_id as string) ?? "";
-  const role = (user.user_metadata?.role as "owner" | "manager" | "staff") ?? "manager";
-  const businessName = (user.user_metadata?.business_name as string) ?? "Business";
-  const businessSlug = (user.user_metadata?.business_slug as string) ?? "business";
+  // If no business_members row exists, attempt dev/test auto-provisioning for allow-listed managers
+  if (!membership) {
+    const provisioned = await maybeAutoProvisionDevManager(user);
+    if (provisioned) {
+      // Re-run normal membership query through user's own (RLS) client so returned session comes from the real DB
+      const rerun = await supabase
+        .from("business_members")
+        .select("id, business_id, role, businesses(id, name, slug, currency)")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
 
-  let business = {
-    id: rawBusinessId,
-    name: businessName,
-    slug: businessSlug,
-    currency: "EUR" as const,
-  };
-
-  if (isDevOrTest) {
-    const isAllowedDevManager = isEmailInAllowedManagerList(user.email, {
-      allowedEmailsRaw: env.ALLOWED_MANAGER_EMAILS,
-      nodeEnv: env.NODE_ENV,
-      appEnv: env.APP_ENV,
-    });
-    const configuredAllowedEmails = parseAllowedManagerEmails(env.ALLOWED_MANAGER_EMAILS);
-
-    if (configuredAllowedEmails.length > 0 && !isAllowedDevManager && !rawBusinessId) {
-      return null;
-    }
-
-    if (isAllowedDevManager && !rawBusinessId) {
-      business = MOCK_MANAGER_SESSION.business;
+      membership = rerun.data;
     }
   }
+
+  if (!membership) {
+    return null;
+  }
+
+  type BusinessJoinRecord = {
+    id: string;
+    name: string;
+    slug: string;
+    currency: string;
+  };
+
+  const joinedBusinesses = membership.businesses as
+    BusinessJoinRecord | BusinessJoinRecord[] | null;
+
+  let businessRecord: BusinessJoinRecord | null = Array.isArray(joinedBusinesses)
+    ? (joinedBusinesses[0] ?? null)
+    : joinedBusinesses;
+
+  if (!businessRecord && membership.business_id) {
+    const { data: directBusiness } = await supabase
+      .from("businesses")
+      .select("id, name, slug, currency")
+      .eq("id", membership.business_id)
+      .maybeSingle();
+
+    businessRecord = directBusiness as BusinessJoinRecord | null;
+  }
+
+  const business = {
+    id: businessRecord?.id ?? membership.business_id,
+    name: businessRecord?.name ?? "Business",
+    slug: businessRecord?.slug ?? "business",
+    currency: (businessRecord?.currency ?? "EUR") as "EUR",
+  };
+
+  const role = (membership.role as "owner" | "manager" | "staff") ?? "manager";
 
   return {
     user: {
       id: user.id,
       email: user.email ?? "",
-      name: (user.user_metadata?.name as string) ?? user.email ?? "Manager",
+      name:
+        (user.user_metadata?.name as string) ??
+        (user.user_metadata?.full_name as string) ??
+        user.email ??
+        "Manager",
       role,
-      businessId: business.id,
+      businessId: membership.business_id,
     },
     business,
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
