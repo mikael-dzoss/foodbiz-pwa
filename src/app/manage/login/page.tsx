@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   description: "Sign in to access your FoodBiz manager dashboard and operations.",
 };
 
+export const instant = false;
+
 export interface ManagerLoginPageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
   error?: string;
