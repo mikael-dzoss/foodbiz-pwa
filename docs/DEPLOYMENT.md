@@ -167,23 +167,41 @@ Required status check: `Quality gate`. For `develop`, `staging` and `main`: requ
 
 ## Production manager access & provisioning
 
-In production, manager access is strictly restricted to authenticated users provisioned in `public.business_members` (enforced via Supabase RLS). Signed-in users without business membership are rejected with a translated access restricted page.
+In production, manager access is strictly restricted to authenticated users provisioned in `public.business_members` (enforced via Supabase RLS).
 
-To provision a manager or staff member for a business:
+### Prerequisites & Design Constraints
+
+1. **User Must Sign In First**: The target manager or staff member must have signed in with Google once via `/manage/login` so their auth user account exists in Supabase Auth. By design, the provisioning script resolves existing auth records and does not create or invite users out-of-band, preventing phantom or unverified pre-created accounts.
+2. **Translated 'No Access' Handling**: If a signed-in user lacks a `business_members` record (and is not auto-provisioned via dev/test `ALLOWED_MANAGER_EMAILS`), the app redirects them to `/manage/login?error=no_access`. A translated alert ("Accès restreint / Access Restricted") is displayed, allowing them to sign out and switch Google accounts.
+3. **Single-Business-Per-User Model**: FoodBiz currently models exactly one active business per manager. When resolving active sessions (`findMembershipForUser`), deterministic ordering (`order by created_at asc, id asc limit 1`) selects the user's earliest created membership.
+
+### Provisioning Commands
+
+#### Local CLI stack
+
+```bash
+npm run db:provision-member -- --business-slug la-petite-boulangerie --email manager@example.com --role manager
+```
+
+#### Hosted / Production Supabase project
+
+Hosted provisioning requires an explicit `--yes` flag and requires the maintainer to supply the real service-role key out-of-band outside the repo:
 
 ```bash
 SUPABASE_URL="https://your-project.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
-npm run db:provision-member -- --business-slug <slug> --email <email> --role manager
+npm run db:provision-member -- --business-slug <slug> --email <email> --role manager --yes
 ```
 
-CLI options:
+### CLI Options & Safety Flags
 
-- `--business-slug <slug>` or `--business-id <uuid>`
-- `--email <email>` or `--user-id <uuid>`
+- `--business-slug <slug>` or `--business-id <uuid>` (exactly one is required)
+- `--email <email>` or `--user-id <uuid>` (exactly one is required)
 - `--role <owner|manager|staff>` (defaults to `manager`)
+- `--yes`: Required for any non-local target host (anything other than `localhost`, `127.0.0.1`, `::1`, `host.docker.internal`). Prevents unintended writes to production databases.
+- `--force`: Required if changing an existing member's role (e.g. promoting from `staff` to `manager` or downgrading). Re-running with the identical role is idempotent and safe without `--force`.
 
-> **Security Note:** `SUPABASE_SERVICE_ROLE_KEY` is an administrative server-only secret that bypasses RLS. It must NEVER be prefixed with `NEXT_PUBLIC_`, never exposed to client code, never committed to git, and is strictly used for offline administrative provisioning.
+> **Security Note:** `SUPABASE_SERVICE_ROLE_KEY` is an administrative server-only secret that bypasses RLS. It must NEVER be prefixed with `NEXT_PUBLIC_`, never exposed to client code, never committed to git, and must be provided strictly out-of-band by the maintainer when executing administrative CLI scripts.
 
 ## Releasing
 

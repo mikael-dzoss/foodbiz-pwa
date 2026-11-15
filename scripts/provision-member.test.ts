@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   ALLOWED_ROLES,
   checkProvisionEnv,
+  isLocalHost,
   main,
   parseProvisionArgs,
   provisionBusinessMember,
@@ -15,6 +16,23 @@ describe("scripts: provision-member", () => {
     vi.clearAllMocks();
   });
 
+  describe("isLocalHost", () => {
+    it("identifies local hostnames accurately", () => {
+      expect(isLocalHost("localhost")).toBe(true);
+      expect(isLocalHost("127.0.0.1")).toBe(true);
+      expect(isLocalHost("::1")).toBe(true);
+      expect(isLocalHost("host.docker.internal")).toBe(true);
+      expect(isLocalHost("sub.localhost")).toBe(true);
+    });
+
+    it("identifies remote and production hostnames as non-local", () => {
+      expect(isLocalHost("your-project-ref.supabase.co")).toBe(false);
+      expect(isLocalHost("api.foodbiz.fr")).toBe(false);
+      expect(isLocalHost("db.example.internal")).toBe(false);
+      expect(isLocalHost("")).toBe(false);
+    });
+  });
+
   describe("parseProvisionArgs", () => {
     it("parses valid space-separated arguments with default role manager", () => {
       const args = ["--business-slug", "la-petite-boulangerie", "--email", "manager@example.com"];
@@ -23,27 +41,44 @@ describe("scripts: provision-member", () => {
         businessSlug: "la-petite-boulangerie",
         email: "manager@example.com",
         role: "manager",
+        yes: false,
+        force: false,
       });
     });
 
-    it("parses valid equals-separated arguments with custom role", () => {
+    it("parses valid equals-separated arguments with custom role, --yes, and --force", () => {
       const args = [
         "--business-id=11111111-1111-4111-8111-111111111111",
         "--user-id=22222222-2222-4222-8222-222222222222",
         "--role=owner",
+        "--yes",
+        "--force",
       ];
       const result = parseProvisionArgs(args);
       expect(result).toEqual({
         businessId: "11111111-1111-4111-8111-111111111111",
         userId: "22222222-2222-4222-8222-222222222222",
         role: "owner",
+        yes: true,
+        force: true,
       });
     });
 
-    it("parses staff role correctly", () => {
-      const args = ["--business-slug", "cafe", "--email", "staff@cafe.fr", "--role", "staff"];
+    it("parses staff role and flag formats --yes=true and --force=true", () => {
+      const args = [
+        "--business-slug",
+        "cafe",
+        "--email",
+        "staff@cafe.fr",
+        "--role",
+        "staff",
+        "--yes=true",
+        "--force=true",
+      ];
       const result = parseProvisionArgs(args);
       expect(result.role).toBe("staff");
+      expect(result.yes).toBe(true);
+      expect(result.force).toBe(true);
     });
 
     it("throws error on invalid role", () => {
@@ -53,16 +88,67 @@ describe("scripts: provision-member", () => {
       );
     });
 
-    it("throws error when business is missing", () => {
-      const args = ["--email", "test@cafe.fr"];
+    it("throws error when both business-slug and business-id are provided", () => {
+      const args = [
+        "--business-slug",
+        "cafe",
+        "--business-id",
+        "11111111-1111-4111-8111-111111111111",
+        "--email",
+        "test@cafe.fr",
+      ];
       expect(() => parseProvisionArgs(args)).toThrow(
-        /Either --business-slug or --business-id is required/i,
+        /Exactly one of --business-slug or --business-id must be specified/i,
       );
     });
 
-    it("throws error when user/email is missing", () => {
+    it("throws error when neither business-slug nor business-id is provided", () => {
+      const args = ["--email", "test@cafe.fr"];
+      expect(() => parseProvisionArgs(args)).toThrow(
+        /Exactly one of --business-slug or --business-id must be specified/i,
+      );
+    });
+
+    it("throws error when both email and user-id are provided", () => {
+      const args = [
+        "--business-slug",
+        "cafe",
+        "--email",
+        "test@cafe.fr",
+        "--user-id",
+        "22222222-2222-4222-8222-222222222222",
+      ];
+      expect(() => parseProvisionArgs(args)).toThrow(
+        /Exactly one of --email or --user-id must be specified/i,
+      );
+    });
+
+    it("throws error when neither email nor user-id is provided", () => {
       const args = ["--business-slug", "cafe"];
-      expect(() => parseProvisionArgs(args)).toThrow(/Either --email or --user-id is required/i);
+      expect(() => parseProvisionArgs(args)).toThrow(
+        /Exactly one of --email or --user-id must be specified/i,
+      );
+    });
+
+    it("throws error when email format is invalid", () => {
+      const args = ["--business-slug", "cafe", "--email", "not-an-email"];
+      expect(() => parseProvisionArgs(args)).toThrow(
+        /Invalid email address format: "not-an-email"/i,
+      );
+    });
+
+    it("throws error when business-id UUID format is invalid", () => {
+      const args = ["--business-id", "invalid-uuid", "--email", "user@example.com"];
+      expect(() => parseProvisionArgs(args)).toThrow(
+        /Invalid UUID format for --business-id: "invalid-uuid"/i,
+      );
+    });
+
+    it("throws error when user-id UUID format is invalid", () => {
+      const args = ["--business-slug", "cafe", "--user-id", "invalid-user-uuid"];
+      expect(() => parseProvisionArgs(args)).toThrow(
+        /Invalid UUID format for --user-id: "invalid-user-uuid"/i,
+      );
     });
   });
 
@@ -115,19 +201,31 @@ describe("scripts: provision-member", () => {
       const mockSingle = vi.fn();
       const mockSelect = vi.fn(() => ({ single: mockSingle }));
       const mockUpsert = vi.fn(() => ({ select: mockSelect }));
-      const mockMaybeSingle = vi.fn();
-      const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
-      const mockFromSelect = vi.fn(() => ({ eq: mockEq }));
+
+      const mockBusinessMaybeSingle = vi.fn();
+      const mockBusinessEq = vi.fn(() => ({ maybeSingle: mockBusinessMaybeSingle }));
+      const mockBusinessSelect = vi.fn(() => ({ eq: mockBusinessEq }));
+
+      const mockMemberMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      const mockMemberEqUser = vi.fn(() => ({ maybeSingle: mockMemberMaybeSingle }));
+      const mockMemberEqBiz = vi.fn(() => ({ eq: mockMemberEqUser }));
+      const mockMemberSelect = vi.fn(() => ({ eq: mockMemberEqBiz }));
+
       const mockFrom = vi.fn((table: string) => {
         if (table === "businesses") {
-          return { select: mockFromSelect };
+          return { select: mockBusinessSelect };
         }
         if (table === "business_members") {
-          return { upsert: mockUpsert };
+          return {
+            select: mockMemberSelect,
+            upsert: mockUpsert,
+          };
         }
         throw new Error(`Unexpected table ${table}`);
       });
+
       const mockListUsers = vi.fn();
+      const mockGetUserById = vi.fn();
 
       return {
         client: {
@@ -135,24 +233,27 @@ describe("scripts: provision-member", () => {
           auth: {
             admin: {
               listUsers: mockListUsers,
+              getUserById: mockGetUserById,
             },
           },
         },
         mockFrom,
-        mockEq,
-        mockMaybeSingle,
+        mockBusinessMaybeSingle,
+        mockMemberMaybeSingle,
         mockUpsert,
         mockSingle,
         mockListUsers,
+        mockGetUserById,
       };
     };
 
-    it("provisions a member successfully using email and business slug", async () => {
-      const { client, mockMaybeSingle, mockListUsers, mockSingle, mockUpsert } = createMockClient();
+    it("provisions a member successfully across paginated listUsers (found on page 2)", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle, mockUpsert } =
+        createMockClient();
 
-      mockMaybeSingle.mockResolvedValueOnce({
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
         data: {
-          id: "biz-111",
+          id: "11111111-1111-4111-8111-111111111111",
           name: "La Petite Boulangerie",
           slug: "la-petite-boulangerie",
           currency: "EUR",
@@ -160,11 +261,24 @@ describe("scripts: provision-member", () => {
         error: null,
       });
 
+      // Page 1: 200 users, target not present
+      const page1Users = Array.from({ length: 200 }, (_, idx) => ({
+        id: `00000000-0000-4000-8000-${String(idx).padStart(12, "0")}`,
+        email: `other${idx}@example.com`,
+      }));
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: page1Users },
+        error: null,
+      });
+
+      // Page 2: target user is found
       mockListUsers.mockResolvedValueOnce({
         data: {
           users: [
-            { id: "user-111", email: "MANAGER@lapetiteboulangerie.fr" },
-            { id: "user-222", email: "other@example.com" },
+            {
+              id: "22222222-2222-4222-8222-222222222222",
+              email: "MANAGER@lapetiteboulangerie.fr",
+            },
           ],
         },
         error: null,
@@ -172,13 +286,15 @@ describe("scripts: provision-member", () => {
 
       mockSingle.mockResolvedValueOnce({
         data: {
-          id: "member-row-1",
-          business_id: "biz-111",
-          user_id: "user-111",
+          id: "33333333-3333-4333-8333-333333333333",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
           role: "manager",
         },
         error: null,
       });
+
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       const result = await provisionBusinessMember(client as unknown as SupabaseClient, {
         businessSlug: "la-petite-boulangerie",
@@ -186,25 +302,34 @@ describe("scripts: provision-member", () => {
         role: "manager",
       });
 
-      expect(result.userId).toBe("user-111");
+      expect(mockListUsers).toHaveBeenCalledTimes(2);
+      expect(mockListUsers).toHaveBeenNthCalledWith(1, { page: 1, perPage: 200 });
+      expect(mockListUsers).toHaveBeenNthCalledWith(2, { page: 2, perPage: 200 });
+      expect(result.userId).toBe("22222222-2222-4222-8222-222222222222");
       expect(result.role).toBe("manager");
       expect(result.business.slug).toBe("la-petite-boulangerie");
       expect(mockUpsert).toHaveBeenCalledWith(
         {
-          business_id: "biz-111",
-          user_id: "user-111",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
           role: "manager",
         },
         { onConflict: "business_id,user_id" },
       );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Provisioning member: host=localhost"),
+      );
+
+      consoleSpy.mockRestore();
     });
 
-    it("provisions a member successfully using businessId and userId with owner role", async () => {
-      const { client, mockMaybeSingle, mockSingle, mockUpsert } = createMockClient();
+    it("provisions a member using userId path via auth.admin.getUserById", async () => {
+      const { client, mockBusinessMaybeSingle, mockGetUserById, mockSingle, mockUpsert } =
+        createMockClient();
 
-      mockMaybeSingle.mockResolvedValueOnce({
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
         data: {
-          id: "biz-222",
+          id: "11111111-1111-4111-8111-111111111111",
           name: "Second Bakery",
           slug: "second-bakery",
           currency: "EUR",
@@ -212,66 +337,341 @@ describe("scripts: provision-member", () => {
         error: null,
       });
 
+      mockGetUserById.mockResolvedValueOnce({
+        data: {
+          user: {
+            id: "22222222-2222-4222-8222-222222222222",
+            email: "owner@secondbakery.fr",
+          },
+        },
+        error: null,
+      });
+
       mockSingle.mockResolvedValueOnce({
         data: {
-          id: "member-row-2",
-          business_id: "biz-222",
-          user_id: "user-custom",
+          id: "44444444-4444-4444-8444-444444444444",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
           role: "owner",
         },
         error: null,
       });
 
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
       const result = await provisionBusinessMember(client as unknown as SupabaseClient, {
-        businessId: "biz-222",
-        userId: "user-custom",
+        businessId: "11111111-1111-4111-8111-111111111111",
+        userId: "22222222-2222-4222-8222-222222222222",
         role: "owner",
       });
 
-      expect(result.userId).toBe("user-custom");
+      expect(mockGetUserById).toHaveBeenCalledWith("22222222-2222-4222-8222-222222222222");
+      expect(result.userId).toBe("22222222-2222-4222-8222-222222222222");
       expect(result.role).toBe("owner");
       expect(mockUpsert).toHaveBeenCalledWith(
         {
-          business_id: "biz-222",
-          user_id: "user-custom",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
           role: "owner",
         },
         { onConflict: "business_id,user_id" },
       );
+
+      consoleSpy.mockRestore();
     });
 
-    it("throws error when business is not found by slug", async () => {
-      const { client, mockMaybeSingle } = createMockClient();
-      mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    it("guards non-local host targets unless --yes is explicitly supplied", async () => {
+      const { client } = createMockClient();
 
       await expect(
         provisionBusinessMember(client as unknown as SupabaseClient, {
-          businessSlug: "non-existent-bakery",
-          email: "test@example.com",
+          businessSlug: "la-petite-boulangerie",
+          email: "manager@example.com",
+          targetHost: "your-project-ref.supabase.co",
+          yes: false,
         }),
-      ).rejects.toThrow(/Business not found with slug "non-existent-bakery"/i);
+      ).rejects.toThrow(
+        /Refusing to write to non-local target host "your-project-ref.supabase.co" without explicit confirmation/i,
+      );
     });
 
-    it("throws error when business is not found by id", async () => {
-      const { client, mockMaybeSingle } = createMockClient();
-      mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    it("allows non-local host targets when --yes is supplied", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle } = createMockClient();
+
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Prod Bakery",
+          slug: "prod-bakery",
+          currency: "EUR",
+        },
+        error: null,
+      });
+
+      mockListUsers.mockResolvedValueOnce({
+        data: {
+          users: [{ id: "22222222-2222-4222-8222-222222222222", email: "manager@example.com" }],
+        },
+        error: null,
+      });
+
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: "33333333-3333-4333-8333-333333333333",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
+          role: "manager",
+        },
+        error: null,
+      });
+
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "prod-bakery",
+        email: "manager@example.com",
+        targetHost: "your-project-ref.supabase.co",
+        yes: true,
+      });
+
+      expect(res.business.slug).toBe("prod-bakery");
+      consoleSpy.mockRestore();
+    });
+
+    it("refuses to change an existing member's role unless --force is supplied", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockMemberMaybeSingle } =
+        createMockClient();
+
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Bakery",
+          slug: "bakery",
+          currency: "EUR",
+        },
+        error: null,
+      });
+
+      mockListUsers.mockResolvedValueOnce({
+        data: {
+          users: [{ id: "22222222-2222-4222-8222-222222222222", email: "user@example.com" }],
+        },
+        error: null,
+      });
+
+      // Existing membership has role "owner" while request attempts role "staff"
+      mockMemberMaybeSingle.mockResolvedValueOnce({
+        data: { id: "member-existing-id", role: "owner" },
+        error: null,
+      });
 
       await expect(
         provisionBusinessMember(client as unknown as SupabaseClient, {
-          businessId: "missing-biz-id",
-          userId: "user-1",
+          businessSlug: "bakery",
+          email: "user@example.com",
+          role: "staff",
+          force: false,
         }),
-      ).rejects.toThrow(/Business not found with ID "missing-biz-id"/i);
+      ).rejects.toThrow(
+        /User is already a member of business "bakery" with role "owner". Refusing to change role to "staff" without --force flag/i,
+      );
     });
 
-    it("throws error when user is not found by email in listUsers", async () => {
-      const { client, mockMaybeSingle, mockListUsers } = createMockClient();
-      mockMaybeSingle.mockResolvedValueOnce({
-        data: { id: "biz-1", name: "B", slug: "b", currency: "EUR" },
+    it("allows role change when --force is supplied", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockMemberMaybeSingle, mockSingle } =
+        createMockClient();
+
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Bakery",
+          slug: "bakery",
+          currency: "EUR",
+        },
+        error: null,
+      });
+
+      mockListUsers.mockResolvedValueOnce({
+        data: {
+          users: [{ id: "22222222-2222-4222-8222-222222222222", email: "user@example.com" }],
+        },
+        error: null,
+      });
+
+      mockMemberMaybeSingle.mockResolvedValueOnce({
+        data: { id: "member-existing-id", role: "owner" },
+        error: null,
+      });
+
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: "member-existing-id",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
+          role: "staff",
+        },
+        error: null,
+      });
+
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "bakery",
+        email: "user@example.com",
+        role: "staff",
+        force: true,
+      });
+
+      expect(res.role).toBe("staff");
+      consoleSpy.mockRestore();
+    });
+
+    it("allows idempotent provisioning without --force when existing membership has identical role", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockMemberMaybeSingle, mockSingle } =
+        createMockClient();
+
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Bakery",
+          slug: "bakery",
+          currency: "EUR",
+        },
+        error: null,
+      });
+
+      mockListUsers.mockResolvedValueOnce({
+        data: {
+          users: [{ id: "22222222-2222-4222-8222-222222222222", email: "user@example.com" }],
+        },
+        error: null,
+      });
+
+      // Existing membership already has role "manager"
+      mockMemberMaybeSingle.mockResolvedValueOnce({
+        data: { id: "member-existing-id", role: "manager" },
+        error: null,
+      });
+
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: "member-existing-id",
+          business_id: "11111111-1111-4111-8111-111111111111",
+          user_id: "22222222-2222-4222-8222-222222222222",
+          role: "manager",
+        },
+        error: null,
+      });
+
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "bakery",
+        email: "user@example.com",
+        role: "manager",
+        force: false,
+      });
+
+      expect(res.role).toBe("manager");
+      consoleSpy.mockRestore();
+    });
+
+    it("distinguishes business query error from business not found by slug", async () => {
+      const { client, mockBusinessMaybeSingle } = createMockClient();
+
+      // 1. Query error
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: null,
+        error: { message: "Database connection timeout" },
+      });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessSlug: "bakery",
+          email: "user@example.com",
+        }),
+      ).rejects.toThrow(/Failed to query business: Database connection timeout/i);
+
+      // 2. Not found
+      mockBusinessMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessSlug: "bakery",
+          email: "user@example.com",
+        }),
+      ).rejects.toThrow(/Business not found with slug "bakery"/i);
+    });
+
+    it("distinguishes business query error from business not found by id", async () => {
+      const { client, mockBusinessMaybeSingle } = createMockClient();
+
+      // 1. Query error
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: null,
+        error: { message: "Permission denied" },
+      });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessId: "11111111-1111-4111-8111-111111111111",
+          userId: "22222222-2222-4222-8222-222222222222",
+        }),
+      ).rejects.toThrow(/Failed to query business: Permission denied/i);
+
+      // 2. Not found
+      mockBusinessMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessId: "11111111-1111-4111-8111-111111111111",
+          userId: "22222222-2222-4222-8222-222222222222",
+        }),
+      ).rejects.toThrow(/Business not found with ID "11111111-1111-4111-8111-111111111111"/i);
+    });
+
+    it("distinguishes user query error from user not found by userId", async () => {
+      const { client, mockBusinessMaybeSingle, mockGetUserById } = createMockClient();
+
+      mockBusinessMaybeSingle.mockResolvedValue({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+
+      // 1. Query error
+      mockGetUserById.mockResolvedValueOnce({
+        data: null,
+        error: { message: "Internal Auth Error" },
+      });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessId: "11111111-1111-4111-8111-111111111111",
+          userId: "22222222-2222-4222-8222-222222222222",
+        }),
+      ).rejects.toThrow(/Failed to query user: Internal Auth Error/i);
+
+      // 2. Not found
+      mockGetUserById.mockResolvedValueOnce({ data: { user: null }, error: null });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessId: "11111111-1111-4111-8111-111111111111",
+          userId: "22222222-2222-4222-8222-222222222222",
+        }),
+      ).rejects.toThrow(/User not found with ID "22222222-2222-4222-8222-222222222222"/i);
+    });
+
+    it("throws error when user is not found by email after full pagination", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
         error: null,
       });
       mockListUsers.mockResolvedValueOnce({
-        data: { users: [{ id: "user-9", email: "other@example.com" }] },
+        data: {
+          users: [{ id: "22222222-2222-4222-8222-222222222222", email: "other@example.com" }],
+        },
         error: null,
       });
 
@@ -284,9 +684,9 @@ describe("scripts: provision-member", () => {
     });
 
     it("throws error when listUsers fails", async () => {
-      const { client, mockMaybeSingle, mockListUsers } = createMockClient();
-      mockMaybeSingle.mockResolvedValueOnce({
-        data: { id: "biz-1", name: "B", slug: "b", currency: "EUR" },
+      const { client, mockBusinessMaybeSingle, mockListUsers } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
         error: null,
       });
       mockListUsers.mockResolvedValueOnce({
@@ -302,10 +702,41 @@ describe("scripts: provision-member", () => {
       ).rejects.toThrow(/Failed to list users: Auth service down/i);
     });
 
+    it("throws error when existing membership query fails", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockMemberMaybeSingle } =
+        createMockClient();
+
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: {
+          users: [{ id: "22222222-2222-4222-8222-222222222222", email: "user@example.com" }],
+        },
+        error: null,
+      });
+      mockMemberMaybeSingle.mockResolvedValueOnce({
+        data: null,
+        error: { message: "Connection lost" },
+      });
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessSlug: "b",
+          email: "user@example.com",
+        }),
+      ).rejects.toThrow(/Failed to query existing membership: Connection lost/i);
+    });
+
     it("throws error when upsert fails", async () => {
-      const { client, mockMaybeSingle, mockSingle } = createMockClient();
-      mockMaybeSingle.mockResolvedValueOnce({
-        data: { id: "biz-1", name: "B", slug: "b", currency: "EUR" },
+      const { client, mockBusinessMaybeSingle, mockSingle, mockGetUserById } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockGetUserById.mockResolvedValueOnce({
+        data: { user: { id: "22222222-2222-4222-8222-222222222222" } },
         error: null,
       });
       mockSingle.mockResolvedValueOnce({
@@ -316,7 +747,7 @@ describe("scripts: provision-member", () => {
       await expect(
         provisionBusinessMember(client as unknown as SupabaseClient, {
           businessSlug: "b",
-          userId: "user-1",
+          userId: "22222222-2222-4222-8222-222222222222",
         }),
       ).rejects.toThrow(/Failed to provision business member: Database unique violation/i);
     });
@@ -326,7 +757,7 @@ describe("scripts: provision-member", () => {
       await expect(
         provisionBusinessMember(client as unknown as SupabaseClient, {
           businessSlug: "b",
-          userId: "user-1",
+          userId: "22222222-2222-4222-8222-222222222222",
           role: "invalid-role" as unknown as ProvisionRole,
         }),
       ).rejects.toThrow(/Invalid role "invalid-role"/i);
@@ -340,18 +771,14 @@ describe("scripts: provision-member", () => {
   });
 
   describe("main", () => {
-    it("executes CLI flow successfully when env and args are provided", async () => {
+    it("throws if CLI args fail validation", async () => {
       vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test.supabase.co");
       vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-key");
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await expect(main([])).rejects.toThrow(
+        /Exactly one of --business-slug or --business-id must be specified/,
+      );
 
-      // We can mock createClient from @supabase/supabase-js in this test
-      // but provisionBusinessMember will fail if createClient returns real network client unless we mock or test main
-      // Let's verify parseProvisionArgs throws if args missing
-      await expect(main([])).rejects.toThrow(/Either --business-slug or --business-id is required/);
-
-      consoleSpy.mockRestore();
       vi.unstubAllEnvs();
     });
   });

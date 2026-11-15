@@ -3,6 +3,25 @@ import { createClient } from "@supabase/supabase-js";
 
 export const ALLOWED_ROLES = ["owner", "manager", "staff"];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Checks whether the given hostname represents a local development host.
+ * @param {string} [hostname=""]
+ * @returns {boolean}
+ */
+export function isLocalHost(hostname = "") {
+  const h = (hostname || "").toLowerCase().trim();
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "::1" ||
+    h === "host.docker.internal" ||
+    h.endsWith(".localhost")
+  );
+}
+
 /**
  * @typedef {"owner" | "manager" | "staff"} ProvisionRole
  * @typedef {{
@@ -11,6 +30,9 @@ export const ALLOWED_ROLES = ["owner", "manager", "staff"];
  *   email?: string;
  *   userId?: string;
  *   role?: ProvisionRole;
+ *   yes?: boolean;
+ *   force?: boolean;
+ *   targetHost?: string;
  * }} ProvisionOptions
  */
 
@@ -36,17 +58,23 @@ export function checkProvisionEnv(env = process.env) {
 }
 
 /**
- * Parses CLI arguments for provisioning a business member.
+ * Parses and validates CLI arguments for provisioning a business member.
  * Supports:
  *   --business-slug <slug> | --business-slug=<slug>
  *   --business-id <uuid>   | --business-id=<uuid>
  *   --email <email>        | --email=<email>
  *   --user-id <uuid>       | --user-id=<uuid>
  *   --role <role>          | --role=<role> (default: manager)
+ *   --yes                  | --yes=true
+ *   --force                | --force=true
+ * @param {string[]} [argv=[]]
+ * @returns {ProvisionOptions}
  */
 export function parseProvisionArgs(argv = []) {
   const options = {
     role: "manager",
+    yes: false,
+    force: false,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -72,19 +100,43 @@ export function parseProvisionArgs(argv = []) {
       options.role = argv[++i];
     } else if (arg.startsWith("--role=")) {
       options.role = arg.slice("--role=".length);
+    } else if (arg === "--yes" || arg === "--yes=true") {
+      options.yes = true;
+    } else if (arg === "--force" || arg === "--force=true") {
+      options.force = true;
     }
   }
 
-  if (options.role && !ALLOWED_ROLES.includes(options.role)) {
+  // L7: Validation of role
+  if (!options.role || !ALLOWED_ROLES.includes(options.role)) {
     throw new Error(`Invalid role "${options.role}". Allowed roles: ${ALLOWED_ROLES.join(", ")}`);
   }
 
-  if (!options.businessSlug && !options.businessId) {
-    throw new Error("Either --business-slug or --business-id is required");
+  // L7: Exactly one of business-slug or business-id
+  const hasSlug = Boolean(options.businessSlug);
+  const hasBizId = Boolean(options.businessId);
+  if ((hasSlug && hasBizId) || (!hasSlug && !hasBizId)) {
+    throw new Error("Exactly one of --business-slug or --business-id must be specified");
   }
 
-  if (!options.email && !options.userId) {
-    throw new Error("Either --email or --user-id is required");
+  // L7: Exactly one of email or user-id
+  const hasEmail = Boolean(options.email);
+  const hasUserId = Boolean(options.userId);
+  if ((hasEmail && hasUserId) || (!hasEmail && !hasUserId)) {
+    throw new Error("Exactly one of --email or --user-id must be specified");
+  }
+
+  // L7: Email syntax validation
+  if (options.email && !EMAIL_REGEX.test(options.email.trim())) {
+    throw new Error(`Invalid email address format: "${options.email}"`);
+  }
+
+  // L7: UUID format validation for businessId and userId
+  if (options.businessId && !UUID_REGEX.test(options.businessId.trim())) {
+    throw new Error(`Invalid UUID format for --business-id: "${options.businessId}"`);
+  }
+  if (options.userId && !UUID_REGEX.test(options.userId.trim())) {
+    throw new Error(`Invalid UUID format for --user-id: "${options.userId}"`);
   }
 
   return options;
@@ -106,7 +158,15 @@ export async function provisionBusinessMember(client, options = {}) {
     throw new Error(`Invalid role "${role}". Allowed roles: ${ALLOWED_ROLES.join(", ")}`);
   }
 
-  // 1. Resolve business
+  // H8: Production safety guard for non-local host targets
+  const targetHost = options.targetHost ?? "localhost";
+  if (!isLocalHost(targetHost) && !options.yes) {
+    throw new Error(
+      `Refusing to write to non-local target host "${targetHost}" without explicit confirmation. Pass --yes to confirm provisioning on remote/production environments.`,
+    );
+  }
+
+  // 1. Resolve business with distinct error handling (H7)
   let business = null;
   if (options.businessId) {
     const { data, error } = await client
@@ -115,7 +175,10 @@ export async function provisionBusinessMember(client, options = {}) {
       .eq("id", options.businessId)
       .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      throw new Error(`Failed to query business: ${error.message}`);
+    }
+    if (!data) {
       throw new Error(`Business not found with ID "${options.businessId}"`);
     }
     business = data;
@@ -126,37 +189,96 @@ export async function provisionBusinessMember(client, options = {}) {
       .eq("slug", options.businessSlug)
       .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      throw new Error(`Failed to query business: ${error.message}`);
+    }
+    if (!data) {
       throw new Error(`Business not found with slug "${options.businessSlug}"`);
     }
     business = data;
   } else {
-    throw new Error("Either --business-slug or --business-id must be specified");
+    throw new Error("Exactly one of --business-slug or --business-id must be specified");
   }
 
-  // 2. Resolve user ID
+  // 2. Resolve user ID (H7: paginated listUsers or direct getUserById)
   let userId = options.userId;
-  if (!userId) {
-    if (!options.email) {
-      throw new Error("Either --email or --user-id must be specified");
-    }
+  let userIdentifier = options.userId;
 
+  if (userId) {
+    const { data: userData, error: userError } = await client.auth.admin.getUserById(userId);
+    if (userError) {
+      throw new Error(`Failed to query user: ${userError.message}`);
+    }
+    if (!userData?.user) {
+      throw new Error(`User not found with ID "${userId}"`);
+    }
+    userId = userData.user.id;
+    userIdentifier = userData.user.email ?? userId;
+  } else if (options.email) {
     const normalizedEmail = options.email.trim().toLowerCase();
-    const { data: usersData, error: listError } = await client.auth.admin.listUsers();
-    if (listError) {
-      throw new Error(`Failed to list users: ${listError.message}`);
-    }
+    userIdentifier = normalizedEmail;
 
-    const users = usersData?.users ?? [];
-    const foundUser = users.find((u) => u.email?.trim().toLowerCase() === normalizedEmail);
+    let page = 1;
+    const perPage = 200;
+    const MAX_PAGES = 50;
+    let foundUser = null;
+
+    while (page <= MAX_PAGES) {
+      const { data: usersData, error: listError } = await client.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+
+      if (listError) {
+        throw new Error(`Failed to list users: ${listError.message}`);
+      }
+
+      const users = usersData?.users ?? [];
+      foundUser = users.find((u) => u.email?.trim().toLowerCase() === normalizedEmail);
+
+      if (foundUser) {
+        break;
+      }
+
+      if (users.length < perPage) {
+        break;
+      }
+
+      page++;
+    }
 
     if (!foundUser) {
       throw new Error(`User not found with email "${options.email}"`);
     }
     userId = foundUser.id;
+  } else {
+    throw new Error("Exactly one of --email or --user-id must be specified");
   }
 
-  // 3. Upsert into public.business_members
+  // H8: Check existing membership role change guard
+  const { data: existingMember, error: queryMemberError } = await client
+    .from("business_members")
+    .select("id, role")
+    .eq("business_id", business.id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (queryMemberError) {
+    throw new Error(`Failed to query existing membership: ${queryMemberError.message}`);
+  }
+
+  if (existingMember && existingMember.role !== role && !options.force) {
+    throw new Error(
+      `User is already a member of business "${business.slug}" with role "${existingMember.role}". Refusing to change role to "${role}" without --force flag.`,
+    );
+  }
+
+  // H8: Print clear summary line before writing (never print service-role key!)
+  console.log(
+    `Provisioning member: host=${targetHost}, business=${business.slug} (${business.id}), user=${userIdentifier} (${userId}), role=${role}`,
+  );
+
+  // 3. Upsert into public.business_members idempotently
   const { data: member, error: upsertError } = await client
     .from("business_members")
     .upsert(
@@ -184,10 +306,20 @@ export async function provisionBusinessMember(client, options = {}) {
 
 /**
  * CLI main function.
+ * @param {string[]} [argv=process.argv.slice(2)]
  */
 export async function main(argv = process.argv.slice(2)) {
   const { supabaseUrl, serviceRoleKey } = checkProvisionEnv();
   const options = parseProvisionArgs(argv);
+
+  let targetHost = "localhost";
+  try {
+    targetHost = new URL(supabaseUrl).hostname;
+  } catch {
+    targetHost = supabaseUrl;
+  }
+  options.targetHost = targetHost;
+
   const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
