@@ -133,7 +133,7 @@ describe("features: auth actions", () => {
         vi.stubEnv("DATA_SOURCE", "mock");
         vi.stubEnv("NODE_ENV", "production");
 
-        await expect(signInWithGoogleAction()).rejects.toThrow(/cannot be enabled in production/i);
+        await expect(signInWithGoogleAction()).rejects.toThrow(/cannot be 'mock' in production/i);
         expect(mockCookiesSet).not.toHaveBeenCalled();
       });
     });
@@ -145,7 +145,32 @@ describe("features: auth actions", () => {
         vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-key");
       });
 
-      it("calls signInWithOAuth using origin header and redirects to returned URL", async () => {
+      it("prefers configured NEXT_PUBLIC_SITE_URL canonical origin and handles trailing slashes", async () => {
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://canonical.foodbiz.app/");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://spoofed.app";
+          return null;
+        });
+
+        mockSignInWithOAuth.mockResolvedValueOnce({
+          data: { url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=123" },
+          error: null,
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:https://accounts.google.com/o/oauth2/v2/auth?client_id=123",
+        );
+
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: {
+            redirectTo: "https://canonical.foodbiz.app/auth/callback?next=%2Fmanage",
+          },
+        });
+      });
+
+      it("in non-production without configured site URL, calls signInWithOAuth using origin header", async () => {
+        vi.stubEnv("NODE_ENV", "development");
         mockHeadersGet.mockImplementation((header: string) => {
           if (header === "origin") return "https://foodbiz.app";
           return null;
@@ -171,34 +196,8 @@ describe("features: auth actions", () => {
         );
       });
 
-      it("falls back to x-forwarded proto and host when origin is not present", async () => {
-        mockHeadersGet.mockImplementation((header: string) => {
-          if (header === "x-forwarded-proto") return "https";
-          if (header === "x-forwarded-host") return "app.foodbiz.internal";
-          return null;
-        });
-
-        mockSignInWithOAuth.mockResolvedValueOnce({
-          data: { url: "https://accounts.google.com/o/oauth2/v2/auth" },
-          error: null,
-        });
-
-        const formData = new FormData();
-        formData.set("next", "/manage/orders");
-
-        await expect(signInWithGoogleAction(formData)).rejects.toThrow(
-          "REDIRECT:https://accounts.google.com/o/oauth2/v2/auth",
-        );
-
-        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-          provider: "google",
-          options: {
-            redirectTo: "https://app.foodbiz.internal/auth/callback?next=%2Fmanage%2Forders",
-          },
-        });
-      });
-
-      it("falls back to localhost:3000 when headers are absent", async () => {
+      it("in non-production falls back to localhost:3000 when headers are absent", async () => {
+        vi.stubEnv("NODE_ENV", "development");
         mockHeadersGet.mockReturnValue(null);
         mockSignInWithOAuth.mockResolvedValueOnce({
           data: { url: "https://accounts.google.com/oauth" },
@@ -215,6 +214,22 @@ describe("features: auth actions", () => {
             redirectTo: "http://localhost:3000/auth/callback?next=%2Fmanage",
           },
         });
+      });
+
+      it("in production without configured site URL, redirects to auth_failed error and refuses forwarded headers", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "x-forwarded-host") return "forwarded.foodbiz.app";
+          if (header === "host") return "forwarded.foodbiz.app";
+          if (header === "origin") return "https://forwarded.foodbiz.app";
+          return null;
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:/manage/login?error=auth_failed",
+        );
+        expect(mockRedirect).toHaveBeenCalledWith("/manage/login?error=auth_failed");
+        expect(mockSignInWithOAuth).not.toHaveBeenCalled();
       });
 
       it("sanitizes open-redirect target from next form data", async () => {

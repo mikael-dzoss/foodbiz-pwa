@@ -6,21 +6,47 @@ describe("parsePublicEnv", () => {
     const env = parsePublicEnv({
       NEXT_PUBLIC_SUPABASE_URL: "https://demo.supabase.co",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_demo",
+      NEXT_PUBLIC_SITE_URL: "https://foodbiz.example.com",
     });
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe("https://demo.supabase.co");
+    expect(env.NEXT_PUBLIC_SITE_URL).toBe("https://foodbiz.example.com");
+  });
+
+  it("allows omitting optional NEXT_PUBLIC_SITE_URL or passing empty string", () => {
+    const envOmitted = parsePublicEnv({
+      NEXT_PUBLIC_SUPABASE_URL: "https://demo.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_demo",
+    });
+    expect(envOmitted.NEXT_PUBLIC_SITE_URL).toBeUndefined();
+
+    const envEmpty = parsePublicEnv({
+      NEXT_PUBLIC_SUPABASE_URL: "https://demo.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_demo",
+      NEXT_PUBLIC_SITE_URL: "",
+    });
+    expect(envEmpty.NEXT_PUBLIC_SITE_URL).toBeUndefined();
   });
 
   it("throws listing the invalid keys", () => {
     expect(() => parsePublicEnv({ NEXT_PUBLIC_SUPABASE_URL: "not-a-url" })).toThrow(
       /NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/,
     );
+    expect(() =>
+      parsePublicEnv({
+        NEXT_PUBLIC_SUPABASE_URL: "https://demo.supabase.co",
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_demo",
+        NEXT_PUBLIC_SITE_URL: "not-a-valid-url",
+      }),
+    ).toThrow(/NEXT_PUBLIC_SITE_URL/);
   });
 
   it("reads from process.env via getPublicEnv", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://demo.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_key";
+    process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
     const env = getPublicEnv();
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe("https://demo.supabase.co");
+    expect(env.NEXT_PUBLIC_SITE_URL).toBe("http://localhost:3000");
   });
 });
 

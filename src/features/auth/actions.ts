@@ -2,7 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getServerEnv } from "@/config/env";
+import { getPublicEnv, getServerEnv } from "@/config/env";
 import { MOCK_AUTH_COOKIE_NAME, sanitizeManagerRedirectPath } from "@/domain/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,13 +33,6 @@ export async function signOutAction(): Promise<never> {
  * In mock mode (development only), sets active session cookie and redirects directly.
  */
 export async function signInWithGoogleAction(formData?: FormData): Promise<never> {
-  if (
-    process.env.NODE_ENV === "production" &&
-    (process.env.DATA_SOURCE === "mock" || !process.env.DATA_SOURCE)
-  ) {
-    throw new Error("Mock sign-in cannot be enabled in production");
-  }
-
   const env = getServerEnv();
   const rawNext =
     formData && typeof formData.get("next") === "string" ? (formData.get("next") as string) : null;
@@ -57,18 +50,27 @@ export async function signInWithGoogleAction(formData?: FormData): Promise<never
     redirect(safeNext);
   }
 
-  const headerStore = await headers();
-  const originHeader = headerStore.get("origin");
-  let origin = originHeader;
+  const publicEnv = getPublicEnv();
+  let baseUrl: string | null = null;
 
-  if (!origin) {
-    const proto = headerStore.get("x-forwarded-proto") ?? "http";
-    const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "localhost:3000";
-    origin = `${proto}://${host}`;
+  if (publicEnv.NEXT_PUBLIC_SITE_URL) {
+    baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
+  } else if (env.NODE_ENV !== "production") {
+    const headerStore = await headers();
+    const originHeader = headerStore.get("origin");
+    if (originHeader) {
+      baseUrl = originHeader.replace(/\/+$/, "");
+    } else {
+      baseUrl = "http://localhost:3000";
+    }
+  }
+
+  if (!baseUrl) {
+    redirect("/manage/login?error=auth_failed");
   }
 
   const supabase = await createClient();
-  const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+  const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
