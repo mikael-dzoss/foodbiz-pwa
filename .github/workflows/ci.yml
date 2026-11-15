@@ -201,7 +201,7 @@ jobs:
           version: 3.0.0
 
       - name: Start Supabase local DB
-        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
+        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime,mailpit
 
       - name: Run pgTAP database tests
         run: npm run db:test
