@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { normalizeAuthErrorCode, sanitizeManagerRedirectPath } from "@/domain/auth";
+import { getManagerSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -25,6 +26,14 @@ export async function GET(request: NextRequest) {
 
   if (exchangeError) {
     return NextResponse.redirect(new URL("/manage/login?error=auth_failed", request.url));
+  }
+
+  // After exchanging code for session, verify the user has manager membership.
+  // We keep the active Supabase session (so the user can sign out or switch accounts from the login page)
+  // but only redirect to the sanitized target upon confirmed manager access.
+  const session = await getManagerSession();
+  if (!session) {
+    return NextResponse.redirect(new URL("/manage/login?error=no_access", request.url));
   }
 
   return NextResponse.redirect(new URL(safeNext, request.url));

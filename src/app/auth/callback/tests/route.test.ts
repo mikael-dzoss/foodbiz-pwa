@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { GET } from "./route";
+import { GET } from "../route";
+import { MOCK_MANAGER_SESSION } from "@/domain/auth";
 
 const mockExchangeCodeForSession = vi.fn();
 const mockCreateClient = vi.fn(() => ({
@@ -13,9 +14,15 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: () => mockCreateClient(),
 }));
 
+const mockGetManagerSession = vi.fn();
+vi.mock("@/lib/auth", () => ({
+  getManagerSession: () => mockGetManagerSession(),
+}));
+
 describe("GET /auth/callback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetManagerSession.mockResolvedValue(MOCK_MANAGER_SESSION);
   });
 
   it("exchanges valid code for session and redirects to default /manage", async () => {
@@ -106,6 +113,22 @@ describe("GET /auth/callback", () => {
     const request = new NextRequest("http://localhost:3000/auth/callback?error=forbidden");
     const response = await GET(request);
 
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3000/manage/login?error=no_access",
+    );
+  });
+
+  it("redirects to login with no_access when code exchange succeeds but user has no manager membership", async () => {
+    mockExchangeCodeForSession.mockResolvedValueOnce({ error: null });
+    mockGetManagerSession.mockResolvedValueOnce(null);
+
+    const request = new NextRequest(
+      "http://localhost:3000/auth/callback?code=valid-auth-code&next=%2Fmanage%2Forders",
+    );
+    const response = await GET(request);
+
+    expect(mockExchangeCodeForSession).toHaveBeenCalledWith("valid-auth-code");
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
       "http://localhost:3000/manage/login?error=no_access",
