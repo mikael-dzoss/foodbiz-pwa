@@ -41,17 +41,21 @@ const serverEnvSchema = z
     NODE_ENV: z.string().optional(),
     APP_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
     ALLOWED_MANAGER_EMAILS: z.string().optional(),
+    DEV_BUSINESS_SLUG: z.string().trim().min(1).optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   })
   .refine(
     (data) => {
       const nodeEnv = data.NODE_ENV ?? process.env.NODE_ENV;
-      if (nodeEnv === "production" && data.DATA_SOURCE === "mock") {
+      const appEnv = data.APP_ENV ?? process.env.APP_ENV;
+      if ((nodeEnv === "production" || appEnv === "production") && data.DATA_SOURCE === "mock") {
         return false;
       }
       return true;
     },
     {
-      message: "DATA_SOURCE cannot be 'mock' in production",
+      message:
+        "Mock manager session cannot be enabled in production: DATA_SOURCE cannot be 'mock' in production",
       path: ["DATA_SOURCE"],
     },
   );
@@ -75,5 +79,7 @@ export function getServerEnv(): ServerEnv {
     NODE_ENV: process.env.NODE_ENV,
     APP_ENV: process.env.APP_ENV,
     ALLOWED_MANAGER_EMAILS: process.env.ALLOWED_MANAGER_EMAILS,
+    DEV_BUSINESS_SLUG: process.env.DEV_BUSINESS_SLUG,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
 }

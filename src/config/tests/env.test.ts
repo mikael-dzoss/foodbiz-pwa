@@ -84,15 +84,19 @@ describe("parseServerEnv", () => {
     );
   });
 
-  it("accepts valid APP_ENV values and optional ALLOWED_MANAGER_EMAILS", () => {
+  it("accepts valid APP_ENV values and optional ALLOWED_MANAGER_EMAILS, DEV_BUSINESS_SLUG, SUPABASE_SERVICE_ROLE_KEY", () => {
     const env = parseServerEnv({
       DATA_SOURCE: "supabase",
       NODE_ENV: "production",
       APP_ENV: "staging",
-      ALLOWED_MANAGER_EMAILS: "admin@lapetiteboulangerie.fr",
+      ALLOWED_MANAGER_EMAILS: "dev@example.com",
+      DEV_BUSINESS_SLUG: "custom-bakery",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-secret-token",
     });
     expect(env.APP_ENV).toBe("staging");
-    expect(env.ALLOWED_MANAGER_EMAILS).toBe("admin@lapetiteboulangerie.fr");
+    expect(env.ALLOWED_MANAGER_EMAILS).toBe("dev@example.com");
+    expect(env.DEV_BUSINESS_SLUG).toBe("custom-bakery");
+    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("service-role-secret-token");
   });
 
   it("rejects invalid APP_ENV values", () => {
@@ -110,11 +114,15 @@ describe("parseServerEnv", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("APP_ENV", "test");
     vi.stubEnv("ALLOWED_MANAGER_EMAILS", "qa@example.com");
+    vi.stubEnv("DEV_BUSINESS_SLUG", "la-petite-boulangerie");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb-service-secret");
     try {
       const env = getServerEnv();
       expect(env.DATA_SOURCE).toBe("mock");
       expect(env.APP_ENV).toBe("test");
       expect(env.ALLOWED_MANAGER_EMAILS).toBe("qa@example.com");
+      expect(env.DEV_BUSINESS_SLUG).toBe("la-petite-boulangerie");
+      expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("sb-service-secret");
     } finally {
       vi.unstubAllEnvs();
     }
