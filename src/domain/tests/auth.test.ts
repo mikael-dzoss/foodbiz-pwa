@@ -104,6 +104,18 @@ describe("domain: auth", () => {
     it("rejects paths that do not start with /manage", () => {
       expect(sanitizeManagerRedirectPath("/storefront")).toBe("/manage");
       expect(sanitizeManagerRedirectPath("/")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/managefoo")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/management")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/manager")).toBe("/manage");
+    });
+
+    it("rejects paths containing dot-dot traversal or encoded traversal", () => {
+      expect(sanitizeManagerRedirectPath("/manage/../evil")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/manage/..")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/manage/%2e%2e/evil")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/manage/%2E%2E/evil")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/manage/%2e%2e")).toBe("/manage");
+      expect(sanitizeManagerRedirectPath("/manage/%FF")).toBe("/manage");
     });
 
     it("prevents protocol-relative and scheme open redirects", () => {

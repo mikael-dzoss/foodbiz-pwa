@@ -62,16 +62,40 @@ export function sanitizeManagerRedirectPath(
 
   const trimmed = nextPath.trim();
 
+  // Must strictly be /manage or start with /manage/
+  if (trimmed !== "/manage" && !trimmed.startsWith("/manage/")) {
+    return fallback;
+  }
+
   if (
-    !trimmed.startsWith("/manage") ||
     trimmed.startsWith("//") ||
     trimmed.startsWith("/\\") ||
+    trimmed.includes("\\") ||
     trimmed.startsWith("/manage/login")
   ) {
     return fallback;
   }
 
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) || trimmed.includes("://")) {
+    return fallback;
+  }
+
+  // Reject traversal segments (both raw and URL-encoded)
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(trimmed);
+  } catch {
+    return fallback;
+  }
+
+  if (
+    decoded.includes("..") ||
+    (decoded !== "/manage" && !decoded.startsWith("/manage/")) ||
+    decoded.startsWith("/manage/login") ||
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(decoded) ||
+    decoded.includes("://") ||
+    decoded.includes("\\")
+  ) {
     return fallback;
   }
 
