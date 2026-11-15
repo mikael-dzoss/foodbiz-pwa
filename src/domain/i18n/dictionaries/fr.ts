@@ -617,8 +617,6 @@ export const frDictionary: Dictionary = {
   },
   auth: {
     continueWithGoogle: "Continuer avec Google",
-    noAccessTitle: "Accès restreint",
-    signOutAndSwitch: "Se déconnecter et changer de compte",
     errors: {
       cancelled: "La connexion a été annulée. Veuillez réessayer lorsque vous êtes prêt.",
       denied: "L'accès via Google a été refusé. Veuillez autoriser l'accès pour continuer.",

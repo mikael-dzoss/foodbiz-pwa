@@ -3,7 +3,13 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerEnv } from "@/config/env";
-import { MOCK_AUTH_COOKIE_NAME, MOCK_MANAGER_SESSION, type ManagerSession } from "@/domain/auth";
+import {
+  MOCK_AUTH_COOKIE_NAME,
+  MOCK_MANAGER_SESSION,
+  managerSessionSchema,
+  type ManagerSession,
+} from "@/domain/auth";
+import { getRepositories } from "@/lib/repositories";
 import { createClient } from "@/lib/supabase/server";
 import { maybeAutoProvisionDevManager } from "./dev-provisioning";
 
@@ -33,31 +39,19 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user || !user.email) {
     return null;
   }
 
-  // Query 'business_members' table for verified role (owner/manager/staff) and associated business
-  let { data: membership } = await supabase
-    .from("business_members")
-    .select("id, business_id, role, businesses(id, name, slug, currency)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
+  const repos = getRepositories("supabase", supabase);
+  let membership = await repos.members.findMembershipForUser(user.id);
 
   // If no business_members row exists, attempt dev/test auto-provisioning for allow-listed managers
   if (!membership) {
     const provisioned = await maybeAutoProvisionDevManager(user);
     if (provisioned) {
-      // Re-run normal membership query through user's own (RLS) client so returned session comes from the real DB
-      const rerun = await supabase
-        .from("business_members")
-        .select("id, business_id, role, businesses(id, name, slug, currency)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
-
-      membership = rerun.data;
+      // Re-query membership through user's client so returned session comes from the real DB
+      membership = await repos.members.findMembershipForUser(user.id);
     }
   }
 
@@ -65,64 +59,52 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     return null;
   }
 
-  type BusinessJoinRecord = {
-    id: string;
-    name: string;
-    slug: string;
-    currency: string;
-  };
+  // Derive expiresAt from verified JWT claims rather than fabricating a fake +24h
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const expSeconds = typeof claimsData?.claims?.exp === "number" ? claimsData.claims.exp : null;
+  const expiresAt = expSeconds ? new Date(expSeconds * 1000).toISOString() : null;
 
-  const joinedBusinesses = membership.businesses as
-    BusinessJoinRecord | BusinessJoinRecord[] | null;
+  const rawName =
+    typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()
+      ? user.user_metadata.name.trim()
+      : typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
+        ? user.user_metadata.full_name.trim()
+        : user.email.trim();
 
-  let businessRecord: BusinessJoinRecord | null = Array.isArray(joinedBusinesses)
-    ? (joinedBusinesses[0] ?? null)
-    : joinedBusinesses;
-
-  if (!businessRecord && membership.business_id) {
-    const { data: directBusiness } = await supabase
-      .from("businesses")
-      .select("id, name, slug, currency")
-      .eq("id", membership.business_id)
-      .maybeSingle();
-
-    businessRecord = directBusiness as BusinessJoinRecord | null;
-  }
-
-  const business = {
-    id: businessRecord?.id ?? membership.business_id,
-    name: businessRecord?.name ?? "Business",
-    slug: businessRecord?.slug ?? "business",
-    currency: (businessRecord?.currency ?? "EUR") as "EUR",
-  };
-
-  const role = (membership.role as "owner" | "manager" | "staff") ?? "manager";
-
-  return {
+  return managerSessionSchema.parse({
     user: {
       id: user.id,
-      email: user.email ?? "",
-      name:
-        (user.user_metadata?.name as string) ??
-        (user.user_metadata?.full_name as string) ??
-        user.email ??
-        "Manager",
-      role,
-      businessId: membership.business_id,
+      email: user.email,
+      name: rawName,
+      role: membership.member.role,
+      businessId: membership.member.businessId,
     },
-    business,
-    expiresAt: new Date(Date.now() + 86400000).toISOString(),
-  };
+    business: membership.business,
+    expiresAt,
+  });
 }
 
 /**
  * Enforces manager authentication on server components and server actions.
  * Redirects unauthenticated requests to /manage/login.
+ * In Supabase mode, redirects signed-in users without business membership to /manage/login?error=no_access.
  */
 export async function requireManagerSession(): Promise<ManagerSession> {
+  const env = getServerEnv();
   const session = await getManagerSession();
 
   if (!session) {
+    if (env.DATA_SOURCE === "supabase") {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        redirect("/manage/login?error=no_access");
+      }
+    }
+
     redirect("/manage/login");
   }
 

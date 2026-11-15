@@ -16,10 +16,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: () => mockCreateClient(),
 }));
 
-const mockGetManagerSession = vi.fn();
 vi.mock("@/lib/auth", () => ({
-  getManagerSession: () => mockGetManagerSession(),
-}));
   getManagerSession: () => mockGetManagerSession(),
 }));
 

@@ -144,35 +144,5 @@ describe("ManagerLoginPage", () => {
       expect(alert).toBeDefined();
       expect(alert.textContent).toContain(getDictionary("en").auth.errors.auth_failed);
     });
-
-    it("renders dedicated no-access restricted card with sign-out switch action in English", () => {
-      render(<ManagerLoginPage error="no_access" locale="en" />);
-
-      const alert = screen.getByRole("alert");
-      const enDict = getDictionary("en");
-      expect(alert.textContent).toContain(enDict.auth.noAccessTitle);
-      expect(alert.textContent).toContain(enDict.auth.errors.no_access);
-
-      const signOutBtn = screen.getByRole("button", {
-        name: new RegExp(enDict.auth.signOutAndSwitch, "i"),
-      });
-      expect(signOutBtn).toBeDefined();
-      expect(signOutBtn.getAttribute("id")).toBe("sign-out-switch-btn");
-    });
-
-    it("renders dedicated no-access restricted card with sign-out switch action in French", () => {
-      render(<ManagerLoginPage error="no_access" locale="fr" />);
-
-      const alert = screen.getByRole("alert");
-      const frDict = getDictionary("fr");
-      expect(alert.textContent).toContain(frDict.auth.noAccessTitle);
-      expect(alert.textContent).toContain(frDict.auth.errors.no_access);
-
-      const signOutBtn = screen.getByRole("button", {
-        name: new RegExp(frDict.auth.signOutAndSwitch, "i"),
-      });
-      expect(signOutBtn).toBeDefined();
-      expect(signOutBtn.getAttribute("id")).toBe("sign-out-switch-btn");
-    });
   });
 });

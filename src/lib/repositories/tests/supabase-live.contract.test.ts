@@ -770,4 +770,56 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       }
     });
   });
+
+  describe("MemberRepository.findMembershipForUser (RLS & Determinism Contract)", () => {
+    it("member A gets its own business membership and summary", async () => {
+      const membership = await memberARepos.members.findMembershipForUser(userAId);
+      expect(membership).not.toBeNull();
+      expect(membership?.member.businessId).toBe(businessAId);
+      expect(membership?.member.role).toBe("manager");
+      expect(membership?.business.id).toBe(businessAId);
+      expect(membership?.business.slug).toBe(slugA);
+      expect(membership?.business.currency).toBe("EUR");
+    });
+
+    it("non-member gets null from findMembershipForUser", async () => {
+      const membership = await nonMemberRepos.members.findMembershipForUser(nonMemberUserId);
+      expect(membership).toBeNull();
+    });
+
+    it("user with two memberships gets the oldest deterministically", async () => {
+      const earlierDate = "2026-01-01T00:00:00.000Z";
+      const laterDate = "2026-01-02T00:00:00.000Z";
+
+      // Ensure user A's existing membership in business A is earlier
+      await adminClient
+        .from("business_members")
+        .update({ created_at: earlierDate })
+        .eq("business_id", businessAId)
+        .eq("user_id", userAId);
+
+      // Insert second membership for user A in business B with later created_at
+      const secondMembershipId = crypto.randomUUID();
+      const { error: insertErr } = await adminClient.from("business_members").insert({
+        id: secondMembershipId,
+        business_id: businessBId,
+        user_id: userAId,
+        role: "staff",
+        created_at: laterDate,
+      });
+      if (insertErr) throw insertErr;
+
+      try {
+        const membership = await memberARepos.members.findMembershipForUser(userAId);
+        expect(membership).not.toBeNull();
+        // Deterministically returns the earliest created membership (business A)
+        expect(membership?.member.businessId).toBe(businessAId);
+        expect(membership?.member.role).toBe("manager");
+        expect(membership?.business.id).toBe(businessAId);
+        expect(membership?.business.slug).toBe(slugA);
+      } finally {
+        await adminClient.from("business_members").delete().eq("id", secondMembershipId);
+      }
+    });
+  });
 });

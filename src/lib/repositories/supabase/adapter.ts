@@ -1,6 +1,9 @@
+import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { managerBusinessSummarySchema } from "@/domain/auth";
 import {
+  businessMemberRoleSchema,
   businessMemberSchema,
   businessSchema,
   businessSettingsSchema,
@@ -9,6 +12,7 @@ import {
   type BusinessMemberRole,
   type BusinessSettings,
 } from "@/domain/business";
+import { uuidSchema } from "@/domain/common";
 import { expenseSchema, type Expense } from "@/domain/expense";
 import { sumOrderProductQuantities, type ProductQuantityFilter } from "@/domain/featured";
 import { guestSchema, normalizeGuestName, normalizePhoneNumber, type Guest } from "@/domain/guest";
@@ -57,6 +61,7 @@ import type {
   UpdateOrderInput,
   UpdateProductInput,
   UpdateSettingsInput,
+  UserMembershipSummary,
 } from "@/domain/repositories";
 import type {
   Database,
@@ -295,6 +300,16 @@ function mapMemberRow(row: Tables<"business_members">): BusinessMember {
     createdAt: toIsoUtc(row.created_at),
   });
 }
+
+const userMembershipQuerySchema = z.object({
+  id: uuidSchema,
+  business_id: uuidSchema,
+  role: businessMemberRoleSchema,
+  businesses: z
+    .union([managerBusinessSummarySchema, z.array(managerBusinessSummarySchema).nonempty()])
+    .nullable()
+    .optional(),
+});
 
 export function createSupabaseRepositories(
   clientOrFactory?: SupabaseClientFactory,
@@ -1245,6 +1260,56 @@ export function createSupabaseRepositories(
       if (error) throw error;
       if (!data) return null;
       return mapMemberRow(data);
+    },
+
+    async findMembershipForUser(userId: string): Promise<UserMembershipSummary | null> {
+      const client = await getClient();
+      // Single-business-per-user assumption: FoodBiz currently models exactly one active business per manager.
+      // If a user has multiple memberships, deterministic ordering (created_at asc, id asc, limit 1) ensures
+      // the earliest created membership is returned.
+      const { data, error } = await client
+        .from("business_members")
+        .select("id, business_id, role, created_at, businesses(id, name, slug, currency)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return null;
+
+      const parsed = userMembershipQuerySchema.parse(data);
+
+      let businessSummary = Array.isArray(parsed.businesses)
+        ? parsed.businesses[0]
+        : (parsed.businesses ?? null);
+
+      if (!businessSummary) {
+        const { data: directBusiness, error: bizError } = await client
+          .from("businesses")
+          .select("id, name, slug, currency")
+          .eq("id", parsed.business_id)
+          .maybeSingle();
+
+        if (bizError) throw bizError;
+        if (!directBusiness) return null;
+        businessSummary = managerBusinessSummarySchema.parse(directBusiness);
+      }
+
+      return {
+        member: {
+          id: parsed.id,
+          businessId: parsed.business_id,
+          role: parsed.role,
+        },
+        business: {
+          id: businessSummary.id,
+          name: businessSummary.name,
+          slug: businessSummary.slug,
+          currency: businessSummary.currency,
+        },
+      };
     },
 
     async add(businessId: string, input: CreateMemberInput): Promise<BusinessMember> {

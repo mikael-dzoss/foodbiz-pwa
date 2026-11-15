@@ -54,5 +54,59 @@ export function describeMemberRepositoryContract(
 
       await expect(repos.members.remove(businessId, added.id)).rejects.toThrow();
     });
+
+    it("findMembershipForUser returns membership and business summary for existing member", async () => {
+      const repos = await getRepositories();
+      const first = (await repos.members.list(businessId))[0];
+
+      const membership = await repos.members.findMembershipForUser(first.userId);
+      expect(membership).not.toBeNull();
+      expect(membership?.member.id).toBe(first.id);
+      expect(membership?.member.businessId).toBe(businessId);
+      expect(membership?.member.role).toBe(first.role);
+      expect(membership?.business.id).toBe(businessId);
+      expect(membership?.business.currency).toBe("EUR");
+      expect(typeof membership?.business.name).toBe("string");
+      expect(typeof membership?.business.slug).toBe("string");
+    });
+
+    it("findMembershipForUser returns null for non-member user", async () => {
+      const repos = await getRepositories();
+      const nonMemberId = "00000000-0000-4000-8000-000000000077";
+      const membership = await repos.members.findMembershipForUser(nonMemberId);
+      expect(membership).toBeNull();
+    });
+
+    it("findMembershipForUser deterministically selects the earliest created membership when user has multiple memberships", async () => {
+      const repos = await getRepositories();
+      const multiUserId = "00000000-0000-4000-8000-000000000066";
+
+      // First membership added with earlier ID and timestamp
+      const firstAdded = await repos.members.add(businessId, {
+        id: "10000000-0000-4000-8000-000000000001",
+        userId: multiUserId,
+        role: "staff",
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 15));
+
+      // Second membership added (later in time, higher ID)
+      const secondAdded = await repos.members.add(businessId, {
+        id: "20000000-0000-4000-8000-000000000002",
+        userId: multiUserId,
+        role: "manager",
+      });
+
+      try {
+        const found = await repos.members.findMembershipForUser(multiUserId);
+        expect(found).not.toBeNull();
+        // Deterministically returns the earliest created membership
+        expect(found?.member.id).toBe(firstAdded.id);
+        expect(found?.member.role).toBe("staff");
+      } finally {
+        await repos.members.remove(businessId, firstAdded.id);
+        await repos.members.remove(businessId, secondAdded.id);
+      }
+    });
   });
 }

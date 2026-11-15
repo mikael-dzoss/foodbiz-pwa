@@ -124,7 +124,7 @@ export type ManagerBusinessSummary = z.infer<typeof managerBusinessSummarySchema
 export const managerSessionSchema = z.object({
   user: managerUserSchema,
   business: managerBusinessSummarySchema,
-  expiresAt: isoDateTimeSchema,
+  expiresAt: isoDateTimeSchema.nullable(),
 });
 
 export type ManagerSession = z.infer<typeof managerSessionSchema>;

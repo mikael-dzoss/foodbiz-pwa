@@ -197,10 +197,30 @@ export interface CreateMemberInput {
   readonly role: BusinessMemberRole;
 }
 
+export interface UserMembershipSummary {
+  readonly member: {
+    readonly id: string;
+    readonly businessId: string;
+    readonly role: BusinessMemberRole;
+  };
+  readonly business: {
+    readonly id: string;
+    readonly name: string;
+    readonly slug: string;
+    readonly currency: "EUR";
+  };
+}
+
 export interface MemberRepository {
   list(businessId: string): Promise<BusinessMember[]>;
   findById(businessId: string, id: string): Promise<BusinessMember | null>;
   findByUserId(businessId: string, userId: string): Promise<BusinessMember | null>;
+  /**
+   * Deterministically finds the earliest created membership and business summary for a user.
+   * Single-business-per-user assumption: FoodBiz currently models exactly one active business per manager.
+   * If a user has multiple memberships, ordered by created_at asc, id asc to deterministically select the oldest.
+   */
+  findMembershipForUser(userId: string): Promise<UserMembershipSummary | null>;
   add(businessId: string, input: CreateMemberInput): Promise<BusinessMember>;
   updateRole(businessId: string, id: string, role: BusinessMemberRole): Promise<BusinessMember>;
   remove(businessId: string, id: string): Promise<void>;

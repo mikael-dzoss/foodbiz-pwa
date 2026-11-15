@@ -178,7 +178,7 @@ function createFakeSupabaseClient(
     let dataToInsert: unknown = null;
     let dataToUpdate: Record<string, unknown> | null = null;
     const filters: Array<(row: Record<string, unknown>) => boolean> = [];
-    let orderConfig: { col: string; ascending: boolean } | undefined;
+    const orderConfigs: Array<{ col: string; ascending: boolean }> = [];
     let limitCount: number | undefined;
 
     const builder = {
@@ -224,7 +224,7 @@ function createFakeSupabaseClient(
         return builder;
       },
       order(col: string, opts?: { ascending?: boolean }) {
-        orderConfig = { col, ascending: opts?.ascending ?? true };
+        orderConfigs.push({ col, ascending: opts?.ascending ?? true });
         return builder;
       },
       limit(n: number) {
@@ -369,13 +369,14 @@ function createFakeSupabaseClient(
 
       // mode === "select"
       let result = list.filter((row) => filters.every((f) => f(row)));
-      if (orderConfig) {
-        const { col, ascending } = orderConfig;
+      if (orderConfigs.length > 0) {
         result = result.toSorted((a, b) => {
-          const valA = a[col] as string | number;
-          const valB = b[col] as string | number;
-          if (valA < valB) return ascending ? -1 : 1;
-          if (valA > valB) return ascending ? 1 : -1;
+          for (const { col, ascending } of orderConfigs) {
+            const valA = a[col] as string | number;
+            const valB = b[col] as string | number;
+            if (valA < valB) return ascending ? -1 : 1;
+            if (valA > valB) return ascending ? 1 : -1;
+          }
           return 0;
         });
       }
@@ -383,6 +384,22 @@ function createFakeSupabaseClient(
         result = result.slice(0, limitCount);
       }
       let finalResult = structuredClone(result);
+      if (table === "business_members" && selectCols && selectCols.includes("businesses")) {
+        finalResult = finalResult.map((mem) => {
+          const biz = tables.businesses.find((b) => b.id === mem.business_id);
+          return {
+            ...mem,
+            businesses: biz
+              ? {
+                  id: biz.id,
+                  name: biz.name,
+                  slug: biz.slug,
+                  currency: biz.currency,
+                }
+              : null,
+          };
+        });
+      }
       if (table === "orders" && selectCols && selectCols.includes("order_items(*)")) {
         finalResult = finalResult.map((ord) => {
           const items = tables.order_items.filter((it) => it.order_id === ord.id);

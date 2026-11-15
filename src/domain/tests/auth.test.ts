@@ -40,6 +40,16 @@ describe("domain: auth", () => {
     expect(MOCK_MANAGER_SESSION.business.currency).toBe("EUR");
   });
 
+  it("accepts null expiresAt in managerSessionSchema when token claims lack exp", () => {
+    const sessionWithNullExpiry = {
+      ...MOCK_MANAGER_SESSION,
+      expiresAt: null,
+    };
+    const parsed = managerSessionSchema.safeParse(sessionWithNullExpiry);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.expiresAt).toBeNull();
+  });
+
   describe("authErrorCodeSchema", () => {
     it("accepts valid error codes", () => {
       expect(authErrorCodeSchema.safeParse("cancelled").success).toBe(true);

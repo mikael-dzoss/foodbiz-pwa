@@ -556,6 +556,37 @@ export function createMockRepositories(
       const m = fixtures.members.find((x) => x.businessId === bId && x.userId === userId);
       return m ? structuredClone(m) : null;
     },
+    async findMembershipForUser(userId) {
+      // Single-business-per-user assumption: FoodBiz currently models exactly one active business per manager.
+      // Deterministically sort by created_at asc, id asc to select the earliest created membership.
+      const userMemberships = fixtures.members
+        .filter((m) => m.userId === userId)
+        .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+
+      if (userMemberships.length === 0) {
+        return null;
+      }
+
+      const oldest = userMemberships[0];
+      const biz = fixtures.business.id === oldest.businessId ? fixtures.business : null;
+      if (!biz) {
+        return null;
+      }
+
+      return {
+        member: {
+          id: oldest.id,
+          businessId: oldest.businessId,
+          role: oldest.role,
+        },
+        business: {
+          id: biz.id,
+          name: biz.name,
+          slug: biz.slug,
+          currency: biz.currency,
+        },
+      };
+    },
     async add(bId, input) {
       const m: BusinessMember = {
         id: input.id ?? crypto.randomUUID(),

@@ -7,7 +7,6 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@/domain/i18n";
-import { signOutAction } from "../actions";
 
 export interface LoginErrorBannerProps {
   error?: AuthErrorCode | string | null;
@@ -27,35 +26,6 @@ export function LoginErrorBanner({ error, locale }: LoginErrorBannerProps) {
 
   const dict = getDictionary(activeLocale);
   const message = dict.auth.errors[errorCode] ?? dict.auth.errors.auth_failed;
-
-  if (errorCode === "no_access") {
-    return (
-      <div
-        role="alert"
-        data-testid="login-error-alert"
-        className="bg-destructive/10 text-destructive border-destructive/20 mb-5 flex flex-col gap-3 rounded-lg border p-3.5 text-xs font-medium"
-      >
-        <div className="flex items-start gap-2.5">
-          <AlertCircle className="text-destructive mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="flex-1 space-y-1">
-            <h4 className="text-destructive leading-tight font-semibold">
-              {dict.auth.noAccessTitle}
-            </h4>
-            <p className="text-destructive/90 leading-snug">{message}</p>
-          </div>
-        </div>
-        <form action={signOutAction} className="mt-0.5 flex justify-end">
-          <button
-            type="submit"
-            id="sign-out-switch-btn"
-            className="bg-destructive/15 text-destructive hover:bg-destructive/25 focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          >
-            <span>{dict.auth.signOutAndSwitch}</span>
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div
