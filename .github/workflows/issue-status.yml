@@ -12,6 +12,10 @@ permissions:
   pull-requests: read
   contents: read
 
+# Note: an atomic `gh stack merge` closes every PR of the stack within seconds, and this workflow
+# fires for each of them (verified on the #260-#268 stack). Do NOT add a shared `concurrency` group:
+# GitHub keeps only one pending run per group and would drop the others.
+
 jobs:
   mark-completed:
     name: Mark closed issues completed

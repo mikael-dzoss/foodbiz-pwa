@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "DATA_SOURCE=${DATA_SOURCE:-supabase} next build",
+    "build:local": "node scripts/build-local.mjs",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",

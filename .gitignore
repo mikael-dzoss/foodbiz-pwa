@@ -50,6 +50,7 @@ next-env.d.ts
 
 # supabase cli temp
 /supabase/.temp
+/supabase/.branches
 
 # python
 __pycache__/
