@@ -5,7 +5,7 @@ description: Strategy and execution guide for batches of requirements using GitH
 
 # Stacked Pull Request Workflow
 
-Baseline branch model, commit formats, and validation gates: [`docs/CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md). Issue lifecycle and gating rules: [`github_issue.instructions.md`](../../rules/github_issue.instructions.md). Official GitHub reference: [About stacked pull requests](https://docs.github.com/en/pull-requests/get-started/about-stacked-prs) and [`gh stack` CLI commands](https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands).
+Baseline branch model, commit formats, and validation gates: [`docs/CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md). Issue lifecycle and gating rules: [`implement-issue`](../implement-issue/SKILL.md). Official GitHub reference: [About stacked pull requests](https://docs.github.com/en/pull-requests/get-started/about-stacked-prs) and [`gh stack` CLI commands](https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands).
 
 This skill governs batch decision logic, upfront stack planning, dedicated GitHub stack management (`gh stack`), cascading rebases, and selective stack merging up to review gates.
 

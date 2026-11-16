@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# PreToolUse(Edit|Write|MultiEdit|NotebookEdit): block secrets, generated
-# files and paths the project rules forbid. Exit 2 blocks the tool call.
+# PreToolUse(file edits): block secrets, generated files and paths the project
+# rules forbid. Exit 2 blocks the tool call. Shared by Claude Code and Copilot
+# (chat.useClaudeHooks), so it accepts both payload shapes.
 set -euo pipefail
 
-file="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // ""')"
+input="$(cat)"
+file="$(jq -r '.tool_input | .file_path // .filePath // .notebook_path // ""' <<<"$input")"
 [[ -n "$file" ]] || exit 0
-rel="${file#"${CLAUDE_PROJECT_DIR:-$PWD}"/}"
+root="${CLAUDE_PROJECT_DIR:-$(jq -r '.cwd // empty' <<<"$input")}"
+rel="${file#"${root:-$PWD}"/}"
 base="$(basename "$rel")"
 
 block() {

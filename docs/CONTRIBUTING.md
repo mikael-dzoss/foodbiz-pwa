@@ -4,15 +4,20 @@ Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](
 
 ### Agent tooling
 
-`AGENTS.md` and `.agents/` are the single source of truth for every coding agent. Edit them there, never in a tool-specific copy.
+Primary agents are GitHub Copilot and Claude Code (VS Code); Antigravity (VS Code extension) is supported best-effort. Each asset has one canonical file; edit it there, never in a tool-specific copy.
 
-| Source                                     | Antigravity              | GitHub Copilot                                | Claude Code                                                               |
-| ------------------------------------------ | ------------------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
-| `AGENTS.md`                                | native                   | `chat.useAgentsMdFile`                        | `CLAUDE.md` imports it (`@AGENTS.md`)                                     |
-| `.agents/rules/*.instructions.md`          | `trigger` / `globs`      | `chat.instructionsFilesLocations` + `applyTo` | symlinks in `.claude/rules/` scoped by `paths`; others read via AGENTS.md |
-| `.agents/skills/`                          | native                   | via `.claude/skills` (if enabled)             | `.claude/skills` symlink                                                  |
-| MCP servers (Stitch, Vercel)               | `agy mcp add` (see rule) | `.vscode/mcp.json`                            | `.mcp.json`                                                               |
-| Claude-only: subagents, hooks, permissions | —                        | —                                             | `.claude/agents/`, `.claude/hooks/`, `.claude/settings.json`              |
+| Canonical source                                      | GitHub Copilot                     | Claude Code                | Antigravity (best-effort)     |
+| ----------------------------------------------------- | ---------------------------------- | -------------------------- | ----------------------------- |
+| `AGENTS.md`                                           | `chat.useAgentsMdFile`             | `CLAUDE.md` → `@AGENTS.md` | native                        |
+| `.agents/rules/*.instructions.md` (scoped by `paths`) | `.claude/rules/` symlinks          | `.claude/rules/` symlinks  | native (`trigger`)            |
+| `.agents/skills/`                                     | native (`.claude/skills` disabled) | `.claude/skills` symlink   | native                        |
+| `.agents/workflows/`                                  | —                                  | —                          | native                        |
+| `.claude/agents/` (subagents)                         | native                             | native                     | —                             |
+| `.claude/hooks/` via `.claude/settings.json`          | `chat.useClaudeHooks`              | native                     | —                             |
+| MCP servers                                           | `.vscode/mcp.json`                 | `.mcp.json`                | `agy` (`mcp.instructions.md`) |
+| Command auto-approval                                 | `chat.tools.terminal.autoApprove`  | `.claude/settings.json`    | —                             |
+
+`mcp.instructions.md` is Antigravity-only and deliberately not linked into `.claude/rules/`. MCP servers and auto-approval lists are the only intentional duplicates (different schemas). The `graphify` skill sets `disable-model-invocation: true`; re-apply it after `graphify install` updates the skill.
 
 ## Branches
 
@@ -39,7 +44,7 @@ Never commit or push directly to `develop`, `staging` or `main`. Branch off `dev
 
 ## Workflow
 
-1. Pick or create an issue (agents: [`github_issue.instructions.md`](../.agents/rules/github_issue.instructions.md); create issues only via the `issue-logger` skill).
+1. Pick or create an issue (agents: the [`implement-issue`](../.agents/skills/implement-issue/SKILL.md) skill; create issues only via the `issue-logger` skill).
 2. Branch off `develop` (see [Branches](#branches)) and commit small working slices.
 3. Pass the [validation gate](#validation-gate).
 4. Open a PR against `develop`; the [PR template](../.github/pull_request_template.md) is the checklist. For bug fixes (`fix(...)` / `bug/`), always attach the `bug` label.
@@ -135,4 +140,4 @@ Coverage policy:
 - **Production floors** (global, in `vitest.config.mts`): `test:coverage` fails below them, then `scripts/coverage-ratchet.mjs` raises lines/functions/statements toward actual coverage (capped at 70%; branches fixed at 80%). Commit the raised thresholds. A drop is fine while floors pass.
 - Never lower thresholds, add coverage excludes or skip tests to pass; if a change can't meet the floors, stop and ask.
 - **Per-layer targets** (reported in the CI PR comment, not enforced yet): Domain 85%, Features 80%, Config 80%, Lib 75%, Components 70%, App 70%. Mention gaps in the PR.
-- **Tooling** (`scripts/`, `.github/.scripts/`, `.agents/skills/*/scripts/`) must have tests; changes update them. Coverage target 60%, informative only.
+- **Tooling** (`scripts/`, `.github/.scripts/`, `.agents/skills/*/scripts/`, `.claude/hooks/`) must have tests; changes update them. Coverage target 60%, informative only.

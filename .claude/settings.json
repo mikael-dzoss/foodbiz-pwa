@@ -14,6 +14,7 @@
       "Bash(npm run format)",
       "Bash(npm run format:check)",
       "Bash(npm run build)",
+      "Bash(npm run dev)",
       "Bash(npm run db:status)",
       "Bash(npm run db:types)",
       "Bash(npm run db:types:check)",
@@ -95,23 +96,34 @@
   },
   "enabledMcpjsonServers": ["stitch", "vercel"],
   "hooks": {
-    "PreToolUse": [
+    "SessionStart": [
       {
-        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-git.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-context.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|run_in_terminal",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard-git.sh\"",
             "timeout": 10
           }
         ]
       },
       {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|create_file|replace_string_in_file|multi_replace_string_in_file|insert_edit_into_file|edit_notebook_file",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-files.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard-files.sh\"",
             "timeout": 10
           }
         ]
@@ -119,11 +131,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit",
+        "matcher": "Edit|Write|MultiEdit|create_file|replace_string_in_file|multi_replace_string_in_file|insert_edit_into_file",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/format.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/format.sh\"",
             "timeout": 30
           }
         ]
@@ -134,7 +146,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/graphify-update.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/graphify-update.sh\"",
             "timeout": 10
           }
         ]

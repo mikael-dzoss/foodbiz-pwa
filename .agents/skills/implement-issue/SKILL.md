@@ -1,11 +1,11 @@
 ---
-trigger: model_decision
-description: Use when picking up, implementing, resuming or merging work for a GitHub issue ("implement issue #N", "next N items")
+name: implement-issue
+description: Issue → branch → PR → merge workflow for this repo (pick next work, gate labels, status labels, PR body, merge rules). Use when picking up, implementing, resuming or merging work for a GitHub issue ("implement issue #N", "next N items", "next N bugs").
 ---
 
 # Issue → PR Workflow
 
-Repo `MikeDzossa/foodbiz-pwa`; run `gh` from the repo root. Branch names, commit/PR format and the validation gate are defined in [CONTRIBUTING.md](../../docs/CONTRIBUTING.md#branches) — follow them, don't restate them.
+Repo `MikeDzossa/foodbiz-pwa`; run `gh` from the repo root. Branch names, commit/PR format and the validation gate are defined in [CONTRIBUTING.md](../../../docs/CONTRIBUTING.md#branches) — follow them, don't restate them.
 
 ## 0. Pick Work ("implement the next N items")
 
@@ -23,7 +23,7 @@ python3 -B .agents/skills/issue-logger/scripts/gh_related_issues.py [<number>]
 ```
 Work locally without pushing to remote until grouping finishes or stops, then push and open the PR referencing all closed issues (`Closes #A`, `Closes #B`).
 
-For broader requirements, larger stories, or multi-step dependencies, construct a dedicated GitHub pull request stack (`gh stack`) instead of grouping or pausing implementation between stories. See the full decision framework, upfront stack planning, `gh stack` commands, and stack merge rules in [`stacked-pr-workflow`](../skills/stacked-pr-workflow/SKILL.md).
+For broader requirements, larger stories, or multi-step dependencies, construct a dedicated GitHub pull request stack (`gh stack`) instead of grouping or pausing implementation between stories. See the full decision framework, upfront stack planning, `gh stack` commands, and stack merge rules in [`stacked-pr-workflow`](../stacked-pr-workflow/SKILL.md).
 
 ## 1. Understand
 
@@ -50,11 +50,11 @@ python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py <number> --set
 
 ## 4. Implement
 
-Simplest solution that works (ponytail). If the issue introduces or modifies a user-facing screen ([SCREENS.md](../../docs/design/SCREENS.md)), apply [design.instructions.md](design.instructions.md) to inspect or generate the mobile Stitch canvas first before writing UI code. Commit each working slice. Run `npm run typecheck` after each logical change. Add or update tests for every behaviour change.
+Simplest solution that works (ponytail). If the issue introduces or modifies a user-facing screen ([SCREENS.md](../../../docs/design/SCREENS.md)), apply [design.instructions.md](../../rules/design.instructions.md) to inspect or generate the mobile Stitch canvas first before writing UI code. Commit each working slice. Run `npm run typecheck` after each logical change. Add or update tests for every behaviour change.
 
 ## 5. Verify
 
-Run the full [validation gate](../../docs/CONTRIBUTING.md#validation-gate) and commit any thresholds raised by the ratchet. If the floors can't be met, stop and ask.
+Run the full [validation gate](../../../docs/CONTRIBUTING.md#validation-gate) and commit any thresholds raised by the ratchet. If the floors can't be met, stop and ask.
 
 ## 6. Pull Request
 
@@ -90,7 +90,7 @@ Merge your own PR only when **all** hold; otherwise leave it for a maintainer an
 gh pr merge <pr> --merge --delete-branch
 ```
 
-For stacked PRs, follow the stack merge strategy in [`stacked-pr-workflow`](../skills/stacked-pr-workflow/SKILL.md#6-merging-a-stack--review-gate-discipline): ensure all PRs are linked in a dedicated GitHub stack (`#<stack-number>`), verify quality checks pass, and merge the last ungated PR before the first review gate (`PR_pre_gate`) in a single operation with `gh stack merge <PR_pre_gate> --merge --yes` (which automatically merges all PRs below it and rebases/retargets the remaining stack onto `develop`), followed by `gh stack sync --prune`.
+For stacked PRs, follow the stack merge strategy in [`stacked-pr-workflow`](../stacked-pr-workflow/SKILL.md#6-merging-a-stack--review-gate-discipline): ensure all PRs are linked in a dedicated GitHub stack (`#<stack-number>`), verify quality checks pass, and merge the last ungated PR before the first review gate (`PR_pre_gate`) in a single operation with `gh stack merge <PR_pre_gate> --merge --yes` (which automatically merges all PRs below it and rebases/retargets the remaining stack onto `develop`), followed by `gh stack sync --prune`.
 
 The `Closes #<number>` keyword closes the issue on merge and the `Issue status` workflow sets `status: completed`. When all child stories of a parent epic are done, the workflow automatically sets the epic to `status: completed` and closes it. Don't do either by hand.
 To manually sync an epic or scan all epics:

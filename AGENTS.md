@@ -43,7 +43,7 @@ Create `domain/`, `features/`, `components/` as needed; keep to this separation.
 
 Read only the section you need.
 
-- **Pick up or implement an issue** ("next N items"): [github_issue.instructions.md](.agents/rules/github_issue.instructions.md)
+- **Pick up or implement an issue** ("next N items"): `implement-issue` skill ([SKILL.md](.agents/skills/implement-issue/SKILL.md))
 - **Stacked PRs & batch implementation:** [.agents/skills/stacked-pr-workflow/SKILL.md](.agents/skills/stacked-pr-workflow/SKILL.md)
 - **Break a need into an epic/stories:** `planning-and-task-breakdown` skill, then `issue-logger`
 - **Edit `src/`** (UI, routes, actions): [web.instructions.md](.agents/rules/web.instructions.md) (auto-applied)
@@ -51,7 +51,7 @@ Read only the section you need.
 - **Auth, sessions, secrets, headers, CSP:** [security.instructions.md](.agents/rules/security.instructions.md)
 - **Explore or explain code:** [graphify.instructions.md](.agents/rules/graphify.instructions.md) (always on)
 - **Build a screen or component / Stitch:** [design.instructions.md](.agents/rules/design.instructions.md) (Stitch canvas-first flow), [DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) (§2 tokens, §7 components), [SCREENS.md](docs/design/SCREENS.md#screens)
-- **MCP tools & servers (Stitch, Vercel):** [mcp.instructions.md](.agents/rules/mcp.instructions.md)
+- **MCP servers (Stitch, Vercel):** Copilot [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code [`.mcp.json`](.mcp.json); keys come from `STITCH_API_KEY` / `VERCEL_API_TOKEN`. Antigravity: [mcp.instructions.md](.agents/rules/mcp.instructions.md).
 - **Business rules, domain model:** [FUNCTIONAL_SPECIFICATION.md#5-core-business-rules](docs/FUNCTIONAL_SPECIFICATION.md#5-core-business-rules), [#6-domain-model](docs/FUNCTIONAL_SPECIFICATION.md#6-domain-model)
 - **Supabase clients, session refresh:** [architecture.md#data-flow-with-supabase-ssr-clients](docs/architecture.md#data-flow-with-supabase-ssr-clients)
 - **Port legacy Expo behaviour:** [LEGACY_EXPO_REFERENCE.md](docs/LEGACY_EXPO_REFERENCE.md)

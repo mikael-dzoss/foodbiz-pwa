@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# PreToolUse(Bash): enforce AGENTS.md rule 7 even if husky is bypassed.
+# PreToolUse(shell): enforce AGENTS.md rule 7 even if husky is bypassed.
 # Mirrors .husky/pre-commit + .husky/pre-push; exit 2 blocks the tool call.
+# Shared by Claude Code and Copilot (chat.useClaudeHooks).
 set -euo pipefail
 
-cmd="$(jq -r '.tool_input.command // ""')"
+input="$(cat)"
+cmd="$(jq -r '.tool_input.command // ""' <<<"$input")"
 [[ "$cmd" == *git* ]] || exit 0
+root="${CLAUDE_PROJECT_DIR:-$(jq -r '.cwd // empty' <<<"$input")}"
 
 protected='develop|staging|std|main'
 block() {
@@ -26,7 +29,7 @@ if grep -Eq 'git[[:space:]]+push' <<<"$cmd"; then
 fi
 
 if grep -Eq 'git[[:space:]]+(commit|push|merge)([[:space:]]|$)' <<<"$cmd"; then
-  branch="$(git -C "${CLAUDE_PROJECT_DIR:-.}" symbolic-ref --short HEAD 2>/dev/null || true)"
+  branch="$(git -C "${root:-.}" symbolic-ref --short HEAD 2>/dev/null || true)"
   if [[ "$branch" =~ ^($protected)$ ]]; then
     block "'$branch' is protected; create a feature/, bug/ or utils/ branch first."
   fi
