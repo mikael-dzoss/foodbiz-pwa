@@ -167,6 +167,9 @@ export const recordRefundInputSchema = z.object({
 });
 export type RecordRefundInput = z.infer<typeof recordRefundInputSchema>;
 
+/** Mirrors the limit enforced by `place_order` in the database (300 characters). */
+export const MAX_DELIVERY_ADDRESS_LENGTH = 300;
+
 export const placeOrderRepoItemInputSchema = z.object({
   productId: uuidSchema,
   quantity: z.number().int().min(1),
@@ -186,9 +189,14 @@ export const placeOrderRepoInputSchema = z.object({
   requestedTime: timeHHMMSchema.optional().nullable(),
   items: z.array(placeOrderRepoItemInputSchema).min(1),
   paymentPreference: paymentPreferenceSchema.optional(),
-  deliveryAddress: z.string().trim().optional().nullable(),
+  deliveryAddress: z.string().trim().max(MAX_DELIVERY_ADDRESS_LENGTH).optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
   allowRename: z.boolean().optional(),
+  /**
+   * Client-generated uuid. A repeated call with the same key (per business) returns the original
+   * order instead of creating a second one and does not touch stock again.
+   */
+  idempotencyKey: uuidSchema.optional(),
 });
 export type PlaceOrderRepoInput = z.infer<typeof placeOrderRepoInputSchema>;
 
@@ -198,6 +206,8 @@ export const placedOrderSummarySchema = z.object({
   trackingToken: z.string().trim().min(1),
   submittedName: z.string().optional().nullable(),
   totalAmount: moneySchema,
+  /** True when the idempotency key matched an existing order (nothing was created or reserved). */
+  replayed: z.boolean().optional(),
 });
 export type PlacedOrderSummary = z.infer<typeof placedOrderSummarySchema>;
 

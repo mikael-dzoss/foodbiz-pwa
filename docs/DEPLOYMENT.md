@@ -218,6 +218,15 @@ npm run db:provision-member -- --business-slug <slug> --email <email> --role man
 
 > **Security Note:** `SUPABASE_SERVICE_ROLE_KEY` is an administrative server-only secret that bypasses RLS. It must NEVER be prefixed with `NEXT_PUBLIC_`, never exposed to client code, never committed to git, and must be provided strictly out-of-band by the maintainer when executing administrative CLI scripts.
 
+## Applying migrations (Planned)
+
+> Planned: no hosted Supabase environment exists yet; this is the runbook to follow once one does.
+
+- Migrations `20260101000008` to `20260101000010` and `20260101000013` use `create index concurrently` in single-statement files so they can run outside a transaction block. Before the first `supabase db push` to a hosted project, apply them to a branch or staging database and verify the CLI runs them outside a transaction (the statement fails inside one).
+- After any deploy, check for indexes left invalid by a failed concurrent build: `select indexrelid::regclass from pg_index where not indisvalid;`. If a row comes back, run `drop index concurrently <name>;` and re-apply the migration (`create index concurrently if not exists` silently skips an existing invalid index, so drop it first).
+- Migrations `20260101000006`, `20260101000007` and `20260101000012` set `lock_timeout = '5s'` so they fail fast instead of queueing behind long transactions; re-run when traffic is low if one times out.
+- Deploy order: app code that passes `p_idempotency_key` to `place_order` must be deployed after migration `20260101000014` (the old 12-argument signature no longer exists after it, and the new one only exists then).
+
 ## Releasing
 
 Promotions are PRs (never direct pushes) opened and merged by maintainers; hotfixes follow the same path unless maintainers decide otherwise.

@@ -140,7 +140,7 @@ describe("placeOrderInputSchema", () => {
     serviceType: "pickup" as const,
     isAsap: true,
     paymentPreference: "on_handover" as const,
-    idempotencyKey: "idem-key-12345678",
+    idempotencyKey: "f0000000-0000-4000-8000-000000000001",
   };
 
   it("validates valid order placement input", () => {
@@ -148,7 +148,7 @@ describe("placeOrderInputSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.items).toHaveLength(1);
-      expect(result.data.idempotencyKey).toBe("idem-key-12345678");
+      expect(result.data.idempotencyKey).toBe("f0000000-0000-4000-8000-000000000001");
       expect(result.data.name).toBe("Thomas Pesquet");
     }
   });
@@ -175,6 +175,37 @@ describe("placeOrderInputSchema", () => {
       idempotencyKey: "short",
     });
     expect(result.success).toBe(false);
+  });
+
+  it("requires the idempotency key to be a uuid", () => {
+    expect(
+      placeOrderInputSchema.safeParse({ ...validBase, idempotencyKey: "not-a-uuid-at-all" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("caps the delivery address (300) and the number of lines (50) like place_order", () => {
+    const item = { productId: "11111111-1111-4111-8111-111111111111", quantity: 1 };
+    expect(
+      placeOrderInputSchema.safeParse({
+        ...validBase,
+        serviceType: "delivery",
+        deliveryAddress: "a".repeat(300),
+      }).success,
+    ).toBe(true);
+    expect(
+      placeOrderInputSchema.safeParse({
+        ...validBase,
+        serviceType: "delivery",
+        deliveryAddress: "a".repeat(301),
+      }).success,
+    ).toBe(false);
+    expect(
+      placeOrderInputSchema.safeParse({ ...validBase, items: Array(50).fill(item) }).success,
+    ).toBe(true);
+    expect(
+      placeOrderInputSchema.safeParse({ ...validBase, items: Array(51).fill(item) }).success,
+    ).toBe(false);
   });
 
   it("enforces delivery address when serviceType is delivery", () => {

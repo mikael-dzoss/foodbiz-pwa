@@ -291,6 +291,28 @@ export function parseSqlSchema(rawSql) {
     tables[tableName] = { columns, relationships };
   }
 
+  // 2b. Parse `alter table ... add column` (columns added by later migrations)
+  const addColumnRegex =
+    /alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:public\.)?([a-zA-Z0-9_]+)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?([a-zA-Z0-9_]+)\s+([^;]+);/gi;
+  for (const match of sql.matchAll(addColumnRegex)) {
+    const table = tables[match[1].toLowerCase()];
+    const colName = match[2].toLowerCase();
+    if (!table || table.columns.some((c) => c.name === colName)) continue;
+    const rest = match[3].trim();
+    const typeMatch =
+      /^(double\s+precision|timestamp\s+with(?:out)?\s+time\s+zone|character\s+varying|[a-zA-Z0-9_.]+(?:\s*\([^)]*\))?(?:\[\])?)/i.exec(
+        rest,
+      );
+    if (!typeMatch) continue;
+    const modifiersTop = stripParensAndStrings(rest.slice(typeMatch[0].length)).toLowerCase();
+    table.columns.push({
+      name: colName,
+      tsType: mapSqlTypeToTs(typeMatch[1], enums),
+      notNull: /\bnot\s+null\b/.test(modifiersTop),
+      hasDefault: /\bdefault\b/.test(modifiersTop),
+    });
+  }
+
   // 3. Parse public RPC FUNCTIONs (excluding trigger functions and non-public schemas)
   const fnRegex =
     /create\s+(?:or\s+replace\s+)?function\s+([a-zA-Z0-9_.]+)\s*\(([\s\S]*?)\)\s*returns\s+([\s\S]*?)(?:\blanguage\b|\bsecurity\b|\bset\b|\bas\b)/gi;

@@ -83,6 +83,20 @@ describe("database types generator and drift check (#119)", () => {
     expect(result.message).toMatch(/out of date|drift/i);
   });
 
+  it("includes columns added with `alter table ... add column` in later migrations", () => {
+    const output = generateTypesFromSql(`
+      create table things (id uuid primary key default gen_random_uuid(), label text not null);
+      alter table public.things add column if not exists idempotency_key uuid;
+      alter table things add column weight integer not null default 0;
+      alter table things enable row level security;
+    `);
+
+    expect(output).toContain("idempotency_key: string | null;");
+    expect(output).toContain("idempotency_key?: string | null;");
+    expect(output).toContain("weight: number;");
+    expect(output).toContain("weight?: number;");
+  });
+
   it("generates typed RPC functions when public SQL functions are declared", () => {
     const output = generateTypesFromSql(`
       create type status_enum as enum ('ok', 'err');

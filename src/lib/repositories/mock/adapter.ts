@@ -26,6 +26,16 @@ import type {
   ProductRepository,
   Repositories,
 } from "@/domain/repositories";
+import {
+  LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS,
+  LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
+  MAX_LINES_PER_ORDER,
+  MAX_QUANTITY_PER_LINE,
+  MAX_QUANTITY_PER_ORDER,
+  RATE_LIMIT_BUSINESS_MAX_ORDERS,
+  RATE_LIMIT_PHONE_MAX_REQUESTS,
+  RATE_LIMIT_WINDOW_MS,
+} from "@/domain/anti-abuse";
 import { createDefaultFixtures, type MockFixtures } from "./fixtures";
 
 export interface MockRepositories extends Repositories {
@@ -42,9 +52,28 @@ export function createMockRepositories(
   initialFixtures: MockFixtures = createDefaultFixtures(),
 ): MockRepositories {
   let fixtures: MockFixtures = structuredClone(initialFixtures);
+  // Mirrors the database-side guards of place_order / storefront_order_tracking_token so the
+  // shared contract suites behave the same on mock and live: idempotent replay, and attempt
+  // logs for the per-phone and per-business rate limits (successful storefront placements) and
+  // the failed-lookup limit.
+  let placements = new Map<
+    string,
+    { phone: string; payload: string; summary: PlacedOrderSummary }
+  >();
+  let orderAttempts: Array<{ businessId: string; phone: string; at: number }> = [];
+  let lookupMisses: Array<{ key: string; at: number }> = [];
   const reset = (custom?: MockFixtures): void => {
     fixtures = custom ? structuredClone(custom) : createDefaultFixtures();
+    placements = new Map();
+    orderAttempts = [];
+    lookupMisses = [];
   };
+  const withinWindow = (at: number): boolean => Date.now() - at < RATE_LIMIT_WINDOW_MS;
+  const rateLimitedError = (): OrderRepoError =>
+    new OrderRepoError(
+      "Too many order attempts. Please wait a few minutes before trying again.",
+      "ANTI_ABUSE_REJECTION",
+    );
 
   const products: ProductRepository = {
     async findById(bId, id) {
@@ -173,9 +202,82 @@ export function createMockRepositories(
       return o ? publicOrderSchema.parse(o) : null;
     },
     async place(bId, input): Promise<PlacedOrderSummary> {
+      let phoneKey: string;
+      try {
+        phoneKey = normalizePhoneNumber(input.guestPhone);
+      } catch {
+        phoneKey = input.guestPhone.trim();
+      }
+
+      // Idempotent replay: the same (business, key) returns the original order untouched.
+      const idempotencyId = input.idempotencyKey ? `${bId}:${input.idempotencyKey}` : null;
+      // Same normalized payload as place_order's hash: merged items, service type, date, time,
+      // payment preference and phone. A key replayed with a different cart is rejected.
+      const payload = JSON.stringify({
+        items: [
+          ...input.items
+            .reduce(
+              (acc, it) => acc.set(it.productId, (acc.get(it.productId) ?? 0) + it.quantity),
+              new Map<string, number>(),
+            )
+            .entries(),
+        ].toSorted(([a], [b]) => a.localeCompare(b)),
+        serviceType: input.serviceType,
+        requestedDate: input.requestedDate,
+        requestedTime: input.requestedTime ?? "",
+        paymentPreference: input.paymentPreference ?? "on_handover",
+        phone: phoneKey,
+      });
+      if (idempotencyId) {
+        const prior = placements.get(idempotencyId);
+        if (prior) {
+          if (prior.phone !== phoneKey || prior.payload !== payload) {
+            throw new OrderRepoError("Please check your order details.", "INVALID_INPUT");
+          }
+          return { ...prior.summary, replayed: true };
+        }
+      }
+
       const settings = fixtures.settings.businessId === bId ? fixtures.settings : null;
       if (settings?.acceptingOrders === false) {
         throw new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
+      }
+
+      if (input.channel === "storefront") {
+        if (settings?.serviceTypes?.[input.serviceType] === false) {
+          throw new OrderRepoError(
+            "This service type is currently not available.",
+            "SERVICE_TYPE_DISABLED",
+          );
+        }
+
+        // Same caps as place_order (MAX_* in src/domain/anti-abuse.ts), on per-product totals.
+        const perProduct = new Map<string, number>();
+        for (const item of input.items) {
+          perProduct.set(item.productId, (perProduct.get(item.productId) ?? 0) + item.quantity);
+        }
+        const antiAbuse = (message: string) => new OrderRepoError(message, "ANTI_ABUSE_REJECTION");
+        if (input.items.length > MAX_LINES_PER_ORDER) {
+          throw antiAbuse("Your order exceeds the maximum order size.");
+        }
+        if ([...perProduct.values()].some((q) => q > MAX_QUANTITY_PER_LINE)) {
+          throw antiAbuse("Maximum quantity exceeded for an item in your order.");
+        }
+        if ([...perProduct.values()].reduce((a, b) => a + b, 0) > MAX_QUANTITY_PER_ORDER) {
+          throw antiAbuse("Your order exceeds the maximum order size.");
+        }
+
+        orderAttempts = orderAttempts.filter((a) => withinWindow(a.at));
+        const forPhone = orderAttempts.filter(
+          (a) => a.businessId === bId && a.phone === phoneKey,
+        ).length;
+        const forBusiness = orderAttempts.filter((a) => a.businessId === bId).length;
+        if (
+          forPhone >= RATE_LIMIT_PHONE_MAX_REQUESTS ||
+          forBusiness >= RATE_LIMIT_BUSINESS_MAX_ORDERS
+        ) {
+          throw rateLimitedError();
+        }
       }
 
       // 1. Stock check & availability
@@ -191,27 +293,7 @@ export function createMockRepositories(
         }
       }
 
-      // 2. Decrement stock
-      for (const item of input.items) {
-        const product = fixtures.products.find(
-          (p) => p.businessId === bId && p.id === item.productId,
-        )!;
-        product.stock -= item.quantity;
-      }
-
-      // 3. Blind guest resolution
-      const guestRes = findOrCreateGuest(
-        fixtures.guests,
-        {
-          businessId: bId,
-          name: input.guestName,
-          phone: input.guestPhone,
-          address: input.deliveryAddress,
-        },
-        { allowRename: input.allowRename },
-      );
-
-      // 4. Calculate totals
+      // 2. Totals and minimum order amount (validated before anything is mutated)
       let subtotal = 0;
       const orderItems = input.items.map((it) => {
         const prod = fixtures.products.find((p) => p.businessId === bId && p.id === it.productId)!;
@@ -236,6 +318,26 @@ export function createMockRepositories(
         );
       }
       const totalAmount = subtotal + deliveryFee;
+
+      // 3. Decrement stock
+      for (const item of input.items) {
+        const product = fixtures.products.find(
+          (p) => p.businessId === bId && p.id === item.productId,
+        )!;
+        product.stock -= item.quantity;
+      }
+
+      // 4. Blind guest resolution
+      const guestRes = findOrCreateGuest(
+        fixtures.guests,
+        {
+          businessId: bId,
+          name: input.guestName,
+          phone: input.guestPhone,
+          address: input.deliveryAddress,
+        },
+        { allowRename: input.allowRename },
+      );
 
       // 5. Allocate order number
       const nextOrderNumber =
@@ -282,13 +384,19 @@ export function createMockRepositories(
 
       fixtures.orders.push(o);
 
-      return {
+      const summary: PlacedOrderSummary = {
         orderId: o.id,
         orderNumber: o.orderNumber!,
         trackingToken: o.trackingToken!,
         submittedName: o.submittedName,
         totalAmount: o.totalAmount,
+        replayed: false,
       };
+      if (idempotencyId) placements.set(idempotencyId, { phone: phoneKey, payload, summary });
+      if (input.channel === "storefront") {
+        orderAttempts.push({ businessId: bId, phone: phoneKey, at: Date.now() });
+      }
+      return { ...summary };
     },
 
     async cancel(bId: string, orderId: string, reason?: string | null): Promise<CancelOrderResult> {
@@ -328,7 +436,20 @@ export function createMockRepositories(
       };
     },
     async findTrackingTokenByTicketAndPhone(bId, orderNumber, phone) {
-      return findOrderByTicketAndPhone(bId, orderNumber, phone)?.trackingToken ?? null;
+      // Same contract as storefront_order_tracking_token: failed lookups are counted per
+      // (business, phone) and a limited phone is refused whether or not the order exists.
+      const key = `${bId}:${phone.trim()}`;
+      lookupMisses = lookupMisses.filter((m) => withinWindow(m.at));
+      if (
+        lookupMisses.filter((m) => m.key === key).length >= LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS ||
+        lookupMisses.filter((m) => m.key.startsWith(`${bId}:`)).length >=
+          LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS
+      ) {
+        throw new OrderRepoError("Too many attempts. Please try again later.", "RATE_LIMITED");
+      }
+      const token = findOrderByTicketAndPhone(bId, orderNumber, phone)?.trackingToken ?? null;
+      if (token === null) lookupMisses.push({ key, at: Date.now() });
+      return token;
     },
     async list(bId, filter) {
       let res = fixtures.orders.filter((o) => o.businessId === bId);

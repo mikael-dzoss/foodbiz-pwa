@@ -7,6 +7,7 @@ import { OrderRepoError, type PlacedOrderSummary } from "@/domain/order";
 import type { Repositories } from "@/domain/repositories";
 import type { Database } from "@/lib/supabase/database.types";
 import { createSupabaseRepositories } from "../supabase";
+import { describeOrderPlacementContract } from "./contracts";
 
 const url = process.env.SUPABASE_TEST_URL;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY;
@@ -62,6 +63,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   let prodAHiddenId = "";
   let prodALowStockId = "";
   let prodAStock2Id = "";
+  let prodABulkId = "";
   let prodBId = "";
   let prodBHiddenId = "";
 
@@ -205,6 +207,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     prodAHiddenId = crypto.randomUUID();
     prodALowStockId = crypto.randomUUID();
     prodAStock2Id = crypto.randomUUID();
+    prodABulkId = crypto.randomUUID();
     prodBId = crypto.randomUUID();
     prodBHiddenId = crypto.randomUUID();
 
@@ -257,6 +260,19 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         price: 1000,
         unit_cost: 250,
         stock: 2,
+        visible: true,
+        allergens: ["gluten"],
+        suggest_add_ons: false,
+      },
+      {
+        id: prodABulkId,
+        business_id: businessAId,
+        category_id: catAId,
+        name: "Bulk Roll",
+        description: "Plenty of stock for the place_order limit boundaries",
+        price: 100,
+        unit_cost: 40,
+        stock: 1000,
         visible: true,
         allergens: ["gluten"],
         suggest_add_ons: false,
@@ -350,6 +366,13 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     }
   });
 
+  // The database enforces these limits inside place_order for anonymous callers (direct RPC use
+  // bypasses the app). The numbers come from src/domain/anti-abuse.ts, so this fails when the
+  // SQL constants and the domain constants diverge.
+  describeOrderPlacementContract(() => anonPublicRepos, businessAId, {
+    boundaryProductId: () => prodABulkId,
+  });
+
   describe("Anonymous Storefront Boundary (RLS & place_order RPC)", () => {
     it("anon orders.place succeeds for visible product via storefront channel", async () => {
       const res = await anonRepos.orders.place(businessAId, {
@@ -410,7 +433,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
           serviceType: "pickup",
           channel: "storefront",
           requestedDate: tomorrow,
-          items: [{ productId: prodAVisibleId, quantity: 99999 }],
+          items: [{ productId: prodAVisibleId, quantity: 50 }], // above the stock (20), within the per-line cap
         }),
       ).rejects.toMatchObject({ code: "STOCK_ERROR" });
     });
@@ -471,6 +494,58 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       const one = await anonPublicRepos.products.findById(businessAId, prodAVisibleId);
       expect(one?.id).toBe(prodAVisibleId);
       expect(one?.unitCost).toBe(0);
+    });
+
+    it("anon direct PostgREST reads cannot select unit_cost or every column of products", async () => {
+      const unitCost = await anonClient.from("products").select("unit_cost");
+      expect(unitCost.error?.code).toBe("42501");
+      const everything = await anonClient.from("products").select("*");
+      expect(everything.error?.code).toBe("42501");
+      const granted = await anonClient
+        .from("products")
+        .select("id, business_id, category_id, name, description, price, stock, visible")
+        .eq("business_id", businessAId);
+      expect(granted.error).toBeNull();
+      expect(granted.data?.length).toBeGreaterThan(0);
+    });
+
+    it("a non-member authenticated user cannot read another tenant's products or their unit_cost", async () => {
+      const { data, error } = await nonMemberClient
+        .from("products")
+        .select("id, unit_cost")
+        .eq("business_id", businessAId);
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+      const own = await memberAClient
+        .from("products")
+        .select("unit_cost")
+        .eq("id", prodAVisibleId)
+        .single();
+      expect(own.data?.unit_cost).toBe(200);
+    });
+
+    it("anon direct get_order_by_tracking_token returns only the explicit item keys", async () => {
+      const { data: placed, error: placeError } = await anonClient.rpc("place_order", {
+        p_business_id: businessAId,
+        p_guest_name: "Payload Checker",
+        p_guest_phone: `+3367${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`,
+        p_service_type: "pickup",
+        p_channel: "storefront",
+        p_requested_date: tomorrow,
+        p_items: [{ product_id: prodABulkId, quantity: 5 }],
+      });
+      expect(placeError).toBeNull();
+      const token = (placed as { tracking_token: string }).tracking_token;
+      const { data } = await anonClient.rpc("get_order_by_tracking_token", {
+        p_tracking_token: token,
+      });
+      const items = (data as { items: Array<Record<string, unknown>> }).items;
+      expect(Object.keys(items[0]).toSorted()).toEqual([
+        "product_name",
+        "quantity",
+        "total_price",
+        "unit_price",
+      ]);
     });
 
     it("anon featured products come from the storefront_featured_products function", async () => {
