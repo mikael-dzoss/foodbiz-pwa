@@ -1,12 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  findOrCreateGuest,
-  type Order,
-  type Product,
-  type Guest,
-  type CreateOrderInput,
-  type UpdateOrderInput,
-} from "@/domain";
+import { findOrCreateGuest, type Order, type Product, type Guest, OrderRepoError } from "@/domain";
 import {
   listOrdersAction,
   getOrderAction,
@@ -41,44 +34,6 @@ let mockProducts: Product[] = [];
 const mockOrderRepo = {
   list: vi.fn(async () => [...mockOrders]),
   findById: vi.fn(async (_bId: string, id: string) => mockOrders.find((o) => o.id === id) ?? null),
-  create: vi.fn(async (bId: string, input: CreateOrderInput) => {
-    const o: Order = {
-      id: input.id ?? "66666666-6666-4666-8666-666666666699",
-      businessId: bId,
-      orderNumber: input.orderNumber ?? mockOrders.length + 1,
-      guestId: input.guestId,
-      submittedName: input.submittedName ?? null,
-      serviceType: input.serviceType,
-      channel: input.channel,
-      status: input.status,
-      paid: input.paid,
-      paymentPreference: input.paymentPreference,
-      paymentMethod: input.paymentMethod ?? null,
-      paidAt: input.paidAt ?? null,
-      requestedDate: input.requestedDate,
-      requestedTime: input.requestedTime ?? null,
-      items: input.items,
-      totalAmount: input.totalAmount,
-      trackingToken: "track123",
-      cancellationReason: input.cancellationReason ?? null,
-      notes: input.notes ?? null,
-      deliveryAddress: input.deliveryAddress ?? null,
-      statusHistory: input.statusHistory ?? [
-        { status: input.status, timestamp: new Date().toISOString(), note: null },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    mockOrders.push(o);
-    return structuredClone(o);
-  }),
-  update: vi.fn(async (_bId: string, id: string, input: UpdateOrderInput) => {
-    const idx = mockOrders.findIndex((o) => o.id === id);
-    if (idx === -1) throw new Error("Order not found");
-    const updated = { ...mockOrders[idx], ...input, updatedAt: new Date().toISOString() };
-    mockOrders[idx] = updated;
-    return structuredClone(updated);
-  }),
   place: vi.fn(
     async (
       bId: string,
@@ -181,6 +136,98 @@ const mockOrderRepo = {
       status: "CANCELLED" as const,
       cancellationReason: o.cancellationReason,
     };
+  }),
+  // Atomic in the database (transition_order_status): expected-status check, restock on cancel,
+  // history entry. Reduced here to what the action tests observe.
+  transition: vi.fn(
+    async (
+      _bId: string,
+      orderId: string,
+      input: {
+        expectedStatus: Order["status"];
+        nextStatus: Order["status"];
+        reason?: string | null;
+      },
+    ) => {
+      const o = mockOrders.find((ord) => ord.id === orderId);
+      if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+      if (o.status !== input.expectedStatus) {
+        throw new OrderRepoError("The order changed, please reload.", "ORDER_STATE_CONFLICT");
+      }
+      if (input.nextStatus === "CANCELLED") {
+        for (const it of o.items) {
+          const prod = mockProducts.find((p) => p.id === it.productId);
+          if (prod) prod.stock += it.quantity;
+        }
+        o.cancellationReason = input.reason ?? o.cancellationReason;
+      }
+      o.status = input.nextStatus;
+      o.statusHistory = [
+        ...(o.statusHistory ?? []),
+        {
+          status: input.nextStatus,
+          timestamp: new Date().toISOString(),
+          note: input.reason ?? null,
+        },
+      ];
+      return structuredClone(o);
+    },
+  ),
+  recordPayment: vi.fn(
+    async (
+      _bId: string,
+      orderId: string,
+      input: { paymentMethod: "cash" | "revolut" | "wero"; markCompleted?: boolean },
+    ) => {
+      const o = mockOrders.find((ord) => ord.id === orderId);
+      if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+      o.paid = "paid";
+      o.paymentMethod = input.paymentMethod;
+      o.paidAt = new Date().toISOString();
+      if (input.markCompleted) {
+        o.status = "COMPLETED";
+        o.statusHistory = [
+          ...(o.statusHistory ?? []),
+          {
+            status: "COMPLETED",
+            timestamp: new Date().toISOString(),
+            note: `Paid via ${input.paymentMethod} and completed`,
+          },
+        ];
+      }
+      return structuredClone(o);
+    },
+  ),
+  markUnpaid: vi.fn(async (_bId: string, orderId: string) => {
+    const o = mockOrders.find((ord) => ord.id === orderId);
+    if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    o.paid = "unpaid";
+    o.paymentMethod = null;
+    o.paidAt = null;
+    o.statusHistory = [
+      ...(o.statusHistory ?? []),
+      {
+        status: o.status,
+        timestamp: new Date().toISOString(),
+        note: "Payment marked as unpaid (undone)",
+      },
+    ];
+    return structuredClone(o);
+  }),
+  recordRefund: vi.fn(async (_bId: string, orderId: string, reason?: string | null) => {
+    const o = mockOrders.find((ord) => ord.id === orderId);
+    if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    o.paid = "refunded";
+    o.refundedAt = new Date().toISOString();
+    o.statusHistory = [
+      ...(o.statusHistory ?? []),
+      {
+        status: o.status,
+        timestamp: new Date().toISOString(),
+        note: reason ? `Refund recorded: ${reason}` : "Refund recorded",
+      },
+    ];
+    return structuredClone(o);
   }),
 };
 
@@ -616,7 +663,8 @@ describe("Order Server Actions", () => {
         // Product stock decremented
         expect(mockProducts[0].stock).toBe(initialStock - 3);
         // Status history recorded
-        expect(res.data.statusHistory?.[0].status).toBe("CONFIRMED");
+        // place_order starts the history (NEW); the manual order appends CONFIRMED instead of overwriting it.
+        expect(res.data.statusHistory?.map((e) => e.status)).toEqual(["NEW", "CONFIRMED"]);
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/orders");
       }
     });

@@ -77,12 +77,29 @@ const mockRequireAuthenticatedAction = vi.fn(async () => ({
   businessId: testBusinessId,
 }));
 
-vi.mock("@/features/auth", () => ({
-  requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
-}));
+const authState = vi.hoisted(() => ({ role: "owner" as "owner" | "manager" | "staff" }));
+
+vi.mock("@/features/auth", async () => {
+  const domainAuth = await vi.importActual<typeof import("@/domain/auth")>("@/domain/auth");
+  return {
+    requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
+    requireOwnerAction: async () => {
+      const context = await mockRequireAuthenticatedAction();
+      if (authState.role !== "owner") throw new domainAuth.OwnerRequiredError();
+      return context;
+    },
+    forbiddenResult: () => ({
+      success: false as const,
+      error: "Only an owner can do this.",
+      code: domainAuth.ACTION_FORBIDDEN_CODE,
+    }),
+    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
+  };
+});
 
 describe("Expense Server Actions", () => {
   beforeEach(() => {
+    authState.role = "owner";
     vi.clearAllMocks();
 
     mockExpenses = [
@@ -290,6 +307,29 @@ describe("Expense Server Actions", () => {
       if (!res.success) {
         expect(res.error).toBe("Failed to update expense");
       }
+    });
+  });
+
+  describe("deleteExpenseAction roles", () => {
+    for (const role of ["manager", "staff"] as const) {
+      it(`refuses a ${role} with the FORBIDDEN code and deletes nothing`, async () => {
+        authState.role = role;
+        expect(await deleteExpenseAction(validExpenseId)).toEqual({
+          success: false,
+          error: "Only an owner can do this.",
+          code: "FORBIDDEN",
+        });
+        expect(mockExpenseRepo.delete).not.toHaveBeenCalled();
+      });
+    }
+
+    it("turns a repository refusal (database rule) into the FORBIDDEN code", async () => {
+      const { OwnerRequiredError } = await import("@/domain/auth");
+      mockExpenseRepo.delete.mockRejectedValueOnce(new OwnerRequiredError());
+      expect(await deleteExpenseAction(validExpenseId)).toMatchObject({
+        success: false,
+        code: "FORBIDDEN",
+      });
     });
   });
 });
