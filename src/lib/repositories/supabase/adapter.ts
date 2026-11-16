@@ -250,30 +250,48 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
   });
 }
 
+const PLACE_ORDER_GENERIC_MESSAGE = "We could not place your order. Please try again.";
+
+/**
+ * Maps a `place_order` database error to a typed repository error with a generic, client-safe
+ * message. The raw database text is logged server-side only (it carries ids and counts, never
+ * guest data) and is never forwarded to the caller.
+ */
 function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRepoError {
-  const msg = error.message || "";
-  const code = error.code;
-  switch (code) {
+  const raw = error.message ?? "";
+  const reason = raw.split(":")[0]?.trim() ?? "";
+  const sqlState = error.code;
+
+  const build = (message: string, code: string) => new OrderRepoError(message, code);
+  switch (reason) {
+    case "INSUFFICIENT_STOCK":
+    case "PRODUCT_NOT_AVAILABLE":
+    case "PRODUCT_NOT_FOUND":
+      return build("Some items in your order are no longer available.", "STOCK_ERROR");
+    case "ORDERS_NOT_ACCEPTED":
+      return build("This store is currently not accepting orders.", "STORE_CLOSED");
+    case "SERVICE_TYPE_NOT_AVAILABLE":
+      return build("This service type is currently not available.", "SERVICE_TYPE_DISABLED");
+    case "MINIMUM_ORDER_AMOUNT_NOT_MET":
+      return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
+  }
+  switch (sqlState) {
     case "P0001":
     case "P0003":
-      return new OrderRepoError(msg, "STOCK_ERROR");
+      return build("Some items in your order are no longer available.", "STOCK_ERROR");
     case "P0004":
-      return new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
+      return build("This store is currently not accepting orders.", "STORE_CLOSED");
     case "P0005":
-      return new OrderRepoError(msg, "MINIMUM_ORDER_UNMET");
+      return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
     case "42501":
-      return new OrderRepoError(msg, "UNAUTHORIZED");
-    case "22023":
-      return new OrderRepoError(msg, "INVALID_INPUT");
-    default:
-      if (msg.includes("INSUFFICIENT_STOCK") || msg.includes("PRODUCT_NOT_AVAILABLE")) {
-        return new OrderRepoError(msg, "STOCK_ERROR");
-      }
-      return new OrderRepoError(
-        msg || "We could not place your order. Please try again.",
-        "INTERNAL_ERROR",
-      );
+      return build("Permission denied", "UNAUTHORIZED");
   }
+  if (/^INVALID_[A-Z_]+$/.test(reason) || sqlState === "22023") {
+    return build("Please check your order details.", "INVALID_INPUT");
+  }
+
+  console.error("place_order failed", { sqlState, message: raw });
+  return build(PLACE_ORDER_GENERIC_MESSAGE, "INTERNAL_ERROR");
 }
 
 function mapCancelOrderError(error: { code?: string; message?: string }): OrderRepoError {
@@ -507,6 +525,23 @@ export function createSupabaseRepositories(
       filter: ProductQuantityFilter,
     ): Promise<{ productId: string; quantity: number; lastOrderedAt: string }[]> {
       const client = await getClient();
+
+      if (options?.publicOnly) {
+        // Anonymous visitors cannot read `orders`; the SECURITY DEFINER function returns only
+        // per-product aggregates for visible, in-stock products.
+        const { data, error } = await client.rpc("storefront_featured_products", {
+          p_business_id: businessId,
+          p_from: filter.fromDate,
+          p_to: filter.toDate,
+        });
+        if (error) throw error;
+        return (data ?? []).map((row) => ({
+          productId: row.product_id,
+          quantity: Number(row.quantity),
+          lastOrderedAt: toIsoUtc(row.last_ordered_at),
+        }));
+      }
+
       const { data, error } = await client
         .from("orders")
         .select("*, order_items(*)")
