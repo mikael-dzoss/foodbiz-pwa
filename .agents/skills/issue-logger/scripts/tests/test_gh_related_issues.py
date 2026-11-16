@@ -116,7 +116,6 @@ class GhRelatedIssuesTest(unittest.TestCase):
             "type: story",
             "priority: P0",
             "wave: 1",
-            "gate: needs-review",
             title="KPI engine",
         )
         line = format_issue_line(issue)
@@ -124,7 +123,6 @@ class GhRelatedIssuesTest(unittest.TestCase):
         self.assertIn("story", line)
         self.assertIn("P0", line)
         self.assertIn("wave 1", line)
-        self.assertIn("needs-review", line)
         self.assertIn("KPI engine", line)
 
     @mock.patch("gh_related_issues.fetch_issue")

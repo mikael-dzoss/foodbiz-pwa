@@ -30,18 +30,6 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: review-gate
-    attributes:
-      label: "Review Gate"
-      description: "Does this need plan approval before implementation?"
-      options:
-        - "standard — agent implements autonomously"
-        - "needs-review — agent creates plan, waits for approval"
-        - "design-change — breaking or visual change, requires approval"
-    validations:
-      required: true
-
   - type: textarea
     id: technical-notes
     attributes:

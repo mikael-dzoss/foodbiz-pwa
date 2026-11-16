@@ -38,8 +38,8 @@ class ValidateTest(unittest.TestCase):
         self.assertTrue(any("must not set 'parent'" in e for e in errors))
 
     def test_invalid_enums(self) -> None:
-        errors = "\n".join(validate({**STORY, "gate": "yolo", "wave": 9, "milestone": "v2"}))
-        for field in ("gate", "wave", "milestone"):
+        errors = "\n".join(validate({**STORY, "wave": 9, "milestone": "v2"}))
+        for field in ("wave", "milestone"):
             self.assertIn(f"'{field}'", errors)
 
     def test_bug_requires_severity(self) -> None:
@@ -51,16 +51,13 @@ class ValidateTest(unittest.TestCase):
 
 class RenderTest(unittest.TestCase):
     def test_story_labels_and_sections(self) -> None:
-        title, body, labels = render({**STORY, "gate": "needs-review"}, 48)
+        title, body, labels = render(STORY, 48)
         self.assertEqual(title, "Order notes")
         self.assertIn("### Parent Epic\n\n#48", body)
         self.assertIn("- [ ] Notes saved", body)
-        self.assertIn("needs-review — agent creates plan", body)
+        self.assertNotIn("Review Gate", body)
         self.assertEqual(labels, ["type: story", "status: planned", "priority: P1", "area: orders",
-                                  "wave: 3", "gate: needs-review"])
-
-    def test_standard_story_has_no_gate_label(self) -> None:
-        self.assertFalse(any(lbl.startswith("gate:") for lbl in render(STORY, 48)[2]))
+                                  "wave: 3"])
 
     def test_bug_priority_from_severity_and_title_prefix(self) -> None:
         title, body, labels = render(BUG, None)
@@ -101,7 +98,7 @@ class RankTest(unittest.TestCase):
         issue(1, "type: epic", "priority: P0"),
         issue(2, "type: story", "priority: P1", "wave: 1"),
         issue(3, "type: story", "priority: P0", "wave: 2"),
-        issue(4, "type: story", "priority: P0", "wave: 1", "gate: design-change"),
+        issue(4, "type: story", "priority: P0", "wave: 1"),
         issue(5, "type: story", "priority: P0", "wave: 1", "status: in-progress"),
         issue(6, "type: story", "priority: P3", "wave: 5", milestone="Backlog / v1.x"),
         issue(7, "type: bug", "priority: P2", milestone=None),
@@ -115,7 +112,6 @@ class RankTest(unittest.TestCase):
         lines, skipped = rank(self.ISSUES, "story", "v0.9 MVP")
         self.assertEqual(self.numbers(lines), [4, 2, 3])
         self.assertEqual(skipped, 2)
-        self.assertIn("design-change", lines[0])
 
     def test_milestone_filter_disabled(self) -> None:
         self.assertIn(6, self.numbers(rank(self.ISSUES, "story", None)[0]))

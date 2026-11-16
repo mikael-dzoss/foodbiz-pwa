@@ -31,7 +31,6 @@ def parse_labels(issue: Spec) -> dict[str, str]:
         "status": next((lbl.removeprefix("status: ") for lbl in labels if lbl.startswith("status: ")), "planned"),
         "priority": next((lbl.removeprefix("priority: ") for lbl in labels if lbl.startswith("priority: ")), "P3"),
         "wave": next((lbl.removeprefix("wave: ") for lbl in labels if lbl.startswith("wave: ")), "-"),
-        "gate": next((lbl.removeprefix("gate: ") for lbl in labels if lbl.startswith("gate: ")), "standard"),
         "area": next((lbl.removeprefix("area: ") for lbl in labels if lbl.startswith("area: ")), ""),
     }
 
@@ -76,7 +75,6 @@ def format_issue_line(issue: Spec) -> str:
         f"{parsed['type']:<6}"
         f"{parsed['priority']:<4}"
         f"wave {parsed['wave']:<3}"
-        f"{parsed['gate']:<15}"
         f"{issue['title']}"
     )
 

@@ -26,7 +26,7 @@ Exceptions: a shared foundation (e.g. the first migration of a new table, a new 
 
 ## 3. Size each story
 
-A story fits one PR: ≤ ~5 files touched, ≤ 3–5 acceptance criteria, one subsystem. Split when the title needs "and", when it spans unrelated areas, or when the AC list keeps growing.
+A story is one clear behaviour with 3–5 acceptance criteria in one subsystem. Split when the title needs "and", when it spans unrelated areas, or when the AC list keeps growing. There is no file or line limit: the agent that ships it decides how to slice PRs (see the [`ship`](../ship/SKILL.md) skill).
 
 ## 4. Write each story
 
@@ -36,7 +36,6 @@ Map onto the issue-logger story spec:
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `description` | "As a <manager/customer>, I want <goal> so that <benefit>."                                                                              |
 | `ac`          | Specific, testable outcomes incl. empty/error states, RLS (who must *not* see it), light & dark, EN/FR where UI is involved              |
-| `gate`        | `design-change` for new/changed screens; `needs-review` for migrations, auth/RLS, new deps or risky multi-area work; else `standard`      |
 | `wave`        | Execution order: dependencies in earlier waves; high-risk stories early                                                                    |
 | `priority`    | Inherit the epic's unless the user says otherwise                                                                                          |
 | `area`        | One area per story; a story needing two areas is usually two stories                                                                       |
@@ -44,7 +43,7 @@ Map onto the issue-logger story spec:
 
 ## 5. Present, then log
 
-1. Show the breakdown as a short table (wave, title, gate, depends on) plus open questions and risks.
+1. Show the breakdown as a short table (wave, title, depends on) plus open questions and risks.
 2. On approval, build one epic spec with nested `stories` and run the issue-logger dry run; apply only after explicit confirmation.
 
 ## Red flags
