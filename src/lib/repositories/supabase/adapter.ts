@@ -81,7 +81,12 @@ export interface SupabaseRepositoryOptions {
 /**
  * Product columns the public storefront (and `placeOrderAction`, which prices from the database)
  * may read: what the storefront DTO needs plus `business_id`/`visible` for filtering. Excludes
- * `unit_cost` and timestamps so a later column-grant migration can revoke them from anon.
+ * `unit_cost` and timestamps.
+ *
+ * KEEP IN SYNC with the `grant select (...) on public.products to anon` column list in
+ * supabase/migrations/20260101000006_products_column_privileges.sql: anon has no other column
+ * privilege on products, so a column missing there fails with 42501 and a column added only
+ * there is never read. Asserted by supabase/tests/public_surface.test.sql.
  */
 export const PUBLIC_PRODUCT_COLUMNS =
   "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
@@ -292,6 +297,16 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
       return build("This service type is currently not available.", "SERVICE_TYPE_DISABLED");
     case "MINIMUM_ORDER_AMOUNT_NOT_MET":
       return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
+    case "MAX_LINE_QUANTITY_EXCEEDED":
+      return build("Maximum quantity exceeded for an item in your order.", "ANTI_ABUSE_REJECTION");
+    case "MAX_ORDER_QUANTITY_EXCEEDED":
+    case "MAX_LINES_EXCEEDED":
+      return build("Your order exceeds the maximum order size.", "ANTI_ABUSE_REJECTION");
+    case "RATE_LIMITED":
+      return build(
+        "Too many order attempts. Please wait a few minutes before trying again.",
+        "ANTI_ABUSE_REJECTION",
+      );
   }
   switch (sqlState) {
     case "P0001":
@@ -301,6 +316,11 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
       return build("This store is currently not accepting orders.", "STORE_CLOSED");
     case "P0005":
       return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
+    case "P0006":
+      return build(
+        "Too many order attempts. Please wait a few minutes before trying again.",
+        "ANTI_ABUSE_REJECTION",
+      );
     case "42501":
       return build("Permission denied", "UNAUTHORIZED");
   }
@@ -669,6 +689,7 @@ export function createSupabaseRepositories(
         p_delivery_address: input.deliveryAddress ?? undefined,
         p_notes: input.notes ?? undefined,
         p_update_guest_name: input.allowRename ?? false,
+        p_idempotency_key: input.idempotencyKey,
       });
 
       if (error) {
@@ -681,9 +702,11 @@ export function createSupabaseRepositories(
         tracking_token: string;
         submitted_name?: string | null;
         total_amount: number;
+        replayed?: boolean;
       };
 
       return placedOrderSummarySchema.parse({
+        replayed: res.replayed ?? false,
         orderId: res.order_id,
         orderNumber: res.order_number,
         trackingToken: res.tracking_token,
@@ -740,7 +763,13 @@ export function createSupabaseRepositories(
         p_phone: normalizedPhone,
       });
 
-      if (error) throw error;
+      if (error) {
+        // The database refuses after too many failed lookups for a phone (P0006 / RATE_LIMITED).
+        if (error.code === "P0006" || error.message?.startsWith("RATE_LIMITED")) {
+          throw new OrderRepoError("Too many attempts. Please try again later.", "RATE_LIMITED");
+        }
+        throw error;
+      }
       return (data as string | null) ?? null;
     },
 

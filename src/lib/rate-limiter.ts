@@ -12,8 +12,8 @@ interface RateLimitEntry {
 /**
  * In-memory fixed-window rate limiter with automatic expired entry eviction.
  * Per server instance only: counters are neither shared across serverless instances nor
- * persisted across restarts. Acceptable on mock data sources; a DB-backed limiter is planned (E18).
- * See docs/architecture.md#known-limitations-mock-data-stage.
+ * persisted across restarts. It is only a cheap first layer (per client IP): the per-phone and
+ * per-business limits are enforced in the database (`rate_limit_attempts`).
  */
 export class RateLimiter {
   private readonly store = new Map<string, RateLimitEntry>();
@@ -50,6 +50,12 @@ export class RateLimiter {
       remaining: limit - existing.count,
       resetAt: existing.resetAt,
     };
+  }
+
+  /** Gives back one unit of an entry's budget (used when a counted request turns out to be a free replay). */
+  public release(key: string): void {
+    const existing = this.store.get(key);
+    if (existing && existing.count > 0) existing.count -= 1;
   }
 
   public reset(): void {

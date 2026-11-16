@@ -6,10 +6,10 @@ import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/reposi
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
 import { normalizePhoneNumber } from "@/domain/guest";
+import { OrderRepoError } from "@/domain/order";
 import { isSupportedLocale, DEFAULT_LOCALE } from "@/domain/i18n";
 import {
   LOOKUP_RATE_LIMIT_IP_MAX_REQUESTS,
-  LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
   RATE_LIMIT_WINDOW_MS,
   validateHoneypot,
 } from "@/domain/anti-abuse";
@@ -65,22 +65,22 @@ export async function lookupOrderAction(
     logAntiAbuseRejection({ reason: "lookup_rate_limit_ip", ip: clientIp, phone });
     return fail("RATE_LIMITED");
   }
-  if (
-    !limiter.check(
-      `lookup-phone:${phone}`,
-      LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
-      RATE_LIMIT_WINDOW_MS,
-    ).allowed
-  ) {
-    logAntiAbuseRejection({ reason: "lookup_rate_limit_phone", ip: clientIp, phone });
-    return fail("RATE_LIMITED");
+  // The per-phone limit (failed lookups) lives in the database so it also holds across server
+  // instances and for direct RPC callers; the per-IP limiter above is a cheap first layer.
+  let trackingToken: string | null;
+  try {
+    trackingToken = await getStorefrontRepositories().orders.findTrackingTokenByTicketAndPhone(
+      getStorefrontBusinessId(),
+      parsed.data.orderNumber,
+      phone,
+    );
+  } catch (err) {
+    if (err instanceof OrderRepoError && err.code === "RATE_LIMITED") {
+      logAntiAbuseRejection({ reason: "lookup_rate_limit_phone", ip: clientIp, phone });
+      return fail("RATE_LIMITED");
+    }
+    throw err;
   }
-
-  const trackingToken = await getStorefrontRepositories().orders.findTrackingTokenByTicketAndPhone(
-    getStorefrontBusinessId(),
-    parsed.data.orderNumber,
-    phone,
-  );
   if (!trackingToken) return fail("NOT_FOUND");
 
   redirect(`/${locale}/order/${encodeURIComponent(trackingToken)}`);

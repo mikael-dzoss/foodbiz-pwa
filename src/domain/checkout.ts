@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { isoDateSchema, timeHHMMSchema, uuidSchema } from "./common";
 import { guestNameSchema, isValidPhoneNumber } from "./guest";
-import { serviceTypeSchema, paymentPreferenceSchema, type OrderStatus } from "./order";
+import { MAX_LINES_PER_ORDER } from "./anti-abuse";
+import {
+  MAX_DELIVERY_ADDRESS_LENGTH,
+  serviceTypeSchema,
+  paymentPreferenceSchema,
+  type OrderStatus,
+} from "./order";
 
 /**
  * Schema for customer checkout form inputs (Issue #86).
@@ -19,7 +25,12 @@ export const checkoutFormSchema = z
         message: "Invalid phone number format",
       }),
     serviceType: serviceTypeSchema,
-    deliveryAddress: z.string().trim().optional().nullable(),
+    deliveryAddress: z
+      .string()
+      .trim()
+      .max(MAX_DELIVERY_ADDRESS_LENGTH, "Delivery address must be under 300 characters")
+      .optional()
+      .nullable(),
     isAsap: z.boolean().default(true),
     requestedDate: isoDateSchema.optional().nullable(),
     requestedTime: timeHHMMSchema.optional().nullable(),
@@ -79,7 +90,10 @@ export type PlaceOrderItemInput = z.infer<typeof placeOrderItemInputSchema>;
  */
 export const placeOrderInputSchema = z
   .object({
-    items: z.array(placeOrderItemInputSchema).min(1, "Order must contain at least one item"),
+    items: z
+      .array(placeOrderItemInputSchema)
+      .min(1, "Order must contain at least one item")
+      .max(MAX_LINES_PER_ORDER, `An order may contain at most ${MAX_LINES_PER_ORDER} lines`),
     name: guestNameSchema,
     phone: z
       .string()
@@ -89,17 +103,19 @@ export const placeOrderInputSchema = z
         message: "Invalid phone number format",
       }),
     serviceType: serviceTypeSchema,
-    deliveryAddress: z.string().trim().optional().nullable(),
+    deliveryAddress: z
+      .string()
+      .trim()
+      .max(MAX_DELIVERY_ADDRESS_LENGTH, "Delivery address must be under 300 characters")
+      .optional()
+      .nullable(),
     isAsap: z.boolean().default(true),
     requestedDate: isoDateSchema.optional().nullable(),
     requestedTime: timeHHMMSchema.optional().nullable(),
     paymentPreference: paymentPreferenceSchema.default("on_handover"),
     notes: z.string().trim().max(500, "Notes must be under 500 characters").optional().nullable(),
-    idempotencyKey: z
-      .string()
-      .trim()
-      .min(8, "Idempotency key is required")
-      .max(64, "Idempotency key too long"),
+    /** Client-generated uuid; the database stores it on the order to make retries idempotent. */
+    idempotencyKey: uuidSchema,
     honeypot: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
