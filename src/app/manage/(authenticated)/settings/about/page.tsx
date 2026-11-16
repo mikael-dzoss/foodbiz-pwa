@@ -57,7 +57,7 @@ export default async function AboutPage() {
 
         <div className="border-border divide-border divide-y border-t pt-3">
           <a
-            href="https://github.com/MikeDzossa/foodbiz-pwa"
+            href="https://github.com/mikael-dzoss/foodbiz-pwa"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground flex items-center justify-between py-3 text-sm font-medium transition-colors"

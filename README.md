@@ -46,4 +46,4 @@ MCP (Stitch design canvas, Vercel): export `STITCH_API_KEY` / `VERCEL_API_TOKEN`
 
 ## License
 
-MIT
+The source is public for transparency. All rights reserved; no licence is granted.
