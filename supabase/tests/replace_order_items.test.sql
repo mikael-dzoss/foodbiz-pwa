@@ -155,7 +155,7 @@ select throws_ok(
   $$select public.replace_order_items(
     '10000000-0000-0000-0000-000000000001'::uuid,
     '99999999-9999-9999-9999-999999999999'::uuid,
-    '[]'::jsonb
+    '[{"product_id": "da000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
   )$$,
   'P0002',
   null,
@@ -203,7 +203,7 @@ select lives_ok(
   $$select public.replace_order_items(
     '10000000-0000-0000-0000-000000000001'::uuid,
     '0a000000-0000-0000-0000-000000000099'::uuid,
-    '[]'::jsonb
+    '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   'replace_order_items succeeds for service_role'
 );
