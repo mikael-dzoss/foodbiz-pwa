@@ -17,15 +17,12 @@ import {
 import { formatMoney } from "@/domain/formatting/money";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
-import {
-  buildOpenStreetMapEmbedUrl,
-  type Business,
-  type BusinessSettings,
-} from "@/domain/business";
+import { buildOpenStreetMapEmbedUrl, type BusinessSettings } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import { SoonBadge } from "@/components/feedback";
 
 export interface ShopInfoViewProps {
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;

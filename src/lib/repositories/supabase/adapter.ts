@@ -78,6 +78,14 @@ export interface SupabaseRepositoryOptions {
   readonly publicOnly?: boolean;
 }
 
+/**
+ * Product columns the public storefront (and `placeOrderAction`, which prices from the database)
+ * may read: what the storefront DTO needs plus `business_id`/`visible` for filtering. Excludes
+ * `unit_cost` and timestamps so a later column-grant migration can revoke them from anon.
+ */
+export const PUBLIC_PRODUCT_COLUMNS =
+  "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
+
 export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
   "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
@@ -250,12 +258,22 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
   });
 }
 
+/** Maps a row selected with PUBLIC_PRODUCT_COLUMNS; private/unselected fields get neutral defaults. */
+function mapPublicProductRow(row: Partial<Tables<"products">>): Product {
+  return mapProductRow({
+    ...row,
+    unit_cost: 0,
+    created_at: new Date(0).toISOString(),
+    updated_at: new Date(0).toISOString(),
+  } as Tables<"products">);
+}
+
 const PLACE_ORDER_GENERIC_MESSAGE = "We could not place your order. Please try again.";
 
 /**
  * Maps a `place_order` database error to a typed repository error with a generic, client-safe
- * message. The raw database text is logged server-side only (it carries ids and counts, never
- * guest data) and is never forwarded to the caller.
+ * message. The raw database text is never forwarded to the caller or logged; the known RAISE
+ * messages carry only ids and counts, but unexpected database errors could echo submitted values.
  */
 function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRepoError {
   const raw = error.message ?? "";
@@ -290,7 +308,12 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
     return build("Please check your order details.", "INVALID_INPUT");
   }
 
-  console.error("place_order failed", { sqlState, message: raw });
+  // Log the SQLSTATE and the upper-case error prefix only: never the free-text message, which for
+  // unexpected database errors (constraints, type errors) can echo submitted values.
+  console.error("place_order failed", {
+    sqlState,
+    reason: /^[A-Z_]+$/.test(reason) ? reason : "UNKNOWN",
+  });
   return build(PLACE_ORDER_GENERIC_MESSAGE, "INTERNAL_ERROR");
 }
 
@@ -347,21 +370,24 @@ export function createSupabaseRepositories(
   const products: ProductRepository = {
     async findById(businessId: string, id: string): Promise<Product | null> {
       const client = await getClient();
-      const { data, error } = await client
-        .from("products")
-        .select()
-        .eq("business_id", businessId)
-        .eq("id", id)
-        .maybeSingle();
+      const base = options?.publicOnly
+        ? client.from("products").select(PUBLIC_PRODUCT_COLUMNS)
+        : client.from("products").select();
+      const { data, error } = await base.eq("business_id", businessId).eq("id", id).maybeSingle();
 
       if (error) throw error;
       if (!data) return null;
-      return mapProductRow(data);
+      return options?.publicOnly
+        ? mapPublicProductRow(data as Partial<Tables<"products">>)
+        : mapProductRow(data as Tables<"products">);
     },
 
     async list(businessId: string, filter?: ProductFilter): Promise<Product[]> {
       const client = await getClient();
-      let query = client.from("products").select().eq("business_id", businessId);
+      const base = options?.publicOnly
+        ? client.from("products").select(PUBLIC_PRODUCT_COLUMNS)
+        : client.from("products").select();
+      let query = base.eq("business_id", businessId);
 
       if (filter?.categoryId) {
         query = query.eq("category_id", filter.categoryId);
@@ -372,7 +398,10 @@ export function createSupabaseRepositories(
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []).map(mapProductRow);
+      const rows = (data ?? []) as unknown as Partial<Tables<"products">>[];
+      return options?.publicOnly
+        ? rows.map(mapPublicProductRow)
+        : rows.map((row) => mapProductRow(row as Tables<"products">));
     },
 
     async create(businessId: string, input: CreateProductInput): Promise<Product> {

@@ -56,13 +56,8 @@ class MockIntersectionObserver {
 
 const mockCatalog: StorefrontCatalogData = {
   business: {
-    id: "biz-1",
     name: "La Boulangerie",
-    slug: "la-boulangerie",
     description: "Artisan sourdough and pastries",
-    currency: "EUR",
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
   },
   settings: {
     businessId: "biz-1",
@@ -92,19 +87,15 @@ const mockCatalog: StorefrontCatalogData = {
   categories: [
     {
       id: "cat-1",
-      businessId: "biz-1",
       name: "Breads",
       sortOrder: 1,
       role: "regular" as const,
-      createdAt: "2026-01-01T00:00:00Z",
     },
     {
       id: "cat-2",
-      businessId: "biz-1",
       name: "Pastries",
       sortOrder: 2,
       role: "regular" as const,
-      createdAt: "2026-01-01T00:00:00Z",
     },
   ],
   groupedCategories: [

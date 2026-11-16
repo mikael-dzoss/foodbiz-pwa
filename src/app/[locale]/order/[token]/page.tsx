@@ -7,6 +7,7 @@ import {
   type SupportedLocale,
 } from "@/domain/i18n";
 import { getStorefrontRepositories } from "@/lib/repositories/storefront";
+import { toStorefrontBusiness } from "@/domain/storefront-business";
 import { OrderTrackingView } from "@/features/storefront";
 
 export const instant = false;
@@ -61,7 +62,7 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
   return (
     <OrderTrackingView
       order={order}
-      business={business}
+      business={toStorefrontBusiness(business)}
       locale={locale}
       dict={dict.orderTracking}
       storefrontDict={dict.storefront}

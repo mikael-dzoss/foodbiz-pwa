@@ -20,17 +20,12 @@ const sampleProductData: StorefrontProductData = {
   },
   categoryName: "Artisan Breads",
   business: {
-    id: "biz-1",
     name: "The Rustic Baker",
-    slug: "rustic-baker",
     description: "Traditional sourdough and pastries",
     phone: "+33 6 12 34 56 78",
     email: "contact@rusticbaker.fr",
     whatsappNumber: "33612345678",
     address: "12 Rue de la Paix, Paris",
-    currency: "EUR",
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
   },
   settings: {
     businessId: "biz-1",

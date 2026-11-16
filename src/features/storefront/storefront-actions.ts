@@ -68,7 +68,7 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
   }
 
   const data = parsed.data;
-  const businessId = data.businessId ?? getStorefrontBusinessId();
+  const businessId = getStorefrontBusinessId();
   // One line per product so stock checks, reservations and caps cannot be bypassed by repeating a line.
   const items = mergeDuplicateItems(data.items);
 

@@ -144,7 +144,7 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
             .spyOn(repos.orders, "list")
             .mockRejectedValue(new Error("Private orders must not reach storefront"));
           const aggregateRead = vi.spyOn(repos.orders, "sumQuantitiesByProduct");
-          const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
+          const catalog = await getStorefrontCatalog();
           expect(catalog.featuredProducts).toEqual(
             rankFeaturedProducts(fixtures.products, fixtures.orders, now).map(toStorefrontProduct),
           );
@@ -159,8 +159,8 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       },
     );
     it("returns grouped categories with visible products for the demo business", async () => {
-      const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
-      expect(catalog.business.id).toBe(DEMO_BUSINESS_ID);
+      const catalog = await getStorefrontCatalog();
+      expect(catalog.business.name).toBe("La Petite Boulangerie");
       expect(catalog.groupedCategories.length).toBeGreaterThan(0);
       expect(catalog.totalVisibleProducts).toBeGreaterThan(0);
 
@@ -172,32 +172,50 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       }
     });
 
-    it("throws when business does not exist", async () => {
-      await expect(getStorefrontCatalog("non-existent-biz-id")).rejects.toThrow(
-        /Storefront business not found/i,
-      );
+    it("throws when the configured business does not exist", async () => {
+      vi.stubEnv("STOREFRONT_BUSINESS_ID", "99999999-9999-4999-8999-999999999999");
+      try {
+        await expect(getStorefrontCatalog()).rejects.toThrow(/Storefront business not found/i);
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   });
 
   describe("getStorefrontProduct", () => {
     it("returns full product data for visible product", async () => {
-      const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
+      const catalog = await getStorefrontCatalog();
       const firstProduct = catalog.groupedCategories[0].products[0];
 
-      const productData = await getStorefrontProduct(firstProduct.id, DEMO_BUSINESS_ID);
+      const productData = await getStorefrontProduct(firstProduct.id);
       expect(productData).not.toBeNull();
       expect(productData?.product.id).toBe(firstProduct.id);
       expect(productData?.categoryName).toBeDefined();
     });
 
     it("returns null for non-existent product", async () => {
-      const productData = await getStorefrontProduct("fake-product-id", DEMO_BUSINESS_ID);
+      const productData = await getStorefrontProduct("fake-product-id");
       expect(productData).toBeNull();
     });
 
-    it("returns null when business does not exist", async () => {
-      const productData = await getStorefrontProduct("any-id", "non-existent-biz");
-      expect(productData).toBeNull();
+    it("returns null when the configured business does not exist", async () => {
+      vi.stubEnv("STOREFRONT_BUSINESS_ID", "99999999-9999-4999-8999-999999999999");
+      try {
+        expect(await getStorefrontProduct("any-id")).toBeNull();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("maps the product through the storefront DTO (no private fields)", async () => {
+      const catalog = await getStorefrontCatalog();
+      const id = catalog.groupedCategories[0].products[0].id;
+      const data = await getStorefrontProduct(id);
+      expect(data?.product).not.toHaveProperty("unitCost");
+      expect(data?.product).not.toHaveProperty("businessId");
+      expect(JSON.stringify(data)).not.toContain("unitCost");
+      expect(data?.business).not.toHaveProperty("id");
+      expect(data?.business).not.toHaveProperty("slug");
     });
   });
 
@@ -215,12 +233,12 @@ describe("catalog-data failure handling", () => {
 
   it("propagates repository failures instead of serving fallback data", async () => {
     vi.spyOn(getMockRepositories().business, "findById").mockRejectedValue(new Error("db down"));
-    await expect(getStorefrontCatalog(DEMO_BUSINESS_ID)).rejects.toThrow("db down");
-    await expect(getStorefrontProduct("any", DEMO_BUSINESS_ID)).rejects.toThrow("db down");
+    await expect(getStorefrontCatalog()).rejects.toThrow("db down");
+    await expect(getStorefrontProduct("any")).rejects.toThrow("db down");
   });
 
   it("sends storefront DTOs to the client without private product fields", async () => {
-    const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
+    const catalog = await getStorefrontCatalog();
     const serialized = JSON.stringify(catalog);
     expect(serialized).not.toContain("unitCost");
     expect(serialized).not.toContain('updatedAt":"' + "never");
@@ -230,6 +248,12 @@ describe("catalog-data failure handling", () => {
         expect(product).not.toHaveProperty("businessId");
         expect(product.stock).toBeLessThanOrEqual(50);
       }
+    }
+    expect(catalog.business).not.toHaveProperty("id");
+    expect(catalog.business).not.toHaveProperty("createdAt");
+    for (const category of catalog.categories) {
+      expect(category).not.toHaveProperty("businessId");
+      expect(category).not.toHaveProperty("createdAt");
     }
   });
 });

@@ -54,8 +54,14 @@ test("anonymous visitor orders from the Supabase catalog and tracks the order", 
     .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
     .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
     .click();
-  await page.getByRole("link", { name: /view cart/i }).click();
-  await expect(page).toHaveURL(/\/en\/cart$/);
+  // The cart bar only renders after hydration with the item in client state, so waiting for it
+  // proves the add worked. Navigate by its href rather than a client-side click so a slow
+  // dev-mode RSC fetch cannot stall the journey.
+  const viewCart = page.getByRole("link", { name: /view cart/i });
+  await expect(viewCart).toBeVisible();
+  const cartHref = await viewCart.getAttribute("href");
+  expect(cartHref).toBe("/en/cart");
+  await page.goto(cartHref!);
   await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
 
   await page.getByTestId("proceed-checkout-button").click();

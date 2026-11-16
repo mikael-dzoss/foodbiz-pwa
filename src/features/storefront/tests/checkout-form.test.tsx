@@ -5,7 +5,8 @@ import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../conte
 import { CheckoutView } from "../components/checkout-view";
 import { resetGuestContactCache } from "../components/checkout-form";
 import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
-import type { Business, BusinessSettings } from "@/domain/business";
+import type { BusinessSettings } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -15,18 +16,13 @@ vi.mock("next/navigation", () => ({
 
 const dict = getDictionary("en").storefront;
 
-const mockBusiness: Business = {
-  id: "biz-1",
+const mockBusiness: StorefrontBusiness = {
   name: "La Petite Boulangerie",
-  slug: "la-petite-boulangerie",
   description: "Artisanal Parisian bakery",
   phone: "+33 1 23 45 67 89",
   email: "contact@petiteboulangerie.fr",
   whatsappNumber: "33123456789",
   address: "12 Rue de la Paix, 75002 Paris",
-  currency: "EUR",
-  createdAt: "2026-01-01T00:00:00Z",
-  updatedAt: "2026-01-01T00:00:00Z",
 };
 
 const mockSettings: BusinessSettings = {

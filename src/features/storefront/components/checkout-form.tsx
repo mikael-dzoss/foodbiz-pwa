@@ -19,7 +19,8 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import type { Business, BusinessSettings } from "@/domain/business";
+import type { BusinessSettings } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import {
@@ -99,7 +100,7 @@ function getStoredGuestContact(): GuestContactStorage | null {
 }
 
 export interface CheckoutFormProps {
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
@@ -271,7 +272,6 @@ export function CheckoutForm({
         setSubmittedSuccess(true);
       } else {
         const orderResult = await placeOrderAction({
-          businessId: business.id,
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
           name: validationResult.data.name,
           phone: validationResult.data.phone,

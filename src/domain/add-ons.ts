@@ -8,6 +8,9 @@ export type AddOnProduct = Pick<
   readonly visible?: boolean;
 };
 
+/** Minimal category fields add-on selection needs. */
+export type AddOnCategory = Pick<ProductCategory, "id" | "sortOrder" | "role">;
+
 export type AddOnKind = "drinks" | "accompaniments";
 
 export interface AddOnCandidates<P extends AddOnProduct = Product> {
@@ -25,7 +28,7 @@ export interface AddOnCandidates<P extends AddOnProduct = Product> {
  */
 export function getAddOnCandidates<P extends AddOnProduct>(
   product: AddOnProduct,
-  categories: readonly ProductCategory[],
+  categories: readonly AddOnCategory[],
   products: readonly P[],
 ): AddOnCandidates<P> | null {
   if (!product.suggestAddOns) {

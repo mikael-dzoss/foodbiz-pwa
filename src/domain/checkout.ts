@@ -79,7 +79,6 @@ export type PlaceOrderItemInput = z.infer<typeof placeOrderItemInputSchema>;
  */
 export const placeOrderInputSchema = z
   .object({
-    businessId: uuidSchema.optional(),
     items: z.array(placeOrderItemInputSchema).min(1, "Order must contain at least one item"),
     name: guestNameSchema,
     phone: z

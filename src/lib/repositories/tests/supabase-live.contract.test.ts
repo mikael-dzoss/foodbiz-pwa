@@ -464,6 +464,15 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       await expect(anonRepos.business.getSettings(businessAId)).rejects.toThrow();
     });
 
+    it("anon public product reads select only public columns and never expose unit cost", async () => {
+      const list = await anonPublicRepos.products.list(businessAId, { visibleOnly: true });
+      expect(list.some((p) => p.id === prodAVisibleId)).toBe(true);
+      expect(list.every((p) => p.unitCost === 0)).toBe(true);
+      const one = await anonPublicRepos.products.findById(businessAId, prodAVisibleId);
+      expect(one?.id).toBe(prodAVisibleId);
+      expect(one?.unitCost).toBe(0);
+    });
+
     it("anon featured products come from the storefront_featured_products function", async () => {
       // Orders are not readable by anon, so the aggregate must come from the SECURITY DEFINER function.
       const totals = await anonPublicRepos.orders.sumQuantitiesByProduct(

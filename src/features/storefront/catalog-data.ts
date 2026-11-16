@@ -1,8 +1,13 @@
 import { cacheLife, cacheTag, revalidateTag, revalidatePath } from "next/cache";
 import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";
-import type { Business, BusinessSettings } from "@/domain/business";
-import type { ProductCategory } from "@/domain/product";
+import type { BusinessSettings } from "@/domain/business";
+import {
+  toStorefrontBusiness,
+  toStorefrontCategory,
+  type StorefrontBusiness,
+  type StorefrontCategory,
+} from "@/domain/storefront-business";
 import { toStorefrontProduct, type StorefrontProduct } from "@/domain/storefront-product";
 
 export interface GroupedCategory {
@@ -13,9 +18,9 @@ export interface GroupedCategory {
 }
 
 export interface StorefrontCatalogData {
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
-  categories: ProductCategory[];
+  categories: StorefrontCategory[];
   groupedCategories: GroupedCategory[];
   featuredProducts: StorefrontProduct[];
   totalVisibleProducts: number;
@@ -28,7 +33,7 @@ export interface StorefrontCatalogData {
 export interface StorefrontProductData {
   product: StorefrontProduct;
   categoryName: string;
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
   isAcceptingOrders: boolean;
   isOpen: boolean;
@@ -79,10 +84,10 @@ export function evaluateStoreOperatingStatus(
  * Server-rendered, cached catalog query for the public storefront (#80, #82, #83).
  * Groups visible products by category.
  */
-export async function getStorefrontCatalog(
-  businessId = getStorefrontBusinessId(),
-): Promise<StorefrontCatalogData> {
+export async function getStorefrontCatalog(): Promise<StorefrontCatalogData> {
   "use cache";
+  // The business comes from server configuration only, never from the caller.
+  const businessId = getStorefrontBusinessId();
   cacheTag("storefront-catalog", `storefront-catalog-${businessId}`);
   cacheLife("hours");
 
@@ -157,9 +162,9 @@ export async function getStorefrontCatalog(
   const operatingStatus = evaluateStoreOperatingStatus(settings, now);
 
   return {
-    business,
+    business: toStorefrontBusiness(business),
     settings,
-    categories,
+    categories: categories.map(toStorefrontCategory),
     groupedCategories,
     featuredProducts,
     totalVisibleProducts: visibleProducts.length,
@@ -176,9 +181,9 @@ export async function getStorefrontCatalog(
  */
 export async function getStorefrontProduct(
   productId: string,
-  businessId = getStorefrontBusinessId(),
 ): Promise<StorefrontProductData | null> {
   "use cache";
+  const businessId = getStorefrontBusinessId();
   cacheTag("storefront-catalog", `storefront-product-${productId}`);
   cacheLife("hours");
 
@@ -206,7 +211,7 @@ export async function getStorefrontProduct(
   return {
     product: toStorefrontProduct(product),
     categoryName,
-    business,
+    business: toStorefrontBusiness(business),
     settings,
     isAcceptingOrders: operatingStatus.isAcceptingOrders,
     isOpen: operatingStatus.isOpen,

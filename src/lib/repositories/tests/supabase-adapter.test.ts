@@ -6,6 +6,7 @@ import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
 import { createSupabaseRepositories } from "../supabase";
+import { PUBLIC_PRODUCT_COLUMNS } from "../supabase/adapter";
 import { describeRepositoryContracts } from "./contracts";
 
 function createFakeSupabaseClient(
@@ -841,6 +842,9 @@ describe("Supabase Repository Adapter", () => {
       const unknown = await place('relation "orders" exploded at 10.0.0.1');
       expect(unknown).toMatchObject({ code: "INTERNAL_ERROR" });
       expect((unknown as Error).message).not.toContain("exploded");
+      // Only SQLSTATE and an error prefix are logged, never free-text database messages.
+      expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("exploded");
+      expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("10.0.0.1");
       errorSpy.mockRestore();
     });
 
@@ -871,6 +875,40 @@ describe("Supabase Repository Adapter", () => {
       await expect(repos.orders.sumQuantitiesByProduct(DEMO_BUSINESS_ID, filter)).rejects.toEqual({
         message: "boom",
       });
+    });
+
+    it("selects only public product columns in publicOnly mode", async () => {
+      const select = vi.fn();
+      const chain: Record<string, unknown> = {};
+      const row = {
+        id: "33333333-3333-4333-8333-333333333301",
+        business_id: DEMO_BUSINESS_ID,
+        category_id: "22222222-2222-4222-8222-222222222201",
+        name: "Baguette",
+        description: null,
+        price: 130,
+        stock: 3,
+        visible: true,
+        suggest_add_ons: true,
+        allergens: [],
+        image_url: null,
+      };
+      chain.eq = () => chain;
+      chain.maybeSingle = async () => ({ data: row, error: null });
+      chain.then = (resolve: (value: unknown) => void) => resolve({ data: [row], error: null });
+      select.mockReturnValue(chain);
+      const client = { from: () => ({ select }) } as unknown as SupabaseClient<Database>;
+      const repos = createSupabaseRepositories(client, { publicOnly: true });
+
+      const listed = await repos.products.list(DEMO_BUSINESS_ID, { visibleOnly: true });
+      const found = await repos.products.findById(DEMO_BUSINESS_ID, row.id);
+
+      for (const [columns] of select.mock.calls) {
+        expect(columns).toBe(PUBLIC_PRODUCT_COLUMNS);
+        expect(columns).not.toContain("unit_cost");
+      }
+      expect(listed[0]).toMatchObject({ id: row.id, price: 130, stock: 3, unitCost: 0 });
+      expect(found?.name).toBe("Baguette");
     });
 
     it("maps cancel_order errors accurately", async () => {

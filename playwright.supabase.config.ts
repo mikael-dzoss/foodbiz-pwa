@@ -45,6 +45,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
       STOREFRONT_BUSINESS_ID: "11111111-1111-4111-8111-111111111111",
       NEXT_TELEMETRY_DISABLED: "1",
+      // The dev server must not inherit the service-role key that only the spec needs.
+      E2E_SUPABASE_SERVICE_KEY: "",
     },
   },
 });

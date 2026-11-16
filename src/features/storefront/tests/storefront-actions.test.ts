@@ -38,7 +38,6 @@ describe("placeOrderAction", () => {
   });
 
   const validOrderPayload = {
-    businessId: bId,
     items: [
       { productId: baguetteId, quantity: 2 },
       { productId: sourdoughId, quantity: 3 },
@@ -477,7 +476,6 @@ describe("placeOrderAction", () => {
 
 describe("placeOrderAction failure handling", () => {
   const payload = {
-    businessId: DEMO_BUSINESS_ID,
     items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 20 }],
     name: "Camille Claudel",
     phone: "+33699887766",
@@ -539,5 +537,27 @@ describe("placeOrderAction failure handling", () => {
     expect(JSON.stringify(result)).not.toContain("exploded");
     errorSpy.mockRestore();
     vi.restoreAllMocks();
+  });
+});
+
+describe("placeOrderAction business resolution", () => {
+  it("ignores a forged businessId: zod strips the unknown key and the configured business is used", async () => {
+    getMockRepositories().reset();
+    getGlobalRateLimiter().reset();
+    getGlobalIdempotencyStore().reset();
+    const placeSpy = vi.spyOn(getMockRepositories().orders, "place");
+    const result = await placeOrderAction({
+      businessId: "99999999-9999-4999-8999-999999999999",
+      items: [{ productId: "33333333-3333-4333-8333-333333333302", quantity: 4 }],
+      name: "Camille Claudel",
+      phone: "+33699887766",
+      serviceType: "pickup",
+      isAsap: true,
+      paymentPreference: "on_handover",
+      idempotencyKey: "test-idem-key-forged-biz",
+    });
+    expect(result.success).toBe(true);
+    expect(placeSpy).toHaveBeenCalledWith(DEMO_BUSINESS_ID, expect.anything());
+    placeSpy.mockRestore();
   });
 });

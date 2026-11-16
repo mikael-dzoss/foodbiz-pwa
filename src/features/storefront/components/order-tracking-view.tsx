@@ -18,16 +18,16 @@ import {
   formatMoney,
   formatTime,
   type PublicOrder,
-  type Business,
   type OrderStatus,
   type SupportedLocale,
 } from "@/domain";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { OrderTrackingDictionary, StorefrontDictionary } from "@/domain/i18n";
 import { cn } from "@/lib/utils";
 
 export interface OrderTrackingViewProps {
   order: PublicOrder;
-  business: Business;
+  business: StorefrontBusiness;
   locale: SupportedLocale;
   dict: OrderTrackingDictionary;
   storefrontDict?: StorefrontDictionary;
