@@ -1,5 +1,4 @@
 ---
-trigger: model_decision
 paths:
   - "src/proxy.ts"
   - "src/lib/supabase/**"

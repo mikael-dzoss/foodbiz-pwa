@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/devcontainers/javascript-node:22-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
+    jq \
     python3 \
     python3-pip \
     python3-venv \
@@ -23,8 +24,10 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npx playwright install --with-deps chromium \
     && chmod -R 777 /ms-playwright
 
-# 4. Global npm tooling (Vercel CLI, Supabase CLI & Claude Code CLI)
-RUN su node -c "npm install -g vercel@latest supabase@latest @anthropic-ai/claude-code@latest"
+# 4. Global npm tooling. Supabase is pinned to the package.json devDependency version
+#    (bump both together); Vercel and Claude Code have no project pin and track latest.
+ARG SUPABASE_CLI_VERSION=3.1.0
+RUN su node -c "npm install -g vercel@latest supabase@${SUPABASE_CLI_VERSION} @anthropic-ai/claude-code@latest"
 
 # Default container environment
 ENV NEXT_TELEMETRY_DISABLED=1
