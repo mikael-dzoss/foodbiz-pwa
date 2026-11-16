@@ -150,6 +150,8 @@ erDiagram
      - **Ticket N° + Phone Lookup:** Customers who lose their direct link or hold a physical counter ticket can look up their live order using `order_number` (ticket #) and their validated E.164 phone number via the `storefront_order_tracking_token` RPC (rate limited, see 5.5).
    - **Order number scoping:** Sequential `order_number` per business enforced via `UNIQUE (business_id, order_number)`.
    - **Payment integrity:** Orders with `paid = 'paid'` require both `payment_method` and `paid_at`.
+   - **Tenant-safe references:** the foreign keys are composite on `(business_id, id)`, so a row can only reference a row of its own business: `products (business_id, category_id)` → `product_categories` (restrict), `orders (business_id, guest_id)` → `guests` (restrict), `order_items (business_id, order_id)` → `orders` (cascade), `order_items (business_id, product_id)` → `products` (`on delete set null (product_id)`, the column-list form keeps `business_id`). Migrations 16-23 add them without locking writes: concurrent unique indexes, constraints promoted from the indexes, composite keys added `NOT VALID` after a pre-check that lists any offending ids, validated in a later file, then the single-column keys are dropped.
+   - **Case-insensitive category names:** unique index on `(business_id, lower(btrim(name)))`, added after a pre-check that lists duplicates (migrations 20-21).
 
 ---
 
@@ -397,31 +399,36 @@ create trigger trigger_orders_updated_at
 
 ## 4. Indexing Strategy Summary
 
-| Table                 | Index Name                                   | Columns / Expressions            | Type                    | Rationale                                                |
-| :-------------------- | :------------------------------------------- | :------------------------------- | :---------------------- | :------------------------------------------------------- |
-| `businesses`          | `businesses_slug_unique`                     | `(slug)`                         | B-tree (Unique)         | Fast domain & storefront slug resolution                 |
-| `business_members`    | `idx_business_members_business_id`           | `(business_id)`                  | B-tree                  | Member listing and tenant filtering                      |
-| `business_members`    | `idx_business_members_user_id`               | `(user_id)`                      | B-tree                  | RLS helper function query on `auth.uid()`                |
-| `business_settings`   | `business_settings_business_id_unique`       | `(business_id)`                  | B-tree (Unique)         | 1:1 business settings lookup                             |
-| `product_categories`  | `idx_product_categories_business_sort`       | `(business_id, sort_order)`      | B-tree                  | Ordered category display in manager & storefront         |
-| `products`            | `idx_products_business_category`             | `(business_id, category_id)`     | B-tree                  | Filter products by category                              |
-| `products`            | `idx_products_business_visible`              | `(business_id, visible)`         | B-tree                  | Storefront catalog listing (active items only)           |
-| `products`            | `idx_products_business_name`                 | `(business_id, name)`            | B-tree                  | Manager product search and sorting                       |
-| `products`            | `idx_products_category_id`                   | `(category_id)`                  | B-tree                  | FK check when a category is deleted                      |
-| `guests`              | `idx_guests_business_phone_unique`           | `(business_id, phone)`           | B-tree (Unique Partial) | Prevents duplicate guest records with the same phone     |
-| `guests`              | `idx_guests_business_created`                | `(business_id, created_at desc)` | B-tree                  | Recent customer lookups                                  |
-| `orders`              | `idx_orders_business_status`                 | `(business_id, status)`          | B-tree                  | Order board filtering (`NEW`, `PREPARING`, etc.)         |
-| `orders`              | `idx_orders_business_requested_date`         | `(business_id, requested_date)`  | B-tree                  | Kitchen dispatch by day                                  |
-| `orders`              | `idx_orders_business_guest`                  | `(business_id, guest_id)`        | B-tree                  | Order history per customer                               |
-| `orders`              | `orders_tracking_token_unique`               | `(tracking_token)`               | B-tree (Unique)         | Public order tracking lookup (`/[locale]/order/[token]`) |
-| `orders`              | `idx_orders_guest_id`                        | `(guest_id)`                     | B-tree                  | FK check when a guest is deleted                         |
-| `orders`              | `idx_orders_business_idempotency_key`        | `(business_id, idempotency_key)` | B-tree (Unique Partial) | Idempotent `place_order` replay (`idempotency_key` set)  |
-| `order_items`         | `idx_order_items_order_id`                   | `(order_id)`                     | B-tree                  | Order details retrieval                                  |
-| `order_items`         | `idx_order_items_business_product`           | `(business_id, product_id)`      | B-tree                  | Sales per product reporting                              |
-| `order_items`         | `idx_order_items_product_id`                 | `(product_id)`                   | B-tree                  | FK action when a product is deleted                      |
-| `rate_limit_attempts` | `idx_rate_limit_attempts_bucket_key_created` | `(bucket, key_hash, created_at)` | B-tree                  | Window counts and opportunistic pruning (see 5.5)        |
-| `expenses`            | `idx_expenses_business_date`                 | `(business_id, date desc)`       | B-tree                  | Monthly KPI and analytics time ranges                    |
-| `expenses`            | `idx_expenses_tags_gin`                      | `(tags)`                         | GIN                     | Fast tag filtering (`tags @> array['Ingredients']`)      |
+| Table                 | Index Name                                   | Columns / Expressions               | Type                    | Rationale                                                          |
+| :-------------------- | :------------------------------------------- | :---------------------------------- | :---------------------- | :----------------------------------------------------------------- |
+| `businesses`          | `businesses_slug_unique`                     | `(slug)`                            | B-tree (Unique)         | Fast domain & storefront slug resolution                           |
+| `business_members`    | `idx_business_members_business_id`           | `(business_id)`                     | B-tree                  | Member listing and tenant filtering                                |
+| `business_members`    | `idx_business_members_user_id`               | `(user_id)`                         | B-tree                  | RLS helper function query on `auth.uid()`                          |
+| `business_settings`   | `business_settings_business_id_unique`       | `(business_id)`                     | B-tree (Unique)         | 1:1 business settings lookup                                       |
+| `product_categories`  | `idx_product_categories_business_sort`       | `(business_id, sort_order)`         | B-tree                  | Ordered category display in manager & storefront                   |
+| `products`            | `idx_products_business_category`             | `(business_id, category_id)`        | B-tree                  | Filter products by category                                        |
+| `products`            | `idx_products_business_visible`              | `(business_id, visible)`            | B-tree                  | Storefront catalog listing (active items only)                     |
+| `products`            | `idx_products_business_name`                 | `(business_id, name)`               | B-tree                  | Manager product search and sorting                                 |
+| `products`            | `idx_products_category_id`                   | `(category_id)`                     | B-tree                  | FK check when a category is deleted                                |
+| `product_categories`  | `uq_product_categories_business_name_ci`     | `(business_id, lower(btrim(name)))` | B-tree (Unique)         | Category names unique per business ignoring case (as the app does) |
+| `product_categories`  | `product_categories_business_id_id_unique`   | `(business_id, id)`                 | B-tree (Unique)         | Parent side of the tenant-safe composite foreign key               |
+| `products`            | `products_business_id_id_unique`             | `(business_id, id)`                 | B-tree (Unique)         | Parent side of `order_items_business_product_fkey`                 |
+| `guests`              | `guests_business_id_id_unique`               | `(business_id, id)`                 | B-tree (Unique)         | Parent side of `orders_business_guest_fkey`                        |
+| `orders`              | `orders_business_id_id_unique`               | `(business_id, id)`                 | B-tree (Unique)         | Parent side of `order_items_business_order_fkey`                   |
+| `guests`              | `idx_guests_business_phone_unique`           | `(business_id, phone)`              | B-tree (Unique Partial) | Prevents duplicate guest records with the same phone               |
+| `guests`              | `idx_guests_business_created`                | `(business_id, created_at desc)`    | B-tree                  | Recent customer lookups                                            |
+| `orders`              | `idx_orders_business_status`                 | `(business_id, status)`             | B-tree                  | Order board filtering (`NEW`, `PREPARING`, etc.)                   |
+| `orders`              | `idx_orders_business_requested_date`         | `(business_id, requested_date)`     | B-tree                  | Kitchen dispatch by day                                            |
+| `orders`              | `idx_orders_business_guest`                  | `(business_id, guest_id)`           | B-tree                  | Order history per customer                                         |
+| `orders`              | `orders_tracking_token_unique`               | `(tracking_token)`                  | B-tree (Unique)         | Public order tracking lookup (`/[locale]/order/[token]`)           |
+| `orders`              | `idx_orders_guest_id`                        | `(guest_id)`                        | B-tree                  | FK check when a guest is deleted                                   |
+| `orders`              | `idx_orders_business_idempotency_key`        | `(business_id, idempotency_key)`    | B-tree (Unique Partial) | Idempotent `place_order` replay (`idempotency_key` set)            |
+| `order_items`         | `idx_order_items_order_id`                   | `(order_id)`                        | B-tree                  | Order details retrieval                                            |
+| `order_items`         | `idx_order_items_business_product`           | `(business_id, product_id)`         | B-tree                  | Sales per product reporting                                        |
+| `order_items`         | `idx_order_items_product_id`                 | `(product_id)`                      | B-tree                  | FK action when a product is deleted                                |
+| `rate_limit_attempts` | `idx_rate_limit_attempts_bucket_key_created` | `(bucket, key_hash, created_at)`    | B-tree                  | Window counts and opportunistic pruning (see 5.5)                  |
+| `expenses`            | `idx_expenses_business_date`                 | `(business_id, date desc)`          | B-tree                  | Monthly KPI and analytics time ranges                              |
+| `expenses`            | `idx_expenses_tags_gin`                      | `(tags)`                            | GIN                     | Fast tag filtering (`tags @> array['Ingredients']`)                |
 
 ---
 
@@ -444,18 +451,32 @@ $$ language sql stable;
 
 ### 5.2 Access Control Matrix
 
-| Table                 | Role: `anon` (Storefront Customer)                                                                           | Role: `authenticated` (Manager / Staff)                    |
-| :-------------------- | :----------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------- |
-| `businesses`          | `SELECT` public profile by `slug`                                                                            | `SELECT`, `UPDATE` via `is_business_member(id)`            |
-| `business_members`    | Deny                                                                                                         | `SELECT` for business members; write for `owner` role      |
-| `business_settings`   | `SELECT` on the storefront column list only (`business_settings_select_anon` + column grants, #120)          | `SELECT`, `UPDATE` via `is_business_member(business_id)`   |
-| `product_categories`  | `SELECT` for active businesses                                                                               | `ALL` via `is_business_member(business_id)`                |
-| `products`            | `SELECT` where `visible = true`, **public columns only** (no `unit_cost`, see 5.5)                           | `ALL` via `is_business_member(business_id)` (members only) |
-| `guests`              | Direct read denied; inserted via atomic checkout function (#121)                                             | `ALL` via `is_business_member(business_id)`                |
-| `orders`              | No direct access: RPC only (`place_order`, `get_order_by_tracking_token`, `storefront_order_tracking_token`) | `ALL` via `is_business_member(business_id)`                |
-| `order_items`         | No direct access: item snapshots only inside the `get_order_by_tracking_token` RPC payload                   | `ALL` via `is_business_member(business_id)`                |
-| `rate_limit_attempts` | No access (RLS, no policies, privileges revoked); written by `SECURITY DEFINER` functions only               | No access                                                  |
-| `expenses`            | Deny all                                                                                                     | `ALL` via `is_business_member(business_id)`                |
+| Table                 | Role: `anon` (Storefront Customer)                                                                           | Role: `authenticated` (Manager / Staff)                                                                                                        |
+| :-------------------- | :----------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| `businesses`          | `SELECT` public profile by `slug`                                                                            | `SELECT`, `UPDATE` via `is_business_member(id)`; changing `slug` needs `owner` (trigger)                                                       |
+| `business_members`    | Deny                                                                                                         | `SELECT` for business members; write for `owner` role                                                                                          |
+| `business_settings`   | `SELECT` on the storefront column list only (`business_settings_select_anon` + column grants, #120)          | `SELECT`, `UPDATE` via `is_business_member(business_id)`; payment columns need `owner` (trigger); `INSERT` for `owner`; no `DELETE` for anyone |
+| `product_categories`  | `SELECT` for active businesses                                                                               | `ALL` via `is_business_member(business_id)`                                                                                                    |
+| `products`            | `SELECT` where `visible = true`, **public columns only** (no `unit_cost`, see 5.5)                           | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
+| `guests`              | Direct read denied; inserted via atomic checkout function (#121)                                             | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
+| `orders`              | No direct access: RPC only (`place_order`, `get_order_by_tracking_token`, `storefront_order_tracking_token`) | `SELECT` via `is_business_member(business_id)`; **no direct `INSERT`/`UPDATE`** (functions only, see 5.6); `DELETE` for `owner` only           |
+| `order_items`         | No direct access: item snapshots only inside the `get_order_by_tracking_token` RPC payload                   | `SELECT` via `is_business_member(business_id)`; no direct write (`place_order`, `replace_order_items`)                                         |
+| `rate_limit_attempts` | No access (RLS, no policies, privileges revoked); written by `SECURITY DEFINER` functions only               | No access                                                                                                                                      |
+| `expenses`            | Deny all                                                                                                     | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
+
+### 5.2.1 Roles: owner-only actions
+
+`business_members.role` is `owner`, `manager` or `staff`. Everything is member-wide (`is_business_member`) except, for owners only (`is_business_owner`; migration `20260101000028_owner_only_actions.sql`):
+
+- `business_settings.revolut_revtag`, `wero_identifier`, `payment_methods`, `payment_instructions_en`, `payment_instructions_fr` (there is no bank-details column; payment instructions is where bank details would be typed) and `businesses.slug`: a `BEFORE UPDATE` trigger (`enforce_owner_only_columns`) raises `OWNER_REQUIRED` (SQLSTATE `42501`) when one of them changes and the caller is a non-owner member. RLS cannot compare old and new values, and a trigger needs no change to the write path. Callers with no user identity (`auth.uid()` is null: `service_role`, direct database connections) are exempt. Writing a protected column back to its current value is not a change.
+- `DELETE` on `orders`, `expenses`, `guests` and `products` (policies use `is_business_owner`). `product_categories` stay deletable by any member (the products foreign key refuses a non-empty category).
+- `business_settings`: `INSERT` is owner-only and nobody can `DELETE` (policy dropped, privilege revoked); deleting a business cascades.
+
+The Server Actions repeat the check (`requireOwnerAction`, typed `FORBIDDEN` result) and the repositories raise `OwnerRequiredError` for the database refusal.
+
+### 5.2.2 Order writes: functions only (5.6)
+
+See [5.6](#56-order-state-functions).
 
 ### 5.3 Public Guest Tracking & Verification
 
@@ -630,6 +651,22 @@ dropped; FK-leading indexes were added for `products.category_id`, `orders.guest
 `order_items.product_id` (the existing `(business_id, ...)` composites cannot serve those
 FK checks). No table `CHECK` was added for the new text limits: historical rows may exceed
 them and a `CHECK` would also block updating those rows.
+
+### 5.6 Order state functions
+
+Direct `INSERT`/`UPDATE` on `orders` and `INSERT`/`UPDATE`/`DELETE` on `order_items` are revoked from `anon` and `authenticated` (migration `20260101000027_orders_write_privileges.sql`): a member could rewrite `total_amount`, `tracking_token`, `order_number`, `guest_id`, `business_id`, `status_history` or `idempotency_key`. Order state changes go through `SECURITY DEFINER` functions (`set search_path = ''`, member check inside, `revoke ... from public, anon`, granted to `authenticated` and `service_role`):
+
+| Function                                                          | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                               | Errors (prefix / SQLSTATE)                                                                                                                       |
+| :---------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `place_order`                                                     | Creates an order (storefront or non-storefront channel); total from `order_total_cents`; `orders_init_status_history` trigger writes the first history entry                                                                                                                                                                                                                                                                          | see 5.5                                                                                                                                          |
+| `transition_order_status(business, order, expected, new, reason)` | The lifecycle of `src/domain/order-lifecycle.ts` (`NEW`→`CONFIRMED`/`CANCELLED`, `CONFIRMED`→`PREPARING`/`CANCELLED`, `PREPARING`→`READY`/`CANCELLED`, `READY`→`COMPLETED`/`CANCELLED`), reason required for `NEW`→`CANCELLED`, `COMPLETED` only when paid, stock restored on cancellation, history appended in the same statement                                                                                                    | `ORDER_STATE_CONFLICT` `P0007` (current status is not `expected`), `INVALID_STATUS_TRANSITION` `22023`, `ORDER_NOT_FOUND` `P0002`, `42501`       |
+| `cancel_order(business, order, reason)`                           | Same core, no expected status and no reason requirement (unchanged contract), writes its history entry                                                                                                                                                                                                                                                                                                                                | as above                                                                                                                                         |
+| `record_order_payment(business, order, method, and_complete)`     | Records payment on any non-cancelled, non-refunded order; `and_complete` (mark paid and complete) needs `READY` and completes in the same step                                                                                                                                                                                                                                                                                        | `INVALID_PAYMENT_STATE` `22023`, `ORDER_STATE_CONFLICT` `P0007`                                                                                  |
+| `mark_order_unpaid(business, order)`                              | Undo a payment (not on `COMPLETED`, refunded or unpaid orders)                                                                                                                                                                                                                                                                                                                                                                        | `INVALID_PAYMENT_STATE` `22023`                                                                                                                  |
+| `record_order_refund(business, order, reason)`                    | Refund a paid order (any status)                                                                                                                                                                                                                                                                                                                                                                                                      | `INVALID_PAYMENT_STATE` `22023`                                                                                                                  |
+| `replace_order_items(business, order, items)`                     | Items are `[{product_id, quantity}]` only. Names and prices come from `products` of the same business (lines already on the order keep their snapshot name and unit price), duplicates are summed, quantity 1 to 9999, 1 to 100 lines. Stock moves by the per-product delta under row locks in id order; `orders.total_amount` is recomputed with `order_total_cents`. Refused once the order is `COMPLETED`, `CANCELLED` or refunded | `ORDER_STATE_CONFLICT` `P0007`, `INSUFFICIENT_STOCK` `P0001`, `PRODUCT_NOT_FOUND` `P0002`, `INVALID_ORDER_ITEMS`/`INVALID_ITEM_QUANTITY` `22023` |
+
+Internal helpers, executable by no API role: `apply_order_transition` (core of every status change), `order_total_cents(business, service_type, subtotal)` (items subtotal plus the delivery fee of a delivery order; tax is not part of the total), `order_history_entry`.
 
 ---
 

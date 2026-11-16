@@ -1096,4 +1096,52 @@ describe("Order Server Actions", () => {
       }
     });
   });
+
+  describe("state conflicts and refunded orders", () => {
+    it("returns the ORDER_STATE_CONFLICT code when the order changed since it was read", async () => {
+      mockOrderRepo.transition.mockRejectedValueOnce(
+        new OrderRepoError("The order changed, please reload.", "ORDER_STATE_CONFLICT"),
+      );
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "PREPARING",
+      });
+      expect(res).toEqual({
+        success: false,
+        error: "The order changed, please reload.",
+        code: "ORDER_STATE_CONFLICT",
+      });
+    });
+
+    it("passes the expected status it validated against to the atomic transition", async () => {
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "PREPARING",
+      });
+      expect(res.success).toBe(true);
+      expect(mockOrderRepo.transition).toHaveBeenCalledWith(testBusinessId, validOrderId, {
+        expectedStatus: "CONFIRMED",
+        nextStatus: "PREPARING",
+        reason: null,
+      });
+    });
+
+    it("does not record payment on a refunded order", async () => {
+      mockOrders = mockOrders.map((o) =>
+        o.id === validOrderId ? { ...o, paid: "refunded" as const } : o,
+      );
+      const res = await recordPaymentAction({ orderId: validOrderId, paymentMethod: "cash" });
+      expect(res.success).toBe(false);
+      expect(mockOrderRepo.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it("does not mark a refunded READY order paid and complete", async () => {
+      mockOrders = mockOrders.map((o) =>
+        o.id === validOrderId ? { ...o, status: "READY" as const, paid: "refunded" as const } : o,
+      );
+      const res = await markPaidAndCompleteAction({ orderId: validOrderId, paymentMethod: "cash" });
+      expect(res.success).toBe(false);
+      expect(mockOrderRepo.recordPayment).not.toHaveBeenCalled();
+    });
+  });
 });

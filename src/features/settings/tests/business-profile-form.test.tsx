@@ -225,4 +225,19 @@ describe("BusinessProfileForm component", () => {
       expect(screen.getByText("Longitude must be between -180 and 180")).toBeDefined();
     });
   });
+
+  it("locks the slug with an explanation for a member who is not the owner", () => {
+    const reason = getDictionary(DEFAULT_LOCALE).common.ownerOnlyNotice;
+    render(<BusinessProfileForm business={mockBusiness} dict={dict} slugLockedReason={reason} />);
+
+    expect((screen.getByTestId("input-business-slug") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByTestId("slug-owner-only-notice").textContent).toBe(reason);
+  });
+
+  it("lets the owner edit the slug", () => {
+    render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
+
+    expect((screen.getByTestId("input-business-slug") as HTMLInputElement).disabled).toBe(false);
+    expect(screen.queryByTestId("slug-owner-only-notice")).toBeNull();
+  });
 });

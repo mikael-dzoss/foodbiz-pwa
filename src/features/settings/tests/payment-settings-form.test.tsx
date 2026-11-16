@@ -231,4 +231,28 @@ describe("PaymentSettingsForm component (M-64)", () => {
       expect(screen.getByTestId("error-payment-methods")).toBeDefined();
     });
   });
+
+  it("is read-only with an explanation for a member who is not the owner", () => {
+    const reason = getDictionary(DEFAULT_LOCALE).common.ownerOnlyNotice;
+    render(<PaymentSettingsForm settings={mockSettings} dict={dict} readOnlyReason={reason} />);
+
+    expect(screen.getByTestId("payment-owner-only-notice").textContent).toBe(reason);
+    // The controls sit in a disabled fieldset: ":disabled" covers inherited disabling too.
+    for (const id of [
+      "input-revolut-revtag",
+      "input-wero-identifier",
+      "switch-payment-cash",
+      "save-payment-button",
+    ]) {
+      expect(screen.getByTestId(id).matches(":disabled"), id).toBe(true);
+    }
+  });
+
+  it("is editable for the owner (no explanation shown)", () => {
+    render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
+
+    expect(screen.queryByTestId("payment-owner-only-notice")).toBeNull();
+    expect((screen.getByTestId("input-revolut-revtag") as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByTestId("save-payment-button") as HTMLButtonElement).disabled).toBe(false);
+  });
 });

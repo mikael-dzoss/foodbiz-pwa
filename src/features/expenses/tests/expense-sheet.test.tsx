@@ -204,4 +204,29 @@ describe("ExpenseSheet Component", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("disables deleting with an explanation when only an owner may delete", () => {
+    render(
+      <ExpenseSheet
+        open={true}
+        onOpenChange={vi.fn()}
+        expense={mockExpense}
+        deleteDisabledReason="Only the shop owner can change this."
+      />,
+    );
+
+    expect((screen.getByTestId("expense-delete-trigger") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId("expense-delete-owner-only").textContent).toBe(
+      "Only the shop owner can change this.",
+    );
+  });
+
+  it("keeps deleting enabled without an explanation", () => {
+    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
+
+    expect((screen.getByTestId("expense-delete-trigger") as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+    expect(screen.queryByTestId("expense-delete-owner-only")).toBeNull();
+  });
 });
