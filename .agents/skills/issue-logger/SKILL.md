@@ -11,7 +11,7 @@ Convert a plain-text user description into a fully formatted GitHub issue (epic,
 
 ## Tooling (mandatory)
 
-All issue creation goes through `.agents/skills/issue-logger/scripts/gh_issue.py` (stdlib Python, wraps `gh`). Never call `gh issue create` directly: the script enforces the templates, labels (`type`, `status`, `priority`, `area`, `wave`, `gate`), milestone, sub-issue parenting and the epic's child checklist.
+All issue creation goes through `.agents/skills/issue-logger/scripts/gh_issue.py` (stdlib Python, wraps `gh`). Never call `gh issue create` directly: the script enforces the templates, labels (`type`, `status`, `priority`, `area`, `wave`), milestone, sub-issue parenting and the epic's child checklist.
 
 ```bash
 S=.agents/skills/issue-logger/scripts/gh_issue.py
@@ -32,7 +32,7 @@ python3 -B $S setup                       # sync labels/milestones (rarely neede
 // Story
 { "type": "story", "parent": 48, "title": "…", "description": "As a manager, I want … so that ….",
   "ac": ["…", "…"], "priority": "P1", "area": "orders", "wave": 3,
-  "gate": "standard|needs-review|design-change", "notes": "optional", "milestone": "v0.9 MVP" }
+  "notes": "optional", "milestone": "v0.9 MVP" }
 // Bug (parented to the open "Epic: Maintenance" automatically)
 { "type": "bug", "title": "…", "description": "what happened vs expected", "steps": ["…"], "expected": "…",
   "severity": "critical|major|minor", "area": "orders", "browser": "Chrome (Android)" }
@@ -76,10 +76,9 @@ Parse the user's description to extract as many fields as possible **before** pr
 | Parent Epic | Infer from context by querying open issues labeled `type: epic`. If ambiguous, prompt the user with a list of open epics. |
 | Description | Convert to user story format: "As a <role>, I want <goal> so that <benefit>" |
 | Acceptance Criteria | Extract testable criteria from description. If insufficient, prompt: "What specific criteria should we verify?" |
-| Review Gate | Infer: visual changes → "design-change", complex multi-file → "needs-review", simple → "standard" |
 | Technical Notes | Include any implementation hints from the description |
 | Priority / Wave | Copy from parent epic labels unless urgency language says otherwise |
-| Labels | Auto-assigned by the script (`type`, `status`, `priority`, `area`, `wave`, `gate`) |
+| Labels | Auto-assigned by the script (`type`, `status`, `priority`, `area`, `wave`) |
 
 #### For Bugs:
 | Field | Source Strategy |
@@ -105,7 +104,6 @@ Parse the user's description to extract as many fields as possible **before** pr
    - **Bug**: Steps to reproduce if not described
 4. Never prompt for:
    - Priority (default P2 for epics, inherit epic for stories, severity for bugs)
-   - Review gate (infer from complexity)
    - Labels (auto-assigned)
    - Technical notes (optional, include only if user mentioned)
 
@@ -131,9 +129,6 @@ As a <role>, I want <goal> so that <benefit>
 ### Acceptance Criteria
 - [ ] AC1: ...
 - [ ] AC2: ...
-
-### Review Gate
-standard — agent implements autonomously
 
 ### Technical Notes
 ...

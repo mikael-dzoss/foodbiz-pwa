@@ -6,6 +6,7 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
+  "runArgs": ["--shm-size=1gb"],
   "remoteUser": "node",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000, 54321, 54323],
@@ -23,7 +24,6 @@
     "VERCEL_API_TOKEN": "${localEnv:VERCEL_API_TOKEN}"
   },
   "mounts": [
-    "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
     "source=foodbiz-pwa-claude-data,target=/home/node/.claude,type=volume",
     "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
   ],
@@ -40,7 +40,6 @@
         "github.vscode-github-actions",
         "eamodio.gitlens",
         "redhat.vscode-yaml",
-        "google.google-antigravity",
         "anthropic.claude-code"
       ]
     }

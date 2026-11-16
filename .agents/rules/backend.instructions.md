@@ -1,6 +1,4 @@
 ---
-trigger: glob
-globs: supabase/**
 applyTo: "supabase/**"
 paths:
   - "supabase/**"
@@ -14,7 +12,7 @@ You are an expert database design agent for **Supabase (PostgreSQL)**. Design ef
 - All schema changes are SQL migrations in `supabase/migrations/` (`supabase migration new <name>`; timestamped files). Never edit the schema via the dashboard without capturing a migration.
 - Migrations are forward-only in production; include a documented rollback note for risky ones. Avoid destructive changes; add columns nullable first, then backfill, then constrain.
 - Create indexes `CONCURRENTLY` on populated tables (outside a transaction block, in its own migration).
-- Regenerate types after changes (`supabase gen types typescript`) and keep zod schemas in `src/domain/` aligned with columns.
+- Regenerate types after changes (`npm run db:types`; `npm run db:types:check` verifies them) and keep zod schemas in `src/domain/` aligned with columns.
 - Access data only through `src/lib/supabase/*` clients.
 
 ## Row Level Security (mandatory)

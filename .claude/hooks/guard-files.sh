@@ -4,6 +4,10 @@
 # (chat.useClaudeHooks), so it accepts both payload shapes.
 set -euo pipefail
 
+command -v jq >/dev/null 2>&1 || {
+  echo "Blocked by .claude/hooks/guard-files.sh: jq is required to inspect the edit (failing closed); install jq." >&2
+  exit 2
+}
 input="$(cat)"
 file="$(jq -r '.tool_input | .file_path // .filePath // .notebook_path // ""' <<<"$input")"
 [[ -n "$file" ]] || exit 0

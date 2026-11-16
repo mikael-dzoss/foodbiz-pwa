@@ -36,7 +36,7 @@ SUPABASE_SERVICE_ROLE_KEY="<real-service-role-key>" \
 npm run db:provision-member -- --business-slug <slug> --email <email> --role manager --yes
 ```
 
-MCP (Stitch design canvas, Vercel): export `STITCH_API_KEY` / `VERCEL_API_TOKEN` on the host before opening the devcontainer (forwarded via `remoteEnv`). Copilot reads [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code reads [`.mcp.json`](.mcp.json); the Antigravity extension registers them per [`mcp.instructions.md`](.agents/rules/mcp.instructions.md).
+MCP (Stitch design canvas, Vercel): export `STITCH_API_KEY` / `VERCEL_API_TOKEN` on the host before opening the devcontainer (forwarded via `remoteEnv`). Copilot reads [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code reads [`.mcp.json`](.mcp.json).
 
 ## Where next
 

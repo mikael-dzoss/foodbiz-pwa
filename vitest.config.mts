@@ -37,12 +37,12 @@ export default defineConfig({
         "src/lib/supabase/**",
       ],
       reporter: ["text", "json-summary", "html"],
-      // Floors: lines/functions/statements raised by scripts/coverage-ratchet.mjs (cap 70%, never lowered); branches fixed.
+      // Floors sit just under current coverage; raise them by hand when coverage grows, never lower them.
       thresholds: {
-        lines: 70,
-        functions: 70,
+        lines: 89,
+        functions: 87,
         branches: 80,
-        statements: 70,
+        statements: 87,
       },
     },
   },

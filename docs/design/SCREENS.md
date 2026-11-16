@@ -2,7 +2,7 @@
 
 Every v0.9 screen, grouped into **flows** — the unit of the design → implement loop. Tokens and patterns: [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md).
 
-**Status:** `brief` → `designed` (Stitch light) → `approved` (owner) → `implemented` (PR) → `verified` (screenshots light/dark, EN/FR, a11y checks pass).
+**Status:** `brief` → `designed` (Stitch light) → `implemented` (PR) → `verified` (screenshots light/dark, EN/FR, a11y checks pass).
 
 Routes are proposals until #31 (i18n) settles routing: storefront under `/[locale]` (SEO), manager under `/manage` (locale from user preference).
 
@@ -10,9 +10,8 @@ Routes are proposals until #31 (i18n) settles routing: storefront under `/[local
 
 1. Brief in this file (goal, content, primary action, states, EN/FR copy).
 2. Generate in Stitch (mobile) with the **light** design system (`assets/14358508387441273017`), using only patterns from F0. **Dark theme model generation in Stitch is strictly banned**; our well-defined design color tokens in `src/app/globals.css` provide the Dark theme mapping automatically. Fix with `edit_screens`.
-3. Owner approval.
-4. Rebuild with our components and tokens (Stitch HTML is reference only); one PR per story, `design-change` gate.
-5. Playwright screenshots (light/dark × EN/FR) verifying both themes in browser; update Stitch if the implementation intentionally differs; status → `verified`.
+3. Rebuild with our components and tokens (Stitch HTML is reference only); the agent picks the PR slicing ([`ship`](../../.agents/skills/ship/SKILL.md)).
+4. Playwright screenshots (light/dark × EN/FR) verifying both themes in browser; update Stitch if the implementation intentionally differs; status → `verified`.
 
 New pattern needed by a screen → add it to F0 and the component inventory first.
 

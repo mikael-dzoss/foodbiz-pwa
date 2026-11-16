@@ -1,5 +1,4 @@
 ---
-trigger: always_on
 applyTo: "**"
 description: Knowledge-graph-first code exploration with graphify
 ---

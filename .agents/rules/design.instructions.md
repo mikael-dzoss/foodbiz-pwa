@@ -1,5 +1,4 @@
 ---
-trigger: always_on
 paths:
   - "src/app/**/*.tsx"
   - "src/features/**/components/**"
@@ -50,8 +49,8 @@ Stitch generative models often generate unmapped static components not explicitl
 - **Irrelevant Noise (Drop)**: If a component is speculative, architecturally ungrounded, or misleading (e.g. claims of syncing to third-party POS hardware, redundant duplicate actions):
   - Drop or replace with an accurate, grounded alternative (e.g. replacing a POS sync footer with a clean category and product count tally).
 - **Upcoming Actions (`<SoonBadge />`)**: For actions depicted in Stitch that are planned for a subsequent story (e.g. Google OAuth sign-in before backend provider configuration):
-  - Keep the element disabled (`disabled` attribute, `aria-label="... (coming soon)"`).
-  - Attach a discrete `<SoonBadge />` from `@/components/feedback`.
+  - Use `<SoonItem />` from `@/components/feedback`: focusable and tappable, not `disabled` (tap shows a toast and emits `feature_interest`; see DESIGN_SYSTEM.md §8). Its accessible name ends with "(coming soon)".
+  - A standalone element gets a discrete `<SoonBadge />` instead, with the same `aria-label`.
   - Add `{/* TODO(auth): ... */}` referencing the relevant issue.
 
 ## 3. Stitch MCP Discipline

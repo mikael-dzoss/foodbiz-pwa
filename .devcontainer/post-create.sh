@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Volume mounts are created root-owned; hand them to the node user.
-# .gemini: Antigravity extension / agy state; .claude: Claude Code config, auth and memory.
-sudo mkdir -p /home/node/.gemini /home/node/.claude node_modules
-sudo chown -R node:node /home/node/.gemini /home/node/.claude node_modules
+# .claude: Claude Code config, auth and memory.
+sudo mkdir -p /home/node/.claude node_modules
+sudo chown -R node:node /home/node/.claude node_modules
 
 npm ci
 

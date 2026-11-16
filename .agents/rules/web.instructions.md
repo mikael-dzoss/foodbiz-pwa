@@ -1,6 +1,4 @@
 ---
-trigger: glob
-globs: src/**
 applyTo: "src/**"
 paths:
   - "src/**"
@@ -11,7 +9,7 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 
 ## Routing & Structure
 
-- App Router only (`src/app`). Route groups per audience: `(storefront)` (public, SEO) and `(dashboard)` (authenticated manager).
+- App Router only (`src/app`). Storefront routes live under `src/app/[locale]` (public, SEO, EN/FR); the manager app under `src/app/manage` (`login`, and `(authenticated)` for signed-in pages).
 - `src/proxy.ts` replaces `middleware.ts` (never add one). Keep it thin: session refresh, redirects, CSP headers.
 - `loading.tsx`, `error.tsx`, `not-found.tsx` per route segment; `next/link` and `next/image`.
 - New routes update the shared nav component.
@@ -43,7 +41,7 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 
 ## PWA
 
-- Manifest: `src/app/manifest.ts`; icons: `public/icons/`. `public/sw.js` stays excluded from the proxy matcher and never caches authenticated responses.
+- Manifest: `src/app/manifest.ts`; icons: `public/icons/`. There is no service worker yet; if one is added (`public/sw.js`), keep it excluded from the proxy matcher and never let it cache authenticated responses.
 - Offline degrades gracefully with a clear offline state.
 
 ## Performance

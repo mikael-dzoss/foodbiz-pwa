@@ -25,11 +25,6 @@ PRIORITIES = {
     "P2": "P2 — Medium, nice-to-have for launch",
     "P3": "P3 — Low, post-MVP",
 }
-GATES = {
-    "standard": "standard — agent implements autonomously",
-    "needs-review": "needs-review — agent creates plan, waits for approval",
-    "design-change": "design-change — breaking or visual change, requires approval",
-}
 SEVERITIES = {
     "critical": ("Critical — app/page crashes or data loss", "P0"),
     "major": ("Major — feature broken, no workaround", "P1"),
@@ -57,8 +52,6 @@ LABELS: dict[str, tuple[str, str]] = {
     "status: in-review": ("d4c5f9", "PR open, awaiting review"),
     "status: blocked": ("b60205", "Blocked by a dependency or decision"),
     "status: completed": ("0e8a16", "Merged and done"),
-    "gate: needs-review": ("f9d0c4", "Agent must get plan approval before implementing"),
-    "gate: design-change": ("f9d0c4", "Visual/breaking change: approval required before implementing"),
     **{f"wave: {n}": ("bfdadc", f"Delivery wave {n}") for n in range(1, 6)},
     **{f"area: {a}": ("0052cc", f"Area: {a}") for a in AREAS},
 }
@@ -104,7 +97,6 @@ def validate(spec: Spec, nested: bool = False) -> list[str]:
     elif kind == "story":
         need("ac", list)
         one_of("priority", PRIORITIES)
-        one_of("gate", GATES, required=False)
         one_of("wave", range(1, 6), required=False)
         if nested and "parent" in spec:
             errors.append(f"{where}: nested stories must not set 'parent'")
@@ -144,18 +136,14 @@ def render(spec: Spec, parent: int | None) -> tuple[str, str, list[str]]:
         return epic_title(spec), body, labels
 
     if kind == "story":
-        gate = spec.get("gate", "standard")
         body = (section("Parent Epic", f"#{parent}" if parent else "#<new epic>")
                 + section("Description", spec["description"])
                 + section("Acceptance Criteria", checklist(spec["ac"]))
-                + section("Review Gate", GATES[gate])
                 + section("Technical Notes (optional)", spec.get("notes", ""))
                 + section("Area", spec["area"]))
         labels = ["type: story", "status: planned", f"priority: {spec['priority']}", f"area: {spec['area']}"]
         if spec.get("wave"):
             labels.append(f"wave: {spec['wave']}")
-        if gate != "standard":
-            labels.append(f"gate: {gate}")
         return spec["title"], body, labels
 
     severity_text, severity_priority = SEVERITIES[spec["severity"]]
@@ -304,10 +292,10 @@ def rank(issues: list[Spec], kind_filter: str, milestone: str | None) -> tuple[l
         def value(prefix: str, default: str) -> str:
             return next((n.removeprefix(prefix) for n in names if n.startswith(prefix)), default)
 
-        priority, wave, gate = value("priority: ", "P3"), value("wave: ", "-"), value("gate: ", "standard")
+        priority, wave = value("priority: ", "P3"), value("wave: ", "-")
         wave_rank = int(wave) if wave.isdigit() else 0
         key = (priority, wave_rank, issue["number"]) if kind_filter == "all" else (wave_rank, priority, issue["number"])
-        ranked.append((key, f"#{issue['number']:<5}{kind:<6}{priority:<4}wave {wave:<3}{gate:<15}{issue['title']}"))
+        ranked.append((key, f"#{issue['number']:<5}{kind:<6}{priority:<4}wave {wave:<3}{issue['title']}"))
     return [line for _, line in sorted(ranked)], skipped
 
 
