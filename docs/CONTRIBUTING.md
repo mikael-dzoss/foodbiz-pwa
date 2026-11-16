@@ -68,14 +68,47 @@ npm run gate:quick   # format:check, lint, typecheck, unit tests (while iteratin
 npm run gate:full    # every tier, whatever changed
 ```
 
-| Tier    | Runs                                                                                                         | When                                                                         |
-| ------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `check` | `format:check`, `lint`, `typecheck`, `test:coverage`; plus `db:types:check` and `test:tooling` when relevant | Always. Markdown/docs-only changes run `format:check` alone                  |
-| `db`    | `db:test` (pgTAP) and `test:live` against local Supabase                                                     | `supabase/`, repositories, Supabase clients, database types, `package*.json` |
-| `build` | `npm run build`                                                                                              | `src/`, `public/`, Next/TS/PostCSS config, `package*.json`                   |
-| `e2e`   | `npm run test:e2e` (mock-mode Chromium journeys + light/dark WCAG AA)                                        | Same as `build`, plus `e2e/` and `playwright.config.ts`                      |
+| Tier          | Runs                                                                                                                                                                | When                                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `check`       | `secret-scan`, `format:check`, `lint`, `typecheck`, `db:types:check`, `test:coverage`, `npm audit`, `test:tooling`; each only when relevant                         | Always. Markdown/docs-only changes run `secret-scan` and `format:check` alone                                   |
+| `integration` | One local Supabase, then `db:test` (pgTAP) and `test:live`, `build:local` (production build against that stack), `test:e2e:supabase` (anonymous storefront journey) | `supabase/`, repositories, Supabase clients, database types, `src/`, `public/`, `package*.json`, Next/TS config |
+| `e2e`         | `npm run test:e2e` (mock-mode Chromium journeys + light/dark WCAG AA)                                                                                               | `src/`, `public/`, `package*.json`, Next/TS config, `e2e/`, `playwright.config.ts`                              |
 
-The path rules live in one place, `RULES` in [`scripts/ci-scope.mjs`](../scripts/ci-scope.mjs). The `db` tier needs a running local Supabase; if it is down the gate prints the start commands and fails. CI runs the same checks, so a green gate is what CI will confirm: never push just to find out. Fix failures locally, push once.
+The path rules live in one place, `RULES` in [`scripts/ci-scope.mjs`](../scripts/ci-scope.mjs), and CI calls the same script, so the gate and CI agree on the tiers and run the same commands in the same order (the gate stops at the first failure; CI reports every failure of a tier). `integration` needs a running local Supabase; if it is down the gate prints the start commands and fails. The production build needs the seeded local stack (the storefront prerenders its catalog at build time), so use `npm run build:local`, not `npm run build`. A green gate is what CI will confirm: never push just to find out. Fix failures locally, push once.
+
+`secret-scan` (also the first pre-commit step) scans only added lines for high-signal secret patterns and never prints a match in full. Placeholders (`xxx`, `example`, `demo`, `test`, `ci-placeholder-*`, `$VAR`) are allowed; mark a deliberate false positive with a `secret-scan: ignore` comment on that line.
+
+## CI tiers and cost
+
+The repository is private on GitHub's free plan: **2,000 Linux minutes a month, each job billed rounded up to the whole minute**. CI is therefore a few fat jobs instead of many thin ones, and the expensive tiers run only when the diff and the PR's place in its stack need them. Workflow: [`ci.yml`](../.github/workflows/ci.yml).
+
+```text
+check (always; decides the scope) --> integration (if needed) --+
+                                  \-> e2e (if needed) ----------+--> Quality Gate - Summary (the required check)
+```
+
+| Change                                             | Tiers that run                                       | About (billed min) |
+| -------------------------------------------------- | ---------------------------------------------------- | ------------------ |
+| Docs / markdown only                               | check (format + secret scan) + summary               | 2                  |
+| `scripts/`, other workflows, `.husky/`, hooks      | check (incl. tooling tests, no unit tests) + summary | 4                  |
+| `e2e/` specs only                                  | check + e2e + summary                                | 9                  |
+| `supabase/` migrations or seed only                | check + integration (no build) + summary             | 9                  |
+| `src/`, `public/`, `package*.json`, Next/TS config | check + integration + e2e + summary                  | 14                 |
+| `ci.yml` or `scripts/ci-scope.mjs`                 | every tier                                           | 14                 |
+| Middle PR of a stack, whatever it changes          | check + summary                                      | 2 to 5             |
+| Push to `develop` after a clean merge              | format check + summary                               | 2                  |
+
+Estimates assume warm npm and browser caches. `check` runs the unit tests only when `src/`, package files or Vitest/TS config changed. A failing `check` skips `integration` and `e2e`, so a broken push costs about 4 minutes, not 14.
+
+**Stacks.** A PR whose base is `develop`, `staging` or `main` runs every tier its diff needs. A PR whose base is another feature branch runs `check` alone, except the top PR of a stack (no other remote branch contains its head), which is judged against `develop` so the whole stack's diff gets the expensive tiers once. When the bottom PR merges and GitHub retargets the next one to `develop`, the `edited` event re-runs CI with the expensive tiers: the head SHA does not change, but the new run posts a fresh `Quality Gate - Summary` on it. An atomic `gh stack merge` needs every PR's required check green, and the top PR already carried the expensive tiers for the full stack diff. Add `workflow_dispatch` runs (`gh workflow run ci.yml --ref <branch>`) when you want every tier on a branch regardless.
+
+**After merging.** CI also runs on the push to `develop`. If the merge commit's tree equals its PR head's tree (develop did not move since the PR's last rebase) nothing needs re-proving and the run is a format check. Otherwise (develop moved, squash or rebase merge) it judges the merge diff with the same scope rules, which catches semantic conflicts between PRs merged back to back.
+
+**The required check** is `Quality Gate - Summary`. It always runs and fails when any tier failed, was cancelled, or was required by the scope but did not run. Tiers the scope did not ask for count as passed.
+
+**Rough monthly budget.** Assumptions: about 10 merged PRs a week (3 single `src` PRs, one 4-PR `src` stack with one restack, one database PR, 2 scripts/workflow PRs, 3 docs PRs, 2 Dependabot PRs), 1.5 CI runs per PR on average, and one extra run for about half of the PRs from a title or body edit. That is about 1,300 billed minutes a month, against about 2,600 for the previous design (8 jobs per run each doing `npm ci`, no path filters, a separate title job, no stack awareness, a full re-run on every merge). Both are estimates; real usage is under Settings, Billing, Actions.
+
+To spend fewer minutes: run `npm run gate` before the first push, push each PR once, set the PR title and body in the same `gh pr create` or `gh pr edit` call (every title or body edit re-runs CI), and restack only when a lower PR changed.
 
 ### Local Supabase stack
 

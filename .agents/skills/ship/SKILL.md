@@ -37,7 +37,7 @@ Simplest thing that works ([ponytail](../ponytail/SKILL.md)); tests first for be
 
 ## 5. Verify locally, then push once
 
-`npm run gate` runs only the tiers your diff needs (format, lint, typecheck, unit tests with coverage; plus tooling, db, build and e2e when relevant). Fix everything before the first push. `npm run gate:quick` while iterating, `npm run gate:full` for a risky change. The db tier needs local Supabase (`npm run db:start`); the gate prints the commands if it is down.
+`npm run gate` runs only the tiers your diff needs (format, lint, typecheck, unit tests with coverage; plus tooling, integration and e2e when relevant). Fix everything before the first push. `npm run gate:quick` while iterating, `npm run gate:full` for a risky change. The integration tier (pgTAP, live tests, `build:local`, Supabase journey) needs local Supabase (`npm run db:start`); the gate prints the commands if it is down. CI runs the same tiers from the same scope rules ([CI tiers and cost](../../../docs/CONTRIBUTING.md#ci-tiers-and-cost)).
 
 Economy rules:
 
@@ -45,6 +45,8 @@ Economy rules:
 - Push a whole stack once. Batch review fixes into one push per PR.
 - On a CI failure, reproduce it locally with `npm run gate` before touching anything, then fix and push once.
 - Do not restack unless a lower PR changed.
+- Set a PR's title and body in one call (`gh pr create`, or one `gh pr edit --title --body-file`): every title or body edit re-runs CI.
+- In a stack, CI runs only the cheap `check` tier on middle PRs; the bottom PR (base `develop`) and the top PR carry the expensive tiers. Merge with `gh stack merge`; the one required check is `Quality Gate - Summary`.
 
 ## 6. Open the PR
 
