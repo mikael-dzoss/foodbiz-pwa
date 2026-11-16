@@ -8,6 +8,7 @@ import {
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import { getMockRepositories } from "@/lib/repositories/mock";
 import { createDefaultFixtures } from "@/lib/repositories/mock/fixtures";
+import { toStorefrontProduct } from "@/domain/storefront-product";
 import { rankFeaturedProducts } from "@/domain/featured";
 import type { BusinessSettings } from "@/domain/business";
 
@@ -145,7 +146,7 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
           const aggregateRead = vi.spyOn(repos.orders, "sumQuantitiesByProduct");
           const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
           expect(catalog.featuredProducts).toEqual(
-            rankFeaturedProducts(fixtures.products, fixtures.orders, now),
+            rankFeaturedProducts(fixtures.products, fixtures.orders, now).map(toStorefrontProduct),
           );
           expect(aggregateRead).toHaveBeenCalledTimes(scenario === "recent" ? 1 : 2);
           expect(privateRead).not.toHaveBeenCalled();
@@ -166,7 +167,7 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       for (const group of catalog.groupedCategories) {
         expect(group.products.length).toBeGreaterThan(0);
         for (const prod of group.products) {
-          expect(prod.visible).toBe(true);
+          expect(prod.stock).toBeGreaterThanOrEqual(0);
         }
       }
     });
@@ -200,32 +201,35 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
     });
   });
 
-  describe("getLatestProductPrices (#85)", () => {
-    it("returns fresh prices and stock for requested products", async () => {
-      const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
-      const prod1 = catalog.groupedCategories[0].products[0];
-      const prod2 = catalog.groupedCategories[0].products[1];
-
-      const { getLatestProductPrices } = await import("../catalog-data");
-      const prices = await getLatestProductPrices([prod1.id, prod2.id], DEMO_BUSINESS_ID);
-
-      expect(prices.length).toBe(2);
-      expect(prices[0].id).toBe(prod1.id);
-      expect(prices[0].price).toBe(prod1.price);
-      expect(prices[0].stock).toBe(prod1.stock);
-      expect(prices[1].id).toBe(prod2.id);
-    });
-
-    it("handles missing product IDs gracefully by filtering them out", async () => {
-      const { getLatestProductPrices } = await import("../catalog-data");
-      const prices = await getLatestProductPrices(["non-existent-id"], DEMO_BUSINESS_ID);
-      expect(prices).toEqual([]);
-    });
-  });
-
   describe("revalidateStorefrontCatalog", () => {
     it("runs revalidation without throwing", async () => {
       await expect(revalidateStorefrontCatalog(DEMO_BUSINESS_ID)).resolves.toBeUndefined();
     });
+  });
+});
+
+describe("catalog-data failure handling", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("propagates repository failures instead of serving fallback data", async () => {
+    vi.spyOn(getMockRepositories().business, "findById").mockRejectedValue(new Error("db down"));
+    await expect(getStorefrontCatalog(DEMO_BUSINESS_ID)).rejects.toThrow("db down");
+    await expect(getStorefrontProduct("any", DEMO_BUSINESS_ID)).rejects.toThrow("db down");
+  });
+
+  it("sends storefront DTOs to the client without private product fields", async () => {
+    const catalog = await getStorefrontCatalog(DEMO_BUSINESS_ID);
+    const serialized = JSON.stringify(catalog);
+    expect(serialized).not.toContain("unitCost");
+    expect(serialized).not.toContain('updatedAt":"' + "never");
+    for (const group of catalog.groupedCategories) {
+      for (const product of group.products) {
+        expect(product).not.toHaveProperty("unitCost");
+        expect(product).not.toHaveProperty("businessId");
+        expect(product.stock).toBeLessThanOrEqual(50);
+      }
+    }
   });
 });

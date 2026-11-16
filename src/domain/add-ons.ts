@@ -1,10 +1,18 @@
 import type { Product, ProductCategory } from "./product";
 
+/** Minimal product fields add-on selection needs (satisfied by Product and StorefrontProduct). */
+export type AddOnProduct = Pick<
+  Product,
+  "id" | "categoryId" | "name" | "stock" | "suggestAddOns"
+> & {
+  readonly visible?: boolean;
+};
+
 export type AddOnKind = "drinks" | "accompaniments";
 
-export interface AddOnCandidates {
+export interface AddOnCandidates<P extends AddOnProduct = Product> {
   kind: AddOnKind;
-  products: Product[];
+  products: P[];
 }
 
 /**
@@ -15,11 +23,11 @@ export interface AddOnCandidates {
  * - Candidates are sorted by category `sortOrder` ascending, then product `name` ascending.
  * - Returns `null` when `suggestAddOns` is false, product role has no add-ons, or no candidates exist.
  */
-export function getAddOnCandidates(
-  product: Product,
+export function getAddOnCandidates<P extends AddOnProduct>(
+  product: AddOnProduct,
   categories: readonly ProductCategory[],
-  products: readonly Product[],
-): AddOnCandidates | null {
+  products: readonly P[],
+): AddOnCandidates<P> | null {
   if (!product.suggestAddOns) {
     return null;
   }
@@ -49,7 +57,7 @@ export function getAddOnCandidates(
     .filter(
       (candidate) =>
         candidate.id !== product.id &&
-        candidate.visible &&
+        candidate.visible !== false &&
         candidate.stock > 0 &&
         targetCategorySortOrders.has(candidate.categoryId),
     )

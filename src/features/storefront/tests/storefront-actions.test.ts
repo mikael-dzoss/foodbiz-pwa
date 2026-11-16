@@ -4,6 +4,7 @@ import { getMockRepositories } from "@/lib/repositories/mock";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { getGlobalIdempotencyStore } from "@/lib/idempotency";
+import { OrderRepoError } from "@/domain/order";
 import { placeOrderAction } from "../storefront-actions";
 
 const mockRevalidateTag = vi.fn();
@@ -471,5 +472,72 @@ describe("placeOrderAction", () => {
         expect(res.success).toBe(true);
       }
     });
+  });
+});
+
+describe("placeOrderAction failure handling", () => {
+  const payload = {
+    businessId: DEMO_BUSINESS_ID,
+    items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 20 }],
+    name: "Camille Claudel",
+    phone: "+33699887766",
+    serviceType: "pickup" as const,
+    isAsap: true,
+    paymentPreference: "on_handover" as const,
+    idempotencyKey: "test-idem-key-failure",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMockRepositories().reset();
+    getGlobalRateLimiter().reset();
+    getGlobalIdempotencyStore().reset();
+  });
+
+  it("returns a generic typed error instead of throwing when the settings read fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(getMockRepositories().business, "getSettings").mockRejectedValue(
+      new Error('permission denied for table "business_settings" (42501)'),
+    );
+
+    const result = await placeOrderAction(payload);
+
+    expect(result).toEqual({
+      success: false,
+      error: "We could not place your order. Please try again.",
+      code: "INTERNAL_ERROR",
+    });
+    expect(JSON.stringify(result)).not.toContain("42501");
+    expect(errorSpy).toHaveBeenCalled();
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("33699887766");
+    errorSpy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it("returns a generic typed error when the product read fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(getMockRepositories().products, "list").mockRejectedValue(new Error("db down"));
+
+    const result = await placeOrderAction({ ...payload, idempotencyKey: "test-idem-key-fail-2" });
+
+    expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
+    errorSpy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it("maps repository input errors to VALIDATION_ERROR and hides unknown failures", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const orders = getMockRepositories().orders;
+    vi.spyOn(orders, "place").mockRejectedValueOnce(new OrderRepoError("bad", "INVALID_INPUT"));
+    expect(
+      await placeOrderAction({ ...payload, idempotencyKey: "test-idem-key-input" }),
+    ).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+
+    vi.spyOn(orders, "place").mockRejectedValueOnce(new Error("relation x exploded"));
+    const result = await placeOrderAction({ ...payload, idempotencyKey: "test-idem-key-boom" });
+    expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
+    expect(JSON.stringify(result)).not.toContain("exploded");
+    errorSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 });

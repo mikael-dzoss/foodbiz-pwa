@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n";
-import { getRepositories } from "@/lib/repositories";
+import { getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { OrderConfirmationView } from "@/features/storefront/components/order-confirmation-view";
 
 export const instant = false;
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: ConfirmationPageProps): Promi
 export default async function ConfirmationPage({ params }: ConfirmationPageProps) {
   const { locale: requestedLocale, token } = await params;
   const locale = isSupportedLocale(requestedLocale) ? requestedLocale : DEFAULT_LOCALE;
-  const repos = getRepositories();
+  const repos = getStorefrontRepositories();
   const order = await repos.orders.findByTrackingToken(token);
   if (!order) return notFound();
   const business = await repos.business.findById(order.businessId);

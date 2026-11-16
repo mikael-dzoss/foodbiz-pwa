@@ -5,11 +5,11 @@ import Image from "next/image";
 import { UtensilsCrossed } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
-import type { Product } from "@/domain/product";
+import type { StorefrontProduct } from "@/domain/storefront-product";
 import { ProductAddButton } from "./product-add-button";
 
 export interface ProductCatalogCardProps {
-  product: Product;
+  product: StorefrontProduct;
   categoryName?: string;
   locale: SupportedLocale;
   dict: StorefrontDictionary;

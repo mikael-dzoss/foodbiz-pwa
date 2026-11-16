@@ -2,8 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { getRepositories } from "@/lib/repositories";
-import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
 import {
   mergeDuplicateItems,
   placeOrderInputSchema,
@@ -28,6 +27,16 @@ import { calculateOrderTotals, type PricingLineItem } from "@/domain/pricing";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { getGlobalIdempotencyStore } from "@/lib/idempotency";
+
+/** Logs the real failure server-side (no request data) and returns a generic typed error. */
+function internalError(step: string, err: unknown): PlaceOrderResult {
+  console.error(`placeOrderAction: ${step} failed`, err instanceof Error ? err.message : err);
+  return {
+    success: false,
+    error: "We could not place your order. Please try again.",
+    code: "INTERNAL_ERROR",
+  };
+}
 
 /**
  * Public customer storefront action for placing an order (Issues #87, #90).
@@ -59,7 +68,7 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
   }
 
   const data = parsed.data;
-  const businessId = data.businessId ?? DEMO_BUSINESS_ID;
+  const businessId = data.businessId ?? getStorefrontBusinessId();
   // One line per product so stock checks, reservations and caps cannot be bypassed by repeating a line.
   const items = mergeDuplicateItems(data.items);
 
@@ -165,13 +174,19 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
 
   // Internal execution wrapped to register in-flight promise
   const executeOrder = async (): Promise<PlaceOrderResult> => {
-    const repos = getRepositories();
+    const repos = getStorefrontRepositories();
 
-    // 7. Business & Settings Verification
-    const [business, settings] = await Promise.all([
-      repos.business.findById(businessId),
-      repos.business.getSettings(businessId),
-    ]);
+    // 7. Business & Settings Verification (public columns only: this action runs for anonymous visitors)
+    let business: Awaited<ReturnType<typeof repos.business.findById>>;
+    let settings: Awaited<ReturnType<typeof repos.business.getSettings>>;
+    try {
+      [business, settings] = await Promise.all([
+        repos.business.findById(businessId),
+        repos.business.getSettings(businessId),
+      ]);
+    } catch (err) {
+      return internalError("business lookup", err);
+    }
 
     if (!business) {
       return {
@@ -200,7 +215,12 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     }
 
     // 8. Products, Pricing & Stock Verification
-    const allProducts = await repos.products.list(businessId);
+    let allProducts: Product[];
+    try {
+      allProducts = await repos.products.list(businessId);
+    } catch (err) {
+      return internalError("product lookup", err);
+    }
     const productMap = new Map<string, Product>();
     for (const p of allProducts) {
       productMap.set(p.id, p);
@@ -291,6 +311,7 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
       });
     } catch (err) {
       if (err instanceof OrderRepoError) {
+        // Repository messages are already generic and client-safe (see mapPlaceOrderError).
         const allowedCodes = [
           "VALIDATION_ERROR",
           "ANTI_ABUSE_REJECTION",
@@ -301,7 +322,9 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
         ] as const;
         const code = allowedCodes.includes(err.code as (typeof allowedCodes)[number])
           ? (err.code as (typeof allowedCodes)[number])
-          : "INTERNAL_ERROR";
+          : err.code === "INVALID_INPUT"
+            ? "VALIDATION_ERROR"
+            : "INTERNAL_ERROR";
         return {
           success: false,
           error: err.message,
@@ -309,11 +332,7 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
           lineErrors: err.lineErrors,
         };
       }
-      return {
-        success: false,
-        error: "We could not place your order. Please try again.",
-        code: "INTERNAL_ERROR",
-      };
+      return internalError("order placement", err);
     }
 
     const successData: PlaceOrderSuccessData = {
