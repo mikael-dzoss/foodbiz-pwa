@@ -250,7 +250,8 @@ export function calculateKpiMetrics(input: CalculateKpiMetricsInput): KpiMetrics
           revenue += order.totalAmount;
           paidOrderCount += 1;
         }
-      } else {
+      } else if (order.paid === "unpaid") {
+        // A refunded order is neither revenue nor pending: the money went back.
         totalPendingRevenue += order.totalAmount;
         const pendingDate = getOrderPendingDate(order);
         if (pendingDate && isDateInPeriod(pendingDate, period)) {

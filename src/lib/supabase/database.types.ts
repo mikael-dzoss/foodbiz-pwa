@@ -637,7 +637,7 @@ export type Database = {
           p_order_id: string;
           p_items: Json;
         };
-        Returns: undefined;
+        Returns: Json;
       };
       rate_limit_key: {
         Args: {
@@ -662,6 +662,66 @@ export type Database = {
           p_key_hash: string;
         };
         Returns: undefined;
+      };
+      order_total_cents: {
+        Args: {
+          p_business_id: string;
+          p_service_type: Database["public"]["Enums"]["order_service_type"];
+          p_subtotal: number;
+        };
+        Returns: number;
+      };
+      order_history_entry: {
+        Args: {
+          p_status: Database["public"]["Enums"]["order_status"];
+          p_note: string;
+        };
+        Returns: Json;
+      };
+      apply_order_transition: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+          p_expected_status: Database["public"]["Enums"]["order_status"];
+          p_new_status: Database["public"]["Enums"]["order_status"];
+          p_reason: string;
+          p_require_reason: boolean;
+        };
+        Returns: unknown;
+      };
+      transition_order_status: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+          p_expected_status: Database["public"]["Enums"]["order_status"];
+          p_new_status: Database["public"]["Enums"]["order_status"];
+          p_reason?: string;
+        };
+        Returns: Json;
+      };
+      record_order_payment: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+          p_payment_method: Database["public"]["Enums"]["order_payment_method"];
+          p_and_complete?: boolean;
+        };
+        Returns: Json;
+      };
+      mark_order_unpaid: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+        };
+        Returns: Json;
+      };
+      record_order_refund: {
+        Args: {
+          p_business_id: string;
+          p_order_id: string;
+          p_reason?: string;
+        };
+        Returns: Json;
       };
     };
     Enums: {

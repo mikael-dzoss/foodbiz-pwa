@@ -27,6 +27,14 @@ export type PaidStatus = z.infer<typeof paidStatusSchema>;
 export const serviceTypeSchema = z.enum(["pickup", "delivery"]);
 export type ServiceType = z.infer<typeof serviceTypeSchema>;
 
+/**
+ * Read-side service type: every value of the database enum `order_service_type`. `dine-in` exists
+ * in the database but is not a product feature, so input schemas keep using `serviceTypeSchema`;
+ * reading must still tolerate a row carrying it instead of throwing for the whole order list.
+ */
+export const storedServiceTypeSchema = z.enum(["pickup", "delivery", "dine-in"]);
+export type StoredServiceType = z.infer<typeof storedServiceTypeSchema>;
+
 export const channelSchema = z.enum(["storefront", "phone", "whatsapp", "in-person"]);
 export type Channel = z.infer<typeof channelSchema>;
 
@@ -63,7 +71,7 @@ export const orderSchema = z.object({
   // Audit only, never displayed as the customer name: filled when the submitted name differs from
   // the stored guest name and the caller was not allowed to rename the guest.
   submittedName: z.string().optional().nullable(),
-  serviceType: serviceTypeSchema,
+  serviceType: storedServiceTypeSchema,
   channel: channelSchema,
   status: orderStatusSchema,
   paid: paidStatusSchema,
@@ -218,6 +226,29 @@ export const cancelOrderResultSchema = z.object({
 });
 export type CancelOrderResult = z.infer<typeof cancelOrderResultSchema>;
 
+export const orderPaymentInputSchema = z.object({
+  paymentMethod: paymentMethodSchema,
+  /** "Mark paid and complete": the order must be READY and becomes COMPLETED in the same step. */
+  markCompleted: z.boolean().optional(),
+});
+export type OrderPaymentInput = z.infer<typeof orderPaymentInputSchema>;
+
+export const orderStatusTransitionInputSchema = z.object({
+  /** Optimistic concurrency: the status the caller saw. A different current status is a conflict. */
+  expectedStatus: orderStatusSchema,
+  nextStatus: orderStatusSchema,
+  reason: z.string().trim().optional().nullable(),
+});
+export type OrderStatusTransitionInput = z.infer<typeof orderStatusTransitionInputSchema>;
+
+/** Lines of an item replacement carry only a product and a quantity: names and prices come from the catalog. */
+export const replaceOrderItemInputSchema = z.object({
+  productId: uuidSchema,
+  quantity: z.number().int().min(1).max(9999),
+});
+export type ReplaceOrderItemInput = z.infer<typeof replaceOrderItemInputSchema>;
+
+/** `ORDER_STATE_CONFLICT`: the order is not in the state the call expected or needs. */
 export class OrderRepoError extends Error {
   readonly code: string;
   readonly lineErrors?: Record<string, string>;
