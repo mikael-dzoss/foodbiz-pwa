@@ -346,6 +346,11 @@ select is(
   'anon caller cannot rename guest even with p_update_guest_name=true'
 );
 
+-- Setup (not an assertion): the repeat-customer scenario below places more storefront orders for
+-- +33600000002 than the per-phone rate limit allows within one window (3 / 10 min). Clear the
+-- attempts recorded so far; rate limiting itself is covered in public_surface.test.sql.
+delete from public.rate_limit_attempts;
+
 -- Test 14: Authenticated non-member cannot rename canonical guest even when p_update_guest_name=true
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
