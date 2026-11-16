@@ -266,7 +266,8 @@ describe.skipIf(shouldSkip)(
         "Timed out waiting for member A channel to reach SUBSCRIBED",
       );
 
-      // Wait deterministically for subscription to reach SUBSCRIBED
+      // SUBSCRIBED is held by the helper (postgres_changes_options.wait) until the server has
+      // activated the postgres_changes subscription, so inserting right after it cannot be missed
       await subscribedPromise;
 
       // Place order for Business A

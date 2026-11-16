@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, waitFor } from "@testing-library/react";
 import type { Database } from "@/lib/supabase/database.types";
 import type { RealtimeOrderClient } from "@/lib/supabase/realtime";
 import { OrderAlertsProvider, useOrderAlerts } from "../alerts/order-alerts-context";
@@ -285,7 +285,7 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
   describe("Realtime postgres_changes subscription (#124)", () => {
     const testBizId = "10000000-0000-0000-0000-000000000001";
 
-    it("subscribes to orders:business:${businessId} with event INSERT and business_id filter", () => {
+    it("subscribes to orders:business:${businessId} with event INSERT and business_id filter", async () => {
       const mock = createMockSupabaseClient();
 
       render(
@@ -299,7 +299,10 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
         </OrderAlertsProvider>,
       );
 
-      expect(mock.client.channel).toHaveBeenCalledWith(`orders:business:${testBizId}`);
+      await waitFor(() => expect(mock.mockChannel.subscribe).toHaveBeenCalledTimes(1));
+      expect(mock.client.channel).toHaveBeenCalledWith(`orders:business:${testBizId}`, {
+        config: { postgres_changes_options: { wait: true } },
+      });
       expect(mock.mockChannel.on).toHaveBeenCalledWith(
         "postgres_changes",
         {
@@ -467,7 +470,7 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
       expect(mockShowToast).toHaveBeenCalledTimes(1);
     });
 
-    it("removes the channel subscription when unmounting", () => {
+    it("removes the channel subscription when unmounting", async () => {
       const mock = createMockSupabaseClient();
 
       const { unmount } = render(
@@ -476,6 +479,7 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
         </OrderAlertsProvider>,
       );
 
+      await waitFor(() => expect(mock.mockChannel.subscribe).toHaveBeenCalledTimes(1));
       expect(mock.client.removeChannel).not.toHaveBeenCalled();
 
       unmount();
