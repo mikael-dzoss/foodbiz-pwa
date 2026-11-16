@@ -19,6 +19,7 @@ Next.js 16.4 App Router PWA (customer storefront + installable manager dashboard
 ├── app/          → Routes, layouts, manifest.ts, globals.css (theme tokens)
 ├── proxy.ts      → Request proxy (session refresh via lib/supabase/proxy)
 ├── config/       → Env parsing (zod) and app metadata
+├── lib/repositories/ → Mock and Supabase adapters behind `domain/repositories` interfaces
 ├── lib/supabase/ → client.ts (browser), server.ts (RSC/actions), proxy.ts (session refresh), admin.ts, realtime.ts, storage.ts
 ├── domain/       → Models, types, KPI logic, zod schemas (framework-free)
 ├── features/     → Feature modules: storefront, dashboard, orders, products, expenses, customers, manager, settings, auth
@@ -52,6 +53,6 @@ Read only the section you need.
 - **Build a screen or component / Stitch:** [design.instructions.md](.agents/rules/design.instructions.md) (Stitch canvas-first flow), [DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) (§2 tokens, §7 components), [SCREENS.md](docs/design/SCREENS.md#screens)
 - **MCP servers (Stitch, Vercel):** Copilot [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code [`.mcp.json`](.mcp.json); keys come from `STITCH_API_KEY` / `VERCEL_API_TOKEN`.
 - **Business rules, domain model:** [FUNCTIONAL_SPECIFICATION.md#5-core-business-rules](docs/FUNCTIONAL_SPECIFICATION.md#5-core-business-rules), [#6-domain-model](docs/FUNCTIONAL_SPECIFICATION.md#6-domain-model)
-- **Supabase clients, session refresh:** [architecture.md#data-flow-with-supabase-ssr-clients](docs/architecture.md#data-flow-with-supabase-ssr-clients)
+- **Supabase clients, session refresh:** [architecture.md#supabase-clients](docs/architecture.md#supabase-clients)
 - **Port legacy Expo behaviour:** [LEGACY_EXPO_REFERENCE.md](docs/LEGACY_EXPO_REFERENCE.md)
 - **Next.js caching, auth, forms, CSP, PWA, proxy:** `node_modules/next/dist/docs/01-app/02-guides/` → `authentication-with-cache-components.md`, `forms.md`, `data-security.md`, `content-security-policy.md`, `progressive-web-apps.md`; `03-api-reference/03-file-conventions/proxy.md`

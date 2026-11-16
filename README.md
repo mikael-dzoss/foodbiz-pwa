@@ -1,49 +1,51 @@
 # FoodBiz PWA
 
-Progressive Web App rewrite of FoodBiz Manager: one Next.js codebase serving the **manager dashboard** (installable PWA) and the **customer storefront** (SSR, SEO-friendly).
+Progressive Web App rewrite of FoodBiz Manager: one Next.js codebase serving the **customer storefront** (public, server-rendered, EN/FR) and the **manager dashboard** (installable PWA, Google sign-in). Nothing is deployed yet; see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-## Getting started
+## Quick start
 
-```bash
-cp .env.example .env.local   # fill in Supabase URL + publishable key
-npm install
-npm run dev                  # http://localhost:3000
-```
+Open the folder in VS Code and choose **Reopen in Container**. `.devcontainer/` installs dependencies (`npm ci`), the Supabase CLI and Docker-in-Docker, and copies `.env.example` to `.env.local` on first start.
 
-Or open the folder in VS Code and choose **Reopen in Container** — `.devcontainer/` installs everything (including `docker-in-docker`, the Supabase CLI, and the Claude Code CLI + VS Code extension; Claude login and settings persist in the `foodbiz-pwa-claude-data` volume).
+### Mock mode (no database)
 
-### Local Supabase stack
+`.env.example` defaults to `DATA_SOURCE=mock`, which serves in-memory demo data.
 
 ```bash
-npm run db:start             # start local Supabase (API :54321, Studio :54323)
-npm run db:reset             # reapply migrations + seed data (supabase/seed.sql)
-npm run db:stop              # stop local Supabase containers
+npm run dev          # http://localhost:3000 (storefront), /manage/login (dashboard; mock sign-in, no Google needed)
 ```
 
-For local Google OAuth testing with the Supabase CLI, copy `supabase/.env.example` to `supabase/.env` and supply your Google Client ID and Secret (`supabase/.env` is git-ignored).
+Mock mode is refused in production builds.
 
-### Manager provisioning
-
-Provision a manager or staff member for a business (server-side administrative CLI). Prerequisite: the user must have signed in with Google once so an auth record exists.
+### Supabase mode (local database)
 
 ```bash
-# Local development (local CLI stack):
-npm run db:provision-member -- --business-slug <slug> --email <email> --role manager
-
-# Hosted / remote production (requires --yes and real service-role key supplied outside the repo):
-SUPABASE_URL="https://<project-ref>.supabase.co" \
-SUPABASE_SERVICE_ROLE_KEY="<real-service-role-key>" \
-npm run db:provision-member -- --business-slug <slug> --email <email> --role manager --yes
+npm run db:start     # local Supabase: API :54321, Studio :54323; applies migrations and seed.sql
+npm run db:status    # prints the API URL and keys
 ```
 
-MCP (Stitch design canvas, Vercel): export `STITCH_API_KEY` / `VERCEL_API_TOKEN` on the host before opening the devcontainer (forwarded via `remoteEnv`). Copilot reads [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code reads [`.mcp.json`](.mcp.json).
+In `.env.local`, set `DATA_SOURCE=supabase`, `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the status output, and keep `STOREFRONT_BUSINESS_ID` as in `.env.example` (the seeded demo business). Then `npm run dev`. Other commands: `npm run db:reset` (reapply migrations and seed), `npm run db:stop`.
 
-## Where next
+Manager sign-in uses Google OAuth. Locally, copy `supabase/.env.example` to `supabase/.env` and add a Google client ID and secret ([setup](docs/DEPLOYMENT.md#google-sign-in-supabase-auth-active-locally-planned-for-hosted)). To get manager access either set `ALLOWED_MANAGER_EMAILS` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (development only, auto-provisions the demo business), or provision a member after that user has signed in once:
 
-- Stack, folder layout, data flow: [`docs/architecture.md`](docs/architecture.md)
-- Branches, commits, validation gate: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)
-- All docs: [`docs/README.md`](docs/README.md) · Agent contract: [`AGENTS.md`](AGENTS.md)
+```bash
+npm run db:provision-member -- --business-slug la-petite-boulangerie --email <email> --role manager
+```
+
+### Checks
+
+```bash
+npm run gate         # runs the checks your change needs; see docs/CONTRIBUTING.md
+```
+
+MCP servers (Stitch, Vercel): export `STITCH_API_KEY` / `VERCEL_API_TOKEN` on the host before opening the devcontainer. Copilot reads [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code reads [`.mcp.json`](.mcp.json).
+
+## Documentation
+
+- [`docs/README.md`](docs/README.md): index of all docs
+- [`docs/architecture.md`](docs/architecture.md): how the code is organised
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md): branches, commits, validation gate, CI
+- [`AGENTS.md`](AGENTS.md): contract for coding agents
 
 ## License
 
-The source is public for transparency. All rights reserved; no licence is granted.
+All rights reserved; no licence is granted.
