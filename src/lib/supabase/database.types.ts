@@ -356,6 +356,7 @@ export type Database = {
           created_at: string;
           updated_at: string;
           idempotency_key: string | null;
+          idempotency_payload_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -382,6 +383,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           idempotency_key?: string | null;
+          idempotency_payload_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -408,6 +410,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           idempotency_key?: string | null;
+          idempotency_payload_hash?: string | null;
         };
         Relationships: [
           {
@@ -649,6 +652,7 @@ export type Database = {
           p_key_hash: string;
           p_limit: number;
           p_window: unknown;
+          p_lock?: boolean;
         };
         Returns: boolean;
       };

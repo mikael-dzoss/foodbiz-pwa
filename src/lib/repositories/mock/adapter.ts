@@ -27,6 +27,7 @@ import type {
   Repositories,
 } from "@/domain/repositories";
 import {
+  LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS,
   LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
   MAX_LINES_PER_ORDER,
   MAX_QUANTITY_PER_LINE,
@@ -55,7 +56,10 @@ export function createMockRepositories(
   // shared contract suites behave the same on mock and live: idempotent replay, and attempt
   // logs for the per-phone and per-business rate limits (successful storefront placements) and
   // the failed-lookup limit.
-  let placements = new Map<string, { phone: string; summary: PlacedOrderSummary }>();
+  let placements = new Map<
+    string,
+    { phone: string; payload: string; summary: PlacedOrderSummary }
+  >();
   let orderAttempts: Array<{ businessId: string; phone: string; at: number }> = [];
   let lookupMisses: Array<{ key: string; at: number }> = [];
   const reset = (custom?: MockFixtures): void => {
@@ -207,10 +211,27 @@ export function createMockRepositories(
 
       // Idempotent replay: the same (business, key) returns the original order untouched.
       const idempotencyId = input.idempotencyKey ? `${bId}:${input.idempotencyKey}` : null;
+      // Same normalized payload as place_order's hash: merged items, service type, date, time,
+      // payment preference and phone. A key replayed with a different cart is rejected.
+      const payload = JSON.stringify({
+        items: [
+          ...input.items
+            .reduce(
+              (acc, it) => acc.set(it.productId, (acc.get(it.productId) ?? 0) + it.quantity),
+              new Map<string, number>(),
+            )
+            .entries(),
+        ].toSorted(([a], [b]) => a.localeCompare(b)),
+        serviceType: input.serviceType,
+        requestedDate: input.requestedDate,
+        requestedTime: input.requestedTime ?? "",
+        paymentPreference: input.paymentPreference ?? "on_handover",
+        phone: phoneKey,
+      });
       if (idempotencyId) {
         const prior = placements.get(idempotencyId);
         if (prior) {
-          if (prior.phone !== phoneKey) {
+          if (prior.phone !== phoneKey || prior.payload !== payload) {
             throw new OrderRepoError("Please check your order details.", "INVALID_INPUT");
           }
           return { ...prior.summary, replayed: true };
@@ -371,7 +392,7 @@ export function createMockRepositories(
         totalAmount: o.totalAmount,
         replayed: false,
       };
-      if (idempotencyId) placements.set(idempotencyId, { phone: phoneKey, summary });
+      if (idempotencyId) placements.set(idempotencyId, { phone: phoneKey, payload, summary });
       if (input.channel === "storefront") {
         orderAttempts.push({ businessId: bId, phone: phoneKey, at: Date.now() });
       }
@@ -420,7 +441,9 @@ export function createMockRepositories(
       const key = `${bId}:${phone.trim()}`;
       lookupMisses = lookupMisses.filter((m) => withinWindow(m.at));
       if (
-        lookupMisses.filter((m) => m.key === key).length >= LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS
+        lookupMisses.filter((m) => m.key === key).length >= LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS ||
+        lookupMisses.filter((m) => m.key.startsWith(`${bId}:`)).length >=
+          LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS
       ) {
         throw new OrderRepoError("Too many attempts. Please try again later.", "RATE_LIMITED");
       }

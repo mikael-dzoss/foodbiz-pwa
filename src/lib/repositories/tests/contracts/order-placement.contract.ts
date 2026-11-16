@@ -119,6 +119,28 @@ export function describeOrderPlacementContract(
       );
     });
 
+    it("rejects an idempotency key replayed with a different cart", async () => {
+      const repos = await getRepositories();
+      const { productId, qty } = await pickOrderable(repos);
+      const phone = freshPhone();
+      const idempotencyKey = crypto.randomUUID();
+      const before = await stockOf(repos, productId);
+      await repos.orders.place(
+        businessId,
+        orderInput(phone, [{ productId, quantity: qty }], { idempotencyKey }),
+      );
+
+      // Same key and phone, different quantity: never reported as a success for an unplaced cart.
+      await expectRejection(
+        repos.orders.place(
+          businessId,
+          orderInput(phone, [{ productId, quantity: qty + 1 }], { idempotencyKey }),
+        ),
+        "INVALID_INPUT",
+      );
+      expect(await stockOf(repos, productId)).toBe((before ?? 0) - qty);
+    });
+
     it(`rejects a line above MAX_QUANTITY_PER_LINE (${MAX_QUANTITY_PER_LINE}) and keeps stock`, async () => {
       const repos = await getRepositories();
       const [productId] = await visibleProductIds(repos);

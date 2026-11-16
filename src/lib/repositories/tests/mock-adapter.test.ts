@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { RATE_LIMIT_BUSINESS_MAX_ORDERS } from "@/domain/anti-abuse";
+import {
+  LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS,
+  RATE_LIMIT_BUSINESS_MAX_ORDERS,
+} from "@/domain/anti-abuse";
 import { createMockRepositories, type MockRepositories } from "../mock";
 import { DEMO_BUSINESS_ID } from "../mock/fixtures";
 import { describeRepositoryContracts } from "./contracts";
@@ -13,6 +16,20 @@ describe("Mock Adapter Contract Conformance", () => {
   });
 
   describeRepositoryContracts("In-Memory Mock Adapter", () => mockRepos);
+
+  it("bounds failed lookups per business like storefront_order_tracking_token", async () => {
+    for (let n = 0; n < LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS; n++) {
+      // A different phone each time: only the business-wide ceiling can stop this.
+      await mockRepos.orders.findTrackingTokenByTicketAndPhone(
+        DEMO_BUSINESS_ID,
+        999_000,
+        `+336${String(20_000_000 + n)}`,
+      );
+    }
+    await expect(
+      mockRepos.orders.findTrackingTokenByTicketAndPhone(DEMO_BUSINESS_ID, 999_000, "+33699999999"),
+    ).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  });
 
   it("applies the per-business flood brake like place_order (RATE_LIMIT_BUSINESS_MAX_ORDERS per window)", async () => {
     const [product] = await mockRepos.products.list(DEMO_BUSINESS_ID, { visibleOnly: true });

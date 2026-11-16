@@ -1,6 +1,6 @@
 /**
  * Order limits. The database enforces the SAME numbers inside `place_order` (see
- * supabase/migrations/20260101000012_place_order_hardening.sql, `c_*` constants) because
+ * supabase/migrations/20260101000014_place_order_hardening.sql, `c_*` constants) because
  * anonymous callers can reach the RPC directly. Change both together: the live contract
  * test (order.contract.ts) exercises the database at these exact boundaries and fails if
  * they diverge.
@@ -21,6 +21,11 @@ export const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 export const LOOKUP_RATE_LIMIT_IP_MAX_REQUESTS = 10;
 /** Failed lookups per phone: enforced in the database (`storefront_order_tracking_token`). */
 export const LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS = 5;
+/**
+ * Failed lookups per business per window (lock-free soft ceiling in the database), so varying
+ * the phone cannot grow the attempts table without bound. Same RATE_LIMITED error.
+ */
+export const LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS = 300;
 
 export type HoneypotValidationResult =
   { readonly ok: true } | { readonly ok: false; readonly reason: "HONEYPOT_TRIGGERED" };

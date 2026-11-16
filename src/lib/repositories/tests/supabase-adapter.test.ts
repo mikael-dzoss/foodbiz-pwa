@@ -485,7 +485,7 @@ function createFakeSupabaseClient(
         const items = (args.p_items as Array<{ product_id: string; quantity: number }>) || [];
 
         // Mirrors place_order: idempotent replay, storefront caps and rate limits (see
-        // supabase/migrations/20260101000012_place_order_hardening.sql).
+        // supabase/migrations/20260101000014_place_order_hardening.sql).
         const businessId = String(args.p_business_id);
         const idempotencyKey = (args.p_idempotency_key as string | undefined) ?? null;
         if (idempotencyKey) {
@@ -496,7 +496,21 @@ function createFakeSupabaseClient(
           );
           if (prior) {
             const priorGuest = tables.guests.find((g) => g.id === prior.guest_id);
-            if (priorGuest?.phone !== args.p_guest_phone) {
+            const merged = new Map<string, number>();
+            for (const it of items) {
+              merged.set(it.product_id, (merged.get(it.product_id) ?? 0) + it.quantity);
+            }
+            const payload = JSON.stringify([
+              [...merged.entries()].toSorted(([a], [b]) => a.localeCompare(b)),
+              args.p_service_type,
+              args.p_requested_date,
+              args.p_requested_time ?? "",
+              args.p_payment_preference ?? "on_handover",
+            ]);
+            if (
+              priorGuest?.phone !== args.p_guest_phone ||
+              (prior as { idempotency_payload?: string }).idempotency_payload !== payload
+            ) {
               return {
                 data: null,
                 error: { message: "INVALID_IDEMPOTENCY_KEY: reused", code: "22023" },
@@ -643,6 +657,20 @@ function createFakeSupabaseClient(
           delivery_address: args.p_delivery_address ? String(args.p_delivery_address) : null,
           status_history: [{ status: "NEW", timestamp: new Date().toISOString(), note: null }],
           idempotency_key: idempotencyKey,
+          idempotency_payload: JSON.stringify([
+            [
+              ...items
+                .reduce(
+                  (acc, it) => acc.set(it.product_id, (acc.get(it.product_id) ?? 0) + it.quantity),
+                  new Map<string, number>(),
+                )
+                .entries(),
+            ].toSorted(([a], [b]) => a.localeCompare(b)),
+            args.p_service_type,
+            args.p_requested_date,
+            args.p_requested_time ?? "",
+            args.p_payment_preference ?? "on_handover",
+          ]),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
