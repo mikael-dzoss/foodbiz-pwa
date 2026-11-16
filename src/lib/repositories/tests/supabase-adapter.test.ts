@@ -6,6 +6,7 @@ import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
 import { createSupabaseRepositories } from "../supabase";
+import { PUBLIC_PRODUCT_COLUMNS } from "../supabase/adapter";
 import { describeRepositoryContracts } from "./contracts";
 
 function createFakeSupabaseClient(
@@ -691,7 +692,10 @@ describe("Supabase Repository Adapter", () => {
           requestedDate: "2026-10-15",
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 99999 }],
         }),
-      ).rejects.toThrowError("INSUFFICIENT_STOCK");
+      ).rejects.toMatchObject({
+        code: "STOCK_ERROR",
+        message: expect.not.stringContaining("INSUFFICIENT"),
+      });
 
       // P0003 product not found
       await expect(
@@ -703,7 +707,10 @@ describe("Supabase Repository Adapter", () => {
           requestedDate: "2026-10-15",
           items: [{ productId: "99999999-9999-4999-8999-999999999999", quantity: 1 }],
         }),
-      ).rejects.toThrowError("PRODUCT_NOT_AVAILABLE");
+      ).rejects.toMatchObject({
+        code: "STOCK_ERROR",
+        message: expect.not.stringContaining("PRODUCT_NOT"),
+      });
 
       // Custom error codes via client mock
       const rpcMock = vi.fn(async () => ({
@@ -775,6 +782,7 @@ describe("Supabase Repository Adapter", () => {
       ).rejects.toMatchObject({ code: "INVALID_INPUT" });
 
       // generic error
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       rpcMock.mockImplementationOnce(async () => ({
         data: null,
         error: { code: "UNKNOWN", message: "Unexpected failure" },
@@ -788,7 +796,119 @@ describe("Supabase Repository Adapter", () => {
           requestedDate: "2026-10-15",
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
-      ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+      ).rejects.toMatchObject({
+        code: "INTERNAL_ERROR",
+        message: "We could not place your order. Please try again.",
+      });
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it("maps place_order error prefixes to codes without leaking database text", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const place = async (message: string, code = "XX000") => {
+        const rpc = vi.fn(async () => ({ data: null, error: { code, message } }));
+        const repos = createSupabaseRepositories({
+          ...createFakeSupabaseClient(),
+          rpc,
+        } as unknown as SupabaseClient<Database>);
+        return repos.orders
+          .place(DEMO_BUSINESS_ID, {
+            guestName: "Alice",
+            guestPhone: "+33612345678",
+            serviceType: "pickup",
+            channel: "storefront",
+            requestedDate: "2026-10-15",
+            items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+          })
+          .catch((err: unknown) => err);
+      };
+      expect(await place("INSUFFICIENT_STOCK: product x has 1 in stock")).toMatchObject({
+        code: "STOCK_ERROR",
+      });
+      expect(await place("ORDERS_NOT_ACCEPTED: business x")).toMatchObject({
+        code: "STORE_CLOSED",
+      });
+      expect(await place("SERVICE_TYPE_NOT_AVAILABLE: delivery is not available")).toMatchObject({
+        code: "SERVICE_TYPE_DISABLED",
+      });
+      expect(await place("MINIMUM_ORDER_AMOUNT_NOT_MET: subtotal 1")).toMatchObject({
+        code: "MINIMUM_ORDER_UNMET",
+      });
+      expect(await place("INVALID_DELIVERY_ADDRESS: secret detail")).toMatchObject({
+        code: "INVALID_INPUT",
+        message: "Please check your order details.",
+      });
+      const unknown = await place('relation "orders" exploded at 10.0.0.1');
+      expect(unknown).toMatchObject({ code: "INTERNAL_ERROR" });
+      expect((unknown as Error).message).not.toContain("exploded");
+      // Only SQLSTATE and an error prefix are logged, never free-text database messages.
+      expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("exploded");
+      expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("10.0.0.1");
+      errorSpy.mockRestore();
+    });
+
+    it("reads featured aggregates via the public RPC in publicOnly mode", async () => {
+      const rpc = vi.fn(async () => ({
+        data: [{ product_id: "p1", quantity: 3, last_ordered_at: "2026-10-31T12:00:00+00:00" }],
+        error: null,
+      }));
+      const from = vi.fn();
+      const repos = createSupabaseRepositories(
+        { rpc, from } as unknown as SupabaseClient<Database>,
+        {
+          publicOnly: true,
+        },
+      );
+      const filter = { fromDate: "2026-10-24T12:00:00.000Z", toDate: "2026-10-31T12:00:00.000Z" };
+      await expect(repos.orders.sumQuantitiesByProduct(DEMO_BUSINESS_ID, filter)).resolves.toEqual([
+        { productId: "p1", quantity: 3, lastOrderedAt: "2026-10-31T12:00:00.000Z" },
+      ]);
+      expect(rpc).toHaveBeenCalledWith("storefront_featured_products", {
+        p_business_id: DEMO_BUSINESS_ID,
+        p_from: filter.fromDate,
+        p_to: filter.toDate,
+      });
+      expect(from).not.toHaveBeenCalled();
+
+      rpc.mockResolvedValueOnce({ data: null, error: { message: "boom" } } as never);
+      await expect(repos.orders.sumQuantitiesByProduct(DEMO_BUSINESS_ID, filter)).rejects.toEqual({
+        message: "boom",
+      });
+    });
+
+    it("selects only public product columns in publicOnly mode", async () => {
+      const select = vi.fn();
+      const chain: Record<string, unknown> = {};
+      const row = {
+        id: "33333333-3333-4333-8333-333333333301",
+        business_id: DEMO_BUSINESS_ID,
+        category_id: "22222222-2222-4222-8222-222222222201",
+        name: "Baguette",
+        description: null,
+        price: 130,
+        stock: 3,
+        visible: true,
+        suggest_add_ons: true,
+        allergens: [],
+        image_url: null,
+      };
+      chain.eq = () => chain;
+      chain.maybeSingle = async () => ({ data: row, error: null });
+      chain.then = (resolve: (value: unknown) => void) => resolve({ data: [row], error: null });
+      select.mockReturnValue(chain);
+      const client = { from: () => ({ select }) } as unknown as SupabaseClient<Database>;
+      const repos = createSupabaseRepositories(client, { publicOnly: true });
+
+      const listed = await repos.products.list(DEMO_BUSINESS_ID, { visibleOnly: true });
+      const found = await repos.products.findById(DEMO_BUSINESS_ID, row.id);
+
+      for (const [columns] of select.mock.calls) {
+        expect(columns).toBe(PUBLIC_PRODUCT_COLUMNS);
+        expect(columns).not.toContain("unit_cost");
+      }
+      expect(listed[0]).toMatchObject({ id: row.id, price: 130, stock: 3, unitCost: 0 });
+      expect(found?.name).toBe("Baguette");
     });
 
     it("maps cancel_order errors accurately", async () => {

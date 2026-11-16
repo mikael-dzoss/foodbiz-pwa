@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import type { Business } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { StorefrontHeader } from "./storefront-header";
 import { StorefrontFooter } from "./storefront-footer";
@@ -11,7 +11,7 @@ export interface StorefrontShellProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   businessName?: string;
-  business?: Business;
+  business?: StorefrontBusiness;
   currentYear?: number;
   cartCount?: number;
 }

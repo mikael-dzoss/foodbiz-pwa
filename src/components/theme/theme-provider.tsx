@@ -1,11 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useSyncExternalStore } from "react";
+import { THEME_STORAGE_KEY } from "./theme-storage-key";
 
 export type Theme = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
-
-export const THEME_STORAGE_KEY = "foodbiz-theme";
 
 interface ThemeContextValue {
   theme: Theme;

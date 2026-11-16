@@ -5,10 +5,11 @@ import { UtensilsCrossed } from "lucide-react";
 import { Badge, Checkbox } from "@/components/ui";
 import { formatMoney } from "@/domain/formatting/money";
 import type { AddOnCandidates } from "@/domain/add-ons";
+import type { StorefrontProduct } from "@/domain/storefront-product";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 
 export interface ProductAddOnGroupProps {
-  addOns: AddOnCandidates;
+  addOns: AddOnCandidates<StorefrontProduct>;
   selectedIds: readonly string[];
   onToggle: (productId: string) => void;
   locale: SupportedLocale;

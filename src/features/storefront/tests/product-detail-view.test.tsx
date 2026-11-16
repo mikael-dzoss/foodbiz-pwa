@@ -4,37 +4,28 @@ import { ProductDetailView } from "../components/product-detail-view";
 import { CartProvider, resetCartStore, useCart } from "../context/cart-context";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { AddOnCandidates } from "@/domain/add-ons";
+import type { StorefrontProduct } from "@/domain/storefront-product";
 import type { StorefrontProductData } from "../catalog-data";
 
 const sampleProductData: StorefrontProductData = {
   product: {
     id: "prod-pastry-1",
-    businessId: "biz-1",
     categoryId: "cat-1",
     name: "Artisan Sourdough Loaf",
     description: "Slow-fermented artisan sourdough bread with crispy crust",
     price: 650,
-    unitCost: 200,
     stock: 8,
-    visible: true,
     allergens: [],
     suggestAddOns: true,
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
   },
   categoryName: "Artisan Breads",
   business: {
-    id: "biz-1",
     name: "The Rustic Baker",
-    slug: "rustic-baker",
     description: "Traditional sourdough and pastries",
     phone: "+33 6 12 34 56 78",
     email: "contact@rusticbaker.fr",
     whatsappNumber: "33612345678",
     address: "12 Rue de la Paix, Paris",
-    currency: "EUR",
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
   },
   settings: {
     businessId: "biz-1",
@@ -191,7 +182,7 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
   });
 
   it("renders the optional Drinks group below the description card in EN and FR and hides it when addOns is null", () => {
-    const sampleDrinks: AddOnCandidates = {
+    const sampleDrinks: AddOnCandidates<StorefrontProduct> = {
       kind: "drinks",
       products: [
         {
@@ -272,7 +263,7 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
   });
 
   it("updates CTA total when drinks are selected, adds separate cart lines with main quantity, and resets selections", () => {
-    const sampleDrinks: AddOnCandidates = {
+    const sampleDrinks: AddOnCandidates<StorefrontProduct> = {
       kind: "drinks",
       products: [
         {
@@ -351,7 +342,7 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
   });
 
   it("disables add-on checkboxes when the store is not accepting orders", () => {
-    const sampleDrinks: AddOnCandidates = {
+    const sampleDrinks: AddOnCandidates<StorefrontProduct> = {
       kind: "drinks",
       products: [
         {
@@ -393,7 +384,7 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       },
       categoryName: "Hot & Cold Beverages",
     };
-    const sampleAccompaniments: AddOnCandidates = {
+    const sampleAccompaniments: AddOnCandidates<StorefrontProduct> = {
       kind: "accompaniments",
       products: [
         {

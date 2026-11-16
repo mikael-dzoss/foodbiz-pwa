@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { LEGAL_PAGES_AVAILABLE } from "@/config/app";
 import { FacebookIcon, InstagramIcon, TikTokIcon } from "@/components/icons";
-import type { Business } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 
 /** Anchors on the shop info page (#233), in page order. */
@@ -21,7 +21,7 @@ export const SHOP_INFO_SECTIONS = [
 export interface StorefrontFooterProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
-  business?: Business;
+  business?: StorefrontBusiness;
   businessName?: string;
   currentYear?: number;
   legalPagesAvailable?: boolean;

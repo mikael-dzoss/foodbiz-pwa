@@ -19,12 +19,14 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import type { Business, BusinessSettings } from "@/domain/business";
+import type { BusinessSettings } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import {
   checkoutFormSchema,
   type CheckoutFormData,
+  type PlaceOrderErrorCode,
   type PlaceOrderSuccessData,
   GUEST_CONTACT_STORAGE_KEY,
   guestContactStorageSchema,
@@ -37,6 +39,17 @@ import { Button } from "@/components/ui/button";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { useCart, resolveServiceMode } from "../context/cart-context";
 import { placeOrderAction } from "../storefront-actions";
+
+/** Dictionary key holding the localized message for each place-order failure code. */
+const PLACE_ORDER_ERROR_KEYS = {
+  VALIDATION_ERROR: "orderErrorValidation",
+  ANTI_ABUSE_REJECTION: "orderErrorAntiAbuse",
+  STORE_CLOSED: "orderErrorStoreClosed",
+  SERVICE_TYPE_DISABLED: "orderErrorServiceDisabled",
+  MINIMUM_ORDER_UNMET: "orderErrorMinimum",
+  STOCK_ERROR: "orderErrorStock",
+  INTERNAL_ERROR: "orderErrorInternal",
+} as const satisfies Record<PlaceOrderErrorCode, keyof StorefrontDictionary>;
 
 const guestContactListeners = new Set<() => void>();
 let cachedRawGuestContact: string | null = "__UNSET__";
@@ -87,7 +100,7 @@ function getStoredGuestContact(): GuestContactStorage | null {
 }
 
 export interface CheckoutFormProps {
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
@@ -259,7 +272,6 @@ export function CheckoutForm({
         setSubmittedSuccess(true);
       } else {
         const orderResult = await placeOrderAction({
-          businessId: business.id,
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
           name: validationResult.data.name,
           phone: validationResult.data.phone,
@@ -275,7 +287,7 @@ export function CheckoutForm({
         });
 
         if (!orderResult.success) {
-          setErrorFeedback(orderResult.error);
+          setErrorFeedback(dict[PLACE_ORDER_ERROR_KEYS[orderResult.code ?? "INTERNAL_ERROR"]]);
           setIsSubmitting(false);
           return;
         }
@@ -299,10 +311,8 @@ export function CheckoutForm({
 
         return;
       }
-    } catch (err) {
-      setErrorFeedback(
-        err instanceof Error ? err.message : "Failed to place order. Please try again.",
-      );
+    } catch {
+      setErrorFeedback(dict.orderErrorInternal);
     } finally {
       setIsSubmitting(false);
     }
@@ -915,6 +925,7 @@ export function CheckoutForm({
       {errorFeedback && (
         <div
           data-testid="checkout-error-feedback"
+          role="alert"
           className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-xl border p-3 text-sm"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ShoppingBag, User } from "lucide-react";
-import type { Business, BusinessSettings } from "@/domain/business";
+import type { BusinessSettings } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { Button } from "@/components/ui/button";
 import { useCart } from "../context/cart-context";
@@ -11,7 +12,7 @@ import { CheckoutForm } from "./checkout-form";
 import type { CheckoutFormData } from "@/domain/checkout";
 
 export interface CheckoutViewProps {
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;

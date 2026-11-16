@@ -6,7 +6,8 @@ import {
   DEFAULT_LOCALE,
   type SupportedLocale,
 } from "@/domain/i18n";
-import { getRepositories } from "@/lib/repositories";
+import { getStorefrontRepositories } from "@/lib/repositories/storefront";
+import { toStorefrontBusiness } from "@/domain/storefront-business";
 import { OrderTrackingView } from "@/features/storefront";
 
 export const instant = false;
@@ -17,7 +18,7 @@ export interface OrderTrackingPageProps {
 
 export async function generateMetadata({ params }: OrderTrackingPageProps): Promise<Metadata> {
   const resolved = await params;
-  const repos = getRepositories();
+  const repos = getStorefrontRepositories();
   const order = await repos.orders.findByTrackingToken(resolved.token);
 
   if (!order) {
@@ -43,7 +44,7 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
     : DEFAULT_LOCALE;
   const dict = getDictionary(locale);
 
-  const repos = getRepositories();
+  const repos = getStorefrontRepositories();
   const order = await repos.orders.findByTrackingToken(resolved.token);
 
   if (!order) {
@@ -61,7 +62,7 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
   return (
     <OrderTrackingView
       order={order}
-      business={business}
+      business={toStorefrontBusiness(business)}
       locale={locale}
       dict={dict.orderTracking}
       storefrontDict={dict.storefront}

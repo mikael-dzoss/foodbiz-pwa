@@ -1,27 +1,28 @@
 import { cacheLife, cacheTag, revalidateTag, revalidatePath } from "next/cache";
-import { getRepositories } from "@/lib/repositories";
-import { createSupabaseRepositories } from "@/lib/repositories/supabase";
-import { createPublicServerClient } from "@/lib/supabase/server";
-import { getServerEnv } from "@/config/env";
-import type { Repositories } from "@/domain/repositories";
-import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";
-import type { Business, BusinessSettings } from "@/domain/business";
-import type { Product, ProductCategory } from "@/domain/product";
+import type { BusinessSettings } from "@/domain/business";
+import {
+  toStorefrontBusiness,
+  toStorefrontCategory,
+  type StorefrontBusiness,
+  type StorefrontCategory,
+} from "@/domain/storefront-business";
+import { toStorefrontProduct, type StorefrontProduct } from "@/domain/storefront-product";
 
 export interface GroupedCategory {
   id: string;
   name: string;
   sortOrder: number;
-  products: Product[];
+  products: StorefrontProduct[];
 }
 
 export interface StorefrontCatalogData {
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
-  categories: ProductCategory[];
+  categories: StorefrontCategory[];
   groupedCategories: GroupedCategory[];
-  featuredProducts: Product[];
+  featuredProducts: StorefrontProduct[];
   totalVisibleProducts: number;
   isAcceptingOrders: boolean;
   isOpen: boolean;
@@ -30,9 +31,9 @@ export interface StorefrontCatalogData {
 }
 
 export interface StorefrontProductData {
-  product: Product;
+  product: StorefrontProduct;
   categoryName: string;
-  business: Business;
+  business: StorefrontBusiness;
   settings: BusinessSettings | null;
   isAcceptingOrders: boolean;
   isOpen: boolean;
@@ -79,55 +80,25 @@ export function evaluateStoreOperatingStatus(
   };
 }
 
-function getCatalogRepositories(): Repositories {
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder")) {
-    return getRepositories("mock");
-  }
-
-  try {
-    const dataSource = getServerEnv().DATA_SOURCE;
-    if (dataSource === "supabase") {
-      return createSupabaseRepositories(createPublicServerClient, { publicOnly: true });
-    }
-    return getRepositories();
-  } catch {
-    return getRepositories("mock");
-  }
-}
-
 /**
  * Server-rendered, cached catalog query for the public storefront (#80, #82, #83).
  * Groups visible products by category.
  */
-export async function getStorefrontCatalog(
-  businessId = DEMO_BUSINESS_ID,
-): Promise<StorefrontCatalogData> {
+export async function getStorefrontCatalog(): Promise<StorefrontCatalogData> {
   "use cache";
+  // The business comes from server configuration only, never from the caller.
+  const businessId = getStorefrontBusinessId();
   cacheTag("storefront-catalog", `storefront-catalog-${businessId}`);
   cacheLife("hours");
 
-  let repos = getCatalogRepositories();
-  let business: Business | null = null;
-  let settings: BusinessSettings | null = null;
-  let categories: ProductCategory[] = [];
-  let products: Product[] = [];
-
-  try {
-    [business, settings, categories, products] = await Promise.all([
-      repos.business.findById(businessId),
-      repos.business.getSettings(businessId),
-      repos.categories.list(businessId),
-      repos.products.list(businessId, { visibleOnly: true }),
-    ]);
-  } catch {
-    repos = getRepositories("mock");
-    [business, settings, categories, products] = await Promise.all([
-      repos.business.findById(businessId),
-      repos.business.getSettings(businessId),
-      repos.categories.list(businessId),
-      repos.products.list(businessId, { visibleOnly: true }),
-    ]);
-  }
+  // Read failures propagate to the route error boundary: never serve placeholder data.
+  const repos = getStorefrontRepositories();
+  const [business, settings, categories, products] = await Promise.all([
+    repos.business.findById(businessId),
+    repos.business.getSettings(businessId),
+    repos.categories.list(businessId),
+    repos.products.list(businessId, { visibleOnly: true }),
+  ]);
 
   if (!business) {
     throw new Error(`Storefront business not found for id: ${businessId}`);
@@ -147,14 +118,15 @@ export async function getStorefrontCatalog(
     });
   }
 
-  const uncategorized: Product[] = [];
+  const uncategorized: StorefrontProduct[] = [];
 
   for (const prod of visibleProducts) {
+    const dto = toStorefrontProduct(prod);
     const group = categoryMap.get(prod.categoryId);
     if (group) {
-      group.products.push(prod);
+      group.products.push(dto);
     } else {
-      uncategorized.push(prod);
+      uncategorized.push(dto);
     }
   }
 
@@ -179,19 +151,20 @@ export async function getStorefrontCatalog(
     featuredDateRange(now, 7),
   );
   const recentFeatured = rankFeaturedQuantities(visibleProducts, recentQuantities);
-  const featuredProducts =
+  const featuredProducts = (
     recentFeatured.length > 0
       ? recentFeatured
       : rankFeaturedQuantities(
           visibleProducts,
           await repos.orders.sumQuantitiesByProduct(businessId, featuredDateRange(now, 30)),
-        );
+        )
+  ).map(toStorefrontProduct);
   const operatingStatus = evaluateStoreOperatingStatus(settings, now);
 
   return {
-    business,
+    business: toStorefrontBusiness(business),
     settings,
-    categories,
+    categories: categories.map(toStorefrontCategory),
     groupedCategories,
     featuredProducts,
     totalVisibleProducts: visibleProducts.length,
@@ -208,31 +181,18 @@ export async function getStorefrontCatalog(
  */
 export async function getStorefrontProduct(
   productId: string,
-  businessId = DEMO_BUSINESS_ID,
 ): Promise<StorefrontProductData | null> {
   "use cache";
+  const businessId = getStorefrontBusinessId();
   cacheTag("storefront-catalog", `storefront-product-${productId}`);
   cacheLife("hours");
 
-  let repos = getCatalogRepositories();
-  let business: Business | null = null;
-  let settings: BusinessSettings | null = null;
-  let product: Product | null = null;
-
-  try {
-    [business, settings, product] = await Promise.all([
-      repos.business.findById(businessId),
-      repos.business.getSettings(businessId),
-      repos.products.findById(businessId, productId),
-    ]);
-  } catch {
-    repos = getRepositories("mock");
-    [business, settings, product] = await Promise.all([
-      repos.business.findById(businessId),
-      repos.business.getSettings(businessId),
-      repos.products.findById(businessId, productId),
-    ]);
-  }
+  const repos = getStorefrontRepositories();
+  const [business, settings, product] = await Promise.all([
+    repos.business.findById(businessId),
+    repos.business.getSettings(businessId),
+    repos.products.findById(businessId, productId),
+  ]);
 
   if (!business || !product || !product.visible) {
     return null;
@@ -249,9 +209,9 @@ export async function getStorefrontProduct(
   const operatingStatus = evaluateStoreOperatingStatus(settings);
 
   return {
-    product,
+    product: toStorefrontProduct(product),
     categoryName,
-    business,
+    business: toStorefrontBusiness(business),
     settings,
     isAcceptingOrders: operatingStatus.isAcceptingOrders,
     isOpen: operatingStatus.isOpen,
@@ -259,33 +219,11 @@ export async function getStorefrontProduct(
 }
 
 /**
- * Server query to fetch latest prices and stock for a list of products (Issue #85).
- * Refreshes prices from server to prevent stale checkout numbers.
- */
-export async function getLatestProductPrices(
-  productIds: string[],
-  businessId = DEMO_BUSINESS_ID,
-): Promise<Array<{ id: string; name: string; price: number; stock: number; visible: boolean }>> {
-  const repos = getCatalogRepositories();
-  const products = await Promise.all(
-    productIds.map((id) => repos.products.findById(businessId, id)),
-  );
-
-  return products
-    .filter((p): p is NonNullable<typeof p> => p !== null)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      stock: p.stock,
-      visible: p.visible,
-    }));
-}
-
-/**
  * Revalidates all storefront cached data when products, categories, or settings mutate.
  */
-export async function revalidateStorefrontCatalog(businessId = DEMO_BUSINESS_ID): Promise<void> {
+export async function revalidateStorefrontCatalog(
+  businessId = getStorefrontBusinessId(),
+): Promise<void> {
   revalidateTag("storefront-catalog", "max");
   revalidateTag(`storefront-catalog-${businessId}`, "max");
   revalidatePath("/[locale]", "layout");

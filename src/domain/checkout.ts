@@ -79,7 +79,6 @@ export type PlaceOrderItemInput = z.infer<typeof placeOrderItemInputSchema>;
  */
 export const placeOrderInputSchema = z
   .object({
-    businessId: uuidSchema.optional(),
     items: z.array(placeOrderItemInputSchema).min(1, "Order must contain at least one item"),
     name: guestNameSchema,
     phone: z
@@ -147,19 +146,24 @@ export interface PlaceOrderSuccessData {
   readonly totalAmount: number;
 }
 
+export const PLACE_ORDER_ERROR_CODES = [
+  "VALIDATION_ERROR",
+  "ANTI_ABUSE_REJECTION",
+  "STORE_CLOSED",
+  "SERVICE_TYPE_DISABLED",
+  "MINIMUM_ORDER_UNMET",
+  "STOCK_ERROR",
+  "INTERNAL_ERROR",
+] as const;
+
+export type PlaceOrderErrorCode = (typeof PLACE_ORDER_ERROR_CODES)[number];
+
 export type PlaceOrderResult =
   | { readonly success: true; readonly data: PlaceOrderSuccessData }
   | {
       readonly success: false;
       readonly error: string;
-      readonly code?:
-        | "VALIDATION_ERROR"
-        | "ANTI_ABUSE_REJECTION"
-        | "STORE_CLOSED"
-        | "SERVICE_TYPE_DISABLED"
-        | "MINIMUM_ORDER_UNMET"
-        | "STOCK_ERROR"
-        | "INTERNAL_ERROR";
+      readonly code?: PlaceOrderErrorCode;
       readonly fieldErrors?: Record<string, string[]>;
       readonly lineErrors?: Record<string, string>;
     };

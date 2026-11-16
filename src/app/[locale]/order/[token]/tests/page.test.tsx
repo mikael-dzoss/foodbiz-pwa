@@ -57,8 +57,8 @@ const mockBusiness: Business = {
 
 let currentOrder: Order | null = mockOrder;
 
-vi.mock("@/lib/repositories", () => ({
-  getRepositories: () => ({
+vi.mock("@/lib/repositories/storefront", () => ({
+  getStorefrontRepositories: () => ({
     orders: {
       findByTrackingToken: vi.fn(async (token: string) => {
         if (token === "token-99") return currentOrder;

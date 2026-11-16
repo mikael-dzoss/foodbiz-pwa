@@ -353,6 +353,19 @@ export const frDictionary: Dictionary = {
     pickupPolicyNotice: "En validant votre commande, vous acceptez notre politique de retrait",
     orderPlacedTitle: "Commande reçue !",
     redirectingToTracking: "Ouverture de la confirmation de commande...",
+    orderErrorValidation: "Veuillez vérifier vos informations et réessayer.",
+    orderErrorAntiAbuse:
+      "Trop de tentatives de commande. Veuillez patienter quelques minutes avant de réessayer.",
+    orderErrorStoreClosed: "La boutique n'accepte pas de commandes pour le moment.",
+    orderErrorServiceDisabled:
+      "Ce mode de service est actuellement indisponible. Veuillez en choisir un autre.",
+    orderErrorMinimum: "Votre commande est inférieure au montant minimum.",
+    orderErrorStock:
+      "Certains articles de votre panier ne sont plus disponibles. Veuillez vérifier votre panier.",
+    orderErrorInternal: "Nous n'avons pas pu enregistrer votre commande. Veuillez réessayer.",
+    pageErrorTitle: "Une erreur est survenue",
+    pageErrorMessage: "Nous n'avons pas pu charger cette page. Veuillez réessayer.",
+    pageErrorRetry: "Réessayer",
     viewConfirmation: "Voir la confirmation",
     trackOrder: "Suivre la commande",
     nameRequiredError: "Veuillez entrer votre nom (au moins 2 caractères)",
