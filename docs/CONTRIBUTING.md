@@ -4,20 +4,19 @@ Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](
 
 ### Agent tooling
 
-Primary agents are GitHub Copilot and Claude Code (VS Code); Antigravity (VS Code extension) is supported best-effort. Each asset has one canonical file; edit it there, never in a tool-specific copy.
+Primary agents are GitHub Copilot and Claude Code (VS Code). Each asset has one canonical file; edit it there, never in a tool-specific copy.
 
-| Canonical source                                      | GitHub Copilot                     | Claude Code                | Antigravity (best-effort)     |
-| ----------------------------------------------------- | ---------------------------------- | -------------------------- | ----------------------------- |
-| `AGENTS.md`                                           | `chat.useAgentsMdFile`             | `CLAUDE.md` → `@AGENTS.md` | native                        |
-| `.agents/rules/*.instructions.md` (scoped by `paths`) | `.claude/rules/` symlinks          | `.claude/rules/` symlinks  | native (`trigger`)            |
-| `.agents/skills/`                                     | native (`.claude/skills` disabled) | `.claude/skills` symlink   | native                        |
-| `.agents/workflows/`                                  | —                                  | —                          | native                        |
-| `.claude/agents/` (subagents)                         | native                             | native                     | —                             |
-| `.claude/hooks/` via `.claude/settings.json`          | `chat.useClaudeHooks`              | native                     | —                             |
-| MCP servers                                           | `.vscode/mcp.json`                 | `.mcp.json`                | `agy` (`mcp.instructions.md`) |
-| Command auto-approval                                 | `chat.tools.terminal.autoApprove`  | `.claude/settings.json`    | —                             |
+| Canonical source                                      | GitHub Copilot                     | Claude Code                |
+| ----------------------------------------------------- | ---------------------------------- | -------------------------- |
+| `AGENTS.md`                                           | `chat.useAgentsMdFile`             | `CLAUDE.md` → `@AGENTS.md` |
+| `.agents/rules/*.instructions.md` (scoped by `paths`) | `.claude/rules/` symlinks          | `.claude/rules/` symlinks  |
+| `.agents/skills/`                                     | native (`.claude/skills` disabled) | `.claude/skills` symlink   |
+| `.claude/agents/` (subagents)                         | native                             | native                     |
+| `.claude/hooks/` via `.claude/settings.json`          | `chat.useClaudeHooks`              | native                     |
+| MCP servers                                           | `.vscode/mcp.json`                 | `.mcp.json`                |
+| Command auto-approval                                 | `chat.tools.terminal.autoApprove`  | `.claude/settings.json`    |
 
-`mcp.instructions.md` is Antigravity-only and deliberately not linked into `.claude/rules/`. MCP servers and auto-approval lists are the only intentional duplicates (different schemas). The `graphify` skill sets `disable-model-invocation: true`; re-apply it after `graphify install` updates the skill.
+MCP servers and auto-approval lists are the only intentional duplicates (different schemas). The `graphify` skill sets `disable-model-invocation: true`; re-apply it after `graphify install` updates the skill.
 
 ## Branches
 
@@ -44,11 +43,13 @@ Never commit or push directly to `develop`, `staging` or `main`. Branch off `dev
 
 ## Workflow
 
-1. Pick or create an issue (agents: the [`implement-issue`](../.agents/skills/implement-issue/SKILL.md) skill; create issues only via the `issue-logger` skill).
+1. Pick or create an issue (create only via the `issue-logger` skill).
 2. Branch off `develop` (see [Branches](#branches)) and commit small working slices.
-3. Pass the [validation gate](#validation-gate).
-4. Open a PR against `develop`; the [PR template](../.github/pull_request_template.md) is the checklist. For bug fixes (`fix(...)` / `bug/`), always attach the `bug` label.
-5. Promotion to `staging`/`main`: [`DEPLOYMENT.md#releasing`](DEPLOYMENT.md#releasing).
+3. Pass the [validation gate](#validation-gate) locally, then push once.
+4. Open a PR against `develop`; the [PR template](../.github/pull_request_template.md) is the checklist. Bug fixes (`fix(...)` / `bug/`) always carry the `bug` label.
+5. When checks pass, merge your own PR into `develop`. Promotion to `staging`/`main` is the owner's: [`DEPLOYMENT.md#releasing`](DEPLOYMENT.md#releasing).
+
+Agents follow the [`ship`](../.agents/skills/ship/SKILL.md) skill for picking work, slicing PRs and stacks, review and merge.
 
 ## Commits and PR titles
 
@@ -59,17 +60,22 @@ Format: `<type>(<scope>): <description> (#<issue>)`, e.g. `feat(orders): add ord
 
 ## Validation gate
 
-All must pass with zero errors before a PR (CI's `Quality gate` runs the same):
+One command runs everything your change needs, cheapest first, and stops at the first failure:
 
 ```bash
-npm run format:check   # Prettier (+ Tailwind class sorting); fix with npm run format
-npm run lint
-npm run typecheck      # next typegen && tsc --noEmit
-npm run test:coverage  # tests + coverage floors + ratchet
-npm run test:tooling   # tooling tests (Vitest + Python)
-npm run build
-npm run test:e2e       # mock-mode Chromium journeys + light/dark WCAG AA checks
+npm run gate         # tiers chosen from the diff vs origin/develop (scripts/ci-scope.mjs)
+npm run gate:quick   # format:check, lint, typecheck, unit tests (while iterating)
+npm run gate:full    # every tier, whatever changed
 ```
+
+| Tier    | Runs                                                                                                         | When                                                                         |
+| ------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `check` | `format:check`, `lint`, `typecheck`, `test:coverage`; plus `db:types:check` and `test:tooling` when relevant | Always. Markdown/docs-only changes run `format:check` alone                  |
+| `db`    | `db:test` (pgTAP) and `test:live` against local Supabase                                                     | `supabase/`, repositories, Supabase clients, database types, `package*.json` |
+| `build` | `npm run build`                                                                                              | `src/`, `public/`, Next/TS/PostCSS config, `package*.json`                   |
+| `e2e`   | `npm run test:e2e` (mock-mode Chromium journeys + light/dark WCAG AA)                                        | Same as `build`, plus `e2e/` and `playwright.config.ts`                      |
+
+The path rules live in one place, `RULES` in [`scripts/ci-scope.mjs`](../scripts/ci-scope.mjs). The `db` tier needs a running local Supabase; if it is down the gate prints the start commands and fails. CI runs the same checks, so a green gate is what CI will confirm: never push just to find out. Fix failures locally, push once.
 
 ### Local Supabase stack
 
@@ -103,41 +109,12 @@ What this suite proves (`src/lib/repositories/tests/supabase-live.contract.test.
 
 ### Browser and accessibility checks
 
-Install Chromium once with `npx playwright install --with-deps chromium`, then run
-`npm run test:e2e` (or `npm run test:e2e:ui` for interactive debugging).
-Playwright starts its own mock-mode development server at `http://127.0.0.1:3100`;
-stop other Next.js dev servers in this checkout first. It never reuses an existing
-server, calls Supabase, or enables mock authentication in production.
-In mock mode, the request proxy skips Supabase session refresh, so these browser
-tests do not require public Supabase environment variables or a local `.env` file.
-Supabase mode still validates its public configuration; mock mode remains forbidden
-in production.
+Install Chromium once with `npx playwright install --with-deps chromium`, then `npm run test:e2e` (or `test:e2e:ui`). Playwright starts its own mock-mode dev server at `http://127.0.0.1:3100` (stop other Next.js dev servers first); it never calls Supabase and mock auth is forbidden in production. The suite runs with one worker and no retries because the mock repositories are process-local; tests use unique names and do not depend on order.
 
-The suite uses one worker and no retries because the mock repositories are
-process-local and shared between browser contexts. Each run starts with fresh
-fixtures; mutations use unique names or separate guests and do not rely on test
-order. Manager tests sign in through the demo UI. Checkout uses separate customer
-and manager contexts and reloads tracking after acceptance (live polling is not
-part of this gate).
+Browser axe checks cover the storefront (EN/FR), manager sign-in, dashboard, products, orders, expenses and customers in light and dark. WCAG 2/2.1/2.2 A/AA violations, including contrast, fail the run; component axe tests in Vitest skip only the contrast rule (JSDOM cannot compute it). Automated checks supplement, but do not replace, keyboard and screen-reader testing. CI uploads `playwright-results` (report, screenshots, traces; seven days); locally use `npx playwright show-report`.
 
-Browser axe checks cover storefront catalog, product detail, populated cart and
-checkout, confirmation and tracking (EN/FR), manager sign-in, dashboard, products/product sheet,
-orders/manual entry/order detail, and expenses/expense sheet in light and dark.
-Customer list/detail checks additionally cover EN/FR at 360 and 390 px in both themes,
-including search, persistent canonical-name and note edits, and propagation to linked orders.
-WCAG 2/2.1/2.2 A/AA violations, including color contrast, fail CI. Component axe
-tests run in the regular Vitest gate; JSDOM cannot calculate contrast, so only
-that rule is disabled there, not in browser tests. Automated checks supplement,
-but do not replace, keyboard and screen-reader testing.
+### Coverage policy
 
-The consolidated CI summary requires the browser job to succeed. Download
-`playwright-results` for the HTML report, light/dark screenshots, and failure
-traces (retained seven days). Locally use `npx playwright show-report` or
-`npx playwright show-trace test-results/<test>/trace.zip`.
-
-Coverage policy:
-
-- **Production floors** (global, in `vitest.config.mts`): `test:coverage` fails below them, then `scripts/coverage-ratchet.mjs` raises lines/functions/statements toward actual coverage (capped at 70%; branches fixed at 80%). Commit the raised thresholds. A drop is fine while floors pass.
-- Never lower thresholds, add coverage excludes or skip tests to pass; if a change can't meet the floors, stop and ask.
-- **Per-layer targets** (reported in the CI PR comment, not enforced yet): Domain 85%, Features 80%, Config 80%, Lib 75%, Components 70%, App 70%. Mention gaps in the PR.
-- **Tooling** (`scripts/`, `.github/.scripts/`, `.agents/skills/*/scripts/`, `.claude/hooks/`) must have tests; changes update them. Coverage target 60%, informative only.
+- **Production floors** (global, `vitest.config.mts`): statements 87, branches 80, functions 87, lines 89. `test:coverage` fails below them. Raise them by hand when coverage grows durably; never lower them, add coverage excludes or skip tests to pass. If a change cannot meet the floors, stop and ask.
+- **Per-layer targets** (not enforced; mention gaps in the PR): Domain 85%, Features 80%, Config 80%, Lib 75%, Components 70%, App 70%.
+- **Tooling** (`scripts/`, `.agents/skills/*/scripts/`, `.claude/hooks/`) must have tests; changes update them. Coverage target 60%, informative only.

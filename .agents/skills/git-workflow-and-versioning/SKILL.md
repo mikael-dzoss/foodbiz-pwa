@@ -5,32 +5,27 @@ description: Commit discipline beyond the project rules. Use when committing, sp
 
 # Git Workflow and Versioning
 
-Branch model, branch names, commit/PR format and the validation gate: [`docs/CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md#branches). Promotion and tagging: [`docs/DEPLOYMENT.md#releasing`](../../../docs/DEPLOYMENT.md#releasing). This skill adds only what those don't cover.
+Branch model, branch names, commit/PR format and the validation gate: [`docs/CONTRIBUTING.md`](../../../docs/CONTRIBUTING.md#branches). PRs and stacks: the [`ship`](../ship/SKILL.md) skill. Promotion and tagging: [`docs/DEPLOYMENT.md#releasing`](../../../docs/DEPLOYMENT.md#releasing). This skill adds only what those don't cover.
 
 ## Commits
 
 - **Save points:** commit each working slice (tests green, typecheck clean) before starting the next. Never accumulate a large uncommitted diff.
 - **Atomic:** one logical change per commit. Formatting, refactors and behaviour changes go in separate commits (ideally separate PRs).
 - **Message body says why**, the diff already says what.
-- **Size:** ~100 lines per commit is easy to review; split anything approaching ~1000.
 - **Before each commit:** `git diff --staged`, and check it for secrets (`git diff --staged | grep -iE "secret|password|api_key|token|service_role"`).
-- **Splitting a messy tree:** `git add -p` per concern, commit, repeat; `git stash` the rest.
-- **Going back:** prefer `git restore <file>` or `git revert`. Ask before anything that discards work (`reset --hard`, `clean -f`, force-push outside stacked PR rebases with `--force-with-lease`).
+- **Splitting a messy tree:** `git add -p` per concern, commit, repeat; park the rest in a WIP commit (worktrees share one stash list).
+- **Going back:** prefer `git restore <file>` or `git revert`. Ask before anything that discards work (`reset --hard`, `clean -f`, force-push outside stack restacks, which use `--force-with-lease`).
 
 ## Parallel agents: worktrees
 
 One worktree per branch so agents don't collide:
 
 ```bash
-git worktree add ../foodbiz-42 -b feature/42-order-status-filter develop
+git worktree add ../foodbiz-42 -b feature/42-order-status-filter origin/develop
 git worktree remove ../foodbiz-42   # after merge
 ```
 
 Never run two agents on the same branch or worktree. Database migrations stay sequential.
-
-## Stacked PRs & Batch Implementation
-
-When implementing batches of stories (epics or backlog waves), prefer grouping for 2–4 small sibling stories (recommended ≤ ~2000 production lines total; flexible recommendation that may be exceptionally bypassed for tightly coupled work). For broader requirements, plan all stack requirements upfront, implement the full chain in a dedicated GitHub stack (`#<stack-number>` via `gh stack`), use `gh stack rebase` / `gh stack sync` for cascading updates, and merge up to the last PR before the first review gate (`gh stack merge <PR_pre_gate> --merge --yes`). See [`stacked-pr-workflow`](../stacked-pr-workflow/SKILL.md).
 
 ## PR change summary
 
