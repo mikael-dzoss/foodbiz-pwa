@@ -1,35 +1,92 @@
-# Deployment & CI/CD
+# Deployment and environments
 
-## Flow
+Read this first: **nothing is deployed.** There is no staging or production environment, no Vercel project and no hosted Supabase project. `develop` is exercised locally and in CI only. Sections are labelled **Active** (true today) or **Planned** (does not exist yet).
 
-```mermaid
-flowchart LR
-  F["feature branch"] -->|"PR + CI"| D["develop (local only)"]
-  D -->|"promotion PR"| S["staging (pre-production)"]
-  S -->|"promotion PR"| M["main (production)"]
-  F -.->|"Vercel preview"| P["preview URL"]
-  S -.-> VS["Vercel: staging domain"]
-  M -.-> VP["Vercel: production"]
-```
+# Active today
 
-`develop` is **not deployed**: it is exercised locally only. Pull requests get a Vercel preview, `staging` is the pre-production environment and `main` is production. This is encoded in [`vercel.json`](../vercel.json) (`git.deploymentEnabled`).
+## Environments
 
-## GitHub Actions
+| Environment | State                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| Local       | Active: devcontainer, `npm run dev`, local Supabase (`npm run db:start`), mock or Supabase mode |
+| CI          | Active: GitHub Actions, see below                                                               |
+| Staging     | Planned: no Supabase or Vercel project                                                          |
+| Production  | Planned: same                                                                                   |
 
-| Workflow                                                    | Trigger                                                                                | What it does                                                                                                                                                                                        |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`ci.yml`](../.github/workflows/ci.yml)                     | PR (opened, synchronize, reopened, edited), push to `develop`/`staging`/`main`, manual | Tiered, scope-aware, stack-aware gate: `check` always, `integration` and `e2e` when needed, one required check `Quality Gate - Summary`. See [CI tiers and cost](CONTRIBUTING.md#ci-tiers-and-cost) |
-| [`promote.yml`](../.github/workflows/promote.yml)           | Manual (`workflow_dispatch`)                                                           | Opens `develop → staging` or `staging → main` PR (skips if one is open)                                                                                                                             |
-| [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`                                                               | Sets `status: completed` on issues the PR closes (`Closes #N`)                                                                                                                                      |
-| [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                                                                 | At most one npm minor/patch PR (vitest and `@vitest/*` always together), one npm major PR and one Actions PR, targeting `develop`                                                                   |
+## CI
 
-The PR title check (conventional commit, optional `(#issue)` suffix) is a step of the `check` job, not a separate workflow: a 2-second job is billed as a full minute. The `integration` job starts one local Supabase stack (seeded by `supabase/seed.sql`) because the storefront prerenders its catalog at build time and a failed read fails the build, so CI needs no secrets; pgTAP, the live contract tests, the production build and `npm run test:e2e:supabase` (the anonymous storefront journey) all run on that one stack. Merged feature branches are deleted automatically (repository setting), so the legacy cleanup workflow was not ported.
+[`ci.yml`](../.github/workflows/ci.yml) runs on pull requests, on pushes to `develop`, `staging` and `main`, and manually. It has three tiers (`check` always, `integration` and `e2e` only when the change needs them) and one required check, `Quality Gate - Summary`. Which paths trigger which tier, and the cost, are in [`CONTRIBUTING.md`](CONTRIBUTING.md#ci-tiers-and-cost). The `integration` job starts a local Supabase stack seeded by `supabase/seed.sql`, so CI needs no secrets.
 
-### Planned: CI for promotion PRs
+| Workflow                                                    | Trigger                                | What it does                                                                                                  |
+| ----------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [`ci.yml`](../.github/workflows/ci.yml)                     | PR, push to protected branches, manual | The tiered gate above                                                                                         |
+| [`promote.yml`](../.github/workflows/promote.yml)           | Manual                                 | Opens a `develop` to `staging` or `staging` to `main` PR. Works, but nothing consumes `staging` or `main` yet |
+| [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`               | Sets `status: completed` on issues the PR closes                                                              |
+| [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                 | Grouped npm and Actions update PRs against `develop`                                                          |
 
-`promote.yml` creates its PR with `GITHUB_TOKEN`, and PRs created that way do not trigger `pull_request` workflows, so promotion PRs get no CI of their own. Nothing is needed today (staging and production do not exist yet), and it stays harmless while the promotion PR's head is the tip of `develop` (or `staging`): the required check `Quality Gate - Summary` is evaluated on the head SHA, and that SHA already has it from the `push` run of `ci.yml`. When environments exist and that no longer holds, apply one of: (a) after creating the PR, have `promote.yml` run `gh workflow run ci.yml --ref <source branch>` (`workflow_dispatch` is exempt from the `GITHUB_TOKEN` rule; needs `actions: write`), or (b) create the PR with a fine-grained token or GitHub App token so `pull_request` fires normally.
+## Branch protection
 
-## Vercel setup (manual, one time)
+`develop`, `staging` and `main` exist. One repository ruleset ("Protected Ref") applies to all three: no deletion, no force push, changes only through a pull request (zero approvals required), and the check `Quality Gate - Summary` must pass. Nothing builds or deploys from `staging` or `main`.
+
+Enforcement depends on repository visibility and plan. Rulesets are enforced while the repository is public. On a private repository, enforcement depends on the GitHub plan (not verified here). The owner intends to make the repository private again; in that case the local husky hooks (`.husky/`) and the agent hooks (`.claude/hooks/`) are the only enforcement.
+
+## What merging to develop does
+
+CI runs again on the push (a format check when the merge commit equals the verified PR head, otherwise the same scope rules on the merge diff). `issue-status.yml` marks the closed issues. No deployment happens: `vercel.json` enables deployments for `main` and `staging` only, and no Vercel project is connected.
+
+## Environment variables
+
+Parsed in [`src/config/env.ts`](../src/config/env.ts); template in [`.env.example`](../.env.example). The devcontainer copies it to `.env.local` on first start.
+
+| Variable                               | Scope  | Required when                                                                 | What it does                                                                                                                                     |
+| -------------------------------------- | ------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`             | public | Always                                                                        | Supabase project URL; also allows `next/image` to load that project's `product-images` bucket                                                    |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | public | Always                                                                        | Supabase publishable (anon) key                                                                                                                  |
+| `NEXT_PUBLIC_SITE_URL`                 | public | Optional in the schema; Google sign-in fails in production without it         | Canonical origin for the OAuth `redirectTo`. Outside production the request origin or `http://localhost:3000` is the fallback                    |
+| `DATA_SOURCE`                          | server | Optional, default `mock`                                                      | `mock` or `supabase`. `mock` is rejected when `NODE_ENV` or `APP_ENV` is `production`; `npm run build` defaults it to `supabase`                 |
+| `STOREFRONT_BUSINESS_ID`               | server | `DATA_SOURCE=supabase`                                                        | UUID of the business the public storefront serves. The seed uses `11111111-1111-4111-8111-111111111111`; mock mode defaults to the demo business |
+| `APP_ENV`                              | server | Optional                                                                      | `development`, `test`, `staging` or `production`; falls back to `NODE_ENV`. Dev and test features need it to resolve to development or test      |
+| `ALLOWED_MANAGER_EMAILS`               | server | Optional                                                                      | Comma-separated emails auto-provisioned as managers of the demo business; honoured only in development and test                                  |
+| `DEV_BUSINESS_SLUG`                    | server | Optional                                                                      | Business slug for that auto-provisioning (default `la-petite-boulangerie`)                                                                       |
+| `SUPABASE_SERVICE_ROLE_KEY`            | server | Dev and test auto-provisioning; the `db:provision-member` script reads it too | Admin key that bypasses RLS. Never `NEXT_PUBLIC_*`, never in client code. The app throws if it is used outside development or test               |
+
+# Planned
+
+## Staged path to launch
+
+| When                                      | What                                                                                                                                                                                                                                                                     | Why                                            | Tracking               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | ---------------------- |
+| NOW (foundation work)                     | Tiered CI and local gate                                                                                                                                                                                                                                                 | Cheap, trustworthy checks                      | done                   |
+| NOW                                       | Database-enforced order limits, idempotency and rate limits                                                                                                                                                                                                              | Public ordering must survive abuse and retries | done                   |
+| NOW                                       | Migration safety runbook ([Applying migrations](#applying-migrations-to-a-hosted-project-planned))                                                                                                                                                                       | Safe first push to a hosted database           | done                   |
+| NOW                                       | Local secret scan                                                                                                                                                                                                                                                        | No secrets in git                              | done                   |
+| NOW                                       | `instrumentation.ts` request-error logging                                                                                                                                                                                                                               | See server errors                              | planned, not yet built |
+| BEFORE v0.9                               | Staging Supabase project and Vercel project with preview deploys. Production builds refuse mock data, so previews need a real Supabase project or a deliberate preview-only exception: open decision for the owner                                                       | Somewhere to test on real infrastructure       | #112                   |
+| BEFORE v0.9                               | Security headers and CSP                                                                                                                                                                                                                                                 | Browser hardening                              | #108                   |
+| BEFORE v0.9                               | Error tracking provider                                                                                                                                                                                                                                                  | See production failures                        | #109                   |
+| BEFORE v0.9                               | Service worker and offline page                                                                                                                                                                                                                                          | Offline fallback                               | #101                   |
+| BEFORE v0.9                               | PNG and maskable icons, install experience                                                                                                                                                                                                                               | Installable app                                | #99, #100              |
+| BEFORE v0.9                               | Legal pages (mentions legales, privacy, terms) and a privacy notice at checkout                                                                                                                                                                                          | Legal requirement for taking customer data     | #97                    |
+| BEFORE v0.9                               | Sitemap, robots, metadata, Open Graph                                                                                                                                                                                                                                    | Search and sharing                             | #95, #96               |
+| BEFORE v0.9                               | Demo seed for staging                                                                                                                                                                                                                                                    | Realistic test data                            | #113                   |
+| BEFORE v0.9                               | Acceptance checklist and bug bash                                                                                                                                                                                                                                        | Release confidence                             | #114                   |
+| BEFORE v0.9                               | CI for promotion PRs ([below](#planned-ci-for-promotion-prs))                                                                                                                                                                                                            | Promotion PRs get checks of their own          | none                   |
+| BEFORE v1                                 | Production environment and custom domain                                                                                                                                                                                                                                 | Launch                                         | none                   |
+| BEFORE v1                                 | Database backups with a tested restore                                                                                                                                                                                                                                   | Recover from data loss                         | none                   |
+| BEFORE v1                                 | Uptime monitoring                                                                                                                                                                                                                                                        | Know when it is down                           | none                   |
+| BEFORE v1                                 | Privacy-friendly product analytics                                                                                                                                                                                                                                       | Usage insight                                  | #110                   |
+| BEFORE v1                                 | GDPR: data export and erasure for guests, retention period and purge job, record of processing                                                                                                                                                                           | Legal requirement                              | none                   |
+| BEFORE v1                                 | Phone verification or CAPTCHA, and edge rate limiting                                                                                                                                                                                                                    | Stop fake orders the database limits cannot    | none                   |
+| BEFORE v1                                 | Pagination                                                                                                                                                                                                                                                               | Lists hit the 1,000-row cap                    | none                   |
+| BEFORE v1                                 | Lighthouse budgets                                                                                                                                                                                                                                                       | Keep performance                               | #107                   |
+| BEFORE v1                                 | Staff accounts and roles                                                                                                                                                                                                                                                 | More than one person in the dashboard          | #135                   |
+| BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Decide on rewriting git history to remove the personal email from commit metadata. The owner chose to rewrite, deferred until then. Limits: pull-request refs cannot be rewritten without GitHub Support, existing clones keep the old history, all commit hashes change | Privacy of the owner                           | none                   |
+| BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Confirm the licence statement                                                                                                                                                                                                                                            | The README says all rights reserved            | none                   |
+| BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Re-enable secret scanning, push protection, Dependabot alerts and CodeQL (free only on public repositories)                                                                                                                                                              | Security scanning                              | none                   |
+| BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Delete stale remote branches                                                                                                                                                                                                                                             | Tidy                                           | none                   |
+| BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Re-check the Actions allow-list and the ruleset                                                                                                                                                                                                                          | No surprises on visibility change              | none                   |
+
+## Vercel and Supabase setup: Planned
 
 1. Import `mikael-dzoss/foodbiz-pwa` in Vercel. Framework: Next.js (auto-detected).
 2. **Production Branch:** `main`. Ensure Preview deployments are on for all branches.
@@ -38,21 +95,16 @@ The PR title check (conventional commit, optional `(#issue)` suffix) is a step o
    - **Preview** → staging/dev Supabase URL + publishable key. Use a branch-specific value for `staging` if staging has its own project.
    - Never add the service-role key as `NEXT_PUBLIC_*`.
    - `NEXT_PUBLIC_SITE_URL`: canonical origin (e.g. `https://foodbiz.app` for production).
-
-   | Variable                               | Scope  | Required               | Purpose                                                                                                                                   |
-   | -------------------------------------- | ------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-   | `NEXT_PUBLIC_SUPABASE_URL`             | public | always                 | Supabase project URL (also allow-listed for `next/image` product images from the `product-images` bucket)                                 |
-   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | public | always                 | Supabase publishable key                                                                                                                  |
-   | `NEXT_PUBLIC_SITE_URL`                 | public | production             | Canonical origin for auth redirects and metadata                                                                                          |
-   | `DATA_SOURCE`                          | server | always                 | `supabase` in deployed environments (`mock` is rejected in production)                                                                    |
-   | `STOREFRONT_BUSINESS_ID`               | server | `DATA_SOURCE=supabase` | UUID of the business the public storefront serves (`businesses.id`); the seeded demo business uses `11111111-1111-4111-8111-111111111111` |
-
-   The variable is also needed at **build** time: the storefront prerenders its catalog, so the build must be able to reach Supabase with the same values, and an unreachable database fails the build instead of shipping placeholder data.
+     The variables are also needed at **build** time (see the table above): the storefront prerenders its catalog, so the build must be able to reach Supabase with the same values, and an unreachable database fails the build instead of shipping placeholder data.
 
 4. **Staging domain:** Settings → Domains → add a domain (e.g. `staging.<your-domain>`) and assign it to the `staging` Git branch.
 5. Optional: enable Deployment Protection on previews/staging.
 
-## Google sign-in (Supabase Auth)
+## Planned: CI for promotion PRs
+
+`promote.yml` creates its PR with `GITHUB_TOKEN`, and PRs created that way do not trigger `pull_request` workflows, so promotion PRs get no CI of their own. Nothing is needed today (staging and production do not exist yet), and it stays harmless while the promotion PR's head is the tip of `develop` (or `staging`): the required check `Quality Gate - Summary` is evaluated on the head SHA, and that SHA already has it from the `push` run of `ci.yml`. When environments exist and that no longer holds, apply one of: (a) after creating the PR, have `promote.yml` run `gh workflow run ci.yml --ref <source branch>` (`workflow_dispatch` is exempt from the `GITHUB_TOKEN` rule; needs `actions: write`), or (b) create the PR with a fine-grained token or GitHub App token so `pull_request` fires normally.
+
+## Google sign-in (Supabase Auth): Active locally, Planned for hosted
 
 ### Flow architecture
 
@@ -147,7 +199,7 @@ Navigate to **Authentication > URL Configuration**:
 | Redirect to `/manage/login?error=no_access`                | The Google user authenticated successfully with Supabase, but their account email has no active membership in `business_members` table (or allow-list in dev).                           | A business owner or admin must provision membership for that email using `npm run db:provision-member -- --business-slug <slug> --email <email>` or add them to the business. The user can click "Sign out" on the error banner to try another Google account. |
 | `/manage/login?error=auth_failed` in production            | `NEXT_PUBLIC_SITE_URL` is not configured in Vercel environment variables. In production, the app strictly requires a configured canonical origin and refuses forwarded headers.          | Set `NEXT_PUBLIC_SITE_URL=https://<your-domain>` in Vercel project environment variables (Production and Preview).                                                                                                                                             |
 
-## Development allow-list & auto-provisioning
+## Development allow-list and auto-provisioning: Active
 
 In local development and test environments (`APP_ENV=development` or `APP_ENV=test`), sign-in for developers and testers is streamlined via the manager email allow-list (`ALLOWED_MANAGER_EMAILS`).
 
@@ -176,13 +228,9 @@ In local development and test environments (`APP_ENV=development` or `APP_ENV=te
 3. Sign in via Google OAuth on `/manage/login`.
 4. Upon successful sign-in, the server creates the `business_members` row and redirects to `/manage`. Real orders and products are immediately accessible through RLS.
 
-## Branch protection (recommended)
+## Provisioning a manager: Active locally, Planned for hosted
 
-Required status check: `Quality gate`. For `develop`, `staging` and `main`: require PRs, require the check to pass, block force pushes and deletions. Note that GitHub only enforces branch protection on private repositories with a paid plan; on the free plan the rules are a team convention.
-
-## Production manager access & provisioning
-
-In production, manager access is strictly restricted to authenticated users provisioned in `public.business_members` (enforced via Supabase RLS).
+Manager access is strictly restricted to authenticated users provisioned in `public.business_members` (enforced via Supabase RLS).
 
 ### Prerequisites & Design Constraints
 
@@ -218,7 +266,7 @@ npm run db:provision-member -- --business-slug <slug> --email <email> --role man
 
 > **Security Note:** `SUPABASE_SERVICE_ROLE_KEY` is an administrative server-only secret that bypasses RLS. It must NEVER be prefixed with `NEXT_PUBLIC_`, never exposed to client code, never committed to git, and must be provided strictly out-of-band by the maintainer when executing administrative CLI scripts.
 
-## Applying migrations (Planned)
+## Applying migrations to a hosted project: Planned
 
 > Planned: no hosted Supabase environment exists yet; this is the runbook to follow once one does.
 
@@ -228,6 +276,8 @@ npm run db:provision-member -- --business-slug <slug> --email <email> --role man
 - Deploy order: app code that passes `p_idempotency_key` to `place_order` must be deployed after migration `20260101000014` (the old 12-argument signature no longer exists after it, and the new one only exists then).
 
 ## Releasing
+
+**Planned.** Staging and production do not exist yet. (The heading carries no label because `promote.yml` links to `#releasing`.)
 
 Promotions are PRs (never direct pushes) opened and merged by maintainers; hotfixes follow the same path unless maintainers decide otherwise.
 

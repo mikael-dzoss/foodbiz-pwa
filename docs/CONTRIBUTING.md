@@ -1,6 +1,6 @@
 # Contributing to FoodBiz PWA
 
-Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](../.agents/rules/); they apply to humans and agents alike. Local setup: [`README.md`](../README.md#getting-started).
+Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](../.agents/rules/); they apply to humans and agents alike. Local setup: [`README.md`](../README.md#quick-start).
 
 ### Agent tooling
 
@@ -20,11 +20,11 @@ MCP servers and auto-approval lists are the only intentional duplicates (differe
 
 ## Branches
 
-| Branch    | Purpose                                                   |
-| --------- | --------------------------------------------------------- |
-| `develop` | Integration branch; all work PRs target it. Not deployed. |
-| `staging` | Pre-production qualification (promoted from `develop`).   |
-| `main`    | Production (promoted from `staging`).                     |
+| Branch    | Purpose                                                     |
+| --------- | ----------------------------------------------------------- |
+| `develop` | Integration branch; all work PRs target it. Not deployed.   |
+| `staging` | Pre-production (promoted from `develop`); not deployed yet. |
+| `main`    | Production (promoted from `staging`); not deployed yet.     |
 
 ```mermaid
 flowchart LR
@@ -80,7 +80,7 @@ The path rules live in one place, `RULES` in [`scripts/ci-scope.mjs`](../scripts
 
 ## CI tiers and cost
 
-The repository is private on GitHub's free plan: **2,000 Linux minutes a month, each job billed rounded up to the whole minute**. CI is therefore a few fat jobs instead of many thin ones, and the expensive tiers run only when the diff and the PR's place in its stack need them. Workflow: [`ci.yml`](../.github/workflows/ci.yml).
+The budget below assumes a private repository on GitHub's free plan (it is public at the time of writing; the owner intends to make it private again): **2,000 Linux minutes a month, each job billed rounded up to the whole minute**. CI is therefore a few fat jobs instead of many thin ones, and the expensive tiers run only when the diff and the PR's place in its stack need them. Workflow: [`ci.yml`](../.github/workflows/ci.yml).
 
 ```text
 check (always; decides the scope) --> integration (if needed) --+
@@ -142,7 +142,7 @@ What this suite proves (`src/lib/repositories/tests/supabase-live.contract.test.
 
 #### Supabase-backed storefront journey
 
-`npm run test:e2e:supabase` runs one anonymous checkout journey (home, add product, checkout, confirmation, tracking) in Chromium against the running local stack with `DATA_SOURCE=supabase`. It reads the stack's URL and keys from `supabase status`, starts its own `next dev` on port 3200, and is not part of `npm run test:e2e`. CI runs it in the `db-tests` job.
+`npm run test:e2e:supabase` runs one anonymous checkout journey (home, add product, checkout, confirmation, tracking) in Chromium against the running local stack with `DATA_SOURCE=supabase`. It reads the stack's URL and keys from `supabase status`, starts its own `next dev` on port 3200, and is not part of `npm run test:e2e`. CI runs it in the `integration` job.
 
 ### Browser and accessibility checks
 

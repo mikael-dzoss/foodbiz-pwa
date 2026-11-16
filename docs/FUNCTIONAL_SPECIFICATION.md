@@ -1,6 +1,22 @@
 # FoodBiz PWA — Functional Specification
 
-Carried over from the legacy FoodBiz Manager mobile app and extended with the customer storefront. **Status:** the PWA is at the initial scaffold; every module below is **Planned** unless stated otherwise. Legacy status is noted for reference only.
+Carried over from the legacy FoodBiz Manager mobile app and extended with the customer storefront. Legacy status columns below are for reference only.
+
+**Implementation status** (checked against `src/app` and `src/features`; business rules below are unchanged):
+
+| Module                             | Status       | Notes                                                                                                             |
+| ---------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Auth (Google sign-in, route guard) | Built        | Membership in `business_members` is required                                                                      |
+| Dashboard                          | Built        | KPI cards with period picker, recent activity, operational widgets                                                |
+| Products and categories            | Built        | CRUD, stock adjustment, images, soft delete                                                                       |
+| Orders                             | Built        | List, manual order, detail, status changes, realtime new-order alerts                                             |
+| Expenses                           | Built        | List and create                                                                                                   |
+| Customers                          | Built        | List, detail, metrics (not in the module table below)                                                             |
+| Settings                           | Built        | Hub with business, ordering, payment, inventory and finance, notifications, account, about pages                  |
+| Account                            | Partly built | Shows profile, language setting and sign-out; no profile editing found                                            |
+| Analytics                          | Not started  | No route; only a "soon" placeholder entry in the feature registry                                                 |
+| Storefront                         | Built        | Catalog, product, cart, checkout (guest, no accounts), confirmation, tracking, order lookup, shop info; EN and FR |
+| Offline support                    | Not started  | No service worker                                                                                                 |
 
 ## 1. Product vision
 
@@ -16,7 +32,7 @@ A web app for small, part-time food business owners (home bakers, meal prep, foo
 
 ## 2. Roles
 
-| Role         | Surface                        | Capabilities (Planned)                                               |
+| Role         | Surface                        | Capabilities                                                         |
 | ------------ | ------------------------------ | -------------------------------------------------------------------- |
 | **Manager**  | Dashboard (installable PWA)    | Manage products, orders, expenses; view dashboard and analytics      |
 | **Customer** | Storefront (SSR, SEO-friendly) | Browse visible products, place orders without app-store installation |
@@ -38,7 +54,7 @@ Data segregation between roles is enforced with Supabase Row Level Security (see
 
 Not carried over: native-only features (bottom-tab FAB, drawer, gesture scrubbing). Navigation structure for the PWA is not yet designed.
 
-## 4. Customer storefront (new, Planned)
+## 4. Customer storefront (new)
 
 - Public catalog of **visible** products with price, image and category, rendered server-side for SEO.
 - Product availability reflects stock.

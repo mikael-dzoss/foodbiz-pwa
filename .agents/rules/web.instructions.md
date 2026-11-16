@@ -10,7 +10,7 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 ## Routing & Structure
 
 - App Router only (`src/app`). Storefront routes live under `src/app/[locale]` (public, SEO, EN/FR); the manager app under `src/app/manage` (`login`, and `(authenticated)` for signed-in pages).
-- `src/proxy.ts` replaces `middleware.ts` (never add one). Keep it thin: session refresh, redirects, CSP headers.
+- `src/proxy.ts` replaces `middleware.ts` (never add one). Keep it thin: session refresh and redirects (CSP headers are planned, not built).
 - `loading.tsx`, `error.tsx`, `not-found.tsx` per route segment; `next/link` and `next/image`.
 - New routes update the shared nav component.
 
@@ -18,12 +18,12 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 
 - Server Components by default; `'use client'` only at leaves that need state, effects or browser APIs. Pass serializable props down; never import `server-only` modules into client code.
 - `cacheComponents: true`: dynamic by default; cache explicitly with `use cache` (+ `cacheLife`/cache tags). Runtime data (`cookies()`, `headers()`, `searchParams`, session) is read behind `<Suspense>`.
-- Storefront pages are statically shell-rendered and indexable (metadata API, sitemap, semantic HTML).
+- Storefront pages are server-rendered from cached catalog data and indexable (metadata API, semantic HTML; sitemap and robots are planned).
 
 ## State, Mutations & Forms
 
 - Server state lives in the database: read in Server Components, mutate via Server Actions (`'use server'`), then revalidate (`revalidatePath`/`revalidateTag`/`updateTag`).
-- Server Actions return typed results (`{ ok: true, data } | { ok: false, errors }`); no thrown strings.
+- Server Actions return typed results (in practice `{ success: true, data } | { success: false, error }`); no thrown strings.
 - Forms: `<form action>` (progressive enhancement); client-side validation reuses the same zod schema from `src/domain/`; field errors are announced accessibly.
 - Local UI state with React hooks; no global client store unless justified.
 
