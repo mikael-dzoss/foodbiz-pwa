@@ -12,14 +12,15 @@
   },
   "chat.useClaudeHooks": true,
   "chat.tools.terminal.autoApprove": {
-    "/^npm run (lint|typecheck|test|test:coverage|test:tooling|test:e2e|format|format:check|build|db:status|db:types|db:types:check)\\b/": true,
+    "/^npm run (lint|typecheck|test|test:coverage|test:tooling|test:e2e|format|format:check|build|gate|gate:quick|gate:full|db:status|db:types|db:types:check)\\b/": true,
     "/^npx (vitest|playwright test|tsc --noEmit|eslint)\\b/": true,
     "/^git (status|diff|log|show|branch|fetch|rev-parse|merge-base)\\b/": true,
-    "/^gh (issue (view|list)|pr (view|list|checks|diff|status)|run (view|list))\\b/": true,
+    "/^git push\\b/": true,
+    "/^gh (issue (view|list|comment)|pr (view|list|checks|diff|status|create|merge|edit|ready)|run (view|list)|stack)\\b/": true,
     "/^graphify (query|path|explain|update)\\b/": true,
     "/^python3 -B \\.agents/skills/issue-logger/scripts/(gh_issue\\.py next|gh_related_issues\\.py)\\b/": true,
     "/--no-verify/": false,
-    "/^git push\\b.*(\\s-f\\b|--force(\\s|$))/": false,
+    "/^git push\\b.*(\\s-[a-zA-Z]*f[a-zA-Z]*\\b|--force(\\s|$)|\\s\\+\\S)/": false,
     "/^(npx )?supabase db push\\b/": false
   }
 }
