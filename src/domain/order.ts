@@ -166,3 +166,60 @@ export const recordRefundInputSchema = z.object({
   reason: z.string().trim().optional().nullable(),
 });
 export type RecordRefundInput = z.infer<typeof recordRefundInputSchema>;
+
+export const placeOrderRepoItemInputSchema = z.object({
+  productId: uuidSchema,
+  quantity: z.number().int().min(1),
+});
+export type PlaceOrderRepoItemInput = z.infer<typeof placeOrderRepoItemInputSchema>;
+
+export const placeOrderRepoInputSchema = z.object({
+  guestName: guestNameSchema,
+  guestPhone: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((v) => isValidPhoneNumber(v), "Invalid phone number"),
+  serviceType: serviceTypeSchema,
+  channel: channelSchema,
+  requestedDate: isoDateSchema,
+  requestedTime: timeHHMMSchema.optional().nullable(),
+  items: z.array(placeOrderRepoItemInputSchema).min(1),
+  paymentPreference: paymentPreferenceSchema.optional(),
+  deliveryAddress: z.string().trim().optional().nullable(),
+  notes: z.string().trim().max(500).optional().nullable(),
+  allowRename: z.boolean().optional(),
+});
+export type PlaceOrderRepoInput = z.infer<typeof placeOrderRepoInputSchema>;
+
+export const placedOrderSummarySchema = z.object({
+  orderId: uuidSchema,
+  orderNumber: z.number().int().positive(),
+  trackingToken: z.string().trim().min(1),
+  submittedName: z.string().optional().nullable(),
+  totalAmount: moneySchema,
+});
+export type PlacedOrderSummary = z.infer<typeof placedOrderSummarySchema>;
+
+export const cancelOrderResultSchema = z.object({
+  orderId: uuidSchema,
+  status: orderStatusSchema,
+  cancellationReason: z.string().trim().optional().nullable(),
+});
+export type CancelOrderResult = z.infer<typeof cancelOrderResultSchema>;
+
+export class OrderRepoError extends Error {
+  readonly code: string;
+  readonly lineErrors?: Record<string, string>;
+
+  constructor(
+    message: string,
+    code: string = "INTERNAL_ERROR",
+    lineErrors?: Record<string, string>,
+  ) {
+    super(message);
+    this.name = "OrderRepoError";
+    this.code = code;
+    this.lineErrors = lineErrors;
+  }
+}

@@ -26,10 +26,11 @@ test("storefront action bars never cover the footer (#237, #249)", async ({ page
   await expectBarAboveFooter(page, "checkout-action-bar");
 
   await page.goto("/en/info");
-  await expect(page.getByTestId("shop-info-action-bar")).toBeVisible();
+  const infoBar = page.getByRole("main").getByTestId("shop-info-action-bar");
+  await expect(infoBar).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const policyCard = await page.locator("#ordering-policy").boundingBox();
-  const bar = await page.getByTestId("shop-info-action-bar").boundingBox();
+  const policyCard = await page.getByRole("main").locator("#ordering-policy").boundingBox();
+  const bar = await infoBar.boundingBox();
   expect(policyCard && bar).toBeTruthy();
   // Bar sits below the policy card when scrolled to the end of the page: no overlap (#249).
   expect(bar!.y).toBeGreaterThanOrEqual(policyCard!.y + policyCard!.height - 1);

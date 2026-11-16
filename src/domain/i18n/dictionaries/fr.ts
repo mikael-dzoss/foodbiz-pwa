@@ -615,4 +615,13 @@ export const frDictionary: Dictionary = {
     retry: "Réessayer",
     back: "Retour",
   },
+  auth: {
+    continueWithGoogle: "Continuer avec Google",
+    errors: {
+      cancelled: "La connexion a été annulée. Veuillez réessayer lorsque vous êtes prêt.",
+      denied: "L'accès via Google a été refusé. Veuillez autoriser l'accès pour continuer.",
+      no_access: "Votre compte n'a pas d'accès gestionnaire pour cet établissement.",
+      auth_failed: "Impossible de finaliser la connexion. Veuillez réessayer.",
+    },
+  },
 };

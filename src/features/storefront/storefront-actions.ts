@@ -17,8 +17,13 @@ import {
   RATE_LIMIT_PHONE_MAX_REQUESTS,
   RATE_LIMIT_WINDOW_MS,
 } from "@/domain/anti-abuse";
-import { normalizePhoneNumber, type Order, type Product, type OrderItem } from "@/domain";
-import { validateOrderStock, reserveStock, restoreStock } from "@/domain/stock";
+import {
+  normalizePhoneNumber,
+  OrderRepoError,
+  type PlacedOrderSummary,
+  type Product,
+} from "@/domain";
+import { validateOrderStock } from "@/domain/stock";
 import { calculateOrderTotals, type PricingLineItem } from "@/domain/pricing";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
@@ -260,94 +265,49 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
       };
     }
 
-    // 9. Stock Reservation: any later failure releases everything reserved so far.
-    const reserved: Array<{ productId: string; quantity: number }> = [];
-    const releaseReserved = async (): Promise<void> => {
-      for (const { productId, quantity } of reserved) {
-        const current = await repos.products.findById(businessId, productId);
-        const restored = current ? restoreStock(current, quantity) : null;
-        if (restored?.ok) {
-          await repos.products.update(businessId, productId, { stock: restored.updatedStock });
-        }
-      }
-    };
+    // 9. Atomic Order Placement via Repository
+    const now = new Date().toISOString();
+    const todayDate = now.slice(0, 10);
+    const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
+    const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
 
-    let order: Order;
+    let summary: PlacedOrderSummary;
     try {
-      for (const item of items) {
-        // Re-read right before decrementing to keep the read-modify-write window minimal.
-        const product = await repos.products.findById(businessId, item.productId);
-        const reservation = product ? reserveStock(product, item.quantity) : null;
-
-        if (!product || !reservation?.ok) {
-          await releaseReserved();
-          const message =
-            reservation?.ok === false ? reservation.error.message : "This product is unavailable.";
-          return {
-            success: false,
-            error: message,
-            code: "STOCK_ERROR",
-            lineErrors: { [item.productId]: message },
-          };
-        }
-
-        await repos.products.update(businessId, product.id, {
-          stock: reservation.remainingStock,
-        });
-        reserved.push({ productId: product.id, quantity: item.quantity });
-      }
-
-      // 10. Blind Guest Find-or-Create (allowRename: false)
-      // Links guestId without reading back or overwriting stored name; audits differing submitted name.
-      const guestResult = await repos.guests.findOrCreate(businessId, {
-        name: data.name,
-        phone: normalizedPhone,
-        address: data.deliveryAddress ?? null,
-        allowRename: false,
-      });
-
-      // 11. Create Order
-      const now = new Date().toISOString();
-      const todayDate = now.slice(0, 10);
-      const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
-      const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
-
-      const orderItems: OrderItem[] = totalsResult.items.map((it) => ({
-        id: crypto.randomUUID(),
-        productId: it.productId,
-        productName: it.productName,
-        quantity: it.quantity,
-        unitPrice: it.unitPrice,
-        totalPrice: it.totalPrice,
-      }));
-
-      order = await repos.orders.create(businessId, {
-        guestId: guestResult.guestId,
-        submittedName: guestResult.nameMismatch ? data.name : null,
+      summary = await repos.orders.place(businessId, {
+        guestName: data.name,
+        guestPhone: normalizedPhone,
         serviceType: data.serviceType,
         channel: "storefront",
-        status: "NEW",
-        paid: "unpaid",
-        paymentPreference: data.paymentPreference,
         requestedDate,
         requestedTime,
-        items: orderItems,
-        totalAmount: totalsResult.total,
-        notes: data.notes ?? null,
+        items: items.map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+        })),
+        paymentPreference: data.paymentPreference,
         deliveryAddress: data.deliveryAddress ?? null,
-        statusHistory: [
-          {
-            status: "NEW",
-            timestamp: now,
-            note: "Order placed via online storefront",
-          },
-        ],
+        notes: data.notes ?? null,
+        allowRename: false,
       });
-    } catch {
-      try {
-        await releaseReserved();
-      } catch {
-        console.error("[place-order] failed to release reserved stock");
+    } catch (err) {
+      if (err instanceof OrderRepoError) {
+        const allowedCodes = [
+          "VALIDATION_ERROR",
+          "ANTI_ABUSE_REJECTION",
+          "STORE_CLOSED",
+          "SERVICE_TYPE_DISABLED",
+          "MINIMUM_ORDER_UNMET",
+          "STOCK_ERROR",
+        ] as const;
+        const code = allowedCodes.includes(err.code as (typeof allowedCodes)[number])
+          ? (err.code as (typeof allowedCodes)[number])
+          : "INTERNAL_ERROR";
+        return {
+          success: false,
+          error: err.message,
+          code,
+          lineErrors: err.lineErrors,
+        };
       }
       return {
         success: false,
@@ -357,11 +317,11 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     }
 
     const successData: PlaceOrderSuccessData = {
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      trackingToken: order.trackingToken,
-      status: order.status,
-      totalAmount: order.totalAmount,
+      orderId: summary.orderId,
+      orderNumber: summary.orderNumber,
+      trackingToken: summary.trackingToken,
+      status: "NEW",
+      totalAmount: summary.totalAmount,
     };
 
     // Cache successful order result in idempotency store

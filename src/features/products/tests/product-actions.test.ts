@@ -18,6 +18,14 @@ vi.mock("next/cache", () => ({
   revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
 }));
 
+const mockUploadProductImage = vi.fn();
+const mockRemoveProductImage = vi.fn();
+vi.mock("../product-storage", () => ({
+  uploadProductImage: (...args: unknown[]) => mockUploadProductImage(...args),
+  uploadProductImageToStorage: (...args: unknown[]) => mockUploadProductImage(...args),
+  removeProductImage: (...args: unknown[]) => mockRemoveProductImage(...args),
+}));
+
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const validCategoryId = "22222222-2222-4222-8222-222222222201";
 const validProductId = "33333333-3333-4333-8333-333333333301";
@@ -146,6 +154,14 @@ describe("Product Server Actions", () => {
         expect(res.data.categories).toHaveLength(1);
       }
     });
+
+    it("rejects invalid filter input", async () => {
+      const res = await listProductsAction({ categoryId: "invalid-uuid" as unknown as string });
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid product filter");
+      }
+    });
   });
 
   describe("getProductAction", () => {
@@ -155,6 +171,14 @@ describe("Product Server Actions", () => {
       if (res.success) {
         expect(res.data.name).toBe("Burger Gourmet");
         expect(res.data.categoryName).toBe("Plats");
+      }
+    });
+
+    it("rejects invalid product ID with validation error", async () => {
+      const res = await getProductAction("not-a-uuid");
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid product ID");
       }
     });
 
@@ -302,6 +326,36 @@ describe("Product Server Actions", () => {
         );
       }
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+      expect(mockRemoveProductImage).not.toHaveBeenCalled();
+    });
+
+    it("cleans up orphaned image when imageUrl is replaced or cleared (#123, L4a)", async () => {
+      const newImageUrl = `https://storage.example.com/product-images/${testBusinessId}/new-image.webp`;
+
+      // 1. Replaced with a new image URL
+      const resReplaced = await updateProductAction(validProductId, {
+        imageUrl: newImageUrl,
+      });
+      expect(resReplaced.success).toBe(true);
+      expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
+
+      mockRemoveProductImage.mockClear();
+
+      // 2. Cleared with null
+      const resCleared = await updateProductAction(validProductId, {
+        imageUrl: null,
+      });
+      expect(resCleared.success).toBe(true);
+      expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
+
+      mockRemoveProductImage.mockClear();
+
+      // 3. Same image URL: no orphan removal
+      const resUnchanged = await updateProductAction(validProductId, {
+        imageUrl: "/images/burger.jpg",
+      });
+      expect(resUnchanged.success).toBe(true);
+      expect(mockRemoveProductImage).not.toHaveBeenCalled();
     });
   });
 
@@ -317,11 +371,31 @@ describe("Product Server Actions", () => {
   });
 
   describe("softDeleteProductAction", () => {
-    it("soft-deletes product without hard delete", async () => {
+    it("soft-deletes product without hard delete and cleans up storage image (#123, L4a)", async () => {
       const res = await softDeleteProductAction(validProductId);
       expect(res.success).toBe(true);
       expect(mockProductRepo.softDelete).toHaveBeenCalledWith(testBusinessId, validProductId);
+      expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+    });
+
+    it("does not call removeProductImage if product has no image", async () => {
+      mockProductRepo.findById.mockResolvedValueOnce({
+        ...mockProducts[0],
+        imageUrl: null,
+      });
+
+      const res = await softDeleteProductAction(validProductId);
+      expect(res.success).toBe(true);
+      expect(mockRemoveProductImage).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid product ID with validation error", async () => {
+      const res = await softDeleteProductAction("not-a-uuid");
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe("Invalid product ID");
+      }
     });
   });
 
@@ -345,24 +419,97 @@ describe("Product Server Actions", () => {
   });
 
   describe("uploadProductImageAction", () => {
-    it("returns imageUrl for valid base64 data URL", async () => {
-      const res = await uploadProductImageAction({
-        base64Data: "data:image/jpeg;base64,sampleimagepayload",
+    const validJpegBytes = Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+    ]);
+    const validBase64 = `data:image/jpeg;base64,${validJpegBytes.toString("base64")}`;
+
+    describe("in mock mode", () => {
+      beforeEach(() => {
+        vi.stubEnv("DATA_SOURCE", "mock");
       });
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.imageUrl).toBe("data:image/jpeg;base64,sampleimagepayload");
-      }
+
+      it("returns imageUrl for valid base64 data URL", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: validBase64,
+        });
+        expect(res.success).toBe(true);
+        if (res.success) {
+          expect(res.data.imageUrl).toBe(validBase64);
+        }
+      });
+
+      it("rejects non-image payload", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: "not-an-image",
+        });
+        expect(res.success).toBe(false);
+        if (!res.success) {
+          expect(res.error).toMatch(/valid image/i);
+        }
+      });
+
+      it("rejects disallowed MIME type", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+        });
+        expect(res.success).toBe(false);
+        if (!res.success) {
+          expect(res.error).toMatch(/unsupported image format/i);
+        }
+      });
     });
 
-    it("rejects non-image payload", async () => {
-      const res = await uploadProductImageAction({
-        base64Data: "not-an-image",
+    describe("in supabase mode", () => {
+      beforeEach(() => {
+        vi.stubEnv("DATA_SOURCE", "supabase");
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/valid image/i);
-      }
+
+      it("uploads image to storage and returns remote public URL", async () => {
+        const expectedUrl = `https://storage.example.com/product-images/${testBusinessId}/img.jpg`;
+        mockUploadProductImage.mockResolvedValueOnce(expectedUrl);
+
+        const res = await uploadProductImageAction({
+          base64Data: validBase64,
+          fileName: "burger.jpg",
+        });
+
+        expect(res.success).toBe(true);
+        if (res.success) {
+          expect(res.data.imageUrl).toBe(expectedUrl);
+        }
+        expect(mockUploadProductImage).toHaveBeenCalledWith(
+          testBusinessId,
+          expect.objectContaining({
+            base64Data: validBase64,
+            fileName: "burger.jpg",
+          }),
+        );
+      });
+
+      it("catches storage upload failures and returns error", async () => {
+        mockUploadProductImage.mockRejectedValueOnce(
+          new Error("Supabase Storage permission denied"),
+        );
+
+        const res = await uploadProductImageAction({
+          base64Data: validBase64,
+        });
+
+        expect(res.success).toBe(false);
+        if (!res.success) {
+          expect(res.error).toBe("Supabase Storage permission denied");
+        }
+      });
+
+      it("rejects invalid image payload before storage upload", async () => {
+        const res = await uploadProductImageAction({
+          base64Data: "not-a-valid-data-url",
+        });
+
+        expect(res.success).toBe(false);
+        expect(mockUploadProductImage).not.toHaveBeenCalled();
+      });
     });
   });
 });

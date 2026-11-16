@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage --reporter=default --reporter=json --outputFile=coverage/test-results.json && node scripts/coverage-ratchet.mjs",
     "test:tooling": "vitest run --config vitest.tooling.config.mts && npm run -s test:tooling:py",
     "test:tooling:py": "python3 -B -m trace --count --summary --missing --coverdir=coverage/tooling-py --ignore-dir=\"$(python3 -c \"import os,site,sysconfig as s;print(os.pathsep.join([s.get_paths()['stdlib'],s.get_paths()['purelib'],site.getusersitepackages()]))\")\" --module unittest discover -s .agents/skills/issue-logger/scripts",
+    "test:live": "vitest run src/lib/repositories/tests/supabase-live.contract.test.ts src/lib/supabase/tests/storage-live.contract.test.ts src/lib/supabase/tests/realtime-live.contract.test.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
@@ -22,8 +23,10 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
+    "db:test": "supabase test db",
     "db:types": "node scripts/db-types.mjs",
-    "db:types:check": "node scripts/db-types.mjs --check"
+    "db:types:check": "node scripts/db-types.mjs --check",
+    "db:provision-member": "node scripts/provision-member.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

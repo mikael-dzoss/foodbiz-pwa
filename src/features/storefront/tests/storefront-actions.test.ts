@@ -405,7 +405,7 @@ describe("placeOrderAction", () => {
     it("releases reserved stock when order creation fails and allows a clean retry", async () => {
       const repos = getRepositories("mock");
       const before = (await repos.products.findById(bId, baguetteId))!.stock;
-      vi.spyOn(repos.orders, "create").mockRejectedValueOnce(new Error("db down"));
+      vi.spyOn(repos.orders, "place").mockRejectedValueOnce(new Error("db down"));
 
       const failed = await placeOrderAction({
         ...validOrderPayload,
@@ -425,6 +425,20 @@ describe("placeOrderAction", () => {
       });
       expect(retry.success).toBe(true);
       expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before - 2);
+    });
+
+    it("maps OrderRepoError from orders.place to typed action failure", async () => {
+      const repos = getRepositories("mock");
+      const { OrderRepoError } = await import("@/domain");
+      vi.spyOn(repos.orders, "place").mockRejectedValueOnce(
+        new OrderRepoError("Insufficient stock", "STOCK_ERROR"),
+      );
+      const res = await placeOrderAction(validOrderPayload);
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.code).toBe("STOCK_ERROR");
+        expect(res.error).toBe("Insufficient stock");
+      }
     });
 
     it("does not consume rate-limit budget on idempotent replays", async () => {

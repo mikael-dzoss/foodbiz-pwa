@@ -233,44 +233,68 @@ export function describeOrderRepositoryContract(
       ).resolves.toBeNull();
     });
 
-    it("findByTicketAndPhone validates ticket n° against guest phone", async () => {
+    it("place atomically validates stock, resolves guest, and places the order", async () => {
       const repos = await getRepositories();
-      const guests = await repos.guests.list(businessId);
-      const guestWithPhone = guests.find((g) => Boolean(g.phone));
-      expect(guestWithPhone).toBeDefined();
+      const product = (await repos.products.list(businessId)).find(
+        (p) => p.visible && p.stock >= 10 && p.price >= 300,
+      )!;
+      const initialStock = product.stock;
+      const quantity = Math.max(1, Math.ceil(1500 / product.price));
 
-      const orders = await repos.orders.list(businessId, { guestId: guestWithPhone!.id });
-      expect(orders.length).toBeGreaterThan(0);
-      const targetOrder = orders[0];
-      expect(targetOrder.orderNumber).toBeDefined();
+      const placed = await repos.orders.place(businessId, {
+        guestName: "Contract Customer",
+        guestPhone: "+33611223344",
+        serviceType: "pickup",
+        channel: "storefront",
+        requestedDate: "2026-12-01",
+        items: [{ productId: product.id, quantity }],
+      });
 
-      // Successful lookup
-      const found = await repos.orders.findByTicketAndPhone(
+      expect(placed.orderId).toBeDefined();
+      expect(placed.orderNumber).toBeGreaterThan(0);
+      expect(placed.trackingToken).toBeDefined();
+      expect(placed.totalAmount).toBe(product.price * quantity);
+
+      const updatedProduct = await repos.products.findById(businessId, product.id);
+      expect(updatedProduct?.stock).toBe(initialStock - quantity);
+
+      const fetchedOrder = await repos.orders.findById(businessId, placed.orderId);
+      expect(fetchedOrder).not.toBeNull();
+      expect(fetchedOrder?.status).toBe("NEW");
+    });
+
+    it("cancel atomically cancels an order and restores product stock", async () => {
+      const repos = await getRepositories();
+      const product = (await repos.products.list(businessId)).find(
+        (p) => p.visible && p.stock >= 10 && p.price >= 300,
+      )!;
+      const quantity = Math.max(1, Math.ceil(1500 / product.price));
+
+      const placed = await repos.orders.place(businessId, {
+        guestName: "Cancel Contract Customer",
+        guestPhone: "+33611223355",
+        serviceType: "pickup",
+        channel: "storefront",
+        requestedDate: "2026-12-01",
+        items: [{ productId: product.id, quantity }],
+      });
+
+      const stockAfterPlace = (await repos.products.findById(businessId, product.id))?.stock ?? 0;
+
+      const cancelResult = await repos.orders.cancel(
         businessId,
-        targetOrder.orderNumber!,
-        guestWithPhone!.phone!,
+        placed.orderId,
+        "Customer request",
       );
-      expect(found).not.toBeNull();
-      expect(found?.orderNumber).toBe(targetOrder.orderNumber);
-      expect(found).not.toHaveProperty("guestId");
-      expect(found).not.toHaveProperty("submittedName");
-      expect(found).not.toHaveProperty("deliveryAddress");
+      expect(cancelResult.orderId).toBe(placed.orderId);
+      expect(cancelResult.status).toBe("CANCELLED");
+      expect(cancelResult.cancellationReason).toBe("Customer request");
 
-      // Wrong phone number fails
-      const wrongPhone = await repos.orders.findByTicketAndPhone(
-        businessId,
-        targetOrder.orderNumber!,
-        "+33699999999",
-      );
-      expect(wrongPhone).toBeNull();
+      const stockAfterCancel = (await repos.products.findById(businessId, product.id))?.stock ?? 0;
+      expect(stockAfterCancel).toBe(stockAfterPlace + quantity);
 
-      // Wrong ticket number fails
-      const wrongTicket = await repos.orders.findByTicketAndPhone(
-        businessId,
-        999999,
-        guestWithPhone!.phone!,
-      );
-      expect(wrongTicket).toBeNull();
+      const fetchedOrder = await repos.orders.findById(businessId, placed.orderId);
+      expect(fetchedOrder?.status).toBe("CANCELLED");
     });
 
     it("update throws when order does not exist", async () => {

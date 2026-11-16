@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -157,6 +155,7 @@ jobs:
           DATA_SOURCE: supabase
         run: npm run build
 
+  # ── Quality Gate: Playwright & Accessibility ────────────────
   e2e:
     name: Quality Gate - Playwright & Accessibility
     runs-on: ubuntu-latest
@@ -179,11 +178,56 @@ jobs:
             test-results/
           retention-days: 7
 
+  # ── Quality Gate: Database Tests (pgTAP) ───────────────────
+  db-tests:
+    name: Quality Gate - Database Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci-placeholder-google-client-id
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ci-placeholder-google-secret
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+
+      - name: Start Supabase local DB
+        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime,mailpit
+
+      - name: Run pgTAP database tests
+        run: npm run db:test
+
+      - name: Run Supabase adapter live contract tests
+        run: |
+          eval "$(supabase status -o env 2>/dev/null | grep -E '^[A-Z0-9_]+=')"
+          SUPABASE_TEST_URL="$API_URL" SUPABASE_TEST_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" SUPABASE_TEST_ANON_KEY="$ANON_KEY" npm run test:live
+
+      - name: Dump Supabase Realtime logs on failure
+        if: failure()
+        run: |
+          echo "=== Supabase Containers ==="
+          docker ps -a
+          echo "=== Realtime Container Logs ==="
+          docker logs $(docker ps -q -f name=realtime) --tail 150 2>&1 || true
+
   # ── Quality Gate: Consolidated Summary Gate ─────────────────
   summary:
     name: Quality Gate - Summary
     runs-on: ubuntu-latest
-    needs: [format, lint, typecheck, test, tooling, build, e2e]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    needs: [format, lint, typecheck, test, tooling, build, e2e, db-tests]
     if: always()
     steps:
       - uses: actions/checkout@v7
@@ -212,6 +256,7 @@ jobs:
           TOOLING_STATUS: ${{ needs.tooling.result }}
           BUILD_STATUS: ${{ needs.build.result }}
           E2E_STATUS: ${{ needs.e2e.result }}
+          DB_TEST_STATUS: ${{ needs.db-tests.result }}
         run: |
           node .github/.scripts/generate-ci-comments.js --save-report /tmp/ci-report
           node .github/.scripts/generate-ci-comments.js || true
@@ -234,7 +279,8 @@ jobs:
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.tooling.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
-             [ "${{ needs.e2e.result }}" != "success" ]; then
+             [ "${{ needs.e2e.result }}" != "success" ] || \
+             [ "${{ needs.db-tests.result }}" != "success" ]; then
             echo "::error::One or more CI quality checks failed."
             exit 1
           fi

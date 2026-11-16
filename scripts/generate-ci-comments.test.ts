@@ -59,6 +59,13 @@ describe("CI comment generator", () => {
     expect(body).not.toContain("All Quality Checks Passed");
   });
 
+  it("reports failing database tests", () => {
+    const body = ci.buildCommentBody({ ...passing, dbTestStatus: "failure" });
+    expect(body).toContain("Database Tests (pgTAP) Failed");
+    expect(body).toContain("npm run db:test");
+    expect(body).not.toContain("All Quality Checks Passed");
+  });
+
   it.each(["failure", "cancelled"])(
     "does not report success when browser checks are %s",
     (e2eStatus) => {

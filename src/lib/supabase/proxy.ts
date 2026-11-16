@@ -28,7 +28,17 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not run code between client creation and getClaims(): it revalidates the session.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith("/manage") && !pathname.startsWith("/manage/login") && !data?.claims) {
+    const loginUrl = new URL(`/manage/login?next=${encodeURIComponent(pathname)}`, request.url);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    return redirectResponse;
+  }
 
   return response;
 }

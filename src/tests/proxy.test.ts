@@ -49,6 +49,21 @@ describe("proxy", () => {
     },
   );
 
+  it("delegates /manage/orders to updateSession when DATA_SOURCE is supabase", async () => {
+    vi.stubEnv("DATA_SOURCE", "supabase");
+    vi.stubEnv("NODE_ENV", "development");
+    const redirected = NextResponse.redirect(
+      "http://localhost:3000/manage/login?next=%2Fmanage%2Forders",
+    );
+    vi.mocked(updateSession).mockResolvedValueOnce(redirected);
+
+    const request = new NextRequest("http://localhost:3000/manage/orders");
+    const response = await proxy(request);
+
+    expect(updateSession).toHaveBeenCalledWith(request);
+    expect(response).toBe(redirected);
+  });
+
   it("rejects mock mode in production before redirecting or refreshing sessions", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const request = new NextRequest("http://localhost:3000/manage/orders");

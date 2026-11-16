@@ -7,6 +7,10 @@ import { z } from "zod";
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+  NEXT_PUBLIC_SITE_URL: z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    z.url().optional(),
+  ),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -24,6 +28,7 @@ export function getPublicEnv(): PublicEnv {
   return parsePublicEnv({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   });
 }
 
@@ -34,17 +39,23 @@ const serverEnvSchema = z
   .object({
     DATA_SOURCE: dataSourceSchema.default("mock"),
     NODE_ENV: z.string().optional(),
+    APP_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
+    ALLOWED_MANAGER_EMAILS: z.string().optional(),
+    DEV_BUSINESS_SLUG: z.string().trim().min(1).optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   })
   .refine(
     (data) => {
       const nodeEnv = data.NODE_ENV ?? process.env.NODE_ENV;
-      if (nodeEnv === "production" && data.DATA_SOURCE === "mock") {
+      const appEnv = data.APP_ENV ?? process.env.APP_ENV;
+      if ((nodeEnv === "production" || appEnv === "production") && data.DATA_SOURCE === "mock") {
         return false;
       }
       return true;
     },
     {
-      message: "DATA_SOURCE cannot be 'mock' in production",
+      message:
+        "Mock manager session cannot be enabled in production: DATA_SOURCE cannot be 'mock' in production",
       path: ["DATA_SOURCE"],
     },
   );
@@ -66,5 +77,9 @@ export function getServerEnv(): ServerEnv {
   return parseServerEnv({
     DATA_SOURCE: process.env.DATA_SOURCE,
     NODE_ENV: process.env.NODE_ENV,
+    APP_ENV: process.env.APP_ENV,
+    ALLOWED_MANAGER_EMAILS: process.env.ALLOWED_MANAGER_EMAILS,
+    DEV_BUSINESS_SLUG: process.env.DEV_BUSINESS_SLUG,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
 }

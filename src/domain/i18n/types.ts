@@ -608,6 +608,16 @@ export interface ProductsDictionary {
   allergenLabels: Record<Allergen, string>;
 }
 
+export interface AuthDictionary {
+  continueWithGoogle: string;
+  errors: {
+    cancelled: string;
+    denied: string;
+    no_access: string;
+    auth_failed: string;
+  };
+}
+
 export interface Dictionary {
   locale: SupportedLocale;
   nav: NavigationDictionary;
@@ -620,4 +630,5 @@ export interface Dictionary {
   common: CommonDictionary;
   customers: CustomersDictionary;
   products: ProductsDictionary;
+  auth: AuthDictionary;
 }

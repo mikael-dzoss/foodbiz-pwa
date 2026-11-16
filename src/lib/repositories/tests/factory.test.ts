@@ -26,9 +26,15 @@ describe("getRepositories factory", () => {
     }
   });
 
-  it("throws for supabase adapter pending E18 implementation", () => {
-    expect(() => getRepositories("supabase")).toThrow(
-      /Supabase repository adapter is not yet implemented/,
-    );
+  it("returns supabase adapter when DATA_SOURCE is supabase", () => {
+    const repos = getRepositories("supabase");
+    expect(repos).toBeDefined();
+    expect(repos.products).toBeDefined();
+    expect(repos.categories).toBeDefined();
+    expect(repos.orders).toBeDefined();
+    expect(repos.guests).toBeDefined();
+    expect(repos.expenses).toBeDefined();
+    expect(repos.business).toBeDefined();
+    expect(repos.members).toBeDefined();
   });
 });
