@@ -9,6 +9,7 @@ import { describeGuestRepositoryContract } from "./guest.contract";
 import { describeMemberRepositoryContract } from "./member.contract";
 import { describeOrderRepositoryContract } from "./order.contract";
 import { describeOrderPlacementContract } from "./order-placement.contract";
+import { describeOrderStateContract } from "./order-state.contract";
 import { describeProductRepositoryContract } from "./product.contract";
 
 export interface ContractSuiteOptions {
@@ -32,6 +33,7 @@ export function describeRepositoryContracts(
     describeProductRepositoryContract(getRepositories, businessId);
     describeCategoryRepositoryContract(getRepositories, businessId);
     describeOrderRepositoryContract(getRepositories, businessId);
+    describeOrderStateContract(getRepositories, businessId);
     describeOrderPlacementContract(getRepositories, businessId);
     describeGuestRepositoryContract(getRepositories, businessId);
     describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
@@ -42,6 +44,7 @@ export function describeRepositoryContracts(
 
 export {
   describeOrderPlacementContract,
+  describeOrderStateContract,
   describeBusinessRepositoryContract,
   describeCategoryRepositoryContract,
   describeExpenseRepositoryContract,

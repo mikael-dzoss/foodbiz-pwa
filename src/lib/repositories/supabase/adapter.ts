@@ -1105,11 +1105,7 @@ export function createSupabaseRepositories(
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) {
-        // RLS hides the row from a delete by a non-owner: tell "not allowed" from "not there".
-        if (await expenses.findById(businessId, id)) throw new OwnerRequiredError();
-        throw new Error(`Expense ${id} not found`);
-      }
+      if (!data) throw new Error(`Expense ${id} not found`);
       return mapExpenseRow(data);
     },
 
@@ -1124,7 +1120,11 @@ export function createSupabaseRepositories(
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error(`Expense ${id} not found`);
+      if (!data) {
+        // RLS hides the row from a delete by a non-owner: tell "not allowed" from "not there".
+        if (await expenses.findById(businessId, id)) throw new OwnerRequiredError();
+        throw new Error(`Expense ${id} not found`);
+      }
     },
   };
 

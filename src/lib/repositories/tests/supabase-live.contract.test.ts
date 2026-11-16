@@ -7,7 +7,7 @@ import { OrderRepoError, type PlacedOrderSummary } from "@/domain/order";
 import type { Repositories } from "@/domain/repositories";
 import type { Database } from "@/lib/supabase/database.types";
 import { createSupabaseRepositories } from "../supabase";
-import { describeOrderPlacementContract } from "./contracts";
+import { describeOrderPlacementContract, describeOrderStateContract } from "./contracts";
 
 const url = process.env.SUPABASE_TEST_URL;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY;
@@ -34,12 +34,16 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   let anonClient: SupabaseClient<Database>;
   let memberAClient: SupabaseClient<Database>;
   let memberBClient: SupabaseClient<Database>;
+  let ownerAClient: SupabaseClient<Database>;
+  let staffAClient: SupabaseClient<Database>;
   let nonMemberClient: SupabaseClient<Database>;
 
   let anonRepos: Repositories;
   let anonPublicRepos: Repositories;
   let memberARepos: Repositories;
   let memberBRepos: Repositories;
+  let ownerARepos: Repositories;
+  let staffARepos: Repositories;
   let nonMemberRepos: Repositories;
 
   const runId = crypto.randomUUID().slice(0, 8);
@@ -51,11 +55,15 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   const memberAEmail = `member-a-${runId}@example.com`;
   const memberBEmail = `member-b-${runId}@example.com`;
   const nonMemberEmail = `nonmember-${runId}@example.com`;
+  const ownerAEmail = `owner-a-${runId}@example.com`;
+  const staffAEmail = `staff-a-${runId}@example.com`;
   const testPassword = "Password123!";
 
   let userAId = "";
   let userBId = "";
   let nonMemberUserId = "";
+  let ownerAUserId = "";
+  let staffAUserId = "";
 
   let catAId = "";
   let catBId = "";
@@ -115,6 +123,21 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       throw new Error(`Failed to create non-member user: ${resNM.error?.message}`);
     }
     nonMemberUserId = resNM.data.user.id;
+
+    for (const [email, assign] of [
+      [ownerAEmail, (id: string) => (ownerAUserId = id)],
+      [staffAEmail, (id: string) => (staffAUserId = id)],
+    ] as const) {
+      const res = await adminClient.auth.admin.createUser({
+        email,
+        password: testPassword,
+        email_confirm: true,
+      });
+      if (res.error || !res.data.user) {
+        throw new Error(`Failed to create user ${email}: ${res.error?.message}`);
+      }
+      assign(res.data.user.id);
+    }
 
     // 3. Seed two distinct tenant businesses with isolated settings
     const { error: errBiz } = await adminClient.from("businesses").insert([
@@ -179,6 +202,18 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         business_id: businessBId,
         user_id: userBId,
         role: "manager",
+      },
+      {
+        id: crypto.randomUUID(),
+        business_id: businessAId,
+        user_id: ownerAUserId,
+        role: "owner",
+      },
+      {
+        id: crypto.randomUUID(),
+        business_id: businessAId,
+        user_id: staffAUserId,
+        role: "staff",
       },
     ]);
     if (errMembers) throw new Error(`Failed to insert business members: ${errMembers.message}`);
@@ -329,6 +364,24 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     });
     if (errAuthB) throw new Error(`Member B sign in failed: ${errAuthB.message}`);
 
+    ownerAClient = createClient<Database>(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: errAuthOwnerA } = await ownerAClient.auth.signInWithPassword({
+      email: ownerAEmail,
+      password: testPassword,
+    });
+    if (errAuthOwnerA) throw new Error(`Owner A sign in failed: ${errAuthOwnerA.message}`);
+
+    staffAClient = createClient<Database>(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: errAuthStaffA } = await staffAClient.auth.signInWithPassword({
+      email: staffAEmail,
+      password: testPassword,
+    });
+    if (errAuthStaffA) throw new Error(`Staff A sign in failed: ${errAuthStaffA.message}`);
+
     nonMemberClient = createClient<Database>(url, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -342,6 +395,8 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     anonPublicRepos = createSupabaseRepositories(anonClient, { publicOnly: true });
     memberARepos = createSupabaseRepositories(memberAClient);
     memberBRepos = createSupabaseRepositories(memberBClient);
+    ownerARepos = createSupabaseRepositories(ownerAClient);
+    staffARepos = createSupabaseRepositories(staffAClient);
     nonMemberRepos = createSupabaseRepositories(nonMemberClient);
   });
 
@@ -359,7 +414,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     await adminClient.from("business_settings").delete().in("business_id", businessIds);
     await adminClient.from("businesses").delete().in("id", businessIds);
 
-    for (const uid of [userAId, userBId, nonMemberUserId]) {
+    for (const uid of [userAId, userBId, nonMemberUserId, ownerAUserId, staffAUserId]) {
       if (uid) {
         await adminClient.auth.admin.deleteUser(uid).catch(() => {});
       }
@@ -372,6 +427,10 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   describeOrderPlacementContract(() => anonPublicRepos, businessAId, {
     boundaryProductId: () => prodABulkId,
   });
+
+  // Lifecycle transitions (every pair against the domain table), payments, refunds and item
+  // replacement, with a manager of business A on the live database.
+  describeOrderStateContract(() => memberARepos, businessAId);
 
   describe("Anonymous Storefront Boundary (RLS & place_order RPC)", () => {
     it("anon orders.place succeeds for visible product via storefront channel", async () => {
@@ -650,7 +709,11 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         amount: 5200,
       });
       expect(updatedExp.amount).toBe(5200);
-      await memberARepos.expenses.delete(businessAId, exp.id);
+      // Hard deletes are owner-only: a manager is refused, the owner may delete.
+      await expect(memberARepos.expenses.delete(businessAId, exp.id)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+      await ownerARepos.expenses.delete(businessAId, exp.id);
       const exps = await memberARepos.expenses.list(businessAId);
       expect(exps.some((e) => e.id === exp.id)).toBe(false);
     });
@@ -750,28 +813,167 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       expect(pAfter?.stock).toBe(initialStock);
     });
 
-    it("member orders.update with items replaces order items atomically via replace_order_items RPC", async () => {
+    it("members cannot rewrite money or integrity fields of an order directly", async () => {
       expect(trackedOrder).not.toBeNull();
+      const id = trackedOrder!.orderId;
+      for (const patch of [
+        { total_amount: 1 },
+        { tracking_token: "stolen" },
+        { business_id: businessBId },
+        { status: "COMPLETED" as const },
+        { status_history: [] },
+        { order_number: 9999 },
+      ]) {
+        const { error } = await memberAClient.from("orders").update(patch).eq("id", id);
+        expect(error?.code, JSON.stringify(patch)).toBe("42501");
+      }
+      const { error: itemsError } = await memberAClient
+        .from("order_items")
+        .update({ unit_price: 1 })
+        .eq("order_id", id);
+      expect(itemsError?.code).toBe("42501");
+      const { error: deleteItemsError } = await memberAClient
+        .from("order_items")
+        .delete()
+        .eq("order_id", id);
+      expect(deleteItemsError?.code).toBe("42501");
+    });
 
-      const updated = await memberARepos.orders.update(businessAId, trackedOrder!.orderId, {
-        status: "PREPARING",
-        items: [
+    it("replace_order_items called directly ignores client names and prices", async () => {
+      expect(trackedOrder).not.toBeNull();
+      const id = trackedOrder!.orderId;
+      const { error } = await memberAClient.rpc("replace_order_items", {
+        p_business_id: businessAId,
+        p_order_id: id,
+        p_items: [
           {
-            productId: prodAVisibleId,
-            productName: "Custom Slice Special",
-            quantity: 5,
-            unitPrice: 150,
-            totalPrice: 750,
+            product_id: prodAVisibleId,
+            quantity: 1,
+            unit_price: 1,
+            total_price: 1,
+            product_name: "Hacked",
           },
         ],
       });
+      expect(error).toBeNull();
+      const { data: after } = await adminClient
+        .from("order_items")
+        .select("product_name, unit_price, total_price")
+        .eq("order_id", id);
+      expect(after).toHaveLength(1);
+      expect(after![0].product_name).not.toBe("Hacked");
+      expect(after![0].unit_price).toBeGreaterThan(1);
+      expect(after![0].total_price).toBe(after![0].unit_price);
+    });
 
-      expect(updated.status).toBe("PREPARING");
-      expect(updated.items.length).toBe(1);
-      expect(updated.items[0].productName).toBe("Custom Slice Special");
-      expect(updated.items[0].quantity).toBe(5);
-      expect(updated.items[0].unitPrice).toBe(150);
-      expect(updated.items[0].totalPrice).toBe(750);
+    it("tenant-safe references: rows cannot point at another tenant's rows", async () => {
+      const { error: productError } = await memberAClient.from("products").insert({
+        business_id: businessAId,
+        category_id: catBId,
+        name: "Cross tenant product",
+        price: 100,
+      });
+      expect(productError?.code).toBe("23503");
+
+      const { data: guestB } = await adminClient
+        .from("guests")
+        .insert({ business_id: businessBId, name: "Guest B" })
+        .select("id")
+        .single();
+      const { error: orderError } = await adminClient.from("orders").insert({
+        business_id: businessAId,
+        order_number: 987654,
+        guest_id: guestB!.id,
+        service_type: "pickup",
+        channel: "phone",
+        requested_date: tomorrow,
+        total_amount: 100,
+      });
+      expect(orderError?.code).toBe("23503");
+    });
+  });
+
+  describe("Owner-only actions (roles)", () => {
+    const paymentChanges = [
+      { revolutRevtag: "@intruder" },
+      { weroIdentifier: "intruder-wero" },
+      { paymentMethods: { cash: true, revolut: false, wero: false } },
+      { paymentInstructionsEn: "Pay the intruder" },
+      { paymentInstructionsFr: "Payez l'intrus" },
+    ];
+
+    for (const [label, getRepos] of [
+      ["manager", () => memberARepos],
+      ["staff", () => staffARepos],
+    ] as const) {
+      it(`a ${label} cannot change payment settings, the slug or delete an expense (FORBIDDEN)`, async () => {
+        const repos = getRepos();
+        for (const change of paymentChanges) {
+          await expect(repos.business.updateSettings(businessAId, change)).rejects.toMatchObject({
+            code: "FORBIDDEN",
+          });
+        }
+        await expect(
+          repos.business.update(businessAId, { slug: `hijack-${runId}-${label}` }),
+        ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+        const created = await repos.expenses.create(businessAId, {
+          amount: 100,
+          date: tomorrow,
+          description: `owner-only delete ${label}`,
+        });
+        await expect(repos.expenses.delete(businessAId, created.id)).rejects.toMatchObject({
+          code: "FORBIDDEN",
+        });
+        expect(await ownerARepos.expenses.findById(businessAId, created.id)).not.toBeNull();
+        await ownerARepos.expenses.delete(businessAId, created.id);
+
+        // Everything else stays open.
+        const ok = await repos.business.updateSettings(businessAId, { lowStockThreshold: 6 });
+        expect(ok.lowStockThreshold).toBe(6);
+        const profile = await repos.business.update(businessAId, { description: `by ${label}` });
+        expect(profile.slug).toBe(slugA);
+      });
+    }
+
+    it("an owner can change payment settings and the slug, and settings cannot be deleted by anyone", async () => {
+      const updated = await ownerARepos.business.updateSettings(businessAId, {
+        revolutRevtag: "@owner",
+      });
+      expect(updated.revolutRevtag).toBe("@owner");
+      const renamed = await ownerARepos.business.update(businessAId, { slug: `${slugA}-x` });
+      expect(renamed.slug).toBe(`${slugA}-x`);
+      await ownerARepos.business.update(businessAId, { slug: slugA });
+
+      for (const client of [ownerAClient, memberAClient, staffAClient]) {
+        const { error } = await client
+          .from("business_settings")
+          .delete()
+          .eq("business_id", businessAId);
+        expect(error?.code).toBe("42501");
+      }
+      expect(await ownerARepos.business.getSettings(businessAId)).not.toBeNull();
+    });
+
+    it("only an owner may hard-delete guests", async () => {
+      const guest = await ownerARepos.guests.create(businessAId, {
+        name: "Delete Me",
+        phone: "+33644556677",
+      });
+      const { data: denied } = await staffAClient
+        .from("guests")
+        .delete()
+        .eq("id", guest.id)
+        .select();
+      expect(denied ?? []).toHaveLength(0);
+      expect(await ownerARepos.guests.findById(businessAId, guest.id)).not.toBeNull();
+      const { data: allowed, error } = await ownerAClient
+        .from("guests")
+        .delete()
+        .eq("id", guest.id)
+        .select();
+      expect(error).toBeNull();
+      expect(allowed).toHaveLength(1);
     });
   });
 
