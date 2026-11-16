@@ -45,7 +45,7 @@ export const RULES = [
     pattern: /(?:service[_-]?role|secret)[\w-]*["']?\s*[:=]\s*["']?([A-Za-z0-9._+/=-]{32,})/i,
     secret: (m) => m[1],
     // `secret: process.env.SOME_NAME` reads a variable; real keys contain digits.
-    allowed: (value) => /^[A-Za-z_]+(?:[._][A-Za-z_]+)*$/.test(value),
+    allowed: (value) => /^[A-Za-z_]+(?:\.[A-Za-z_]+)*$/.test(value),
   },
   { name: "github-token", pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}/ },
   { name: "github-pat", pattern: /\bgithub_pat_[A-Za-z0-9_]{40,}/ },
