@@ -2,8 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getRepositories } from "@/lib/repositories";
-import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
 import { normalizePhoneNumber } from "@/domain/guest";
@@ -77,8 +76,8 @@ export async function lookupOrderAction(
     return fail("RATE_LIMITED");
   }
 
-  const trackingToken = await getRepositories().orders.findTrackingTokenByTicketAndPhone(
-    DEMO_BUSINESS_ID,
+  const trackingToken = await getStorefrontRepositories().orders.findTrackingTokenByTicketAndPhone(
+    getStorefrontBusinessId(),
     parsed.data.orderNumber,
     phone,
   );

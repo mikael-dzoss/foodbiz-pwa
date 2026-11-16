@@ -12,6 +12,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // Test default so suites that stub DATA_SOURCE=supabase satisfy the storefront business requirement.
+    env: { STOREFRONT_BUSINESS_ID: "11111111-1111-4111-8111-111111111111" },
     setupFiles: ["./src/tests/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: [

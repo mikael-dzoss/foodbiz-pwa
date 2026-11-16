@@ -14,6 +14,8 @@ export default defineConfig({
   use: {
     baseURL,
     ...devices["Desktop Chrome"],
+    // The devcontainer has a 64 MB /dev/shm, which crashes Chromium without this flag.
+    launchOptions: { args: ["--disable-dev-shm-usage"] },
     viewport: { width: 390, height: 844 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

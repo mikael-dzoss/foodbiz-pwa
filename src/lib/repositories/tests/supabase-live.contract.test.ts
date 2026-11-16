@@ -2,6 +2,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { featuredDateRange } from "@/domain/featured";
 import { OrderRepoError, type PlacedOrderSummary } from "@/domain/order";
 import type { Repositories } from "@/domain/repositories";
 import type { Database } from "@/lib/supabase/database.types";
@@ -461,6 +462,63 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
 
       // 2. Without publicOnly (select * on business_settings), column-level grant revokes private columns for anon
       await expect(anonRepos.business.getSettings(businessAId)).rejects.toThrow();
+    });
+
+    it("anon public product reads select only public columns and never expose unit cost", async () => {
+      const list = await anonPublicRepos.products.list(businessAId, { visibleOnly: true });
+      expect(list.some((p) => p.id === prodAVisibleId)).toBe(true);
+      expect(list.every((p) => p.unitCost === 0)).toBe(true);
+      const one = await anonPublicRepos.products.findById(businessAId, prodAVisibleId);
+      expect(one?.id).toBe(prodAVisibleId);
+      expect(one?.unitCost).toBe(0);
+    });
+
+    it("anon featured products come from the storefront_featured_products function", async () => {
+      // Orders are not readable by anon, so the aggregate must come from the SECURITY DEFINER function.
+      const totals = await anonPublicRepos.orders.sumQuantitiesByProduct(
+        businessAId,
+        featuredDateRange(new Date(), 7),
+      );
+      const row = totals.find((t) => t.productId === prodAVisibleId);
+      expect(row?.quantity).toBeGreaterThanOrEqual(2);
+      expect(
+        totals.every(
+          (t) => Object.keys(t).toSorted().join() === "lastOrderedAt,productId,quantity",
+        ),
+      ).toBe(true);
+      expect(totals.some((t) => t.productId === prodAHiddenId)).toBe(false);
+
+      // The 30-day window is accepted too, and another tenant's id yields no rows.
+      await expect(
+        anonPublicRepos.orders.sumQuantitiesByProduct(
+          businessAId,
+          featuredDateRange(new Date(), 30),
+        ),
+      ).resolves.toEqual(expect.any(Array));
+      await expect(
+        anonPublicRepos.orders.sumQuantitiesByProduct(
+          crypto.randomUUID(),
+          featuredDateRange(new Date(), 7),
+        ),
+      ).resolves.toEqual([]);
+    });
+
+    it("anon orders.place maps database failures to generic codes without leaking database text", async () => {
+      const failure = await anonRepos.orders
+        .place(businessAId, {
+          guestName: "Marie Curie",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: tomorrow,
+          items: [{ productId: prodAHiddenId, quantity: 1 }],
+        })
+        .catch((err: unknown) => err);
+      expect(failure).toBeInstanceOf(OrderRepoError);
+      expect((failure as OrderRepoError).code).toBe("STOCK_ERROR");
+      expect((failure as OrderRepoError).message).not.toMatch(
+        /PRODUCT_NOT_AVAILABLE|[0-9a-f]{8}-[0-9a-f]{4}/,
+      );
     });
   });
 

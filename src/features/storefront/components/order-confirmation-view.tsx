@@ -51,7 +51,7 @@ export function OrderConfirmationView({
         <Badge variant={order.status === "CANCELLED" ? "cancelled" : "outline"}>
           {order.status === "NEW" ? copy.awaiting : tracking.statuses[order.status]}
         </Badge>
-        <p className="text-primary font-semibold">
+        <p className="text-primary font-semibold" data-testid="confirmation-order-reference">
           {tracking.orderReference} {reference}
         </p>
         {order.status === "NEW" && (

@@ -71,6 +71,10 @@ function createStubClient() {
   };
 }
 
+// The helper joins asynchronously (auth first); wait until the channel has been subscribed
+const joined = (stub: { subscribe: unknown }) =>
+  vi.waitFor(() => expect(stub.subscribe).toHaveBeenCalledTimes(1));
+
 describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
   const validUuid = "10000000-0000-0000-0000-000000000001";
 
@@ -98,13 +102,16 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
   });
 
   describe("Subscription setup & filter scoping", () => {
-    it("subscribes to channel orders:business:${businessId} with INSERT event and business_id filter", () => {
+    it("subscribes to channel orders:business:${businessId} with INSERT event and business_id filter", async () => {
       const { stubClient, stubChannel, getOnEvent, getOnFilter } = createStubClient();
       const handlers = { onInsert: vi.fn(), onStatusChange: vi.fn() };
 
       const sub = subscribeToOrderInserts(stubClient, validUuid, handlers);
+      await joined(stubChannel);
 
-      expect(stubClient.channel).toHaveBeenCalledWith(`orders:business:${validUuid}`);
+      expect(stubClient.channel).toHaveBeenCalledWith(`orders:business:${validUuid}`, {
+        config: { postgres_changes_options: { wait: true } },
+      });
       expect(stubChannel.on).toHaveBeenCalledTimes(1);
       expect(getOnEvent()).toBe("postgres_changes");
       expect(getOnFilter()).toEqual({
@@ -117,10 +124,11 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
       expect(typeof sub.unsubscribe).toBe("function");
     });
 
-    it("calls onInsert with orderId and row when INSERT event payload contains valid id", () => {
-      const { stubClient, triggerInsert } = createStubClient();
+    it("calls onInsert with orderId and row when INSERT event payload contains valid id", async () => {
+      const { stubClient, stubChannel, triggerInsert } = createStubClient();
       const onInsert = vi.fn();
       subscribeToOrderInserts(stubClient, validUuid, { onInsert });
+      await joined(stubChannel);
 
       triggerInsert({
         new: {
@@ -142,10 +150,11 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
       });
     });
 
-    it("ignores INSERT event payload if row or id is missing", () => {
-      const { stubClient, triggerInsert } = createStubClient();
+    it("ignores INSERT event payload if row or id is missing", async () => {
+      const { stubClient, stubChannel, triggerInsert } = createStubClient();
       const onInsert = vi.fn();
       subscribeToOrderInserts(stubClient, validUuid, { onInsert });
+      await joined(stubChannel);
 
       triggerInsert({});
       triggerInsert({ new: {} });
@@ -156,10 +165,11 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
   });
 
   describe("Status callback forwarding & auth synchronization", () => {
-    it("forwards SUBSCRIBED, CHANNEL_ERROR, TIMED_OUT, and CLOSED statuses to onStatusChange", () => {
-      const { stubClient, triggerStatus } = createStubClient();
+    it("forwards SUBSCRIBED, CHANNEL_ERROR, TIMED_OUT, and CLOSED statuses to onStatusChange", async () => {
+      const { stubClient, stubChannel, triggerStatus } = createStubClient();
       const onStatusChange = vi.fn();
       subscribeToOrderInserts(stubClient, validUuid, { onStatusChange });
+      await joined(stubChannel);
 
       const statuses: RealtimeSubscriptionStatus[] = [
         "SUBSCRIBED",
@@ -174,10 +184,11 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
       }
     });
 
-    it("forwards errors to onStatusChange when subscription fails", () => {
-      const { stubClient, triggerStatus } = createStubClient();
+    it("forwards errors to onStatusChange when subscription fails", async () => {
+      const { stubClient, stubChannel, triggerStatus } = createStubClient();
       const onStatusChange = vi.fn();
       subscribeToOrderInserts(stubClient, validUuid, { onStatusChange });
+      await joined(stubChannel);
 
       const testError = new Error("Connection failed");
       triggerStatus("CHANNEL_ERROR", testError);
@@ -186,11 +197,9 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
     });
 
     it("sets auth token via client.realtime.setAuth on mount and auth state change", async () => {
-      const { stubClient, triggerAuthChange } = createStubClient();
+      const { stubClient, stubChannel, triggerAuthChange } = createStubClient();
       subscribeToOrderInserts(stubClient, validUuid, {});
-
-      // Wait for getSession promise tick
-      await Promise.resolve();
+      await joined(stubChannel);
       expect(stubClient.realtime.setAuth).toHaveBeenCalledWith("initial-jwt-token");
 
       // Trigger token refresh
@@ -199,10 +208,87 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
     });
   });
 
+  describe("Join ordering (auth before subscribe)", () => {
+    function deferred() {
+      let resolve!: () => void;
+      const promise = new Promise<void>((r) => {
+        resolve = r;
+      });
+      return { promise, resolve };
+    }
+
+    it("does not create or subscribe the channel before setAuth resolves", async () => {
+      const { stubClient, stubChannel } = createStubClient();
+      const authGate = deferred();
+      vi.mocked(stubClient.realtime.setAuth).mockImplementation(() => authGate.promise);
+      const callOrder: string[] = [];
+      vi.mocked(stubClient.realtime.setAuth).mockImplementationOnce(() => {
+        callOrder.push("setAuth");
+        return authGate.promise;
+      });
+      vi.mocked(stubClient.channel).mockImplementationOnce(() => {
+        callOrder.push("channel");
+        return stubChannel as never;
+      });
+
+      subscribeToOrderInserts(stubClient, validUuid, {});
+      await vi.waitFor(() =>
+        expect(stubClient.realtime.setAuth).toHaveBeenCalledWith("initial-jwt-token"),
+      );
+
+      // setAuth is pending: the channel must not have been joined yet
+      expect(stubClient.channel).not.toHaveBeenCalled();
+      expect(stubChannel.subscribe).not.toHaveBeenCalled();
+
+      authGate.resolve();
+      await joined(stubChannel);
+      expect(callOrder).toEqual(["setAuth", "channel"]);
+    });
+
+    it("does not leak a channel when unsubscribed before auth is ready", async () => {
+      const { stubClient, stubChannel, authUnsubscribe } = createStubClient();
+      const authGate = deferred();
+      vi.mocked(stubClient.realtime.setAuth).mockImplementation(() => authGate.promise);
+
+      const sub = subscribeToOrderInserts(stubClient, validUuid, {});
+      await vi.waitFor(() => expect(stubClient.realtime.setAuth).toHaveBeenCalled());
+
+      await sub.unsubscribe();
+      authGate.resolve();
+      await authGate.promise;
+      await Promise.resolve();
+
+      expect(stubClient.channel).not.toHaveBeenCalled();
+      expect(stubChannel.subscribe).not.toHaveBeenCalled();
+      expect(stubClient.removeChannel).not.toHaveBeenCalled();
+      expect(authUnsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it("still joins when getSession rejects and reports join failures as CHANNEL_ERROR", async () => {
+      const { stubClient, stubChannel } = createStubClient();
+      vi.mocked(stubClient.auth.getSession).mockRejectedValueOnce(new Error("storage locked"));
+      const onStatusChange = vi.fn();
+
+      subscribeToOrderInserts(stubClient, validUuid, { onStatusChange });
+      await joined(stubChannel);
+      expect(stubClient.realtime.setAuth).not.toHaveBeenCalled();
+
+      const failing = createStubClient();
+      const boom = new Error("channel factory failed");
+      vi.mocked(failing.stubClient.channel).mockImplementationOnce(() => {
+        throw boom;
+      });
+      const onFailStatus = vi.fn();
+      subscribeToOrderInserts(failing.stubClient, validUuid, { onStatusChange: onFailStatus });
+      await vi.waitFor(() => expect(onFailStatus).toHaveBeenCalledWith("CHANNEL_ERROR", boom));
+    });
+  });
+
   describe("Unsubscribe & teardown", () => {
     it("removes channel and unhooks auth listener on unsubscribe", async () => {
       const { stubClient, stubChannel, authUnsubscribe } = createStubClient();
       const sub = subscribeToOrderInserts(stubClient, validUuid, {});
+      await joined(stubChannel);
 
       expect(stubClient.removeChannel).not.toHaveBeenCalled();
       expect(authUnsubscribe).not.toHaveBeenCalled();
@@ -216,6 +302,7 @@ describe("Supabase Realtime Helper — subscribeToOrderInserts (#124)", () => {
     it("is idempotent when unsubscribe is called multiple times", async () => {
       const { stubClient, stubChannel } = createStubClient();
       const sub = subscribeToOrderInserts(stubClient, validUuid, {});
+      await joined(stubChannel);
 
       await sub();
       await sub.unsubscribe();

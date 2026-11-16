@@ -23,7 +23,7 @@ flowchart LR
 | [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`                  | Sets `status: completed` on issues the PR closes (`Closes #N`)                         |
 | [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                    | Grouped npm minor/patch updates and Actions updates, targeting `develop`               |
 
-The build step uses placeholder Supabase values, so CI needs no secrets. Merged feature branches are deleted automatically (repository setting), so the legacy cleanup workflow was not ported.
+The `build` job starts a local Supabase stack (seeded by `supabase/seed.sql`) because the storefront prerenders its catalog at build time and a failed read fails the build, so CI needs no secrets. The `db-tests` job also runs `npm run test:e2e:supabase` (the anonymous storefront journey against that stack). Merged feature branches are deleted automatically (repository setting), so the legacy cleanup workflow was not ported.
 
 ## Vercel setup (manual, one time)
 
@@ -32,8 +32,19 @@ The build step uses placeholder Supabase values, so CI needs no secrets. Merged 
 3. Environment variables (Settings → Environment Variables), one Supabase project per environment:
    - **Production** → production Supabase URL + publishable key.
    - **Preview** → staging/dev Supabase URL + publishable key. Use a branch-specific value for `staging` if staging has its own project.
-   - Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` today. Never add the service-role key as `NEXT_PUBLIC_*`.
+   - Never add the service-role key as `NEXT_PUBLIC_*`.
    - `NEXT_PUBLIC_SITE_URL`: canonical origin (e.g. `https://foodbiz.app` for production).
+
+   | Variable                               | Scope  | Required               | Purpose                                                                                                                                   |
+   | -------------------------------------- | ------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+   | `NEXT_PUBLIC_SUPABASE_URL`             | public | always                 | Supabase project URL (also allow-listed for `next/image` product images from the `product-images` bucket)                                 |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | public | always                 | Supabase publishable key                                                                                                                  |
+   | `NEXT_PUBLIC_SITE_URL`                 | public | production             | Canonical origin for auth redirects and metadata                                                                                          |
+   | `DATA_SOURCE`                          | server | always                 | `supabase` in deployed environments (`mock` is rejected in production)                                                                    |
+   | `STOREFRONT_BUSINESS_ID`               | server | `DATA_SOURCE=supabase` | UUID of the business the public storefront serves (`businesses.id`); the seeded demo business uses `11111111-1111-4111-8111-111111111111` |
+
+   The variable is also needed at **build** time: the storefront prerenders its catalog, so the build must be able to reach Supabase with the same values, and an unreachable database fails the build instead of shipping placeholder data.
+
 4. **Staging domain:** Settings → Domains → add a domain (e.g. `staging.<your-domain>`) and assign it to the `staging` Git branch.
 5. Optional: enable Deployment Protection on previews/staging.
 

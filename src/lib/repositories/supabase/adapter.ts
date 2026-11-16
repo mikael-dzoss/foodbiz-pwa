@@ -78,6 +78,14 @@ export interface SupabaseRepositoryOptions {
   readonly publicOnly?: boolean;
 }
 
+/**
+ * Product columns the public storefront (and `placeOrderAction`, which prices from the database)
+ * may read: what the storefront DTO needs plus `business_id`/`visible` for filtering. Excludes
+ * `unit_cost` and timestamps so a later column-grant migration can revoke them from anon.
+ */
+export const PUBLIC_PRODUCT_COLUMNS =
+  "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
+
 export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
   "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
@@ -250,30 +258,63 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
   });
 }
 
+/** Maps a row selected with PUBLIC_PRODUCT_COLUMNS; private/unselected fields get neutral defaults. */
+function mapPublicProductRow(row: Partial<Tables<"products">>): Product {
+  return mapProductRow({
+    ...row,
+    unit_cost: 0,
+    created_at: new Date(0).toISOString(),
+    updated_at: new Date(0).toISOString(),
+  } as Tables<"products">);
+}
+
+const PLACE_ORDER_GENERIC_MESSAGE = "We could not place your order. Please try again.";
+
+/**
+ * Maps a `place_order` database error to a typed repository error with a generic, client-safe
+ * message. The raw database text is never forwarded to the caller or logged; the known RAISE
+ * messages carry only ids and counts, but unexpected database errors could echo submitted values.
+ */
 function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRepoError {
-  const msg = error.message || "";
-  const code = error.code;
-  switch (code) {
+  const raw = error.message ?? "";
+  const reason = raw.split(":")[0]?.trim() ?? "";
+  const sqlState = error.code;
+
+  const build = (message: string, code: string) => new OrderRepoError(message, code);
+  switch (reason) {
+    case "INSUFFICIENT_STOCK":
+    case "PRODUCT_NOT_AVAILABLE":
+    case "PRODUCT_NOT_FOUND":
+      return build("Some items in your order are no longer available.", "STOCK_ERROR");
+    case "ORDERS_NOT_ACCEPTED":
+      return build("This store is currently not accepting orders.", "STORE_CLOSED");
+    case "SERVICE_TYPE_NOT_AVAILABLE":
+      return build("This service type is currently not available.", "SERVICE_TYPE_DISABLED");
+    case "MINIMUM_ORDER_AMOUNT_NOT_MET":
+      return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
+  }
+  switch (sqlState) {
     case "P0001":
     case "P0003":
-      return new OrderRepoError(msg, "STOCK_ERROR");
+      return build("Some items in your order are no longer available.", "STOCK_ERROR");
     case "P0004":
-      return new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
+      return build("This store is currently not accepting orders.", "STORE_CLOSED");
     case "P0005":
-      return new OrderRepoError(msg, "MINIMUM_ORDER_UNMET");
+      return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
     case "42501":
-      return new OrderRepoError(msg, "UNAUTHORIZED");
-    case "22023":
-      return new OrderRepoError(msg, "INVALID_INPUT");
-    default:
-      if (msg.includes("INSUFFICIENT_STOCK") || msg.includes("PRODUCT_NOT_AVAILABLE")) {
-        return new OrderRepoError(msg, "STOCK_ERROR");
-      }
-      return new OrderRepoError(
-        msg || "We could not place your order. Please try again.",
-        "INTERNAL_ERROR",
-      );
+      return build("Permission denied", "UNAUTHORIZED");
   }
+  if (/^INVALID_[A-Z_]+$/.test(reason) || sqlState === "22023") {
+    return build("Please check your order details.", "INVALID_INPUT");
+  }
+
+  // Log the SQLSTATE and the upper-case error prefix only: never the free-text message, which for
+  // unexpected database errors (constraints, type errors) can echo submitted values.
+  console.error("place_order failed", {
+    sqlState,
+    reason: /^[A-Z_]+$/.test(reason) ? reason : "UNKNOWN",
+  });
+  return build(PLACE_ORDER_GENERIC_MESSAGE, "INTERNAL_ERROR");
 }
 
 function mapCancelOrderError(error: { code?: string; message?: string }): OrderRepoError {
@@ -329,21 +370,24 @@ export function createSupabaseRepositories(
   const products: ProductRepository = {
     async findById(businessId: string, id: string): Promise<Product | null> {
       const client = await getClient();
-      const { data, error } = await client
-        .from("products")
-        .select()
-        .eq("business_id", businessId)
-        .eq("id", id)
-        .maybeSingle();
+      const base = options?.publicOnly
+        ? client.from("products").select(PUBLIC_PRODUCT_COLUMNS)
+        : client.from("products").select();
+      const { data, error } = await base.eq("business_id", businessId).eq("id", id).maybeSingle();
 
       if (error) throw error;
       if (!data) return null;
-      return mapProductRow(data);
+      return options?.publicOnly
+        ? mapPublicProductRow(data as Partial<Tables<"products">>)
+        : mapProductRow(data as Tables<"products">);
     },
 
     async list(businessId: string, filter?: ProductFilter): Promise<Product[]> {
       const client = await getClient();
-      let query = client.from("products").select().eq("business_id", businessId);
+      const base = options?.publicOnly
+        ? client.from("products").select(PUBLIC_PRODUCT_COLUMNS)
+        : client.from("products").select();
+      let query = base.eq("business_id", businessId);
 
       if (filter?.categoryId) {
         query = query.eq("category_id", filter.categoryId);
@@ -354,7 +398,10 @@ export function createSupabaseRepositories(
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []).map(mapProductRow);
+      const rows = (data ?? []) as unknown as Partial<Tables<"products">>[];
+      return options?.publicOnly
+        ? rows.map(mapPublicProductRow)
+        : rows.map((row) => mapProductRow(row as Tables<"products">));
     },
 
     async create(businessId: string, input: CreateProductInput): Promise<Product> {
@@ -507,6 +554,23 @@ export function createSupabaseRepositories(
       filter: ProductQuantityFilter,
     ): Promise<{ productId: string; quantity: number; lastOrderedAt: string }[]> {
       const client = await getClient();
+
+      if (options?.publicOnly) {
+        // Anonymous visitors cannot read `orders`; the SECURITY DEFINER function returns only
+        // per-product aggregates for visible, in-stock products.
+        const { data, error } = await client.rpc("storefront_featured_products", {
+          p_business_id: businessId,
+          p_from: filter.fromDate,
+          p_to: filter.toDate,
+        });
+        if (error) throw error;
+        return (data ?? []).map((row) => ({
+          productId: row.product_id,
+          quantity: Number(row.quantity),
+          lastOrderedAt: toIsoUtc(row.last_ordered_at),
+        }));
+      }
+
       const { data, error } = await client
         .from("orders")
         .select("*, order_items(*)")

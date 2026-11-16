@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ShoppingBag, Check, UtensilsCrossed, Lightbulb } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { AddOnCandidates } from "@/domain/add-ons";
+import type { StorefrontProduct } from "@/domain/storefront-product";
 import { getDictionary, type SupportedLocale, type StorefrontDictionary } from "@/domain/i18n";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import type { StorefrontProductData } from "../catalog-data";
@@ -14,7 +15,7 @@ import { ProductAddOnGroup } from "./product-add-on-group";
 
 export interface ProductDetailViewProps {
   productData: StorefrontProductData;
-  addOns?: AddOnCandidates | null;
+  addOns?: AddOnCandidates<StorefrontProduct> | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
 }

@@ -1,7 +1,8 @@
 import { render, screen, act } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { ThemeProvider, useTheme, THEME_STORAGE_KEY } from "../theme-provider";
+import { ThemeProvider, useTheme } from "../theme-provider";
+import { THEME_STORAGE_KEY } from "../theme-storage-key";
 import { ThemeScript } from "../theme-script";
 
 function TestConsumer() {

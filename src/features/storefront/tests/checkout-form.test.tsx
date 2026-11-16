@@ -5,7 +5,8 @@ import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../conte
 import { CheckoutView } from "../components/checkout-view";
 import { resetGuestContactCache } from "../components/checkout-form";
 import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
-import type { Business, BusinessSettings } from "@/domain/business";
+import type { BusinessSettings } from "@/domain/business";
+import type { StorefrontBusiness } from "@/domain/storefront-business";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -15,18 +16,13 @@ vi.mock("next/navigation", () => ({
 
 const dict = getDictionary("en").storefront;
 
-const mockBusiness: Business = {
-  id: "biz-1",
+const mockBusiness: StorefrontBusiness = {
   name: "La Petite Boulangerie",
-  slug: "la-petite-boulangerie",
   description: "Artisanal Parisian bakery",
   phone: "+33 1 23 45 67 89",
   email: "contact@petiteboulangerie.fr",
   whatsappNumber: "33123456789",
   address: "12 Rue de la Paix, 75002 Paris",
-  currency: "EUR",
-  createdAt: "2026-01-01T00:00:00Z",
-  updatedAt: "2026-01-01T00:00:00Z",
 };
 
 const mockSettings: BusinessSettings = {
@@ -502,5 +498,79 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(
       screen.getByText("Too many order attempts. Please wait a few minutes before trying again."),
     ).toBeDefined();
+  });
+
+  it.each([
+    ["en", "VALIDATION_ERROR"],
+    ["en", "ANTI_ABUSE_REJECTION"],
+    ["en", "STORE_CLOSED"],
+    ["en", "SERVICE_TYPE_DISABLED"],
+    ["en", "MINIMUM_ORDER_UNMET"],
+    ["en", "STOCK_ERROR"],
+    ["en", "INTERNAL_ERROR"],
+    ["fr", "STORE_CLOSED"],
+    ["fr", "INTERNAL_ERROR"],
+  ] as const)(
+    "announces a localized %s message for %s without showing raw server text",
+    async (locale, code) => {
+      vi.spyOn(await import("../storefront-actions"), "placeOrderAction").mockResolvedValue({
+        success: false,
+        error: "RAW SERVER TEXT permission denied 42501",
+        code,
+      });
+      const localDict = getDictionary(locale).storefront;
+      const messages: Record<string, string> = {
+        VALIDATION_ERROR: localDict.orderErrorValidation,
+        ANTI_ABUSE_REJECTION: localDict.orderErrorAntiAbuse,
+        STORE_CLOSED: localDict.orderErrorStoreClosed,
+        SERVICE_TYPE_DISABLED: localDict.orderErrorServiceDisabled,
+        MINIMUM_ORDER_UNMET: localDict.orderErrorMinimum,
+        STOCK_ERROR: localDict.orderErrorStock,
+        INTERNAL_ERROR: localDict.orderErrorInternal,
+      };
+
+      render(
+        <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
+          <CheckoutView
+            business={mockBusiness}
+            settings={mockSettings}
+            locale={locale}
+            dict={localDict}
+            redirectDelayMs={50}
+          />
+        </CartProvider>,
+      );
+      fireEvent.change(screen.getByTestId("checkout-name-input"), {
+        target: { value: "Valérie Trierweiler" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-phone-input"), {
+        target: { value: "+33611223344" },
+      });
+      fireEvent.submit(screen.getByTestId("checkout-form"));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert.textContent).toBe(messages[code]);
+      expect(alert.textContent).not.toContain("RAW SERVER TEXT");
+    },
+  );
+
+  it("has a localized message in every language for every place-order error code", () => {
+    for (const locale of ["en", "fr"] as const) {
+      const d = getDictionary(locale).storefront;
+      for (const key of [
+        d.orderErrorValidation,
+        d.orderErrorAntiAbuse,
+        d.orderErrorStoreClosed,
+        d.orderErrorServiceDisabled,
+        d.orderErrorMinimum,
+        d.orderErrorStock,
+        d.orderErrorInternal,
+      ]) {
+        expect(key.length).toBeGreaterThan(0);
+      }
+    }
+    expect(getDictionary("fr").storefront.orderErrorStock).not.toBe(
+      getDictionary("en").storefront.orderErrorStock,
+    );
   });
 });

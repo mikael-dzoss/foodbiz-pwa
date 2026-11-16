@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { getPublicEnv, getServerEnv, parsePublicEnv, parseServerEnv } from "../env";
 
+const BUSINESS_ID = "11111111-1111-4111-8111-111111111111";
+
 describe("parsePublicEnv", () => {
   it("returns typed values when all variables are valid", () => {
     const env = parsePublicEnv({
@@ -62,8 +64,37 @@ describe("parseServerEnv", () => {
   });
 
   it("accepts DATA_SOURCE=supabase in production", () => {
-    const env = parseServerEnv({ DATA_SOURCE: "supabase", NODE_ENV: "production" });
+    const env = parseServerEnv({
+      DATA_SOURCE: "supabase",
+      NODE_ENV: "production",
+      STOREFRONT_BUSINESS_ID: BUSINESS_ID,
+    });
     expect(env.DATA_SOURCE).toBe("supabase");
+    expect(env.STOREFRONT_BUSINESS_ID).toBe(BUSINESS_ID);
+  });
+
+  it("requires a valid STOREFRONT_BUSINESS_ID when DATA_SOURCE=supabase", () => {
+    expect(() => parseServerEnv({ DATA_SOURCE: "supabase", NODE_ENV: "production" })).toThrow(
+      /STOREFRONT_BUSINESS_ID is required/,
+    );
+    expect(() =>
+      parseServerEnv({
+        DATA_SOURCE: "supabase",
+        NODE_ENV: "production",
+        STOREFRONT_BUSINESS_ID: "   ",
+      }),
+    ).toThrow(/STOREFRONT_BUSINESS_ID is required/);
+    expect(() =>
+      parseServerEnv({
+        DATA_SOURCE: "supabase",
+        NODE_ENV: "production",
+        STOREFRONT_BUSINESS_ID: "not-a-uuid",
+      }),
+    ).toThrow(/STOREFRONT_BUSINESS_ID/);
+  });
+
+  it("does not require STOREFRONT_BUSINESS_ID in mock mode", () => {
+    expect(parseServerEnv({ DATA_SOURCE: "mock" }).STOREFRONT_BUSINESS_ID).toBeUndefined();
   });
 
   it("rejects DATA_SOURCE=mock in production", () => {
@@ -92,6 +123,7 @@ describe("parseServerEnv", () => {
       ALLOWED_MANAGER_EMAILS: "dev@example.com",
       DEV_BUSINESS_SLUG: "custom-bakery",
       SUPABASE_SERVICE_ROLE_KEY: "service-role-secret-token",
+      STOREFRONT_BUSINESS_ID: BUSINESS_ID,
     });
     expect(env.APP_ENV).toBe("staging");
     expect(env.ALLOWED_MANAGER_EMAILS).toBe("dev@example.com");

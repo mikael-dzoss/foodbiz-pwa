@@ -1,4 +1,4 @@
-import { THEME_STORAGE_KEY } from "./theme-provider";
+import { THEME_STORAGE_KEY } from "./theme-storage-key";
 
 export function ThemeScript() {
   const scriptContent = `

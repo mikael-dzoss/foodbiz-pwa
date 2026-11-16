@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Plus, Check } from "lucide-react";
 import type { StorefrontDictionary } from "@/domain/i18n";
-import type { Product } from "@/domain/product";
+import type { StorefrontProduct } from "@/domain/storefront-product";
 import { useCart } from "../context/cart-context";
 
 export function ProductAddButton({
@@ -13,7 +13,7 @@ export function ProductAddButton({
   size = "regular",
   "data-testid": testId,
 }: {
-  product: Product;
+  product: StorefrontProduct;
   dict: StorefrontDictionary;
   disabled?: boolean;
   /** "compact" (32px) is an owner-approved exception for catalog rows (#228). */
@@ -29,11 +29,7 @@ export function ProductAddButton({
     },
     [],
   );
-  const canAdd =
-    product.visible &&
-    product.stock > 0 &&
-    !disabled &&
-    getItemQuantity(product.id) < product.stock;
+  const canAdd = product.stock > 0 && !disabled && getItemQuantity(product.id) < product.stock;
 
   const handleAdd = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();

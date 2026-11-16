@@ -43,6 +43,15 @@ const serverEnvSchema = z
     ALLOWED_MANAGER_EMAILS: z.string().optional(),
     DEV_BUSINESS_SLUG: z.string().trim().min(1).optional(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    /** The business whose catalog the public storefront serves. Required with DATA_SOURCE=supabase. */
+    STOREFRONT_BUSINESS_ID: z.preprocess(
+      (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+      z.uuid().optional(),
+    ),
+  })
+  .refine((data) => data.DATA_SOURCE !== "supabase" || data.STOREFRONT_BUSINESS_ID !== undefined, {
+    message: "STOREFRONT_BUSINESS_ID is required when DATA_SOURCE is 'supabase'",
+    path: ["STOREFRONT_BUSINESS_ID"],
   })
   .refine(
     (data) => {
@@ -81,5 +90,6 @@ export function getServerEnv(): ServerEnv {
     ALLOWED_MANAGER_EMAILS: process.env.ALLOWED_MANAGER_EMAILS,
     DEV_BUSINESS_SLUG: process.env.DEV_BUSINESS_SLUG,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    STOREFRONT_BUSINESS_ID: process.env.STOREFRONT_BUSINESS_ID,
   });
 }

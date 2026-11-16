@@ -3,7 +3,7 @@ import Image from "next/image";
 import { UtensilsCrossed } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
-import type { Product } from "@/domain/product";
+import type { StorefrontProduct } from "@/domain/storefront-product";
 import { ProductAddButton } from "./product-add-button";
 
 export function FeaturedCarousel({
@@ -13,7 +13,7 @@ export function FeaturedCarousel({
   disabled = false,
   headingRef,
 }: {
-  products: readonly Product[];
+  products: readonly StorefrontProduct[];
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   disabled?: boolean;
