@@ -16,6 +16,11 @@
 -- phone numbers, but E.164 numbers are low-entropy, so it is not protection
 -- against a database operator. Rows live for at most one window (10 minutes).
 --
+-- The per-key advisory lock taken by rate_limit_is_exceeded lives until the end of the
+-- calling transaction. For the per-business bucket this makes anonymous orders of one
+-- business queue behind each other; they already serialize on the order-number lock, and a
+-- transaction is a few milliseconds.
+--
 -- Pruning is opportunistic: rate_limit_is_exceeded deletes rows of its bucket
 -- older than the window it is called with; there is no cron job.
 --
@@ -94,6 +99,6 @@ as $$
   insert into public.rate_limit_attempts (bucket, key_hash) values (p_bucket, p_key_hash);
 $$;
 
-revoke all on function public.rate_limit_key(uuid, text) from public, anon, authenticated;
-revoke all on function public.rate_limit_is_exceeded(text, text, integer, interval) from public, anon, authenticated;
-revoke all on function public.rate_limit_record(text, text) from public, anon, authenticated;
+revoke all on function public.rate_limit_key(uuid, text) from public, anon, authenticated, service_role;
+revoke all on function public.rate_limit_is_exceeded(text, text, integer, interval) from public, anon, authenticated, service_role;
+revoke all on function public.rate_limit_record(text, text) from public, anon, authenticated, service_role;

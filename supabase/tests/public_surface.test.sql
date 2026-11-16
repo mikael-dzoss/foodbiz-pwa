@@ -15,7 +15,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(65);
+select plan(66);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (as the migration role)
@@ -201,13 +201,15 @@ reset role;
 
 select ok(
   not has_function_privilege('anon', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute')
-  and not has_function_privilege('authenticated', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute'),
+  and not has_function_privilege('authenticated', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute')
+  and not has_function_privilege('service_role', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute'),
   'rate_limit_is_exceeded is not callable through the API'
 );
 
 select ok(
   not has_function_privilege('anon', 'public.rate_limit_record(text, text)', 'execute')
-  and not has_function_privilege('authenticated', 'public.rate_limit_record(text, text)', 'execute'),
+  and not has_function_privilege('authenticated', 'public.rate_limit_record(text, text)', 'execute')
+  and not has_function_privilege('service_role', 'public.rate_limit_record(text, text)', 'execute'),
   'rate_limit_record is not callable through the API'
 );
 
@@ -390,9 +392,15 @@ select throws_like(
 reset role;
 
 select is(
-  (select res from t_idem_2),
-  (select res from t_idem_1),
+  (select res - 'replayed' from t_idem_2),
+  (select res - 'replayed' from t_idem_1),
   'the same idempotency key returns the original order result'
+);
+
+select is(
+  (select array[(res->>'replayed'), (select res->>'replayed' from t_idem_2)] from t_idem_1),
+  array['false', 'true'],
+  'only the repeated call is flagged as replayed'
 );
 
 select is(

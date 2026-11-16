@@ -7,6 +7,8 @@
 --     returns the original order and neither creates a second order nor touches
 --     stock again. The old 12-argument signature is dropped (so the unguarded
 --     version is not left callable) and the new one is granted to the same roles.
+--   * The result gains `replayed` (true when the original order was returned) so the app can
+--     avoid charging its in-memory per-IP limiter for retries.
 --   * Storefront-channel limits enforced in the function (mirrors
 --     src/domain/anti-abuse.ts; keep both in sync, a live contract test fails
 --     if they diverge):
@@ -146,7 +148,8 @@ begin
         'order_number', v_existing.order_number,
         'tracking_token', v_existing.tracking_token,
         'submitted_name', v_existing.submitted_name,
-        'total_amount', v_existing.total_amount
+        'total_amount', v_existing.total_amount,
+        'replayed', true
       );
     end if;
   end if;
@@ -434,7 +437,8 @@ begin
     'order_number', v_order.order_number,
     'tracking_token', v_order.tracking_token,
     'submitted_name', v_submitted_name,
-    'total_amount', v_total_amount
+    'total_amount', v_total_amount,
+    'replayed', false
   );
 end;
 $$;
