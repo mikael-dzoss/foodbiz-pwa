@@ -17,7 +17,8 @@ import { isDevOrTestEnvironment, isEmailInAllowedManagerList } from "./access";
  * 4. Sign-in provider must be Google (app_metadata.provider === 'google' or providers includes 'google').
  *
  * Resolves the business row by slug from DEV_BUSINESS_SLUG (defaults to MOCK_MANAGER_SESSION.business.slug).
- * Upserts a 'manager' role in business_members via the admin client.
+ * Upserts the membership via the admin client: 'owner' for the first member of the business (or an
+ * existing owner), 'manager' otherwise.
  * Returns true if auto-provisioned or already existing; false on any failure (safe, no throw, no sensitive logs).
  */
 export async function maybeAutoProvisionDevManager(user: User): Promise<boolean> {
@@ -65,12 +66,26 @@ export async function maybeAutoProvisionDevManager(user: User): Promise<boolean>
       return false;
     }
 
-    // Upsert business_members row (role: 'manager')
+    // The first member of a business must be an owner or nobody could ever change its payment
+    // settings. Keep an existing owner as owner; otherwise only become owner when none exists.
+    const { data: owners, error: ownersError } = await admin
+      .from("business_members")
+      .select("user_id")
+      .eq("business_id", business.id)
+      .eq("role", "owner");
+    if (ownersError) {
+      return false;
+    }
+    const hasOwner = (owners ?? []).length > 0;
+    const isOwner = (owners ?? []).some((o) => o.user_id === user.id);
+    const role = !hasOwner || isOwner ? "owner" : "manager";
+
+    // Upsert business_members row
     const { error: upsertError } = await admin.from("business_members").upsert(
       {
         business_id: business.id,
         user_id: user.id,
-        role: "manager",
+        role,
       },
       {
         onConflict: "business_id,user_id",
