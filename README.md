@@ -10,7 +10,7 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-Or open the folder in VS Code and choose **Reopen in Container** — `.devcontainer/` installs everything (including `docker-in-docker` and the Supabase CLI).
+Or open the folder in VS Code and choose **Reopen in Container** — `.devcontainer/` installs everything (including `docker-in-docker`, the Supabase CLI, and the Claude Code CLI + VS Code extension; Claude login and settings persist in the `foodbiz-pwa-claude-data` volume).
 
 ### Local Supabase stack
 

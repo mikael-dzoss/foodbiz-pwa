@@ -51,6 +51,7 @@ EXTENSIONS=(
   "github.vscode-github-actions"
   "eamodio.gitlens"
   "redhat.vscode-yaml"
+  "anthropic.claude-code"
 )
 
 echo "Ensuring Antigravity IDE extensions are installed..."

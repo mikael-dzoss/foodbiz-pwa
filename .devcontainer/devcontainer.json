@@ -15,7 +15,8 @@
     "54323": { "label": "Supabase Studio", "onAutoForward": "notify" }
   },
   "containerEnv": {
-    "NEXT_TELEMETRY_DISABLED": "1"
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
   },
   "remoteEnv": {
     "STITCH_API_KEY": "${localEnv:STITCH_API_KEY}",
@@ -40,7 +41,8 @@
         "github.vscode-github-actions",
         "eamodio.gitlens",
         "redhat.vscode-yaml",
-        "google.google-antigravity"
+        "google.google-antigravity",
+        "anthropic.claude-code"
       ]
     }
   }
