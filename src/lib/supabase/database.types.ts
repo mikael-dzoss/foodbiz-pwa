@@ -355,6 +355,7 @@ export type Database = {
           status_history: Json;
           created_at: string;
           updated_at: string;
+          idempotency_key: string | null;
         };
         Insert: {
           id?: string;
@@ -380,6 +381,7 @@ export type Database = {
           status_history?: Json;
           created_at?: string;
           updated_at?: string;
+          idempotency_key?: string | null;
         };
         Update: {
           id?: string;
@@ -405,6 +407,7 @@ export type Database = {
           status_history?: Json;
           created_at?: string;
           updated_at?: string;
+          idempotency_key?: string | null;
         };
         Relationships: [
           {
@@ -519,6 +522,27 @@ export type Database = {
           },
         ];
       };
+      rate_limit_attempts: {
+        Row: {
+          id: number;
+          bucket: string;
+          key_hash: string;
+          created_at: string;
+        };
+        Insert: {
+          id: number;
+          bucket: string;
+          key_hash: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          bucket?: string;
+          key_hash?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -586,6 +610,7 @@ export type Database = {
           p_delivery_address?: string;
           p_notes?: string;
           p_update_guest_name?: boolean;
+          p_idempotency_key?: string;
         };
         Returns: Json;
       };
@@ -608,6 +633,29 @@ export type Database = {
           p_business_id: string;
           p_order_id: string;
           p_items: Json;
+        };
+        Returns: undefined;
+      };
+      rate_limit_key: {
+        Args: {
+          p_business_id: string;
+          p_subject: string;
+        };
+        Returns: string;
+      };
+      rate_limit_is_exceeded: {
+        Args: {
+          p_bucket: string;
+          p_key_hash: string;
+          p_limit: number;
+          p_window: unknown;
+        };
+        Returns: boolean;
+      };
+      rate_limit_record: {
+        Args: {
+          p_bucket: string;
+          p_key_hash: string;
         };
         Returns: undefined;
       };
