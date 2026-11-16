@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Volume mounts are created root-owned; hand them to the node user.
-sudo mkdir -p /home/node/.gemini /home/node/.antigravity-ide-server node_modules
-sudo chown -R node:node /home/node/.gemini /home/node/.antigravity-ide-server node_modules
+sudo mkdir -p /home/node/.gemini /home/node/.antigravity-ide-server /home/node/.claude node_modules
+sudo chown -R node:node /home/node/.gemini /home/node/.antigravity-ide-server /home/node/.claude node_modules
 
 # Persist Antigravity IDE extensions across container rebuilds via the mounted .gemini volume
 mkdir -p /home/node/.gemini/antigravity-ide-extensions /home/node/.antigravity-ide-server

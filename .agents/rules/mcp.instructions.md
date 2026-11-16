@@ -7,6 +7,8 @@ description: Use when needing external MCP tools (Google Stitch design canvas, V
 
 When a task requires tools from an external service (such as Stitch for mobile screens or Vercel for deployment logs/inspection) and the corresponding tools are not present in your active tool list, verify and register the MCP server using the Antigravity CLI.
 
+> Claude Code: both servers are declared in [`.mcp.json`](../../.mcp.json) (keys come from the same env vars); skip the `agy` steps below.
+
 ## 1. CLI Path Resolution
 The `agy` CLI may not be in system `$PATH` by default. Always resolve the binary path first:
 

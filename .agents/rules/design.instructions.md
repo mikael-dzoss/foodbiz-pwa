@@ -1,5 +1,10 @@
 ---
 trigger: always_on
+paths:
+  - "src/app/**/*.tsx"
+  - "src/features/**/components/**"
+  - "src/components/**"
+  - "docs/design/**"
 description: Autonomous Stitch mobile canvas flow for screens from SCREENS.md
 ---
 

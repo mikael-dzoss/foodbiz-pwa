@@ -2,6 +2,18 @@
 
 Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](../.agents/rules/); they apply to humans and agents alike. Local setup: [`README.md`](../README.md#getting-started).
 
+### Agent tooling
+
+`AGENTS.md` and `.agents/` are the single source of truth for every coding agent. Edit them there, never in a tool-specific copy.
+
+| Source                                     | Antigravity              | GitHub Copilot                                | Claude Code                                                               |
+| ------------------------------------------ | ------------------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `AGENTS.md`                                | native                   | `chat.useAgentsMdFile`                        | `CLAUDE.md` imports it (`@AGENTS.md`)                                     |
+| `.agents/rules/*.instructions.md`          | `trigger` / `globs`      | `chat.instructionsFilesLocations` + `applyTo` | symlinks in `.claude/rules/` scoped by `paths`; others read via AGENTS.md |
+| `.agents/skills/`                          | native                   | via `.claude/skills` (if enabled)             | `.claude/skills` symlink                                                  |
+| MCP servers (Stitch, Vercel)               | `agy mcp add` (see rule) | `.vscode/mcp.json`                            | `.mcp.json`                                                               |
+| Claude-only: subagents, hooks, permissions | —                        | —                                             | `.claude/agents/`, `.claude/hooks/`, `.claude/settings.json`              |
+
 ## Branches
 
 | Branch    | Purpose                                                   |

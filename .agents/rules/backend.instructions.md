@@ -2,6 +2,8 @@
 trigger: glob
 globs: supabase/**
 applyTo: "supabase/**"
+paths:
+  - "supabase/**"
 description: Supabase/Postgres schema design, SQL migrations and RLS policies
 ---
 

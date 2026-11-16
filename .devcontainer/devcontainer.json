@@ -24,6 +24,7 @@
   "mounts": [
     "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
     "source=foodbiz-pwa-antigravity-server,target=/home/node/.antigravity-ide-server,type=volume",
+    "source=foodbiz-pwa-claude-data,target=/home/node/.claude,type=volume",
     "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",

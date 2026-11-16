@@ -1,5 +1,13 @@
 ---
 trigger: model_decision
+paths:
+  - "src/proxy.ts"
+  - "src/lib/supabase/**"
+  - "src/config/**"
+  - "src/features/auth/**"
+  - "**/actions.ts"
+  - "next.config.ts"
+  - ".env.example"
 description: Use when touching auth, sessions, Server Action authorization, secrets/env, the proxy, security headers/CSP, redirects or user-supplied HTML
 ---
 
