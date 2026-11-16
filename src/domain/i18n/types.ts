@@ -324,6 +324,8 @@ export interface CommonDictionary {
   error: string;
   retry: string;
   back: string;
+  /** Shown next to a control that only the shop owner may use (disabled with explanation). */
+  ownerOnlyNotice: string;
 }
 
 export interface SettingsDictionary {

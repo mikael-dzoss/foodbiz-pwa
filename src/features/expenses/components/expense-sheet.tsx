@@ -29,6 +29,8 @@ export interface ExpenseSheetProps {
   expense?: Expense | null;
   onSaved?: (expense: Expense) => void;
   onDeleted?: (id: string) => void;
+  /** Why deleting is unavailable to this member (owner-only); the control is disabled and explained. */
+  deleteDisabledReason?: string;
 }
 
 interface ExpenseFormProps {
@@ -36,9 +38,16 @@ interface ExpenseFormProps {
   onClose: () => void;
   onSaved?: (expense: Expense) => void;
   onDeleted?: (id: string) => void;
+  deleteDisabledReason?: string;
 }
 
-function ExpenseForm({ expense, onClose, onSaved, onDeleted }: ExpenseFormProps) {
+function ExpenseForm({
+  expense,
+  onClose,
+  onSaved,
+  onDeleted,
+  deleteDisabledReason,
+}: ExpenseFormProps) {
   const isEdit = Boolean(expense);
 
   // Form states initialized directly from props (key change handles resets)
@@ -434,12 +443,23 @@ function ExpenseForm({ expense, onClose, onSaved, onDeleted }: ExpenseFormProps)
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="text-destructive inline-flex items-center gap-1.5 py-2 text-xs font-medium hover:underline"
+                disabled={Boolean(deleteDisabledReason)}
+                aria-describedby={deleteDisabledReason ? "expense-delete-reason" : undefined}
+                className="text-destructive inline-flex items-center gap-1.5 py-2 text-xs font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
                 data-testid="expense-delete-trigger"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Delete this expense</span>
               </button>
+              {deleteDisabledReason && (
+                <p
+                  id="expense-delete-reason"
+                  className="text-muted-foreground text-xs"
+                  data-testid="expense-delete-owner-only"
+                >
+                  {deleteDisabledReason}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -486,6 +506,7 @@ export function ExpenseSheet({
   expense,
   onSaved,
   onDeleted,
+  deleteDisabledReason,
 }: ExpenseSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -504,6 +525,7 @@ export function ExpenseSheet({
             onClose={() => onOpenChange(false)}
             onSaved={onSaved}
             onDeleted={onDeleted}
+            deleteDisabledReason={deleteDisabledReason}
           />
         )}
       </SheetContent>

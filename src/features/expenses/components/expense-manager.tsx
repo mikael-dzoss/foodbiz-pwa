@@ -18,9 +18,15 @@ import { ExpenseSheet } from "./expense-sheet";
 export interface ExpenseManagerProps {
   initialExpenses: Expense[];
   initialAction?: string;
+  /** Set for members who may not delete (owner-only): explains why the delete control is disabled. */
+  deleteDisabledReason?: string;
 }
 
-export function ExpenseManager({ initialExpenses, initialAction }: ExpenseManagerProps) {
+export function ExpenseManager({
+  initialExpenses,
+  initialAction,
+  deleteDisabledReason,
+}: ExpenseManagerProps) {
   const [expenses, setExpenses] = React.useState<Expense[]>(initialExpenses);
   const [periodFilter, setPeriodFilter] = React.useState<ExpensePeriodFilter>("this-month");
   const [selectedTag, setSelectedTag] = React.useState<string>("all");
@@ -420,6 +426,7 @@ export function ExpenseManager({ initialExpenses, initialAction }: ExpenseManage
         expense={editingExpense}
         onSaved={handleExpenseSaved}
         onDeleted={handleExpenseDeleted}
+        deleteDisabledReason={deleteDisabledReason}
       />
     </div>
   );
