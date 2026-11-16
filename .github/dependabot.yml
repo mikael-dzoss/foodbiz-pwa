@@ -1,20 +1,30 @@
 version: 2
+# Every Dependabot PR triggers a full CI run, so the goal is few PRs: a typical week is one npm PR
+# (minor + patch, vitest and @vitest/* always together) and one github-actions PR. Majors arrive as
+# one separate grouped PR, only in weeks that have any.
+#
+# vitest and @vitest/coverage-v8 peer-pin each other to the exact same version, so they must always
+# land in the same PR. Both are in the same group for each update type, so they do. The earlier
+# ERESOLVE failures (vitest 5.1.0 with @vitest/coverage-v8 4.1.11) came from stale single-dependency
+# PRs that predate the group: Dependabot keeps maintaining ("recreate"/rebase) those as single
+# updates and never merges them into a group. If a lone vitest or @vitest/* PR shows up, close it:
+# the next run regroups.
 updates:
   - package-ecosystem: npm
     directory: /
     target-branch: develop
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: "chore(deps)"
     groups:
-      vitest:
-        patterns:
-          - "vitest*"
-          - "@vitest/*"
       minor-and-patch:
         update-types: [minor, patch]
+      major:
+        update-types: [major]
     ignore:
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
@@ -25,5 +35,11 @@ updates:
     target-branch: develop
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]

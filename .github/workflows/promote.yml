@@ -17,6 +17,16 @@ permissions:
   contents: read
   pull-requests: write
 
+# PLANNED (when staging/production exist; see docs/DEPLOYMENT.md#planned-ci-for-promotion-prs):
+# PRs created with GITHUB_TOKEN do not trigger `pull_request` workflows, so a promotion PR gets no
+# CI of its own. Today that is harmless: the required check "Quality Gate - Summary" is evaluated on
+# the PR head SHA, and the head of a promotion PR is the tip of develop (or staging), which already
+# has that check from the `push` run of ci.yml. It breaks as soon as the PR head is not a branch tip
+# CI already ran on. Then pick one of: (a) after creating the PR, `gh workflow run ci.yml --ref
+# <source branch>` (workflow_dispatch is exempt from the GITHUB_TOKEN rule, needs `actions: write`),
+# or (b) create the PR with a fine-grained token or GitHub App token (secret PROMOTE_TOKEN) so
+# `pull_request` fires normally.
+
 jobs:
   open-pr:
     name: Open promotion PR
