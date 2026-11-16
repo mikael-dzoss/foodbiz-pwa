@@ -54,4 +54,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# claude code (personal overrides)
+.claude/settings.local.json
+
 

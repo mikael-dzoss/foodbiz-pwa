@@ -1,11 +1,13 @@
 ---
 trigger: model_decision
-description: Use when needing external MCP tools (Google Stitch design canvas, Vercel deployments) or when configuring MCP servers via the Antigravity CLI
+description: Antigravity only. Use when Stitch or Vercel MCP tools are missing in Antigravity and the servers must be registered via the agy CLI
 ---
 
 # MCP Server Management for Agents
 
 When a task requires tools from an external service (such as Stitch for mobile screens or Vercel for deployment logs/inspection) and the corresponding tools are not present in your active tool list, verify and register the MCP server using the Antigravity CLI.
+
+> Copilot reads [`.vscode/mcp.json`](../../.vscode/mcp.json) and Claude Code reads [`.mcp.json`](../../.mcp.json); this rule applies to Antigravity only.
 
 ## 1. CLI Path Resolution
 The `agy` CLI may not be in system `$PATH` by default. Always resolve the binary path first:

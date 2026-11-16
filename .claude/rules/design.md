@@ -1,0 +1,1 @@
+../../.agents/rules/design.instructions.md

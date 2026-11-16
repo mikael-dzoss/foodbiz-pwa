@@ -2,6 +2,8 @@
 trigger: glob
 globs: src/**
 applyTo: "src/**"
+paths:
+  - "src/**"
 description: Next.js App Router, rendering, styling, accessibility and PWA rules for code under src/
 ---
 
