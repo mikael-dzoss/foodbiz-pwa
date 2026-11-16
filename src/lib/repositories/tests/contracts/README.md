@@ -9,6 +9,7 @@ The contract suite is parameterised and independent of any concrete storage engi
 - `src/lib/repositories/tests/contracts/product.contract.ts`
 - `src/lib/repositories/tests/contracts/category.contract.ts`
 - `src/lib/repositories/tests/contracts/order.contract.ts`
+- `src/lib/repositories/tests/contracts/order-state.contract.ts` (lifecycle pairs, payments, refunds, item replacement; also run against live Supabase)
 - `src/lib/repositories/tests/contracts/guest.contract.ts`
 - `src/lib/repositories/tests/contracts/expense.contract.ts`
 - `src/lib/repositories/tests/contracts/business.contract.ts`
@@ -20,7 +21,7 @@ The runner function is exported from `src/lib/repositories/tests/contracts/index
 describeRepositoryContracts(
   adapterName: string,
   getRepositories: () => Promise<Repositories> | Repositories,
-  options?: { businessId?: string }
+  options?: { businessId?: string; nonOwnerRepositories?: () => Repositories }
 ): void
 ```
 
