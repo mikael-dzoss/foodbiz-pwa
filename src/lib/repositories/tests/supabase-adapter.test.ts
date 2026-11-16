@@ -7,12 +7,22 @@ import type { Database, Json } from "@/lib/supabase/database.types";
 import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
 import { createSupabaseRepositories } from "../supabase";
 import { PUBLIC_PRODUCT_COLUMNS } from "../supabase/adapter";
+import {
+  LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS,
+  MAX_LINES_PER_ORDER,
+  MAX_QUANTITY_PER_LINE,
+  MAX_QUANTITY_PER_ORDER,
+  RATE_LIMIT_BUSINESS_MAX_ORDERS,
+  RATE_LIMIT_PHONE_MAX_REQUESTS,
+  RATE_LIMIT_WINDOW_MS,
+} from "@/domain/anti-abuse";
 import { describeRepositoryContracts } from "./contracts";
 
 function createFakeSupabaseClient(
   initialFixtures: MockFixtures = createDefaultFixtures(),
 ): SupabaseClient<Database> {
   const fixtures = structuredClone(initialFixtures);
+  let lookupMisses: Array<{ key: string; at: number }> = [];
   const tables = {
     businesses: [
       {
@@ -446,18 +456,97 @@ function createFakeSupabaseClient(
         };
       }
       if (fnName === "storefront_order_tracking_token") {
+        // Mirrors the database: failed lookups per (business, phone) are counted and a limited
+        // phone is refused whether or not the order exists.
+        const lookupKey = `${String(args.p_business_id)}:${String(args.p_phone).trim()}`;
+        lookupMisses = lookupMisses.filter((m) => Date.now() - m.at < RATE_LIMIT_WINDOW_MS);
+        if (
+          lookupMisses.filter((m) => m.key === lookupKey).length >=
+          LOOKUP_RATE_LIMIT_PHONE_MAX_REQUESTS
+        ) {
+          return {
+            data: null,
+            error: { message: "RATE_LIMITED: too many lookups", code: "P0006" },
+          };
+        }
         const guest = tables.guests.find((g) => g.phone === args.p_phone);
-        if (!guest) return { data: null, error: null };
-        const order = tables.orders.find(
-          (o) =>
-            o.business_id === args.p_business_id &&
-            o.order_number === args.p_order_number &&
-            o.guest_id === guest.id,
-        );
+        const order = guest
+          ? tables.orders.find(
+              (o) =>
+                o.business_id === args.p_business_id &&
+                o.order_number === args.p_order_number &&
+                o.guest_id === guest.id,
+            )
+          : undefined;
+        if (!order) lookupMisses.push({ key: lookupKey, at: Date.now() });
         return { data: (order?.tracking_token as string) ?? null, error: null };
       }
       if (fnName === "place_order") {
         const items = (args.p_items as Array<{ product_id: string; quantity: number }>) || [];
+
+        // Mirrors place_order: idempotent replay, storefront caps and rate limits (see
+        // supabase/migrations/20260101000012_place_order_hardening.sql).
+        const businessId = String(args.p_business_id);
+        const idempotencyKey = (args.p_idempotency_key as string | undefined) ?? null;
+        if (idempotencyKey) {
+          const prior = tables.orders.find(
+            (o) =>
+              o.business_id === businessId &&
+              (o as { idempotency_key?: string | null }).idempotency_key === idempotencyKey,
+          );
+          if (prior) {
+            const priorGuest = tables.guests.find((g) => g.id === prior.guest_id);
+            if (priorGuest?.phone !== args.p_guest_phone) {
+              return {
+                data: null,
+                error: { message: "INVALID_IDEMPOTENCY_KEY: reused", code: "22023" },
+              };
+            }
+            return {
+              data: {
+                order_id: prior.id,
+                order_number: prior.order_number,
+                tracking_token: prior.tracking_token,
+                submitted_name: prior.submitted_name,
+                total_amount: prior.total_amount,
+                replayed: true,
+              },
+              error: null,
+            };
+          }
+        }
+        if (args.p_channel === "storefront") {
+          const perProduct = new Map<string, number>();
+          for (const it of items) {
+            perProduct.set(it.product_id, (perProduct.get(it.product_id) ?? 0) + it.quantity);
+          }
+          const fail = (message: string, code = "22023") => ({
+            data: null,
+            error: { message, code },
+          });
+          if (items.length > MAX_LINES_PER_ORDER) return fail("MAX_LINES_EXCEEDED: too many");
+          if ([...perProduct.values()].some((q) => q > MAX_QUANTITY_PER_LINE)) {
+            return fail("MAX_LINE_QUANTITY_EXCEEDED: too many");
+          }
+          if ([...perProduct.values()].reduce((a, b) => a + b, 0) > MAX_QUANTITY_PER_ORDER) {
+            return fail("MAX_ORDER_QUANTITY_EXCEEDED: too many");
+          }
+          const recent = tables.orders.filter(
+            (o) =>
+              o.business_id === businessId &&
+              Date.now() - new Date(o.created_at).getTime() < RATE_LIMIT_WINDOW_MS,
+          );
+          const phoneCount = recent.filter(
+            (o) => tables.guests.find((g) => g.id === o.guest_id)?.phone === args.p_guest_phone,
+          ).length;
+          if (
+            phoneCount >= RATE_LIMIT_PHONE_MAX_REQUESTS ||
+            recent.length >= RATE_LIMIT_BUSINESS_MAX_ORDERS
+          ) {
+            return fail("RATE_LIMITED: too many orders", "P0006");
+          }
+        }
+
         for (const item of items) {
           const prod = tables.products.find((p) => p.id === item.product_id);
           if (!prod) {
@@ -553,6 +642,7 @@ function createFakeSupabaseClient(
           notes: args.p_notes ? String(args.p_notes) : null,
           delivery_address: args.p_delivery_address ? String(args.p_delivery_address) : null,
           status_history: [{ status: "NEW", timestamp: new Date().toISOString(), note: null }],
+          idempotency_key: idempotencyKey,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -565,6 +655,7 @@ function createFakeSupabaseClient(
             tracking_token: newOrder.tracking_token,
             submitted_name: newOrder.submitted_name,
             total_amount: newOrder.total_amount,
+            replayed: false,
           },
           error: null,
         };
@@ -690,7 +781,10 @@ describe("Supabase Repository Adapter", () => {
           serviceType: "pickup",
           channel: "storefront",
           requestedDate: "2026-10-15",
-          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 99999 }],
+          items: [
+            // Above the demo stock (45) but within the per-line cap that place_order also enforces.
+            { productId: "33333333-3333-4333-8333-333333333301", quantity: MAX_QUANTITY_PER_LINE },
+          ],
         }),
       ).rejects.toMatchObject({
         code: "STOCK_ERROR",
@@ -835,6 +929,24 @@ describe("Supabase Repository Adapter", () => {
       expect(await place("MINIMUM_ORDER_AMOUNT_NOT_MET: subtotal 1")).toMatchObject({
         code: "MINIMUM_ORDER_UNMET",
       });
+      for (const message of [
+        "MAX_LINE_QUANTITY_EXCEEDED: at most 50 per product",
+        "MAX_ORDER_QUANTITY_EXCEEDED: at most 100 items per order",
+        "MAX_LINES_EXCEEDED: an order may contain at most 50 lines",
+        "RATE_LIMITED: too many orders, try again later",
+      ]) {
+        expect(await place(message, "22023")).toMatchObject({ code: "ANTI_ABUSE_REJECTION" });
+      }
+      expect(await place("whatever", "P0006")).toMatchObject({ code: "ANTI_ABUSE_REJECTION" });
+      for (const message of [
+        "INVALID_PAYMENT_PREFERENCE: wero is not an enabled payment method",
+        "INVALID_REQUESTED_DATE: requested_date is too far ahead",
+        "INVALID_REQUESTED_TIME: requested_time must be a whole minute",
+        "INVALID_GUEST_PHONE: phone must be in E.164 format",
+        "INVALID_IDEMPOTENCY_KEY: key was already used for a different order",
+      ]) {
+        expect(await place(message, "22023")).toMatchObject({ code: "INVALID_INPUT" });
+      }
       expect(await place("INVALID_DELIVERY_ADDRESS: secret detail")).toMatchObject({
         code: "INVALID_INPUT",
         message: "Please check your order details.",
@@ -846,6 +958,47 @@ describe("Supabase Repository Adapter", () => {
       expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("exploded");
       expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("10.0.0.1");
       errorSpy.mockRestore();
+    });
+
+    it("passes the idempotency key to place_order and maps the lookup rate limit", async () => {
+      const rpc = vi.fn(async (fn: string) =>
+        fn === "place_order"
+          ? {
+              data: {
+                order_id: "11111111-1111-4111-8111-111111111111",
+                order_number: 7,
+                tracking_token: "tk",
+                submitted_name: null,
+                total_amount: 100,
+                replayed: true,
+              },
+              error: null,
+            }
+          : { data: null, error: { code: "P0006", message: "RATE_LIMITED: too many lookups" } },
+      );
+      const repos = createSupabaseRepositories({
+        rpc,
+      } as unknown as SupabaseClient<Database>);
+      const idempotencyKey = "f0000000-0000-4000-8000-000000000042";
+
+      const placed = await repos.orders.place(DEMO_BUSINESS_ID, {
+        guestName: "Alice",
+        guestPhone: "+33612345678",
+        serviceType: "pickup",
+        channel: "storefront",
+        requestedDate: "2026-10-15",
+        items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        idempotencyKey,
+      });
+
+      expect(rpc).toHaveBeenCalledWith(
+        "place_order",
+        expect.objectContaining({ p_idempotency_key: idempotencyKey }),
+      );
+      expect(placed.replayed).toBe(true);
+      await expect(
+        repos.orders.findTrackingTokenByTicketAndPhone(DEMO_BUSINESS_ID, 7, "+33612345678"),
+      ).rejects.toMatchObject({ code: "RATE_LIMITED" });
     });
 
     it("reads featured aggregates via the public RPC in publicOnly mode", async () => {

@@ -3,7 +3,6 @@ import { getRepositories } from "@/lib/repositories";
 import { getMockRepositories } from "@/lib/repositories/mock";
 import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
-import { getGlobalIdempotencyStore } from "@/lib/idempotency";
 import { OrderRepoError } from "@/domain/order";
 import { placeOrderAction } from "../storefront-actions";
 
@@ -24,6 +23,16 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+/** Stable uuid per label: the idempotency key is a uuid (stored on orders.idempotency_key). */
+const idempotencyKeys = new Map<string, string>();
+function idem(label: string): string {
+  const existing = idempotencyKeys.get(label);
+  if (existing) return existing;
+  const key = `f0000000-0000-4000-8000-${String(idempotencyKeys.size + 1).padStart(12, "0")}`;
+  idempotencyKeys.set(label, key);
+  return key;
+}
+
 describe("placeOrderAction", () => {
   const bId = DEMO_BUSINESS_ID;
   const baguetteId = "33333333-3333-4333-8333-333333333301"; // price 130, stock 45
@@ -34,7 +43,6 @@ describe("placeOrderAction", () => {
     mockClientIp = "192.168.1.100";
     getMockRepositories().reset();
     getGlobalRateLimiter().reset();
-    getGlobalIdempotencyStore().reset();
   });
 
   const validOrderPayload = {
@@ -47,7 +55,7 @@ describe("placeOrderAction", () => {
     serviceType: "pickup" as const,
     isAsap: true,
     paymentPreference: "on_handover" as const,
-    idempotencyKey: "test-idem-key-1000",
+    idempotencyKey: idem("test-idem-key-1000"),
   };
 
   it("places an order successfully and reserves stock atomically", async () => {
@@ -87,7 +95,7 @@ describe("placeOrderAction", () => {
       items: [
         { productId: sourdoughId, quantity: 4, price: 1 }, // 4 * 450 = 1800 (> 1500 min order)
       ],
-      idempotencyKey: "test-idem-tampered-price",
+      idempotencyKey: idem("test-idem-tampered-price"),
     });
 
     expect(result.success).toBe(true);
@@ -106,7 +114,7 @@ describe("placeOrderAction", () => {
         ...validOrderPayload,
         phone: "+33611223344",
         name: "Brand New Guest",
-        idempotencyKey: "idem-new-guest",
+        idempotencyKey: idem("idem-new-guest"),
       });
 
       // 2. Returning guest (matches demo guest Jean Dupont with phone +33612345671)
@@ -114,7 +122,7 @@ describe("placeOrderAction", () => {
         ...validOrderPayload,
         phone: "+33612345671",
         name: "Jean Dupont",
-        idempotencyKey: "idem-returning-guest",
+        idempotencyKey: idem("idem-returning-guest"),
       });
 
       // 3. Name mismatch (phone +33612345671 but differing submitted name)
@@ -122,7 +130,7 @@ describe("placeOrderAction", () => {
         ...validOrderPayload,
         phone: "+33612345671",
         name: "Jean D. Secondaire",
-        idempotencyKey: "idem-mismatch-guest",
+        idempotencyKey: idem("idem-mismatch-guest"),
       });
 
       expect(resNew.success).toBe(true);
@@ -196,7 +204,7 @@ describe("placeOrderAction", () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
         honeypot: "I am a spam bot",
-        idempotencyKey: "idem-honeypot",
+        idempotencyKey: idem("idem-honeypot"),
       });
 
       expect(result.success).toBe(false);
@@ -209,7 +217,7 @@ describe("placeOrderAction", () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
         items: [{ productId: baguetteId, quantity: 51 }],
-        idempotencyKey: "idem-max-line",
+        idempotencyKey: idem("idem-max-line"),
       });
 
       expect(result.success).toBe(false);
@@ -227,7 +235,7 @@ describe("placeOrderAction", () => {
           { productId: sourdoughId, quantity: 45 },
           { productId: baguetteId, quantity: 20 },
         ],
-        idempotencyKey: "idem-max-order",
+        idempotencyKey: idem("idem-max-order"),
       });
 
       expect(result.success).toBe(false);
@@ -243,7 +251,7 @@ describe("placeOrderAction", () => {
         const res = await placeOrderAction({
           ...validOrderPayload,
           phone: `+3360000000${i}`, // Distinct phones to isolate IP rate limit
-          idempotencyKey: `idem-ip-limit-${i}`,
+          idempotencyKey: idem(`idem-ip-limit-${i}`),
         });
         expect(res.success).toBe(true);
       }
@@ -252,7 +260,7 @@ describe("placeOrderAction", () => {
       const blocked = await placeOrderAction({
         ...validOrderPayload,
         phone: "+33600000009",
-        idempotencyKey: "idem-ip-limit-blocked",
+        idempotencyKey: idem("idem-ip-limit-blocked"),
       });
 
       expect(blocked.success).toBe(false);
@@ -270,7 +278,7 @@ describe("placeOrderAction", () => {
         const res = await placeOrderAction({
           ...validOrderPayload,
           phone: targetPhone,
-          idempotencyKey: `idem-phone-limit-${i}`,
+          idempotencyKey: idem(`idem-phone-limit-${i}`),
         });
         expect(res.success).toBe(true);
       }
@@ -280,7 +288,7 @@ describe("placeOrderAction", () => {
       const blocked = await placeOrderAction({
         ...validOrderPayload,
         phone: targetPhone,
-        idempotencyKey: "idem-phone-limit-blocked",
+        idempotencyKey: idem("idem-phone-limit-blocked"),
       });
 
       expect(blocked.success).toBe(false);
@@ -296,7 +304,7 @@ describe("placeOrderAction", () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
         items: [{ productId: sourdoughId, quantity: 25 }], // sourdough only has 20 in stock (25 * 450 > 1500)
-        idempotencyKey: "idem-insufficient-stock",
+        idempotencyKey: idem("idem-insufficient-stock"),
       });
 
       expect(result.success).toBe(false);
@@ -314,7 +322,7 @@ describe("placeOrderAction", () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
         items: [{ productId: baguetteId, quantity: 1 }], // 130 cents
-        idempotencyKey: "idem-under-min-order",
+        idempotencyKey: idem("idem-under-min-order"),
       });
 
       expect(result.success).toBe(false);
@@ -329,7 +337,7 @@ describe("placeOrderAction", () => {
 
       const result = await placeOrderAction({
         ...validOrderPayload,
-        idempotencyKey: "idem-store-closed",
+        idempotencyKey: idem("idem-store-closed"),
       });
 
       expect(result.success).toBe(false);
@@ -347,7 +355,7 @@ describe("placeOrderAction", () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
         serviceType: "pickup",
-        idempotencyKey: "idem-disabled-pickup",
+        idempotencyKey: idem("idem-disabled-pickup"),
       });
 
       expect(result.success).toBe(false);
@@ -368,7 +376,7 @@ describe("placeOrderAction", () => {
           { productId: sourdoughId, quantity: before - 4 },
           { productId: sourdoughId, quantity: 5 }, // each line fits alone, the sum does not
         ],
-        idempotencyKey: "idem-duplicate-lines-oversell",
+        idempotencyKey: idem("idem-duplicate-lines-oversell"),
       });
 
       expect(result.success).toBe(false);
@@ -389,7 +397,7 @@ describe("placeOrderAction", () => {
           { productId: sourdoughId, quantity: 2 },
           { productId: sourdoughId, quantity: 2 },
         ],
-        idempotencyKey: "idem-duplicate-lines-ok",
+        idempotencyKey: idem("idem-duplicate-lines-ok"),
       });
 
       expect(result.success).toBe(true);
@@ -409,7 +417,7 @@ describe("placeOrderAction", () => {
 
       const failed = await placeOrderAction({
         ...validOrderPayload,
-        idempotencyKey: "idem-create-failure",
+        idempotencyKey: idem("idem-create-failure"),
       });
 
       expect(failed.success).toBe(false);
@@ -421,7 +429,7 @@ describe("placeOrderAction", () => {
 
       const retry = await placeOrderAction({
         ...validOrderPayload,
-        idempotencyKey: "idem-create-failure",
+        idempotencyKey: idem("idem-create-failure"),
       });
       expect(retry.success).toBe(true);
       expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before - 2);
@@ -441,15 +449,35 @@ describe("placeOrderAction", () => {
       }
     });
 
+    it("replays a retry of the order that took the last units instead of reporting out of stock", async () => {
+      const payload = {
+        ...validOrderPayload,
+        items: [{ productId: sourdoughId, quantity: 20 }], // all remaining units
+        idempotencyKey: idem("idem-last-units"),
+      };
+      const first = await placeOrderAction(payload);
+      expect(first.success).toBe(true);
+
+      const retry = await placeOrderAction(payload);
+      expect(retry).toEqual(first);
+
+      // A different key for the same (now unavailable) items still fails as out of stock.
+      const other = await placeOrderAction({ ...payload, idempotencyKey: idem("idem-other-key") });
+      expect(other).toMatchObject({ success: false, code: "STOCK_ERROR" });
+    });
+
     it("does not consume rate-limit budget on idempotent replays", async () => {
       mockClientIp = "198.51.100.7";
-      const first = await placeOrderAction({ ...validOrderPayload, idempotencyKey: "idem-replay" });
+      const first = await placeOrderAction({
+        ...validOrderPayload,
+        idempotencyKey: idem("idem-replay"),
+      });
       expect(first.success).toBe(true);
 
       for (let i = 0; i < 10; i++) {
         const replay = await placeOrderAction({
           ...validOrderPayload,
-          idempotencyKey: "idem-replay",
+          idempotencyKey: idem("idem-replay"),
         });
         expect(replay).toEqual(first);
       }
@@ -466,7 +494,7 @@ describe("placeOrderAction", () => {
             { productId: sourdoughId, quantity: 3 }, // 390 + 1350 cents (> min order)
           ],
           phone: `+3360000010${i}`,
-          idempotencyKey: `idem-no-ip-${i}`,
+          idempotencyKey: idem(`idem-no-ip-${i}`),
         });
         expect(res.success).toBe(true);
       }
@@ -482,14 +510,13 @@ describe("placeOrderAction failure handling", () => {
     serviceType: "pickup" as const,
     isAsap: true,
     paymentPreference: "on_handover" as const,
-    idempotencyKey: "test-idem-key-failure",
+    idempotencyKey: idem("test-idem-key-failure"),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     getMockRepositories().reset();
     getGlobalRateLimiter().reset();
-    getGlobalIdempotencyStore().reset();
   });
 
   it("returns a generic typed error instead of throwing when the settings read fails", async () => {
@@ -516,7 +543,10 @@ describe("placeOrderAction failure handling", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(getMockRepositories().products, "list").mockRejectedValue(new Error("db down"));
 
-    const result = await placeOrderAction({ ...payload, idempotencyKey: "test-idem-key-fail-2" });
+    const result = await placeOrderAction({
+      ...payload,
+      idempotencyKey: idem("test-idem-key-fail-2"),
+    });
 
     expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
     errorSpy.mockRestore();
@@ -528,11 +558,14 @@ describe("placeOrderAction failure handling", () => {
     const orders = getMockRepositories().orders;
     vi.spyOn(orders, "place").mockRejectedValueOnce(new OrderRepoError("bad", "INVALID_INPUT"));
     expect(
-      await placeOrderAction({ ...payload, idempotencyKey: "test-idem-key-input" }),
+      await placeOrderAction({ ...payload, idempotencyKey: idem("test-idem-key-input") }),
     ).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
 
     vi.spyOn(orders, "place").mockRejectedValueOnce(new Error("relation x exploded"));
-    const result = await placeOrderAction({ ...payload, idempotencyKey: "test-idem-key-boom" });
+    const result = await placeOrderAction({
+      ...payload,
+      idempotencyKey: idem("test-idem-key-boom"),
+    });
     expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
     expect(JSON.stringify(result)).not.toContain("exploded");
     errorSpy.mockRestore();
@@ -544,7 +577,6 @@ describe("placeOrderAction business resolution", () => {
   it("ignores a forged businessId: zod strips the unknown key and the configured business is used", async () => {
     getMockRepositories().reset();
     getGlobalRateLimiter().reset();
-    getGlobalIdempotencyStore().reset();
     const placeSpy = vi.spyOn(getMockRepositories().orders, "place");
     const result = await placeOrderAction({
       businessId: "99999999-9999-4999-8999-999999999999",
@@ -554,7 +586,7 @@ describe("placeOrderAction business resolution", () => {
       serviceType: "pickup",
       isAsap: true,
       paymentPreference: "on_handover",
-      idempotencyKey: "test-idem-key-forged-biz",
+      idempotencyKey: idem("test-idem-key-forged-biz"),
     });
     expect(result.success).toBe(true);
     expect(placeSpy).toHaveBeenCalledWith(DEMO_BUSINESS_ID, expect.anything());
