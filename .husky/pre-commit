@@ -9,4 +9,5 @@ case "$branch" in
     ;;
 esac
 
+node scripts/secret-scan.mjs
 npx lint-staged
