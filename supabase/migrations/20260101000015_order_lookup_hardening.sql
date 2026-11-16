@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration: 20260101000013_order_lookup_hardening.sql
+-- Migration: 20260101000015_order_lookup_hardening.sql
 -- Description: Harden the two anonymous order-tracking RPCs.
 --
 --   * storefront_order_tracking_token(business, order number, phone): counts FAILED
@@ -12,6 +12,9 @@
 --     order exists (no oracle), and a legitimate customer who is blocked is told so
 --     instead of being shown a misleading "not found". The function is now VOLATILE
 --     (it records misses); supabase-js rpc() uses POST, so this is transparent.
+--     A second, lock-free counter bounds FAILED lookups per business (300 per 10 minutes,
+--     LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS) so varying the phone cannot grow
+--     rate_limit_attempts without bound; it raises the same RATE_LIMITED.
 --   * get_order_by_tracking_token(token): returns an explicit column list for items
 --     (product_name, quantity, unit_price, total_price: what the tracking and
 --     confirmation UI use) instead of to_jsonb(order_items), which leaked ids, the
@@ -26,7 +29,7 @@ returns jsonb
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select jsonb_build_object(
     'order', jsonb_build_object(
@@ -58,8 +61,8 @@ as $$
       '[]'::jsonb
     )
   )
-  from orders o
-  left join order_items oi on oi.order_id = o.id
+  from public.orders o
+  left join public.order_items oi on oi.order_id = o.id
   where o.tracking_token = p_tracking_token
   group by o.id;
 $$;
@@ -73,17 +76,26 @@ returns text
 language plpgsql
 volatile
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   c_limit constant integer := 5;
+  c_business_limit constant integer := 300;
   c_window constant interval := interval '10 minutes';
   v_key text;
+  v_business_key text;
   v_token text;
 begin
   v_key := public.rate_limit_key(p_business_id, trim(coalesce(p_phone, '')));
 
-  if public.rate_limit_is_exceeded('lookup_phone', v_key, c_limit, c_window) then
+  v_business_key := public.rate_limit_key(p_business_id, '');
+
+  -- Per phone first (advisory lock on that phone's key), then the lock-free business ceiling.
+  if public.rate_limit_is_exceeded('lookup_phone', v_key, c_limit, c_window, true) then
+    raise exception 'RATE_LIMITED: too many lookups, try again later' using errcode = 'P0006';
+  end if;
+
+  if public.rate_limit_is_exceeded('lookup_business', v_business_key, c_business_limit, c_window, false) then
     raise exception 'RATE_LIMITED: too many lookups, try again later' using errcode = 'P0006';
   end if;
 
@@ -98,6 +110,7 @@ begin
 
   if v_token is null then
     perform public.rate_limit_record('lookup_phone', v_key);
+    perform public.rate_limit_record('lookup_business', v_business_key);
   end if;
 
   return v_token;

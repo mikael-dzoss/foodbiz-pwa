@@ -1,12 +1,15 @@
 -- ============================================================================
--- Migration: 20260101000012_place_order_hardening.sql
+-- Migration: 20260101000014_place_order_hardening.sql
 -- Description: Make place_order safe to call directly with the public key.
 --
---   * orders.idempotency_key (nullable uuid) + unique partial index on
---     (business_id, idempotency_key). A repeated place_order with the same key
---     returns the original order and neither creates a second order nor touches
---     stock again. The old 12-argument signature is dropped (so the unguarded
---     version is not left callable) and the new one is granted to the same roles.
+--   * Idempotency (columns/index: 20260101000012 and 20260101000013). A repeated place_order
+--     with the same key returns the original order and neither creates a second order nor
+--     touches stock again. A key replayed with a DIFFERENT payload (items and quantities,
+--     service type, requested date/time, payment preference, phone) raises
+--     INVALID_IDEMPOTENCY_KEY, so a caller is never told "success" for a cart that was not
+--     placed; rows without a stored payload hash (legacy) skip that check. The old 12-argument
+--     signature is dropped (so the unguarded version is not left callable) and the new one is
+--     granted to the same roles.
 --   * The result gains `replayed` (true when the original order was returned) so the app can
 --     avoid charging its in-memory per-IP limiter for retries.
 --   * Storefront-channel limits enforced in the function (mirrors
@@ -24,9 +27,12 @@
 --     (on_handover = cash).
 --   * Rate limiting counts SUCCESSFUL storefront placements by anonymous callers
 --     (members and service_role are exempt): the attempt row is written in the same
---     transaction as the order, so a rejected order rolls the attempt back.
+--     transaction as the order, so a rejected order rolls the attempt back. The per-phone
+--     check takes an advisory lock on that phone's key; the per-business ceiling is counted
+--     without any lock (soft flood brake), as a second, separate statement.
 --   * auth.role() (deprecated) is replaced by coalesce(auth.jwt() ->> 'role', '')
---     in place_order, find_or_create_guest, cancel_order and replace_order_items.
+--     in place_order, find_or_create_guest, cancel_order and replace_order_items. These four
+--     functions now run with an empty search_path (every relation is schema-qualified).
 --
 -- New error prefixes: MAX_LINE_QUANTITY_EXCEEDED, MAX_ORDER_QUANTITY_EXCEEDED,
 -- MAX_LINES_EXCEEDED, RATE_LIMITED (P0006), INVALID_GUEST_PHONE,
@@ -34,21 +40,12 @@
 --
 -- Existing rows are untouched (no table CHECK is added for the new text limits:
 -- historical addresses may be longer and a CHECK would also block updating them).
+-- Deploy order: app code that passes p_idempotency_key must ship AFTER this migration.
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
 --   drop function if exists public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean, uuid);
 --   -- re-create the 12-argument place_order from 20260101000002_order_rpc_functions.sql
---   drop index if exists public.idx_orders_business_idempotency_key;
---   alter table public.orders drop column if exists idempotency_key;
 -- ============================================================================
-
-alter table public.orders add column if not exists idempotency_key uuid;
-
--- Partial unique index over a brand-new, all-NULL column: nothing to scan, so the
--- brief lock is harmless and a non-concurrent build is safe here.
-create unique index if not exists idx_orders_business_idempotency_key
-  on public.orders (business_id, idempotency_key)
-  where idempotency_key is not null;
 
 -- ----------------------------------------------------------------------------
 -- place_order
@@ -76,7 +73,7 @@ create or replace function public.place_order(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   c_max_line_quantity constant integer := 50;
@@ -92,6 +89,7 @@ declare
   v_settings public.business_settings%rowtype;
   v_is_privileged boolean;
   v_existing record;
+  v_payload_hash text;
   v_max_line numeric;
   v_total_quantity numeric;
   v_phone_key text;
@@ -125,33 +123,6 @@ begin
 
   if p_channel <> 'storefront' and not v_is_privileged then
     raise exception 'UNAUTHORIZED_CHANNEL: channel % requires business membership or service_role', p_channel using errcode = '42501';
-  end if;
-
-  -- 3. Idempotent replay: the same (business, key) returns the original order.
-  --    Serialized per key so two concurrent retries cannot both create an order.
-  if p_idempotency_key is not null then
-    perform pg_advisory_xact_lock(hashtext('place_order_idem:' || p_business_id::text || ':' || p_idempotency_key::text));
-
-    select o.id, o.order_number, o.tracking_token, o.submitted_name, o.total_amount, g.phone as guest_phone
-    into v_existing
-    from public.orders o
-    join public.guests g on g.id = o.guest_id
-    where o.business_id = p_business_id
-      and o.idempotency_key = p_idempotency_key;
-
-    if found then
-      if v_existing.guest_phone is distinct from p_guest_phone then
-        raise exception 'INVALID_IDEMPOTENCY_KEY: key was already used for a different order' using errcode = '22023';
-      end if;
-      return jsonb_build_object(
-        'order_id', v_existing.id,
-        'order_number', v_existing.order_number,
-        'tracking_token', v_existing.tracking_token,
-        'submitted_name', v_existing.submitted_name,
-        'total_amount', v_existing.total_amount,
-        'replayed', true
-      );
-    end if;
   end if;
 
   -- 4. Input shape and length limits (all channels)
@@ -206,6 +177,63 @@ begin
        or coalesce(elem->>'quantity', elem->>'qty')::numeric < 1
   ) then
     raise exception 'INVALID_ITEM_QUANTITY: item quantity must be a whole number of at least 1' using errcode = '22023';
+  end if;
+
+  -- 4b. Idempotent replay: the same (business, key) returns the original order, provided the
+  --     payload is the same. Serialized per key so two concurrent retries cannot both create
+  --     an order. Runs after input validation (the payload hash needs well-formed items).
+  if p_idempotency_key is not null then
+    perform pg_advisory_xact_lock(hashtext('place_order_idem:' || p_business_id::text || ':' || p_idempotency_key::text));
+
+    v_payload_hash := encode(
+      sha256(
+        convert_to(
+          jsonb_build_object(
+            'items', (
+              select jsonb_agg(jsonb_build_object('product_id', t.product_id, 'quantity', t.quantity) order by t.product_id)
+              from (
+                select
+                  coalesce(elem->>'product_id', elem->>'productId')::uuid as product_id,
+                  sum(coalesce(elem->>'quantity', elem->>'qty')::numeric) as quantity
+                from jsonb_array_elements(p_items) elem
+                group by coalesce(elem->>'product_id', elem->>'productId')::uuid
+              ) t
+            ),
+            'service_type', p_service_type,
+            'requested_date', p_requested_date,
+            'requested_time', coalesce(p_requested_time::text, ''),
+            'payment_preference', p_payment_preference,
+            'phone', p_guest_phone
+          )::text,
+          'UTF8'
+        )
+      ),
+      'hex'
+    );
+
+    select o.id, o.order_number, o.tracking_token, o.submitted_name, o.total_amount,
+           o.idempotency_payload_hash, g.phone as guest_phone
+    into v_existing
+    from public.orders o
+    join public.guests g on g.id = o.guest_id
+    where o.business_id = p_business_id
+      and o.idempotency_key = p_idempotency_key;
+
+    if found then
+      if v_existing.guest_phone is distinct from p_guest_phone
+         or (v_existing.idempotency_payload_hash is not null
+             and v_existing.idempotency_payload_hash <> v_payload_hash) then
+        raise exception 'INVALID_IDEMPOTENCY_KEY: key was already used for a different order' using errcode = '22023';
+      end if;
+      return jsonb_build_object(
+        'order_id', v_existing.id,
+        'order_number', v_existing.order_number,
+        'tracking_token', v_existing.tracking_token,
+        'submitted_name', v_existing.submitted_name,
+        'total_amount', v_existing.total_amount,
+        'replayed', true
+      );
+    end if;
   end if;
 
   -- 5. Retrieve business settings
@@ -274,8 +302,12 @@ begin
       v_phone_key := public.rate_limit_key(p_business_id, p_guest_phone);
       v_business_key := public.rate_limit_key(p_business_id, '');
 
-      if public.rate_limit_is_exceeded('order_phone', v_phone_key, c_rate_phone_limit, c_rate_window)
-         or public.rate_limit_is_exceeded('order_business', v_business_key, c_rate_business_limit, c_rate_window) then
+      -- Per phone first (takes that phone's advisory lock), then the lock-free business ceiling.
+      if public.rate_limit_is_exceeded('order_phone', v_phone_key, c_rate_phone_limit, c_rate_window, true) then
+        raise exception 'RATE_LIMITED: too many orders, try again later' using errcode = 'P0006';
+      end if;
+
+      if public.rate_limit_is_exceeded('order_business', v_business_key, c_rate_business_limit, c_rate_window, false) then
         raise exception 'RATE_LIMITED: too many orders, try again later' using errcode = 'P0006';
       end if;
 
@@ -391,7 +423,8 @@ begin
     total_amount,
     notes,
     delivery_address,
-    idempotency_key
+    idempotency_key,
+    idempotency_payload_hash
   ) values (
     p_business_id,
     v_order_number,
@@ -407,7 +440,8 @@ begin
     v_total_amount,
     p_notes,
     p_delivery_address,
-    p_idempotency_key
+    p_idempotency_key,
+    case when p_idempotency_key is not null then v_payload_hash end
   )
   returning * into v_order;
 
@@ -460,7 +494,7 @@ create or replace function public.find_or_create_guest(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_clean_name text;
@@ -532,7 +566,7 @@ create or replace function public.cancel_order(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_order public.orders%rowtype;
@@ -599,7 +633,7 @@ create or replace function public.replace_order_items(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_item jsonb;

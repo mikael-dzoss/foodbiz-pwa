@@ -31,6 +31,9 @@
 --     using (public.is_business_member(business_id) or visible = true);
 -- ============================================================================
 
+-- Fail fast instead of queueing behind a long transaction while holding the lock request.
+set lock_timeout = '5s';
+
 revoke select on public.products from anon;
 
 -- Keep in sync with PUBLIC_PRODUCT_COLUMNS (src/lib/repositories/supabase/adapter.ts).
@@ -54,3 +57,5 @@ drop policy if exists products_select_authenticated on products;
 create policy products_select_authenticated
   on products for select to authenticated
   using (public.is_business_member(business_id));
+
+reset lock_timeout;

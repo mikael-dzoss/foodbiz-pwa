@@ -11,6 +11,9 @@
 --   -- set_updated_at: re-create without `set search_path` (see initial schema).
 -- ============================================================================
 
+-- Fail fast instead of queueing behind a long transaction while holding the lock request.
+set lock_timeout = '5s';
+
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
@@ -23,3 +26,5 @@ end;
 $$;
 
 drop index if exists public.idx_orders_tracking_token;
+
+reset lock_timeout;

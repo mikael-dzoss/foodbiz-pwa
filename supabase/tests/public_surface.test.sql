@@ -15,7 +15,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(66);
+select plan(77);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (as the migration role)
@@ -85,6 +85,13 @@ select throws_ok(
   '42501',
   null,
   'anon cannot select products.created_at'
+);
+
+select throws_ok(
+  'select c.id, p.unit_cost from public.product_categories c join public.products p on p.category_id = c.id',
+  '42501',
+  null,
+  'anon cannot reach unit_cost through a join from product_categories (embedding-style read)'
 );
 
 select lives_ok(
@@ -200,10 +207,22 @@ select throws_ok(
 reset role;
 
 select ok(
-  not has_function_privilege('anon', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute')
-  and not has_function_privilege('authenticated', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute')
-  and not has_function_privilege('service_role', 'public.rate_limit_is_exceeded(text, text, integer, interval)', 'execute'),
+  not has_function_privilege('anon', 'public.rate_limit_is_exceeded(text, text, integer, interval, boolean)', 'execute')
+  and not has_function_privilege('authenticated', 'public.rate_limit_is_exceeded(text, text, integer, interval, boolean)', 'execute')
+  and not has_function_privilege('service_role', 'public.rate_limit_is_exceeded(text, text, integer, interval, boolean)', 'execute'),
   'rate_limit_is_exceeded is not callable through the API'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.rate_limit_key(uuid, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.rate_limit_key(uuid, text)', 'execute')
+  and not has_function_privilege('service_role', 'public.rate_limit_key(uuid, text)', 'execute'),
+  'rate_limit_key is not callable through the API'
+);
+
+select ok(
+  not has_table_privilege('service_role', 'public.rate_limit_attempts', 'select,insert,update,delete,truncate,references,trigger'),
+  'service_role has no privilege on rate_limit_attempts'
 );
 
 select ok(
@@ -389,6 +408,15 @@ select throws_like(
   'an idempotency key cannot be replayed with a different phone'
 );
 
+select throws_like(
+  $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Idem Buyer', '+33699000003',
+    'pickup', 'storefront', current_date,
+    '[{"product_id": "d1000000-0000-0000-0000-000000000002", "quantity": 3}]'::jsonb,
+    null, 'on_handover', null, null, false, 'f0000000-0000-4000-8000-000000000001'::uuid)$$,
+  'INVALID_IDEMPOTENCY_KEY%',
+  'an idempotency key cannot be replayed with a different cart (quantity)'
+);
+
 reset role;
 
 select is(
@@ -426,6 +454,23 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'place_order'),
   1,
   'only one place_order overload exists (the unguarded 12-argument version is gone)'
+);
+
+select is(
+  (select array_agg(a.grantee::regrole::text order by a.grantee::regrole::text)
+   from pg_proc p, aclexplode(p.proacl) a
+   where p.proname = 'place_order' and p.pronamespace = 'public'::regnamespace
+     and a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner),
+  array['anon', 'authenticated', 'service_role']::text[],
+  'place_order is executable by exactly anon, authenticated and service_role (besides its owner)'
+);
+
+select is(
+  (select count(*)::int
+   from pg_proc p, aclexplode(p.proacl) a
+   where p.proname = 'place_order' and p.pronamespace = 'public'::regnamespace and a.grantee = 0),
+  0,
+  'place_order is not executable by PUBLIC'
 );
 
 select ok(
@@ -529,6 +574,29 @@ select is(
   (select count(*)::int from public.rate_limit_attempts where key_hash = repeat('c', 64)),
   1,
   'a recent attempt is kept'
+);
+
+-- A prune deletes at most 500 expired rows per call: 600 expired rows -> 100 left.
+insert into public.rate_limit_attempts (bucket, key_hash, created_at)
+select 'order_phone', repeat('d', 64), now() - interval '2 hours' from generate_series(1, 600);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select lives_ok(
+  $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Prune Buyer', '+33699000010',
+    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
+  'an order from another fresh phone is accepted'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from public.rate_limit_attempts where key_hash = repeat('d', 64)),
+  100,
+  'a single prune is bounded to 500 expired rows'
 );
 
 -- ----------------------------------------------------------------------------
@@ -653,6 +721,58 @@ select ok(
   'another phone is not affected by the limit'
 );
 
+-- A correct lookup is not blocked while the failed-lookup count is below the limit (4 of 5).
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_below_order on commit drop as
+select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Below Limit', '+33699000011',
+  'pickup', 'storefront', current_date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb) as res;
+grant select on t_below_order to public;
+
+create temp table t_below_misses on commit drop as
+select public.storefront_order_tracking_token(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 8000 + i, '+33699000011'
+) as token
+from generate_series(1, 4) as i;
+grant select on t_below_misses to public;
+
+create temp table t_below_hit on commit drop as
+select public.storefront_order_tracking_token(
+  'b1000000-0000-0000-0000-000000000001'::uuid, (res->>'order_number')::int, '+33699000011'
+) as token
+from t_below_order;
+grant select on t_below_hit to public;
+
+reset role;
+
+select is(
+  (select token from t_below_hit),
+  (select res->>'tracking_token' from t_below_order),
+  'a correct lookup still succeeds after 4 failed lookups (below the limit of 5)'
+);
+
+-- Per-business ceiling on failed lookups (300 / 10 min): varying the phone cannot bypass it.
+insert into public.rate_limit_attempts (bucket, key_hash)
+select 'lookup_business', public.rate_limit_key('b3000000-0000-0000-0000-000000000003'::uuid, '')
+from generate_series(1, 300);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_like(
+  $$select public.storefront_order_tracking_token('b3000000-0000-0000-0000-000000000003'::uuid, 1, '+33699000012')$$,
+  'RATE_LIMITED%',
+  'the per-business failed-lookup ceiling raises RATE_LIMITED for any phone'
+);
+
+reset role;
+
 -- ----------------------------------------------------------------------------
 -- Section I: get_order_by_tracking_token exposes only the explicit keys
 -- ----------------------------------------------------------------------------
@@ -698,11 +818,26 @@ select is(
 );
 
 select is(
-  (select count(*)::int from pg_indexes
-   where schemaname = 'public'
-     and indexname in ('idx_products_category_id', 'idx_orders_guest_id', 'idx_order_items_product_id')),
-  3,
-  'FK-leading indexes exist for products.category_id, orders.guest_id and order_items.product_id'
+  (select count(*)::int
+   from pg_class c join pg_index i on i.indexrelid = c.oid
+   where c.relnamespace = 'public'::regnamespace
+     and c.relname in ('idx_products_category_id', 'idx_orders_guest_id', 'idx_order_items_product_id',
+                       'idx_orders_business_idempotency_key')
+     and i.indisvalid and i.indisready),
+  4,
+  'the FK-leading indexes and the idempotency unique index exist and are valid (not left INVALID by a failed concurrent build)'
+);
+
+-- No function callable by anon (or PUBLIC) may return or reference unit_cost. There is no
+-- legitimate exception today: add one here explicitly, with a reason, if that ever changes.
+select is(
+  (select array_agg(p.proname::text order by p.proname)
+   from pg_proc p
+   where p.pronamespace = 'public'::regnamespace
+     and has_function_privilege('anon', p.oid, 'execute')
+     and (p.prosrc ilike '%unit_cost%' or pg_get_function_result(p.oid) ilike '%unit_cost%')),
+  null::text[],
+  'no function executable by anon/PUBLIC references or returns unit_cost'
 );
 
 select * from finish();
