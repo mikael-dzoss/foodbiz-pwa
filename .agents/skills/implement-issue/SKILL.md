@@ -5,7 +5,7 @@ description: Issue → branch → PR → merge workflow for this repo (pick next
 
 # Issue → PR Workflow
 
-Repo `MikeDzossa/foodbiz-pwa`; run `gh` from the repo root. Branch names, commit/PR format and the validation gate are defined in [CONTRIBUTING.md](../../../docs/CONTRIBUTING.md#branches) — follow them, don't restate them.
+Repo `mikael-dzoss/foodbiz-pwa`; run `gh` from the repo root. Branch names, commit/PR format and the validation gate are defined in [CONTRIBUTING.md](../../../docs/CONTRIBUTING.md#branches) — follow them, don't restate them.
 
 ## 0. Pick Work ("implement the next N items")
 

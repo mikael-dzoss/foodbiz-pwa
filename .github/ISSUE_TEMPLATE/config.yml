@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: "📖 Documentation"
-    url: "https://github.com/MikeDzossa/foodbiz-pwa/tree/develop/docs"
+    url: "https://github.com/mikael-dzoss/foodbiz-pwa/tree/develop/docs"
     about: "Check the docs before opening an issue"

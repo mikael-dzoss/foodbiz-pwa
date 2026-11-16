@@ -16,18 +16,18 @@ flowchart LR
 
 ## GitHub Actions
 
-| Workflow                                                    | Trigger                                   | What it does                                                                                         |
-| ----------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [`ci.yml`](../.github/workflows/ci.yml)                     | PR / push on `develop`, `staging`, `main` | [Validation gate](CONTRIBUTING.md#validation-gate) + `npm audit`; uploads coverage, posts PR comment |
-| [`promote.yml`](../.github/workflows/promote.yml)           | Manual (`workflow_dispatch`)              | Opens `develop → staging` or `staging → main` PR (skips if one is open)                              |
-| [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`                  | Sets `status: completed` on issues the PR closes (`Closes #N`)                                       |
-| [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                    | Grouped npm minor/patch updates and Actions updates, targeting `develop`                             |
+| Workflow                                                    | Trigger                                   | What it does                                                                           |
+| ----------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| [`ci.yml`](../.github/workflows/ci.yml)                     | PR / push on `develop`, `staging`, `main` | [Validation gate](CONTRIBUTING.md#validation-gate) + `npm audit`; writes a job summary |
+| [`promote.yml`](../.github/workflows/promote.yml)           | Manual (`workflow_dispatch`)              | Opens `develop → staging` or `staging → main` PR (skips if one is open)                |
+| [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`                  | Sets `status: completed` on issues the PR closes (`Closes #N`)                         |
+| [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                    | Grouped npm minor/patch updates and Actions updates, targeting `develop`               |
 
 The build step uses placeholder Supabase values, so CI needs no secrets. Merged feature branches are deleted automatically (repository setting), so the legacy cleanup workflow was not ported.
 
 ## Vercel setup (manual, one time)
 
-1. Import `MikeDzossa/foodbiz-pwa` in Vercel. Framework: Next.js (auto-detected).
+1. Import `mikael-dzoss/foodbiz-pwa` in Vercel. Framework: Next.js (auto-detected).
 2. **Production Branch:** `main`. Ensure Preview deployments are on for all branches.
 3. Environment variables (Settings → Environment Variables), one Supabase project per environment:
    - **Production** → production Supabase URL + publishable key.
