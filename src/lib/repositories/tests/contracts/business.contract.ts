@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 export function describeBusinessRepositoryContract(
   getRepositories: () => Promise<Repositories> | Repositories,
   businessId: string,
+  getNonOwnerRepositories?: () => Promise<Repositories> | Repositories,
 ): void {
   describe("BusinessRepository contract", () => {
     it("findById and findBySlug return business or null", async () => {
@@ -102,5 +103,57 @@ export function describeBusinessRepositoryContract(
         }),
       ).rejects.toThrow();
     });
+
+    it.runIf(Boolean(getNonOwnerRepositories))(
+      "a member who is not an owner cannot change payment settings or the slug (FORBIDDEN)",
+      async () => {
+        const repos = await getRepositories();
+        const nonOwner = await getNonOwnerRepositories!();
+        const before = (await repos.business.findById(businessId))!;
+        const settingsBefore = (await repos.business.getSettings(businessId))!;
+
+        for (const change of [
+          { revolutRevtag: "@intruder" },
+          { weroIdentifier: "intruder-wero" },
+          { paymentMethods: { cash: true, revolut: false, wero: false } },
+          { paymentInstructionsEn: "Pay the intruder" },
+          { paymentInstructionsFr: "Payez l'intrus" },
+        ]) {
+          await expect(nonOwner.business.updateSettings(businessId, change)).rejects.toMatchObject({
+            code: "FORBIDDEN",
+          });
+        }
+        await expect(
+          nonOwner.business.update(businessId, { slug: "intruder-slug" }),
+        ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+        // Nothing changed.
+        const settingsAfter = (await repos.business.getSettings(businessId))!;
+        expect(settingsAfter.revolutRevtag).toBe(settingsBefore.revolutRevtag);
+        expect(settingsAfter.paymentMethods).toEqual(settingsBefore.paymentMethods);
+        expect((await repos.business.findById(businessId))!.slug).toBe(before.slug);
+
+        // Everything else stays open to every member, and writing a protected value back unchanged is fine.
+        const okSettings = await nonOwner.business.updateSettings(businessId, {
+          lowStockThreshold: 8,
+          revolutRevtag: settingsBefore.revolutRevtag,
+        });
+        expect(okSettings.lowStockThreshold).toBe(8);
+        const okBusiness = await nonOwner.business.update(businessId, {
+          description: "Updated by a non-owner",
+          slug: before.slug,
+        });
+        expect(okBusiness.description).toBe("Updated by a non-owner");
+
+        // The owner can.
+        const ownerUpdate = await repos.business.updateSettings(businessId, {
+          revolutRevtag: "@owner-change",
+        });
+        expect(ownerUpdate.revolutRevtag).toBe("@owner-change");
+        await repos.business.updateSettings(businessId, {
+          revolutRevtag: settingsBefore.revolutRevtag,
+        });
+      },
+    );
   });
 }

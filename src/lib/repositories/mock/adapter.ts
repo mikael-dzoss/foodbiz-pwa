@@ -43,6 +43,8 @@ import { createDefaultFixtures, type MockFixtures } from "./fixtures";
 
 export interface MockRepositories extends Repositories {
   reset(customFixtures?: MockFixtures): void;
+  /** The same data seen by a member with another role (owner-only rules apply to it). */
+  withRole(role: BusinessMemberRole): Repositories;
 }
 
 function findIndexOrThrow<T>(list: readonly T[], pred: (item: T) => boolean, msg: string): number {
@@ -69,9 +71,20 @@ export function createMockRepositories(
   initialFixtures: MockFixtures = createDefaultFixtures(),
   options: MockRepositoryOptions = {},
 ): MockRepositories {
-  const actingRole = options.actingRole ?? "owner";
+  let actingRole = options.actingRole ?? "owner";
   const requireOwner = (): void => {
     if (!isOwnerRole(actingRole)) throw new OwnerRequiredError();
+  };
+  // The role is only read synchronously at the start of the guarded methods, so switching it around
+  // the call (not the awaited work) is enough.
+  const runAs = <T>(role: BusinessMemberRole, call: () => Promise<T>): Promise<T> => {
+    const previous = actingRole;
+    actingRole = role;
+    try {
+      return call();
+    } finally {
+      actingRole = previous;
+    }
   };
   let fixtures: MockFixtures = structuredClone(initialFixtures);
   // Mirrors the database-side guards of place_order / storefront_order_tracking_token so the
@@ -893,7 +906,21 @@ export function createMockRepositories(
     },
   };
 
-  return { products, categories, orders, guests, expenses, business, members, reset };
+  const withRole = (role: BusinessMemberRole): Repositories => ({
+    products,
+    categories,
+    orders,
+    guests,
+    members,
+    expenses: { ...expenses, delete: (bId, id) => runAs(role, () => expenses.delete(bId, id)) },
+    business: {
+      ...business,
+      update: (id, input) => runAs(role, () => business.update(id, input)),
+      updateSettings: (bId, input) => runAs(role, () => business.updateSettings(bId, input)),
+    },
+  });
+
+  return { products, categories, orders, guests, expenses, business, members, reset, withRole };
 }
 
 let singletonInstance: MockRepositories | null = null;

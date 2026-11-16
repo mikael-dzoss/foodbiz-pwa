@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 export function describeExpenseRepositoryContract(
   getRepositories: () => Promise<Repositories> | Repositories,
   businessId: string,
+  getNonOwnerRepositories?: () => Promise<Repositories> | Repositories,
 ): void {
   describe("ExpenseRepository contract", () => {
     it("list returns expenses with tag and date range filters", async () => {
@@ -74,5 +75,28 @@ export function describeExpenseRepositoryContract(
 
       await expect(repos.expenses.delete(businessId, created.id)).rejects.toThrow();
     });
+
+    it.runIf(Boolean(getNonOwnerRepositories))(
+      "a member who is not an owner cannot delete an expense (FORBIDDEN) but can still create and update",
+      async () => {
+        const repos = await getRepositories();
+        const nonOwner = await getNonOwnerRepositories!();
+        const created = await nonOwner.expenses.create(businessId, {
+          amount: 1000,
+          date: "2026-10-09",
+          description: "Owner-only delete",
+        });
+        const updated = await nonOwner.expenses.update(businessId, created.id, { amount: 1200 });
+        expect(updated.amount).toBe(1200);
+
+        await expect(nonOwner.expenses.delete(businessId, created.id)).rejects.toMatchObject({
+          code: "FORBIDDEN",
+        });
+        expect(await repos.expenses.findById(businessId, created.id)).not.toBeNull();
+
+        await repos.expenses.delete(businessId, created.id);
+        expect(await repos.expenses.findById(businessId, created.id)).toBeNull();
+      },
+    );
   });
 }

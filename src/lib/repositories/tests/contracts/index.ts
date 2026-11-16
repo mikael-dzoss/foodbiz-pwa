@@ -13,6 +13,12 @@ import { describeProductRepositoryContract } from "./product.contract";
 
 export interface ContractSuiteOptions {
   businessId?: string;
+  /**
+   * Repositories acting as a member who is NOT an owner (manager or staff) on the same data as the
+   * main repositories. When given, the owner-only rules run: payment settings, slug and hard deletes
+   * must be refused with code FORBIDDEN while everything else keeps working.
+   */
+  nonOwnerRepositories?: () => Promise<Repositories> | Repositories;
 }
 
 export function describeRepositoryContracts(
@@ -28,8 +34,8 @@ export function describeRepositoryContracts(
     describeOrderRepositoryContract(getRepositories, businessId);
     describeOrderPlacementContract(getRepositories, businessId);
     describeGuestRepositoryContract(getRepositories, businessId);
-    describeExpenseRepositoryContract(getRepositories, businessId);
-    describeBusinessRepositoryContract(getRepositories, businessId);
+    describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
+    describeBusinessRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeMemberRepositoryContract(getRepositories, businessId);
   });
 }

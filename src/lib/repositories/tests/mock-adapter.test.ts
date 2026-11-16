@@ -15,7 +15,9 @@ describe("Mock Adapter Contract Conformance", () => {
     mockRepos = createMockRepositories();
   });
 
-  describeRepositoryContracts("In-Memory Mock Adapter", () => mockRepos);
+  describeRepositoryContracts("In-Memory Mock Adapter", () => mockRepos, {
+    nonOwnerRepositories: () => mockRepos.withRole("manager"),
+  });
 
   it("bounds failed lookups per business like storefront_order_tracking_token", async () => {
     for (let n = 0; n < LOOKUP_RATE_LIMIT_BUSINESS_MAX_REQUESTS; n++) {
