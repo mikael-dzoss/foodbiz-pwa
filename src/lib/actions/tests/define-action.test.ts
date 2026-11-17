@@ -120,7 +120,12 @@ describe("defineAction", () => {
     const res = await action();
     expect(res).toMatchObject({ ok: false, code: "INTERNAL" });
     expect(JSON.stringify(res)).not.toMatch(/duplicate|0612/);
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("doThing"), "Error");
+    expect(JSON.parse(errorSpy.mock.calls[0][0] as string)).toMatchObject({
+      level: "error",
+      event: "action_error",
+      action: "doThing",
+      errorName: "Error",
+    });
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("0612");
   });
 

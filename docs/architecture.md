@@ -59,6 +59,16 @@ The storefront does not use `getRepositories()`. Every code path an anonymous vi
 - **Writes** are Server Actions built with `defineAction(name, { auth, input }, handler)` (`src/lib/actions/define-action.ts`). It checks auth outside the try (a login redirect is never swallowed), parses `input` with zod, runs the handler and returns `ActionResult<T>` (`src/lib/actions/types.ts`): `{ ok: true, data }` or `{ ok: false, code, message, reason?, fieldErrors?, lineErrors? }`. `code` is one of `VALIDATION`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL`. Handlers return data or throw `ActionError(code, safeMessage)`; `OrderRepoError` and `OwnerRequiredError` are mapped, Next control-flow errors are rethrown (`unstable_rethrow`), anything else is logged and returned as `INTERNAL` with fixed text, never raw database text. `auth: "owner"` is for owner-only actions.
 - **Reads** are `server-only` data modules (`*-data.ts` next to the feature, e.g. `features/customers/customer-data.ts`) called directly from pages and layouts. A read failure throws to the route's `error.tsx`; it is never an empty list. Only reads triggered from the browser (the order-alert poll, the guest phone lookup) stay Server Actions.
 
+## Server logs
+
+Server events are one JSON line each (`logEvent` in `src/lib/log.ts`): `time`, `level`, `event`, `appEnv` plus flat fields. Vercel captures them from stdout/stderr.
+
+- `request_error` (`src/instrumentation.ts` `onRequestError`): error name, `digest`, method, `routerKind`, `routePath` (the route template, e.g. `/[locale]/order/[token]`), `routeType`, `renderSource`, `revalidateReason`. Outside production it adds the message and a stack cut to 2,000 characters.
+- `action_error` (`defineAction`): action name and error class.
+- Never logged: the concrete path or query string (they can carry tracking tokens or phone numbers), headers, cookies, bodies, session data, and in production the error message (database errors can echo row values). Next still prints the original error; `digest` links it to the structured line.
+- Staging and production must never set `APP_ENV` to `development` or `test`: that is the only switch that adds messages and stacks to deployed logs.
+- Anti-abuse rejections keep their own `[anti-abuse]` line with hashed IP and phone (`src/lib/anti-abuse-log.ts`).
+
 ## Supabase clients
 
 All Supabase access goes through `src/lib/supabase/`.
