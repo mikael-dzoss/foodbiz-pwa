@@ -5,7 +5,7 @@ description: Plan, implement, verify, review and merge work for this repo, as on
 
 # Ship
 
-Branches, commit and PR formats: [CONTRIBUTING.md](../../../docs/CONTRIBUTING.md#branches). Repo `mikael-dzoss/foodbiz-pwa`; run `gh` from the repo root. Agents plan, implement, verify locally, push once, self-review, and merge their own PRs into `develop`. Safety comes from the automated checks, not from waiting for the owner. CI minutes are scarce (private repo, free plan): every push to a PR re-runs CI, so spend effort locally first.
+Branches, commit and PR formats: [CONTRIBUTING.md](../../../docs/CONTRIBUTING.md#branches). Repo `mikael-dzoss/foodbiz-pwa`; run `gh` from the repo root. Agents plan, implement, verify and review locally, push once, and merge their own PRs into `develop`. Safety comes from the automated checks, not from waiting for the owner. CI minutes are scarce (private repo, free plan): every push to a PR re-runs CI, so spend effort locally first.
 
 ## 1. Pick work
 
@@ -19,7 +19,7 @@ Take items in that order. Stories sharing a parent epic: `gh_related_issues.py <
 
 ## 2. Read and plan
 
-`gh issue view <n> --json title,body,labels,parent`; locate code with `graphify query "<summary>"`. Write a short plan (approach, slices, risks) into the PR description; do not wait for approval. UI work follows [design.instructions.md](../../rules/design.instructions.md). Stop only for the cases in section 8.
+`gh issue view <n> --json title,body,labels,parent`; locate code with `graphify query "<summary>"`. Write a short plan (approach, slices, risks) into the PR description; do not wait for approval. UI work follows [design.instructions.md](../../rules/design.instructions.md). Stop only for the cases in section 9.
 
 ## 3. Slice
 
@@ -35,20 +35,21 @@ Branch `<feature|bug|utils>/<number>-<slug>` off a fresh `origin/develop`. Bug-f
 
 Simplest thing that works ([ponytail](../ponytail/SKILL.md)); tests first for behaviour changes ([test-driven-development](../test-driven-development/SKILL.md)). Commit each working slice with a conventional message that ends with the repo's commit attribution line.
 
-## 5. Verify locally, then push once
+## 5. Verify locally
 
-`npm run gate` runs only the tiers your diff needs (format, lint, typecheck, unit tests with coverage; plus tooling, integration and e2e when relevant). Fix everything before the first push. `npm run gate:quick` while iterating, `npm run gate:full` for a risky change. The integration tier (pgTAP, live tests, `build:local`, Supabase journey) needs local Supabase (`npm run db:start`); the gate prints the commands if it is down. CI runs the same tiers from the same scope rules ([CI tiers and cost](../../../docs/CONTRIBUTING.md#ci-tiers-and-cost)).
+`npm run gate` runs only the tiers your diff needs (format, lint, typecheck, unit tests with coverage; plus tooling, integration and e2e when relevant). Fix everything before review. `npm run gate:quick` while iterating, `npm run gate:full` for a risky change. The integration tier (pgTAP, live tests, `build:local`, Supabase journey) needs local Supabase (`npm run db:start`); the gate prints the commands if it is down. CI runs the same tiers from the same scope rules ([CI tiers and cost](../../../docs/CONTRIBUTING.md#ci-tiers-and-cost)).
 
-Economy rules:
+## 6. Review locally, then fix
 
-- Never push to "see what CI says". CI only confirms what the gate already proved.
-- Push a whole stack once. Batch review fixes into one push per PR.
-- On a CI failure, reproduce it locally with `npm run gate` before touching anything, then fix and push once.
-- Do not restack unless a lower PR changed.
-- Set a PR's title and body in one call (`gh pr create`, or one `gh pr edit --title --body-file`): every title or body edit re-runs CI.
-- In a stack, CI runs only the cheap `check` tier on middle PRs; the bottom PR (base `develop`) and the top PR carry the expensive tiers. Merge with `gh stack merge`; the one required check is `Quality Gate - Summary`.
+Review before any push: opening a PR runs CI, so every post-review fix would run it again. The reviewer subagents ([.claude/agents](../../../.claude/agents)) are read-only and review the local branch against `origin/develop`; they need no PR. Run the matching ones (in parallel, alongside the gate if you like):
 
-## 6. Open the PR
+- `security-reviewer`: auth, sessions, env or secrets, Server Actions, proxy.
+- `migration-reviewer`: anything in `supabase/migrations/`.
+- `ui-reviewer`: any `.tsx` change.
+
+If they find issues, fix them all, commit, and re-run `npm run gate`. Skip this step only when the diff matches none of the reviewers.
+
+## 7. Push once and open the PR
 
 Single PR:
 
@@ -57,9 +58,9 @@ git push -u origin <branch>
 gh pr create --base develop --title "<type>(<scope>): <description> (#<n>)" --body-file <file>
 ```
 
-Fill the [PR template](../../../.github/pull_request_template.md). Add the plan, `Closes #<n>` per issue, each acceptance criterion with how it was verified, and what you opened in a browser.
+Fill the [PR template](../../../.github/pull_request_template.md). Add the plan, `Closes #<n>` per issue, each acceptance criterion with how it was verified, what you opened in a browser, and the reviewers you ran.
 
-Stack (`gh stack`, checked against `gh stack --help` v0.3.0; trunk is `develop`):
+Stack (`gh stack`, checked against `gh stack --help` v0.3.0; trunk is `develop`). Create the layers while implementing; push them only after steps 5 and 6 pass for every layer:
 
 ```bash
 git fetch origin
@@ -75,13 +76,16 @@ Each stacked PR body starts with `> **Stacked PR**: base is <parent>, part of st
 
 Lower layer needs a fix: `gh stack checkout <lower-branch>`, commit, `npm run gate`, `gh stack rebase --upstack`, `gh stack push`. If `develop` moved and you must update: `gh stack rebase` then `gh stack push`. Conflicts: resolve, `git add`, `gh stack rebase --continue` (`--abort` restores).
 
-## 7. Review, then merge
+Economy rules:
 
-Run the matching reviewer subagents ([.claude/agents](../../../.claude/agents)) and fix their findings before merging; commit all fixes, then push once:
+- Never push to "see what CI says". CI only confirms what the gate and the reviews already proved.
+- Push a whole stack once.
+- On a CI failure, reproduce it locally with `npm run gate` before touching anything, then fix and push once.
+- Do not restack unless a lower PR changed.
+- Set a PR's title and body in one call (`gh pr create`, or one `gh pr edit --title --body-file`): every title or body edit re-runs CI. A draft PR runs CI too.
+- In a stack, CI runs only the cheap `check` tier on middle PRs; the bottom PR (base `develop`) and the top PR carry the expensive tiers. Merge with `gh stack merge`; the one required check is `Quality Gate - Summary`.
 
-- `security-reviewer`: auth, sessions, env or secrets, Server Actions, proxy.
-- `migration-reviewer`: anything in `supabase/migrations/`.
-- `ui-reviewer`: any `.tsx` change.
+## 8. Merge
 
 Merge your own PR into `develop` once required checks pass (`gh pr checks <pr> --watch`). If the repo has auto-merge enabled, `gh pr merge <pr> --auto --merge --delete-branch`; otherwise merge when the watch exits 0:
 
@@ -93,7 +97,7 @@ gh stack sync --prune                         # afterwards: fast-forward develop
 
 Never merge into `staging` or `main`; promotion belongs to the owner ([DEPLOYMENT.md](../../../docs/DEPLOYMENT.md#releasing)). `Closes #<n>` closes the issue and the `Issue status` workflow marks it `status: completed` (and the epic when all children are done). Do not do either by hand.
 
-## 8. Stop and ask the owner only for
+## 9. Stop and ask the owner only for
 
 - Anything that costs money or needs a new third-party account or secret.
 - Destructive or irreversible operations on hosted data or infrastructure, secret rotation, history rewrites, visibility changes.
