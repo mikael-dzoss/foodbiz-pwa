@@ -66,6 +66,7 @@ Server events are one JSON line each (`logEvent` in `src/lib/log.ts`): `time`, `
 - `request_error` (`src/instrumentation.ts` `onRequestError`): error name, `digest`, method, `routerKind`, `routePath` (the route template, e.g. `/[locale]/order/[token]`), `routeType`, `renderSource`, `revalidateReason`. Outside production it adds the message and a stack cut to 2,000 characters.
 - `action_error` (`defineAction`): action name and error class.
 - Never logged: the concrete path or query string (they can carry tracking tokens or phone numbers), headers, cookies, bodies, session data, and in production the error message (database errors can echo row values). Next still prints the original error; `digest` links it to the structured line.
+- Staging and production must never set `APP_ENV` to `development` or `test`: that is the only switch that adds messages and stacks to deployed logs.
 - Anti-abuse rejections keep their own `[anti-abuse]` line with hashed IP and phone (`src/lib/anti-abuse-log.ts`).
 
 ## Supabase clients

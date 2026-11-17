@@ -74,4 +74,15 @@ describe("onRequestError", () => {
     expect(line.event).toBe("request_error");
     expect("message" in line).toBe(withMessage);
   });
+
+  it("never throws, even when reading the error throws", async () => {
+    const hostile = Object.defineProperty(new Error("x"), "digest", {
+      get() {
+        throw new Error("boom");
+      },
+    });
+    await expect(
+      Promise.resolve(onRequestError(hostile, request, context)),
+    ).resolves.toBeUndefined();
+  });
 });

@@ -41,9 +41,13 @@ export function requestErrorFields(
 }
 
 export const onRequestError: Instrumentation.onRequestError = (error, request, context) => {
-  logEvent(
-    "error",
-    "request_error",
-    requestErrorFields(error, request, context, isProductionDeployment()),
-  );
+  try {
+    logEvent(
+      "error",
+      "request_error",
+      requestErrorFields(error, request, context, isProductionDeployment()),
+    );
+  } catch {
+    // Logging must never mask the original error (e.g. a throwing digest getter).
+  }
 };
