@@ -36,7 +36,7 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 ## Accessibility & Testability
 
 - WCAG 2.2 AA: semantic HTML, labelled controls, visible focus, keyboard operable, no information by colour alone, respect `prefers-reduced-motion`.
-- Touch targets ≥ 44 × 44 px (`min-h-11 min-w-11`).
+- Touch targets ≥ 32 × 32 px (`min-h-8 min-w-8`); don't enlarge a control that already meets that at the cost of the layout ([DESIGN_SYSTEM.md §5](../../docs/design/DESIGN_SYSTEM.md)).
 - Every interactive element and key region has a unique, descriptive `data-testid` (e.g. `btn-order-confirm`).
 
 ## PWA
