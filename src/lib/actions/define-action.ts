@@ -16,6 +16,7 @@ import {
   type ActionFailure,
   type ActionResult,
 } from "./types";
+import { logEvent } from "@/lib/log";
 
 export type ActionAuth = "public" | "manager" | "owner";
 
@@ -62,7 +63,10 @@ function toFailure(name: string, err: unknown): ActionFailure {
   if (err instanceof OwnerRequiredError) return fail("FORBIDDEN");
   if (err instanceof OrderRepoError) return fromOrderRepoError(err);
   // Raw error text (database, network) stays on the server; ids only, no request data.
-  console.error(`Server Action "${name}" failed:`, err instanceof Error ? err.name : typeof err);
+  logEvent("error", "action_error", {
+    action: name,
+    errorName: err instanceof Error ? err.name : typeof err,
+  });
   return fail("INTERNAL");
 }
 
