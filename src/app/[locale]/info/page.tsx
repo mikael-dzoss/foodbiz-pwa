@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
   getDictionary,
@@ -6,6 +7,7 @@ import {
   SUPPORTED_LOCALES,
   type SupportedLocale,
 } from "@/domain/i18n";
+import { storefrontAlternates } from "@/features/storefront/metadata";
 import { getStorefrontCatalog, ShopInfoView } from "@/features/storefront";
 
 export async function generateStaticParams() {
@@ -17,6 +19,15 @@ export const instant = false;
 
 export interface ShopInfoPageProps {
   params: Promise<{ locale: string }>;
+}
+
+export async function generateMetadata({ params }: ShopInfoPageProps): Promise<Metadata> {
+  const { locale: requested } = await params;
+  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  return {
+    title: getDictionary(locale).storefront.shopInfo,
+    alternates: storefrontAlternates(locale, "/info"),
+  };
 }
 
 export default async function ShopInfoPage({ params }: ShopInfoPageProps) {

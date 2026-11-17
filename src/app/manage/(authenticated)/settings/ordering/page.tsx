@@ -3,10 +3,9 @@ import { requireManagerSession } from "@/lib/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { OrderingSettingsForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Ordering Settings | ${APP_METADATA.name}`,
+  title: "Ordering Settings",
   description: "Configure order acceptance, fulfillment modes, and delivery rules.",
 };
 

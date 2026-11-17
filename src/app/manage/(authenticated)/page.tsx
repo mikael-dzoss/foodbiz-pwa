@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
-import { APP_METADATA } from "@/config/app";
 import { dashboardPeriodPresetSchema } from "@/domain";
 import { DashboardView } from "@/features/dashboard";
 import { getDashboardData } from "@/features/dashboard/dashboard-data";
 
 export const metadata: Metadata = {
-  title: `Dashboard | ${APP_METADATA.name}`,
+  title: "Dashboard",
   description: "One-screen overview of business health, KPIs and operational triage.",
 };
 

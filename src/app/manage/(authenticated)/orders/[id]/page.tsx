@@ -5,7 +5,6 @@ import { getOrder } from "@/features/orders/order-data";
 import { OrderDetail } from "@/features/orders/components/order-detail";
 import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
 import { isOwnerRole } from "@/domain/auth";
-import { APP_METADATA } from "@/config/app";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
@@ -14,7 +13,7 @@ interface OrderDetailPageProps {
 export async function generateMetadata({ params }: OrderDetailPageProps): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Order Details | ${APP_METADATA.name}`,
+    title: "Order Details",
     description: `Details and status progression for order ${id}`,
   };
 }

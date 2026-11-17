@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
 import { listCategories } from "@/features/products/category-data";
 import { CategoryManager } from "@/features/products/components/category-manager";
-import { APP_METADATA } from "@/config/app";
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: `Category Management | ${APP_METADATA.name}`,
+  title: "Category Management",
   description: "Organise your menu and products.",
 };
 

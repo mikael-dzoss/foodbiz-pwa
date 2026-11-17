@@ -4,10 +4,9 @@ import { isOwnerRole } from "@/domain/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { BusinessProfileForm } from "@/features/settings";
 import { getBusinessProfile } from "@/features/settings/settings-data";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Business Profile | ${APP_METADATA.name}`,
+  title: "Business Profile",
   description: "Configure your public store details, contact channels and web address.",
 };
 

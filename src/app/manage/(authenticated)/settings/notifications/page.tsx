@@ -3,10 +3,9 @@ import { requireManagerSession } from "@/lib/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { NotificationsAppForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Notifications & App | ${APP_METADATA.name}`,
+  title: "Notifications & App",
   description: "Configure order alerts, sound chime, and PWA installation options.",
 };
 

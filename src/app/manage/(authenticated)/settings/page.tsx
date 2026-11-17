@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { SettingsHub } from "@/features/settings";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Settings | ${APP_METADATA.name}`,
+  title: "Settings",
   description: "Account, store preferences and system configuration.",
 };
 

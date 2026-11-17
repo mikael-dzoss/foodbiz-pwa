@@ -204,6 +204,7 @@ export const frDictionary: Dictionary = {
     aboutBusiness: "À propos de {business}",
     linkCopied: "Lien copié",
     trackTitle: "Suivre ma commande",
+    metaDescription: "Commandez en ligne chez {business}.",
     trackIntro:
       "Saisissez le numéro de téléphone et le numéro de commande indiqués dans votre confirmation.",
     trackPhoneLabel: "Numéro de téléphone",

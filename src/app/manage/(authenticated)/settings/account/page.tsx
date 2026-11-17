@@ -8,10 +8,9 @@ import {
   type SupportedLocale,
 } from "@/domain/i18n";
 import { AccountSettings } from "@/features/settings";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Account Settings | ${APP_METADATA.name}`,
+  title: "Account Settings",
   description: "Manage your profile, language and display preferences.",
 };
 

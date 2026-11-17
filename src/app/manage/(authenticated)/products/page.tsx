@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
 import { listProducts } from "@/features/products/product-data";
 import { ProductManager } from "@/features/products/components/product-manager";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Products & Inventory | ${APP_METADATA.name}`,
+  title: "Products & Inventory",
   description: "Manage menu items, pricing, stock levels and categories.",
 };
 

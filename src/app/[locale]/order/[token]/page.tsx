@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: OrderTrackingPageProps): Prom
   }
 
   return {
-    title: `Order #${order.orderNumber ?? "—"} Tracking | FoodBiz`,
+    title: `Order #${order.orderNumber ?? "—"} Tracking`,
     description: `Track status of order #${order.orderNumber ?? "—"}`,
     robots: { index: false, follow: false },
     referrer: "no-referrer",

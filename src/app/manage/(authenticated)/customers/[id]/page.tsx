@@ -5,7 +5,7 @@ import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n"
 import { getCustomer } from "@/features/customers/customer-data";
 import { CustomerDetail } from "@/features/customers/components/customer-detail";
 
-export const metadata: Metadata = { title: "Customer details | FoodBiz" };
+export const metadata: Metadata = { title: "Customer details" };
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
