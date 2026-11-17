@@ -120,11 +120,19 @@ Which tiers a change needs, and the CI cost, are in [`CONTRIBUTING.md`](CONTRIBU
 
 Tables, enums, indexes, RLS and function descriptions: [`database/schema.md`](database/schema.md). Entity fields and business rules: [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md).
 
+## Security headers
+
+`next.config.ts` `headers()` sets, on every route, a static CSP plus `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY` and (real HTTPS deployments only) `Strict-Transport-Security` and `upgrade-insecure-requests`. The values come from `src/config/security-headers.ts`; Supabase hosts derive from `NEXT_PUBLIC_SUPABASE_URL`. `src/proxy.ts` is untouched.
+
+Why no nonces: the Next 16 CSP guide says nonces require dynamic rendering and are incompatible with PPR, which conflicts with the cached shells of `cacheComponents`. The "Without Nonces" static header is used instead. `script-src` and `style-src` keep `'unsafe-inline'` because Next's inline bootstrap/flight scripts, the theme script and component inline styles cannot be hashed statically. Experimental SRI was not adopted: it does not remove inline scripts, so it would not let us drop `'unsafe-inline'`. `'unsafe-eval'` is dev only. XSS protection therefore relies on React escaping, no `dangerouslySetInnerHTML`, `object-src 'none'`, `base-uri 'self'` and `frame-ancestors 'none'`. Allowed third parties: the Supabase project (img, connect incl. `wss://`, form-action for the OAuth redirect), `accounts.google.com` (form-action) and `www.openstreetmap.org` (the shop-info map iframe). Revisit when a nonce-friendly rendering model is acceptable.
+
+`/patterns` (design reference) returns 404 unless both `NODE_ENV` and `APP_ENV` are development or test.
+
 ## Known limitations
 
 - No pagination. List queries are not paged, and the local `supabase/config.toml` caps PostgREST responses at 1,000 rows (`max_rows`); the hosted project's cap is unverified.
 - No service worker and no offline support.
-- No security headers or CSP: `next.config.ts` and `src/proxy.ts` set none ([#108](https://github.com/mikael-dzoss/foodbiz-pwa/issues/108)).
+- The CSP keeps `'unsafe-inline'` for scripts and styles (see [Security headers](#security-headers)).
 - No error tracking; Server Action failures are written with `console.error` only ([#109](https://github.com/mikael-dzoss/foodbiz-pwa/issues/109)).
 - The storefront is bound to one business through `STOREFRONT_BUSINESS_ID`; there is no host or path based tenant selection.
 - The per-IP limiter is in memory, per server instance, and resets on restart. The database limits are not affected.

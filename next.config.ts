@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { buildSecurityHeaders } from "./src/config/security-headers";
 
 /**
  * Allow `next/image` to optimise product images served from this project's public
@@ -27,8 +28,24 @@ const isLocalSupabase = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
 );
 
+const appEnv = process.env.APP_ENV;
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: buildSecurityHeaders({
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          isDev: process.env.NODE_ENV === "development",
+          // Local/test stacks run production builds over plain http.
+          secureTransport:
+            process.env.NODE_ENV === "production" && appEnv !== "development" && appEnv !== "test",
+        }),
+      },
+    ];
+  },
   partialPrefetching: true,
   images: {
     remotePatterns: supabaseImagePattern(),
