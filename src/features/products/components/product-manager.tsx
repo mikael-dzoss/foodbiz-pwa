@@ -313,7 +313,7 @@ export function ProductManager({
               className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                 selectedFilter === "low_stock"
                   ? "bg-warning-soft text-warning-soft-foreground border-warning-soft border font-bold"
-                  : "border-warning-soft-foreground/30 bg-warning-soft/40 text-warning-soft-foreground hover:bg-warning-soft/70 border"
+                  : "border-warning/30 bg-warning-soft/40 text-warning-soft-foreground hover:bg-warning-soft/70 border"
               }`}
             >
               Low Stock ({lowStockCount})

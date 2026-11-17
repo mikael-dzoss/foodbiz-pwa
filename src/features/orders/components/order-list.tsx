@@ -529,7 +529,7 @@ export function OrderList({
                           <span
                             data-testid="order-submitted-name-badge"
                             title={`Ordered as ${order.submittedName}`}
-                            className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
+                            className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
                           >
                             Ordered as {order.submittedName}
                           </span>

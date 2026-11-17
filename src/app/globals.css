@@ -18,6 +18,8 @@
   --primary-soft-foreground: #00402a;
   --secondary: #855300;
   --secondary-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #1c1100;
   --warning-soft: #fbe7cc;
   --warning-soft-foreground: #5e3a00;
   --info: #005ac2;
@@ -47,6 +49,8 @@
   --primary-soft-foreground: #b4f1d4;
   --secondary: #ffb95c;
   --secondary-foreground: #462a00;
+  --warning: #fbbf24;
+  --warning-foreground: #1c1100;
   --warning-soft: #4a3510;
   --warning-soft-foreground: #ffddb0;
   --info: #a9c7ff;
@@ -71,6 +75,8 @@
   --color-primary-soft-foreground: var(--primary-soft-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-warning-soft-foreground: var(--warning-soft-foreground);
   --color-info: var(--info);
@@ -87,8 +93,8 @@
 }
 
 @theme {
-  /* Brand colour of the WhatsApp contact action; the same in both themes. */
-  --color-whatsapp: #25d366;
+  /* WhatsApp dark green (white text 7.67:1; the brand #25d366 is ~2:1); same in both themes. */
+  --color-whatsapp: #075e54;
 
   /* Type sizes below the label scale (badges, meta). Line height is inherited, like the former text-[11px]. */
   --text-caption: 0.6875rem;

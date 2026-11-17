@@ -18,7 +18,7 @@ Screen inventory and loop status: [`SCREENS.md`](SCREENS.md).
 
 Names follow shadcn/ui conventions so #28 can consume them directly. Hex values are the spec; components only use the Tailwind utilities (`bg-primary`, `text-muted-foreground`, …).
 
-There is no solid `warning`, `danger` or `divider` token: warning text and outlines use `warning-soft-foreground` (`border-warning-soft-foreground/30`), errors use `destructive`, dividers use `border`. `npm run lint` fails on any class Tailwind does not generate (`scripts/check-tailwind-classes.mjs`), so a missing token must be added here and in `globals.css` rather than guessed.
+There is no `danger` or `divider` token: warning icons and outlines use the solid `warning` (`text-warning`, `border-warning`), warning text stays on `warning-soft-foreground` for readability, errors use `destructive`, dividers use `border`. `npm run lint` fails on any class Tailwind does not generate (`scripts/check-tailwind-classes.mjs`), so a missing token must be added here and in `globals.css` rather than guessed.
 
 | Token                     | Light     | Dark      | Use                                   |
 | ------------------------- | --------- | --------- | ------------------------------------- |
@@ -37,13 +37,15 @@ There is no solid `warning`, `danger` or `divider` token: warning text and outli
 | `primary-soft-foreground` | `#00402a` | `#b4f1d4` | Text on primary-soft                  |
 | `secondary`               | `#855300` | `#ffb95c` | Sales highlight (legacy amber)        |
 | `secondary-foreground`    | `#ffffff` | `#462a00` | Text on secondary                     |
+| `warning`                 | `#d97706` | `#fbbf24` | Warning icons and outlines (non-text) |
+| `warning-foreground`      | `#1c1100` | `#1c1100` | Text on solid warning                 |
 | `warning-soft`            | `#fbe7cc` | `#4a3510` | PREPARING, unpaid, low stock          |
 | `warning-soft-foreground` | `#5e3a00` | `#ffddb0` | Text on warning-soft                  |
 | `info`                    | `#005ac2` | `#a9c7ff` | Links, NEW status, information        |
 | `info-foreground`         | `#ffffff` | `#002f68` | Text on info                          |
 | `destructive`             | `#ba1a1a` | `#ffb4ab` | Errors, cancel, delete                |
 | `destructive-foreground`  | `#ffffff` | `#690005` | Text on destructive                   |
-| `whatsapp`                | `#25d366` | `#25d366` | WhatsApp contact action (brand)       |
+| `whatsapp`                | `#075e54` | `#075e54` | WhatsApp contact action (dark green)  |
 
 ### Contrast (WCAG 2.2 AA, computed)
 
@@ -59,6 +61,10 @@ There is no solid `warning`, `danger` or `divider` token: warning text and outli
 | info-foreground / info                 | 6.48  | 7.66  |
 | destructive-foreground / destructive   | 6.46  | 7.72  |
 | warning-soft-foreground / warning-soft | 8.36  | 8.97  |
+| warning-foreground / warning           | 5.84  | 11.14 |
+| warning / background (non-text, 3:1)   | 3.04  | 11.11 |
+| warning / card (non-text, 3:1)         | 3.19  | 10.20 |
+| white / whatsapp (button text)         | 7.67  | 7.67  |
 | input / card (non-text, 3:1)           | 4.32  | 4.61  |
 
 Re-run the check whenever a value changes; text pairs must stay ≥ 4.5:1, control outlines ≥ 3:1.
@@ -123,7 +129,7 @@ Exceptions only where common practice calls for them, each noted next to the cod
 
 Other tokens in `globals.css`:
 
-- `--breakpoint-xs` 25 rem (400 px): `xs:` variant for narrow phones.
+- `--breakpoint-xs` 25 rem (400 px): `xs:` variant for narrow phones. It stays at 25 rem because below 400 px the brand name would crowd the header actions.
 - Motion: `animate-pop-in` (180 ms), `animate-fade-in` / `animate-fade-out` (150 ms); `motion-reduce:animate-none` disables them.
 - Safe areas: `pb-safe`, `pb-safe-N` (spacing N plus inset), `pb-safe-min-N` / `pt-safe-min-N` (larger of the two), `bottom-sticky-safe` (sticky bars), `w-screen-gutter` (width minus the 16 px gutters).
 - `bg-dot-grid` (map placeholder dots), `no-scrollbar`, `tabular-nums`.

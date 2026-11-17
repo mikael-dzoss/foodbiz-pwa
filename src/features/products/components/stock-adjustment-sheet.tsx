@@ -227,7 +227,7 @@ export function StockAdjustmentSheet({
               New stock: {targetStock}
               {projectedStatus === "low_stock" && (
                 <span className="text-warning-soft-foreground ml-1.5 inline-flex items-center gap-1 font-medium">
-                  <AlertTriangle className="inline h-3 w-3" /> Low
+                  <AlertTriangle className="text-warning inline h-3 w-3" /> Low
                 </span>
               )}
             </span>

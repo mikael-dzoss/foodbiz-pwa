@@ -511,7 +511,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   <span
                     data-testid="order-submitted-name-badge"
                     title={`Ordered as ${currentOrder.submittedName}`}
-                    className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
+                    className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
                   >
                     Ordered as {currentOrder.submittedName}
                   </span>
@@ -627,7 +627,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
         {/* Special Instructions Pill BEFORE Subtotal (per user instruction) */}
         {currentOrder.notes && (
-          <div className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 my-2.5 flex items-center gap-2 rounded-lg border p-2 text-xs">
+          <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 my-2.5 flex items-center gap-2 rounded-lg border p-2 text-xs">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>
               <strong className="font-semibold">Kitchen note:</strong> {currentOrder.notes}
@@ -736,9 +736,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           )}
 
           {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" && (
-            <div className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 flex flex-col gap-2 rounded-lg border p-2.5 text-xs">
+            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex flex-col gap-2 rounded-lg border p-2.5 text-xs">
               <div className="flex items-center gap-1.5 font-semibold">
-                <AlertCircle className="text-warning-soft-foreground h-4 w-4 shrink-0" />
+                <AlertCircle className="text-warning h-4 w-4 shrink-0" />
                 <span>Order was paid before cancellation. Refund required.</span>
               </div>
               <Button
@@ -747,7 +747,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 onClick={() => setRefundDialogOpen(true)}
                 disabled={Boolean(refundDisabledReason)}
                 aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
-                className="border-warning-soft-foreground text-warning-soft-foreground hover:bg-warning-soft/80 min-h-10 w-full gap-1.5 text-xs font-semibold"
+                className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-10 w-full gap-1.5 text-xs font-semibold"
                 data-testid="record-refund-cta"
               >
                 <CreditCard className="h-4 w-4" />
@@ -929,8 +929,8 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
-            <div className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-caption flex items-center gap-1.5 rounded-lg border p-2 font-semibold">
-              <AlertCircle className="text-warning-soft-foreground h-3.5 w-3.5 shrink-0" />
+            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption flex items-center gap-1.5 rounded-lg border p-2 font-semibold">
+              <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
               <span>Payment required before completing order handover</span>
             </div>
           )}
@@ -1078,10 +1078,10 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
           {currentOrder.paid === "paid" && (
             <div
-              className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 flex items-start gap-2 rounded-lg border p-2.5 text-xs font-semibold"
+              className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-start gap-2 rounded-lg border p-2.5 text-xs font-semibold"
               data-testid="cancel-paid-warning"
             >
-              <AlertCircle className="text-warning-soft-foreground mt-0.5 h-4 w-4 shrink-0" />
+              <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
               <div className="flex flex-col gap-0.5">
                 <span>
                   This order was marked as paid ({formatMoney(currentOrder.totalAmount)}{" "}

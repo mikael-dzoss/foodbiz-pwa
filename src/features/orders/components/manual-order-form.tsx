@@ -402,7 +402,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <div
               role="status"
               data-testid="guest-name-update-toast"
-              className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-caption rounded-md border px-2.5 py-1.5 font-medium"
+              className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption rounded-md border px-2.5 py-1.5 font-medium"
             >
               {nameEditNotice}
             </div>
@@ -680,7 +680,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                         Out of stock
                       </span>
                     ) : product.stock <= 5 ? (
-                      <span className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-bold tabular-nums">
+                      <span className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-bold tabular-nums">
                         {product.stock} in stock (low)
                       </span>
                     ) : (
@@ -780,7 +780,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
             {/* Notes */}
             {notes.trim() && (
-              <div className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 rounded-lg border p-2.5">
+              <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-lg border p-2.5">
                 <span className="font-bold">Kitchen note:</span> {notes}
               </div>
             )}
