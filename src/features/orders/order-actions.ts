@@ -189,7 +189,7 @@ export const markPaidAndCompleteAction = defineAction(
  */
 export const lookupGuestByPhoneAction = defineAction(
   "lookupGuestByPhone",
-  { input: z.string() },
+  { input: z.string().max(30) },
   async ({ input: phone, businessId }): Promise<GuestPrefill | null> => {
     if (phone.trim().length < 3) return null;
 

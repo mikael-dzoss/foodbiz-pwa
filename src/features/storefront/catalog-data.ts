@@ -1,3 +1,4 @@
+import "server-only";
 import { cacheLife, cacheTag, updateTag, revalidatePath } from "next/cache";
 import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";

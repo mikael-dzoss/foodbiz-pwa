@@ -34,7 +34,8 @@ export const updateBusinessProfileAction = defineAction(
 
     // The slug is the public storefront address: only an owner may change it.
     const current = await repos.business.findById(businessId);
-    if (current && current.slug !== input.slug && !isOwnerRole(session.user.role)) {
+    if (!current) throw new ActionError("NOT_FOUND");
+    if (current.slug !== input.slug && !isOwnerRole(session.user.role)) {
       throw new ActionError("FORBIDDEN");
     }
 
