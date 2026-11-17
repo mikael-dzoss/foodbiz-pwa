@@ -13,6 +13,7 @@ import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import type { StorefrontProductData } from "../catalog-data";
 import { useCart } from "../context/cart-context";
 import { ProductAddOnGroup } from "./product-add-on-group";
+import { Button } from "@/components/ui/button";
 
 export interface ProductDetailViewProps {
   productData: StorefrontProductData;
@@ -258,16 +259,20 @@ export function ProductDetailView({
 
         {/* Primary Add to Cart Button */}
         {isOutOfStock ? (
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             disabled
             data-testid="product-add-button"
             className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-6 text-sm font-semibold opacity-60"
           >
             {dict.outOfStock}
-          </button>
+          </Button>
         ) : isStoreUnavailable ? (
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             disabled
             data-testid="product-add-button"
@@ -275,9 +280,11 @@ export function ProductDetailView({
           >
             <span>{unavailableShortText}</span>
             <span className="sr-only"> — {unavailableFullNotice}</span>
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={handleAddToCart}
             disabled={!canOrder || maxAddable === 0}
@@ -302,7 +309,7 @@ export function ProductDetailView({
                 </span>
               </>
             )}
-          </button>
+          </Button>
         )}
       </ActionBar>
     </div>

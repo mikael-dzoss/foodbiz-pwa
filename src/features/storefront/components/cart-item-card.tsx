@@ -6,6 +6,7 @@ import type { CartItem } from "../context/cart-context";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { Button } from "@/components/ui/button";
 
 export interface CartItemCardProps {
   item: CartItem;
@@ -58,14 +59,16 @@ export function CartItemCard({
             </p>
           </div>
 
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${item.name}`}
             className="text-muted-foreground hover:text-destructive -mt-1 -mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors active:opacity-80"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Footer Row: Line Total on Left, Quantity Stepper on Right */}

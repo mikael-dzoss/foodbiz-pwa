@@ -49,13 +49,24 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const Comp = asChild ? Slot : "button";
 
+    // `unstyled` keeps the caller's own display, shape and weight (bespoke chips, rows, tiles).
+    const shapeClasses =
+      variant === "unstyled"
+        ? ""
+        : "inline-flex items-center justify-center rounded-md font-medium";
     const baseClasses =
-      "inline-flex items-center justify-center rounded-md font-medium select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transition-all duration-150 motion-reduce:transition-none motion-reduce:active:scale-100";
+      "select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transition-all duration-150 motion-reduce:transition-none motion-reduce:active:scale-100";
 
     return (
       <Comp
         ref={ref}
-        className={cn(baseClasses, variantStyles[variant], sizeStyles[size], className)}
+        className={cn(
+          shapeClasses,
+          baseClasses,
+          variantStyles[variant],
+          sizeStyles[size],
+          className,
+        )}
         disabled={disabled || loading}
         data-testid={testId}
         {...props}

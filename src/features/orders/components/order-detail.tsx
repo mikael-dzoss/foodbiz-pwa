@@ -433,7 +433,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             {currentOrder.status}
           </Badge>
           {/* TODO(print): wire to thermal receipt printer (#48) */}
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={handlePrint}
             aria-label="Print kitchen ticket"
@@ -441,20 +443,22 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             data-testid="print-ticket-button"
           >
             <Printer className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
       {printNotice && (
         <div className="bg-primary-soft text-primary-soft-foreground flex items-center justify-between rounded-lg p-2.5 text-xs font-medium">
           <span>Kitchen ticket print job queued (mock printer).</span>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => setPrintNotice(false)}
             className="text-xs font-bold underline"
           >
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1155,7 +1159,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
           <div className="flex flex-col gap-2 py-3">
             {(["cash", "revolut", "wero"] as const).map((method) => (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 key={method}
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
@@ -1169,7 +1175,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               >
                 <span>{method}</span>
                 {selectedPaymentMethod === method && <Check className="h-4 w-4" />}
-              </button>
+              </Button>
             ))}
           </div>
 

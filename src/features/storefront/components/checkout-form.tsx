@@ -419,7 +419,9 @@ export function CheckoutForm({
               {dict.fullName} <span className="text-destructive">*</span>
             </label>
             {isNameLocked && (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={() => {
                   setIsUnlocked(true);
@@ -430,7 +432,7 @@ export function CheckoutForm({
               >
                 <Pencil className="h-3.5 w-3.5" />
                 <span>{dict.editName}</span>
-              </button>
+              </Button>
             )}
           </div>
 

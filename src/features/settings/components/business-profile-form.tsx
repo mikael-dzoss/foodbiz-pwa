@@ -204,14 +204,16 @@ export function BusinessProfileForm({
               <p className="text-body-sm text-muted-foreground mb-2">
                 PNG, JPG or WebP (square 1:1)
               </p>
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={handleLogoUploadClick}
                 className="border-border bg-card hover:bg-muted text-foreground focus-visible:ring-ring inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 <Camera className="h-4 w-4" />
                 <span>{dict.business.uploadLogo}</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -285,14 +287,16 @@ export function BusinessProfileForm({
                 className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 px-3 py-2.5 font-mono text-base focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 data-testid="input-business-slug"
               />
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={handleCopyUrl}
                 aria-label="Copy storefront URL"
                 className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
               >
                 {copied ? <Check className="text-primary h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </button>
+              </Button>
             </div>
             {slugLockedReason && (
               <p

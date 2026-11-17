@@ -67,7 +67,9 @@ export default function PatternsPage() {
 
           {/* Theme Mode Segmented Control */}
           <div className="border-border bg-muted flex items-center rounded-lg border p-1">
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => setTheme("light")}
               className={`rounded p-1.5 transition-colors ${
@@ -79,8 +81,10 @@ export default function PatternsPage() {
               data-testid="theme-light-btn"
             >
               <Sun className="h-4 w-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => setTheme("dark")}
               className={`rounded p-1.5 transition-colors ${
@@ -92,8 +96,10 @@ export default function PatternsPage() {
               data-testid="theme-dark-btn"
             >
               <Moon className="h-4 w-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => setTheme("system")}
               className={`rounded p-1.5 transition-colors ${
@@ -105,7 +111,7 @@ export default function PatternsPage() {
               data-testid="theme-system-btn"
             >
               <Laptop className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </header>

@@ -282,27 +282,33 @@ function ExpenseForm({
 
           {/* Quick increment chips */}
           <div className="flex items-center gap-2 pt-1">
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => handleQuickAddAmount(1000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
               +€10
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => handleQuickAddAmount(5000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
               +€50
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => handleQuickAddAmount(10000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
               +€100
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -382,7 +388,9 @@ function ExpenseForm({
             {STANDARD_EXPENSE_TAGS.map((tag) => {
               const isSelected = selectedTags.includes(tag);
               return (
-                <button
+                <Button
+                  variant="unstyled"
+                  size="none"
                   key={tag}
                   type="button"
                   onClick={() => handleTagToggle(tag)}
@@ -396,7 +404,7 @@ function ExpenseForm({
                 >
                   {isSelected && <Check className="h-3.5 w-3.5" />}
                   <span>{tag}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -444,7 +452,9 @@ function ExpenseForm({
           {/* Destructive delete option in edit mode */}
           {isEdit && (
             <div className="pt-2 text-center">
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={Boolean(deleteDisabledReason)}
@@ -454,7 +464,7 @@ function ExpenseForm({
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Delete this expense</span>
-              </button>
+              </Button>
               {deleteDisabledReason && (
                 <p
                   id="expense-delete-reason"

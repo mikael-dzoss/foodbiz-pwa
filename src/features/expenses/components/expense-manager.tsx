@@ -277,7 +277,9 @@ export function ExpenseManager({
 
       {/* Tag Filter Pills Row */}
       <div className="no-scrollbar flex items-center gap-2 overflow-x-auto py-1">
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           onClick={() => setSelectedTag("all")}
           className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
@@ -289,13 +291,15 @@ export function ExpenseManager({
         >
           <span>All</span>
           <span className="font-mono opacity-75">({tagCounts.all ?? 0})</span>
-        </button>
+        </Button>
 
         {STANDARD_EXPENSE_TAGS.map((tag) => {
           const isSelected = selectedTag === tag;
           const count = tagCounts[tag] ?? 0;
           return (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               key={tag}
               type="button"
               onClick={() => setSelectedTag(tag)}
@@ -308,7 +312,7 @@ export function ExpenseManager({
             >
               <span>{tag}</span>
               <span className="font-mono opacity-75">({count})</span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -346,7 +350,9 @@ export function ExpenseManager({
                 {group.expenses.map((expense) => {
                   const mainTag = expense.tags[0] ?? "Expenses";
                   return (
-                    <button
+                    <Button
+                      variant="unstyled"
+                      size="none"
                       key={expense.id}
                       type="button"
                       onClick={() => openEditSheet(expense)}
@@ -383,7 +389,7 @@ export function ExpenseManager({
                         </span>
                         <ChevronRight className="text-muted-foreground/60 h-4 w-4 shrink-0" />
                       </div>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>

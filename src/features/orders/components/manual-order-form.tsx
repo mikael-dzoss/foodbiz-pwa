@@ -389,7 +389,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               data-testid="guest-name-input"
             />
             {matchedGuest && isNameLocked && (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={handleUnlockGuestName}
                 aria-label="Edit guest name"
@@ -397,7 +399,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 className="text-muted-foreground hover:text-foreground hover:bg-muted absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-md transition-colors"
               >
                 <Pencil className="h-4 w-4" />
-              </button>
+              </Button>
             )}
           </div>
           {nameEditNotice && (
@@ -424,7 +426,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 { id: "in-person", label: "In-person", icon: Store },
               ] as const
             ).map((ch) => (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 key={ch.id}
                 type="button"
                 onClick={() => setChannel(ch.id)}
@@ -438,7 +442,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               >
                 <ch.icon className="h-3.5 w-3.5" />
                 <span>{ch.label}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -492,7 +496,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
         {/* Timing Options: ASAP vs Scheduled (2-card selector matching Stitch M-30) */}
         <div className="grid grid-cols-2 gap-2">
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => setIsAsap(true)}
             className={cn(
@@ -517,9 +523,11 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               />
             </div>
             <span className="text-muted-foreground text-caption font-medium">Est. 20-25 min</span>
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => setIsAsap(false)}
             className={cn(
@@ -546,7 +554,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <span className="text-muted-foreground text-caption font-medium">
               Select date &amp; time
             </span>
-          </button>
+          </Button>
         </div>
 
         {/* Date and Time pickers when Scheduled */}

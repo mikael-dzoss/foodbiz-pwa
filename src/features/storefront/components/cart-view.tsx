@@ -99,7 +99,9 @@ export function CartView({
           </div>
         </div>
 
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           onClick={clearCart}
           aria-label={dict.clearCart}
@@ -107,7 +109,7 @@ export function CartView({
           data-testid="clear-cart-top-button"
         >
           <Trash2 className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Minimum Order Indicator */}
@@ -141,14 +143,16 @@ export function CartView({
             </label>
             <SoonBadge label={dict.soon} data-testid="discount-soon-badge" />
           </div>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => showToast(dict.voucherUnavailableNotice)}
             className="text-primary cursor-pointer text-xs font-medium hover:underline"
             data-testid="have-voucher-button"
           >
             {dict.haveVoucher}
-          </button>
+          </Button>
         </div>
         <div className="flex gap-2">
           <Input
@@ -174,7 +178,9 @@ export function CartView({
 
       {/* Kitchen / Packing Notes Disclosure */}
       <section className="border-border bg-card overflow-hidden rounded-xl border shadow-2xs">
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           onClick={() => setIsNotesOpen((prev) => !prev)}
           aria-expanded={isNotesOpen}
@@ -191,7 +197,7 @@ export function CartView({
           ) : (
             <ChevronRight className="text-muted-foreground h-4 w-4 transition-transform" />
           )}
-        </button>
+        </Button>
 
         {isNotesOpen && (
           <div id="kitchen-notes-collapse" className="border-border/60 border-t p-3.5 pt-2">

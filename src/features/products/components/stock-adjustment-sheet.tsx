@@ -240,7 +240,9 @@ export function StockAdjustmentSheet({
             </label>
             <div className="grid grid-cols-3 gap-2">
               {REASONS.map((r) => (
-                <button
+                <Button
+                  variant="unstyled"
+                  size="none"
                   key={r}
                   type="button"
                   onClick={() => setSelectedReason(r)}
@@ -251,7 +253,7 @@ export function StockAdjustmentSheet({
                   }`}
                 >
                   {r}
-                </button>
+                </Button>
               ))}
             </div>
           </div>

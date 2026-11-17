@@ -187,14 +187,16 @@ export function CategoryManager({
           className="border-destructive/30 bg-destructive/10 text-destructive flex items-center justify-between rounded-lg border p-3.5 text-xs font-medium"
         >
           <span>{deleteError}</span>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             data-testid="dismiss-category-error"
             onClick={() => setDeleteError(null)}
             className="text-destructive/80 hover:text-destructive min-h-11 min-w-11 text-xs underline"
           >
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
@@ -305,14 +307,16 @@ export function CategoryManager({
                   role="listitem"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <button
+                    <Button
+                      variant="unstyled"
+                      size="none"
                       type="button"
                       data-testid={`reorder-category-${cat.id}`}
                       aria-label={`Reorder ${cat.name}`}
                       className="text-muted-foreground/60 hover:text-foreground -ml-1 min-h-11 min-w-11 touch-manipulation p-1"
                     >
                       <GripVertical className="h-4 w-4" />
-                    </button>
+                    </Button>
                     <div className="min-w-0">
                       <div className="text-foreground truncate text-sm font-semibold">
                         {cat.name}

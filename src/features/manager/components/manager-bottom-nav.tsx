@@ -9,6 +9,7 @@ import { QuickAddSheet } from "./quick-add-sheet";
 import { MoreMenuSheet } from "./more-menu-sheet";
 import { useOrderAlerts } from "@/features/orders";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export interface ManagerBottomNavProps {
   navDict: NavigationDictionary;
@@ -98,7 +99,9 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
           isOpen={quickAddOpen}
           onOpenChange={setQuickAddOpen}
           trigger={
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               aria-label={navDict.add}
               className="group -mt-4 flex min-h-12 min-w-12 flex-col items-center justify-center gap-1 text-xs focus-visible:outline-none"
@@ -109,7 +112,7 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
               <span className="text-muted-foreground group-hover:text-foreground">
                 {navDict.add}
               </span>
-            </button>
+            </Button>
           }
         />
 
@@ -140,7 +143,9 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
           isOpen={moreOpen}
           onOpenChange={setMoreOpen}
           trigger={
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               aria-label={navDict.more}
               className={cn(
@@ -159,7 +164,7 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
                 <MoreHorizontal className="h-5 w-5" />
               </div>
               <span>{navDict.more}</span>
-            </button>
+            </Button>
           }
         />
       </div>

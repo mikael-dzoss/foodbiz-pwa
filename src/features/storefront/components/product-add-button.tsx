@@ -5,6 +5,7 @@ import { Plus, Check } from "lucide-react";
 import type { StorefrontDictionary } from "@/domain/i18n";
 import type { StorefrontProduct } from "@/domain/storefront-product";
 import { useCart } from "../context/cart-context";
+import { Button } from "@/components/ui/button";
 
 export function ProductAddButton({
   product,
@@ -51,7 +52,9 @@ export function ProductAddButton({
   };
 
   return (
-    <button
+    <Button
+      variant="unstyled"
+      size="none"
       type="button"
       onClick={handleAdd}
       disabled={!canAdd}
@@ -72,6 +75,6 @@ export function ProductAddButton({
         <Plus className={size === "compact" ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden="true" />
       )}
       <span className="sr-only">{justAdded ? dict.addedToCart : dict.addToCart}</span>
-    </button>
+    </Button>
   );
 }

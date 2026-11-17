@@ -84,7 +84,9 @@ export function CategoryNav({
         className,
       )}
     >
-      <button
+      <Button
+        variant="unstyled"
+        size="none"
         type="button"
         onClick={() => setSheetOpen(true)}
         aria-label={menuLabel}
@@ -94,7 +96,7 @@ export function CategoryNav({
         className="border-border bg-muted/50 text-foreground hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
       >
         <List className="h-5 w-5" aria-hidden="true" />
-      </button>
+      </Button>
 
       <nav
         aria-label={menuLabel}
@@ -103,7 +105,9 @@ export function CategoryNav({
         {items.map((item) => {
           const isActive = item.id === activeId;
           return (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               key={item.id}
               ref={(node) => {
                 if (node) {
@@ -124,7 +128,7 @@ export function CategoryNav({
               )}
             >
               {item.label}
-            </button>
+            </Button>
           );
         })}
       </nav>
@@ -155,7 +159,9 @@ export function CategoryNav({
             {items.map((item) => {
               const isActive = item.id === activeId;
               return (
-                <button
+                <Button
+                  variant="unstyled"
+                  size="none"
                   key={item.id}
                   type="button"
                   onClick={() => handleSheetSelect(item.id)}
@@ -185,7 +191,7 @@ export function CategoryNav({
                       className="text-muted-foreground h-4 w-4 shrink-0"
                     />
                   )}
-                </button>
+                </Button>
               );
             })}
           </nav>

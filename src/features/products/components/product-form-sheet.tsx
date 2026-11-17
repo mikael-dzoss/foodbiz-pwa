@@ -383,7 +383,9 @@ export function ProductFormSheet({
             </legend>
             <div className="flex flex-wrap gap-2">
               {allergenSchema.options.map((allergen) => (
-                <button
+                <Button
+                  variant="unstyled"
+                  size="none"
                   key={allergen}
                   type="button"
                   aria-pressed={allergens.includes(allergen)}
@@ -399,7 +401,7 @@ export function ProductFormSheet({
                   data-testid={`product-allergen-${allergen}`}
                 >
                   {dict.allergenLabels[allergen]}
-                </button>
+                </Button>
               ))}
             </div>
             {fieldErrors.allergens && (

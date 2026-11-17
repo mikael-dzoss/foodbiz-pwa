@@ -23,6 +23,7 @@ import { signOutAction } from "@/features/auth/actions";
 import { switchLanguageAction } from "../actions";
 import { APP_METADATA } from "@/config/app";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { Button } from "@/components/ui/button";
 
 export interface AccountSettingsProps {
   session: ManagerSession;
@@ -230,13 +231,15 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
       {/* Section 4: Sign out */}
       <div className="border-border mt-8 border-t pt-6">
         <form action={signOutAction} data-testid="signout-form">
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="submit"
             className="border-destructive/30 text-destructive hover:bg-destructive/10 active:bg-destructive/20 focus-visible:ring-destructive flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <LogOut className="h-5 w-5" />
             <span>{dict.account.signOut}</span>
-          </button>
+          </Button>
         </form>
 
         <div className="text-muted-foreground mt-4 flex flex-col items-center justify-center gap-1 text-center text-xs">

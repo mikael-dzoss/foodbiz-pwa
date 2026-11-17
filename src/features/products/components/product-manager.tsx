@@ -274,14 +274,16 @@ export function ProductManager({
             data-testid="product-search-input"
           />
           {searchQuery && (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => setSearchQuery("")}
               className="text-muted-foreground hover:text-foreground absolute top-3 right-3"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -465,7 +467,9 @@ export function ProductManager({
                             -
                           </Button>
 
-                          <button
+                          <Button
+                            variant="unstyled"
+                            size="none"
                             type="button"
                             onClick={() => handleOpenStockSheet(p)}
                             aria-label={`${p.stock} - Open stock sheet for ${p.name}`}
@@ -473,7 +477,7 @@ export function ProductManager({
                             data-testid={`quick-stock-count-${p.id}`}
                           >
                             {p.stock}
-                          </button>
+                          </Button>
 
                           <Button
                             type="button"

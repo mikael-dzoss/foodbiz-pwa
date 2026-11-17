@@ -21,6 +21,7 @@ import { signOutAction } from "@/features/auth/actions";
 import { QuickAddSheet } from "./quick-add-sheet";
 import { useOrderAlerts } from "@/features/orders";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export interface ManagerSidebarProps {
   navDict: NavigationDictionary;
@@ -75,13 +76,15 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
           isOpen={quickAddOpen}
           onOpenChange={setQuickAddOpen}
           trigger={
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               className="bg-primary text-primary-foreground focus-visible:ring-ring flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium shadow-xs transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:outline-none"
             >
               <Plus className="h-4 w-4" />
               <span>{navDict.add}</span>
-            </button>
+            </Button>
           }
         />
       </div>
@@ -122,13 +125,15 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
       {/* Sign out */}
       <div className="border-border mt-auto border-t pt-4">
         <form action={signOutAction}>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="submit"
             className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span>Sign out</span>
-          </button>
+          </Button>
         </form>
       </div>
     </aside>

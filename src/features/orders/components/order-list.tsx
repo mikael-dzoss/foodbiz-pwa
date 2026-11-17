@@ -336,14 +336,16 @@ export function OrderList({
             data-testid="order-search-input"
           />
           {searchQuery && (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => setSearchQuery("")}
               className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 p-1"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
 

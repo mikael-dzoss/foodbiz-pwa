@@ -8,6 +8,7 @@ import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import type { GroupedCategory } from "../catalog-data";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
+import { Button } from "@/components/ui/button";
 
 export interface MenuSearchDialogProps {
   open: boolean;
@@ -97,7 +98,9 @@ export function MenuSearchDialog({
         <header className="border-border bg-card pt-safe-min-3 sticky top-0 z-10 border-b px-4 pb-3">
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={() => handleOpenChange(false)}
                 aria-label={dict.closeSearch}
@@ -105,7 +108,7 @@ export function MenuSearchDialog({
                 className="text-foreground hover:bg-muted focus-visible:ring-ring inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-              </button>
+              </Button>
 
               <div className="border-input bg-muted/40 focus-within:border-primary focus-within:ring-ring relative flex min-h-11 flex-1 items-center rounded-full border pr-2 pl-3.5 transition-colors focus-within:ring-2">
                 <Search
@@ -124,7 +127,9 @@ export function MenuSearchDialog({
                   className="text-foreground placeholder:text-muted-foreground h-11 w-full bg-transparent text-base focus:outline-hidden [&::-webkit-search-cancel-button]:hidden"
                 />
                 {query.length > 0 && (
-                  <button
+                  <Button
+                    variant="unstyled"
+                    size="none"
                     type="button"
                     onClick={handleClear}
                     aria-label={dict.clearSearch}
@@ -132,7 +137,7 @@ export function MenuSearchDialog({
                     className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -mr-1 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
                   >
                     <X className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

@@ -13,6 +13,7 @@ import {
   type StorefrontServiceMode,
 } from "../context/cart-context";
 import { OrderingDetailsDialog } from "./ordering-details-dialog";
+import { Button } from "@/components/ui/button";
 
 export interface ServiceToggleHeaderProps {
   isAcceptingOrders: boolean;
@@ -117,7 +118,9 @@ export function ServiceToggleHeader({
           ]}
         />
 
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           data-testid="readiness-badge"
           aria-haspopup="dialog"
@@ -129,7 +132,7 @@ export function ServiceToggleHeader({
             {dict.orderReadyTime.replace("{leadTime}", leadTimeText)}
           </span>
           <span className="sr-only">{` – ${dict.orderingDetailsOpen}`}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Row 2: Bordered 2-tile card (Service fee/address | Store status) */}
@@ -140,7 +143,9 @@ export function ServiceToggleHeader({
         className="border-border bg-card divide-border grid grid-cols-2 divide-x rounded-xl border p-1.5"
       >
         {/* Left tile */}
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           data-testid="service-info-tile"
           aria-haspopup="dialog"
@@ -172,10 +177,12 @@ export function ServiceToggleHeader({
               )}
             </>
           )}
-        </button>
+        </Button>
 
         {/* Right tile */}
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           data-testid="store-status-tile"
           aria-haspopup="dialog"
@@ -230,7 +237,7 @@ export function ServiceToggleHeader({
               <span className="sr-only">{dict.scheduledOnlyNotice}</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       <OrderingDetailsDialog

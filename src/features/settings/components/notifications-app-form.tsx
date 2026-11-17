@@ -191,7 +191,9 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               </div>
             </div>
 
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={handleInstallClick}
               data-testid="button-install-pwa"
@@ -201,7 +203,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               <span>
                 {isStandalone ? "Reinstall / Check Status" : dict.notifications.installAppButton}
               </span>
-            </button>
+            </Button>
           </div>
 
           {/* Link to About & Support */}

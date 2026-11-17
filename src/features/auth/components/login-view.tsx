@@ -4,6 +4,7 @@ import { signInMockAction, signInWithGoogleAction } from "@/features/auth/action
 import { LoginErrorBanner, LoginNextInput } from "./login-error-banner";
 import type { AuthErrorCode } from "@/domain/auth";
 import { DEFAULT_LOCALE, getDictionary, type SupportedLocale } from "@/domain/i18n";
+import { Button } from "@/components/ui/button";
 
 export interface LoginViewProps {
   error?: AuthErrorCode | string | null;
@@ -72,7 +73,9 @@ export function LoginView({
             {/* Primary Action: Continue with Google */}
             <form action={signInWithGoogleAction}>
               <LoginNextInput next={next} />
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 id="google-sign-in-btn"
                 type="submit"
                 aria-label="Continue with Google"
@@ -97,7 +100,7 @@ export function LoginView({
                   />
                 </svg>
                 <span>{dict.auth.continueWithGoogle || "Continue with Google"}</span>
-              </button>
+              </Button>
             </form>
 
             {/* M5: Demo Account & Divider ONLY rendered when showDemoAccount is true */}
@@ -115,7 +118,9 @@ export function LoginView({
 
                 {/* Secondary Action: Demo Account */}
                 <form action={signInMockAction}>
-                  <button
+                  <Button
+                    variant="unstyled"
+                    size="none"
                     id="sign-in-submit-btn"
                     type="submit"
                     aria-label="Sign in as Manager (Demo Account)"
@@ -123,7 +128,7 @@ export function LoginView({
                   >
                     <Store className="h-4.5 w-4.5" />
                     <span>Sign in as Manager (Demo Account)</span>
-                  </button>
+                  </Button>
                 </form>
               </>
             )}

@@ -8,6 +8,7 @@ import { useCartOptional } from "../context/cart-context";
 import { useMenuSearchOptional } from "../context/menu-search-context";
 import { StorefrontMenuDrawer } from "./storefront-menu-drawer";
 import { InstallAppCard } from "./install-app-card";
+import { Button } from "@/components/ui/button";
 
 export interface StorefrontHeaderProps {
   locale: SupportedLocale;
@@ -150,7 +151,9 @@ export function StorefrontHeader({
 
           {/* Contextual action: search (home), share (info), cart (product/tracking), none elsewhere */}
           {rightAction === "search" && (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               ref={menuSearch?.launcherRef}
               type="button"
               onClick={() => menuSearch?.setOpen(true)}
@@ -160,17 +163,19 @@ export function StorefrontHeader({
               className="text-foreground hover:bg-muted focus-visible:ring-ring flex h-11 w-11 items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-95 motion-reduce:transform-none"
             >
               <Search className="h-5 w-5" aria-hidden="true" />
-            </button>
+            </Button>
           )}
           {rightAction === "share" ? (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={handleShare}
               aria-label={dict.share}
               className="text-primary hover:bg-muted flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-95"
             >
               <Share2 className="h-5 w-5" />
-            </button>
+            </Button>
           ) : rightAction === "cart" ? (
             <Link
               href={`/${locale}/cart`}
