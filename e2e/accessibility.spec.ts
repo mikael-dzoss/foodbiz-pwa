@@ -60,7 +60,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         expect(response?.status()).toBe(200);
         await expect(page.getByRole("main").first()).toBeVisible();
         if (path === "/manage") {
-          await expect(page.getByTestId("manager-dashboard-view")).toBeVisible();
+          // Scoped to main: a streamed boundary that React client-rendered can leave its hidden server
+          // HTML at the end of body (see #296).
+          await expect(page.getByRole("main").getByTestId("manager-dashboard-view")).toBeVisible();
         }
         await expect(page.locator("html")).toHaveClass(
           colorScheme === "dark" ? /dark/ : /^(?!.*dark)/,
