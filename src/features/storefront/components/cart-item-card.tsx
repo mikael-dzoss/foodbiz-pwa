@@ -50,7 +50,7 @@ export function CartItemCard({
                 {item.name}
               </h3>
               {isAtMaxStock && (
-                <span className="border-border bg-muted text-muted-foreground inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium">
+                <span className="border-border bg-muted text-muted-foreground text-micro inline-flex items-center rounded border px-1.5 py-0.5 font-medium">
                   {dict.maxStockReached} ({item.maxStock})
                 </span>
               )}

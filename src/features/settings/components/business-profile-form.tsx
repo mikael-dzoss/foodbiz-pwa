@@ -168,7 +168,7 @@ export function BusinessProfileForm({
       </div>
 
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.business.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.business.description}</p>
@@ -176,7 +176,7 @@ export function BusinessProfileForm({
 
       {/* Section 1: Storefront Identity */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.business.identitySection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-5 shadow-2xs">
@@ -328,7 +328,7 @@ export function BusinessProfileForm({
 
       {/* Section 2: Contact Information */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.business.contactSection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-5 shadow-2xs">
@@ -495,7 +495,7 @@ export function BusinessProfileForm({
       <section className="mb-6" aria-labelledby="social-heading">
         <h2
           id="social-heading"
-          className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase"
+          className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase"
         >
           {dict.business.socialSection}
         </h2>
@@ -536,7 +536,7 @@ export function BusinessProfileForm({
 
       {/* Section 3: Storefront Branding (Upcoming) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.business.brandingSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-2xl border shadow-2xs">
@@ -554,7 +554,7 @@ export function BusinessProfileForm({
       </div>
 
       {/* Sticky Action Bar */}
-      <div className="border-border bg-card/95 fixed inset-x-0 bottom-0 z-30 border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur-md md:static md:bg-transparent md:p-0 md:shadow-none">
+      <div className="border-border bg-card/95 pb-safe-4 fixed inset-x-0 bottom-0 z-30 border-t p-4 shadow-lg backdrop-blur-md md:static md:bg-transparent md:p-0 md:shadow-none">
         <div className="mx-auto flex max-w-md items-center gap-3">
           <button
             type="button"

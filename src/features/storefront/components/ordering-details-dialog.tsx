@@ -61,7 +61,7 @@ export function OrderingDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-testid="ordering-details-dialog"
-        className="animate-pop-in w-[calc(100%-2rem)] max-w-sm gap-4 rounded-2xl p-5"
+        className="animate-pop-in w-screen-gutter max-w-sm gap-4 rounded-2xl p-5"
       >
         <DialogTitle className="pr-10">{dict.orderingDetailsTitle}</DialogTitle>
         <DialogDescription className="sr-only">{dict.orderingDetailsOpen}</DialogDescription>

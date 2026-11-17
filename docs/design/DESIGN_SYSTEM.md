@@ -18,14 +18,16 @@ Screen inventory and loop status: [`SCREENS.md`](SCREENS.md).
 
 Names follow shadcn/ui conventions so #28 can consume them directly. Hex values are the spec; components only use the Tailwind utilities (`bg-primary`, `text-muted-foreground`, …).
 
+There is no `danger` or `divider` token: warning icons and outlines use the solid `warning` (`text-warning`, `border-warning`), warning text stays on `warning-soft-foreground` for readability, errors use `destructive`, dividers use `border`. `npm run lint` fails on any class Tailwind does not generate (`scripts/check-tailwind-classes.mjs`), so a missing token must be added here and in `globals.css` rather than guessed.
+
 | Token                     | Light     | Dark      | Use                                   |
 | ------------------------- | --------- | --------- | ------------------------------------- |
 | `background`              | `#f9f9ff` | `#0f1417` | App background                        |
 | `foreground`              | `#171c22` | `#e5e9ee` | Body text                             |
 | `card`                    | `#ffffff` | `#171d20` | Cards, sheets, list surfaces          |
 | `card-foreground`         | `#171c22` | `#e5e9ee` | Text on cards                         |
-| `muted`                   | `#eef0f6` | `#232a2e` | Subtle fills, skeletons, "Soon" items |
-| `muted-foreground`        | `#4f5662` | `#a4adb8` | Secondary text, captions              |
+| `muted`                   | `#e4e7ef` | `#232a2e` | Subtle fills, skeletons, "Soon" items |
+| `muted-foreground`        | `#38404d` | `#a4adb8` | Secondary text, captions              |
 | `border`                  | `#dde0e8` | `#2c3439` | Dividers, card outlines (decorative)  |
 | `input`                   | `#737a86` | `#7c8692` | Form control outlines (≥ 3:1)         |
 | `ring`                    | `#006c49` | `#5cd6a3` | Focus ring (2 px, 2 px offset)        |
@@ -35,20 +37,23 @@ Names follow shadcn/ui conventions so #28 can consume them directly. Hex values 
 | `primary-soft-foreground` | `#00402a` | `#b4f1d4` | Text on primary-soft                  |
 | `secondary`               | `#855300` | `#ffb95c` | Sales highlight (legacy amber)        |
 | `secondary-foreground`    | `#ffffff` | `#462a00` | Text on secondary                     |
+| `warning`                 | `#d97706` | `#fbbf24` | Warning icons and outlines (non-text) |
+| `warning-foreground`      | `#1c1100` | `#1c1100` | Text on solid warning                 |
 | `warning-soft`            | `#fbe7cc` | `#4a3510` | PREPARING, unpaid, low stock          |
 | `warning-soft-foreground` | `#5e3a00` | `#ffddb0` | Text on warning-soft                  |
 | `info`                    | `#005ac2` | `#a9c7ff` | Links, NEW status, information        |
 | `info-foreground`         | `#ffffff` | `#002f68` | Text on info                          |
 | `destructive`             | `#ba1a1a` | `#ffb4ab` | Errors, cancel, delete                |
 | `destructive-foreground`  | `#ffffff` | `#690005` | Text on destructive                   |
+| `whatsapp`                | `#075e54` | `#075e54` | WhatsApp contact action (dark green)  |
 
 ### Contrast (WCAG 2.2 AA, computed)
 
 | Pair                                   | Light | Dark  |
 | -------------------------------------- | ----- | ----- |
 | foreground / background                | 16.34 | 15.20 |
-| muted-foreground / card                | 7.39  | 7.50  |
-| muted-foreground / muted               | 6.49  | 6.41  |
+| muted-foreground / card                | 10.45 | 7.50  |
+| muted-foreground / muted               | 8.45  | 6.41  |
 | primary-foreground / primary           | 6.48  | 7.23  |
 | primary / card (text, links)           | 6.48  | 9.41  |
 | primary-soft-foreground / primary-soft | 9.74  | 9.55  |
@@ -56,6 +61,10 @@ Names follow shadcn/ui conventions so #28 can consume them directly. Hex values 
 | info-foreground / info                 | 6.48  | 7.66  |
 | destructive-foreground / destructive   | 6.46  | 7.72  |
 | warning-soft-foreground / warning-soft | 8.36  | 8.97  |
+| warning-foreground / warning           | 5.84  | 11.14 |
+| warning / background (non-text, 3:1)   | 3.04  | 11.11 |
+| warning / card (non-text, 3:1)         | 3.19  | 10.20 |
+| white / whatsapp (button text)         | 7.67  | 7.67  |
 | input / card (non-text, 3:1)           | 4.32  | 4.61  |
 
 Re-run the check whenever a value changes; text pairs must stay ≥ 4.5:1, control outlines ≥ 3:1.
@@ -87,15 +96,43 @@ These values include a margin above AA; remeasure after token, background, or ne
 
 Inter only (`next/font`, Latin + Latin Extended), `font-feature-settings: "tnum"` via `tabular-nums` on every amount, quantity, time and KPI. Body never below 16 px on inputs (prevents iOS zoom).
 
-| Token      | Size / line | Weight | Use                          |
-| ---------- | ----------- | ------ | ---------------------------- |
-| `display`  | 32 / 40     | 600    | KPI hero value               |
-| `title-lg` | 22 / 28     | 600    | Screen title                 |
-| `title-md` | 18 / 24     | 600    | Section and card titles      |
-| `body-md`  | 16 / 24     | 400    | Body, inputs                 |
-| `body-sm`  | 14 / 20     | 400    | Secondary text, list meta    |
-| `label-md` | 14 / 20     | 500    | Buttons, tabs, form labels   |
-| `label-sm` | 12 / 16     | 500    | Badges, captions, nav labels |
+| Utility             | Size / line  | Weight | Use                          |
+| ------------------- | ------------ | ------ | ---------------------------- |
+| `text-display`      | 32 / 40      | 600    | KPI hero value               |
+| `text-title-lg`     | 22 / 28      | 600    | Screen title, settings h1    |
+| `text-title-md`     | 18 / 24      | 600    | Sheet, dialog, app-bar title |
+| `text-title-sm`     | 16 / 24      | 600    | Section titles               |
+| `text-body-md`      | 16 / 24      | 400    | Body, inputs                 |
+| `text-body-sm`      | 14 / 20      | 400    | Secondary text, list meta    |
+| `text-label-md`     | 14 / 20      | 500    | Buttons, tabs, form labels   |
+| `text-label-strong` | 13 / 18      | 600    | Compact emphasised labels    |
+| `text-label-sm`     | 12 / 16      | 500    | Badges, captions, nav labels |
+| `text-caption`      | 11 / inherit | n/a    | Dense badges and meta        |
+| `text-micro`        | 10 / inherit | n/a    | Count pills and tiny tags    |
+
+The first nine are `@utility` blocks (size, line height and weight together, so variants such as `md:text-title-lg` work); `text-caption` and `text-micro` are `--text-*` theme sizes. A composite utility sits in the utilities layer, so a later `font-*` or `leading-*` on the same element overrides its weight or line height. `src/lib/utils.ts` teaches `cn()` (tailwind-merge) all of these names.
+
+### Title roles
+
+Titles look the same on every screen: each role has one utility that carries size, line height and weight, and a title takes no `text-<size>`, `font-*` or `leading-*` override. `text-foreground`, spacing, truncation and layout classes are fine.
+
+| Role                                 | Element                        | Utility                                                        |
+| ------------------------------------ | ------------------------------ | -------------------------------------------------------------- |
+| Screen title (one per screen)        | `h1`                           | `text-title-lg`                                                |
+| Compact app-bar title                | `h1` in a sticky top bar       | `text-title-md`                                                |
+| Section title                        | `h2`                           | `text-title-sm`                                                |
+| Group label (overline above a group) | `h2`/`h3`                      | `text-label-sm uppercase tracking-wider text-muted-foreground` |
+| Sheet and dialog title               | `SheetTitle`, `DialogTitle`    | component default (`text-title-md`)                            |
+| Card and list-item title             | `h3` or the row's primary text | `text-label-md`                                                |
+
+Exceptions only where common practice calls for them, each noted next to the code: storefront marketing headings (hero, product name on its detail page) may use `text-display`, and visually hidden headings (`sr-only`). Existing screens move to these roles in slice 12.
+
+Other tokens in `globals.css`:
+
+- `--breakpoint-xs` 25 rem (400 px): `xs:` variant for narrow phones. It stays at 25 rem because below 400 px the brand name would crowd the header actions.
+- Motion: `animate-pop-in` (180 ms), `animate-fade-in` / `animate-fade-out` (150 ms); `motion-reduce:animate-none` disables them.
+- Safe areas: `pb-safe`, `pb-safe-N` (spacing N plus inset), `pb-safe-min-N` / `pt-safe-min-N` (larger of the two), `bottom-sticky-safe` (sticky bars), `w-screen-gutter` (width minus the 16 px gutters).
+- `bg-dot-grid` (map placeholder dots), `no-scrollbar`, `tabular-nums`.
 
 Letter spacing 0 except `display` (−0.01em). Max two weights per screen besides 400.
 

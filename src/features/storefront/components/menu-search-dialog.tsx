@@ -94,7 +94,7 @@ export function MenuSearchDialog({
         <DialogDescription className="sr-only">{dict.searchInitialHint}</DialogDescription>
 
         {/* Sticky Search Header (Stitch C-01d) */}
-        <header className="border-border bg-card sticky top-0 z-10 border-b px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
+        <header className="border-border bg-card pt-safe-min-3 sticky top-0 z-10 border-b px-4 pb-3">
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
             <div className="flex items-center gap-2">
               <button
@@ -147,7 +147,7 @@ export function MenuSearchDialog({
                   {results.length}{" "}
                   {results.length === 1 ? dict.searchResultSingular : dict.searchResultPlural}
                 </p>
-                <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+                <span className="text-muted-foreground text-caption font-medium tracking-wider uppercase">
                   {businessName}
                 </span>
               </div>
@@ -156,7 +156,7 @@ export function MenuSearchDialog({
         </header>
 
         {/* Search Results Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="pb-safe-min-6 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
             {!hasQuery ? (
               <div

@@ -59,7 +59,7 @@ export function QuantityStepper({
       </Button>
 
       <span
-        className="text-body-md text-foreground w-12 text-center font-semibold tabular-nums"
+        className="text-body-md text-foreground w-12 text-center tabular-nums"
         data-testid="quantity-value"
       >
         {value}

@@ -132,15 +132,13 @@ export function ProductDetailView({
       <section className="border-border/80 bg-card rounded-2xl border p-4">
         <div className="mb-2 flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-foreground font-headline text-xl leading-snug font-bold">
-              {product.name}
-            </h1>
+            <h1 className="text-foreground text-xl leading-snug font-bold">{product.name}</h1>
           </div>
           <div className="shrink-0 text-right">
-            <span className="text-primary font-headline block text-2xl font-bold tracking-tight tabular-nums">
+            <span className="text-primary block text-2xl font-bold tracking-tight tabular-nums">
               {formatMoney(product.price, locale)}
             </span>
-            <span className="text-muted-foreground block text-[11px] font-medium">
+            <span className="text-muted-foreground text-caption block font-medium">
               {dict.perPiece}
             </span>
           </div>
@@ -247,7 +245,7 @@ export function ProductDetailView({
       {/* Sticky Bottom Action Bar with Stepper & Add Button (Stitch C-02) */}
       <aside
         aria-label="Purchase actions"
-        className="border-border bg-card/95 fixed right-0 bottom-0 left-0 z-30 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg backdrop-blur-md"
+        className="border-border bg-card/95 pb-safe-min-4 fixed right-0 bottom-0 left-0 z-30 border-t p-4 shadow-lg backdrop-blur-md"
       >
         <div className="mx-auto flex max-w-4xl items-center gap-3">
           {/* Quantity Stepper */}

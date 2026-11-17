@@ -18,6 +18,8 @@
   --primary-soft-foreground: #00402a;
   --secondary: #855300;
   --secondary-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #1c1100;
   --warning-soft: #fbe7cc;
   --warning-soft-foreground: #5e3a00;
   --info: #005ac2;
@@ -47,6 +49,8 @@
   --primary-soft-foreground: #b4f1d4;
   --secondary: #ffb95c;
   --secondary-foreground: #462a00;
+  --warning: #fbbf24;
+  --warning-foreground: #1c1100;
   --warning-soft: #4a3510;
   --warning-soft-foreground: #ffddb0;
   --info: #a9c7ff;
@@ -71,6 +75,8 @@
   --color-primary-soft-foreground: var(--primary-soft-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-warning-soft-foreground: var(--warning-soft-foreground);
   --color-info: var(--info);
@@ -86,6 +92,51 @@
   --font-sans: var(--font-sans), sans-serif;
 }
 
+@theme {
+  /* WhatsApp dark green (white text 7.67:1; the brand #25d366 is ~2:1); same in both themes. */
+  --color-whatsapp: #075e54;
+
+  /* Type sizes below the label scale (badges, meta). Line height is inherited, like the former text-[11px]. */
+  --text-caption: 0.6875rem;
+  --text-micro: 0.625rem;
+
+  /* Narrow phones: 400 px and up (between the 360 px design floor and 430 px). */
+  --breakpoint-xs: 25rem;
+
+  --animate-pop-in: pop-in 180ms ease-out;
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-in;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      scale: 0.96;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
@@ -98,81 +149,105 @@ body {
   font-feature-settings: "tnum" 1;
 }
 
-.no-scrollbar {
+@utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.text-display {
+/* Type scale (DESIGN_SYSTEM.md section 3): size, line height and weight together. */
+@utility text-display {
   font-size: 2rem;
   line-height: 2.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
-.text-title-lg {
+@utility text-title-lg {
   font-size: 1.375rem;
   line-height: 1.75rem;
   font-weight: 600;
 }
 
-.text-title-md {
+@utility text-title-md {
   font-size: 1.125rem;
   line-height: 1.5rem;
   font-weight: 600;
 }
 
-.text-body-md {
+@utility text-title-sm {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+@utility text-body-md {
   font-size: 1rem;
   line-height: 1.5rem;
   font-weight: 400;
 }
 
-.text-body-sm {
+@utility text-body-sm {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 400;
 }
 
-.text-label-md {
+@utility text-label-md {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 500;
 }
 
-.text-label-strong {
+@utility text-label-strong {
   font-size: 0.8125rem;
   line-height: 1.125rem;
   font-weight: 600;
 }
 
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    scale: 0.96;
-  }
-  to {
-    opacity: 1;
-    scale: 1;
-  }
+@utility text-label-sm {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
 }
 
-.animate-pop-in {
-  animation: pop-in 180ms ease-out;
+/* Safe areas: pb-safe, pb-safe-4 (spacing + inset), pb-safe-min-4 (larger of the two); pt-safe-min-N. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pb-safe-* {
+  padding-bottom: calc(var(--spacing) * --value(number) + env(safe-area-inset-bottom));
+}
+
+@utility pb-safe-min-* {
+  padding-bottom: max(calc(var(--spacing) * --value(number)), env(safe-area-inset-bottom));
+}
+
+@utility pt-safe-min-* {
+  padding-top: max(calc(var(--spacing) * --value(number)), env(safe-area-inset-top));
+}
+
+/* Sticky bars sit 16 px above the bottom, or 8 px above the home indicator. */
+@utility bottom-sticky-safe {
+  bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+}
+
+/* Dialog/card width that keeps the 16 px screen gutter on both sides. */
+@utility w-screen-gutter {
+  width: calc(100% - 2rem);
+}
+
+@utility bg-dot-grid {
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-pop-in {
     animation: none;
   }
-}
-
-.text-label-sm {
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 500;
 }

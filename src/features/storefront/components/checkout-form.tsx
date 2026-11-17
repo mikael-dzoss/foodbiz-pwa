@@ -407,7 +407,7 @@ export function CheckoutForm({
             <span className="text-primary font-bold">1.</span>
             {dict.customerContact}
           </h2>
-          <span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-[11px] font-medium">
+          <span className="bg-primary/10 text-primary text-caption rounded px-2 py-0.5 font-medium">
             {dict.guestModeBadge}
           </span>
         </div>
@@ -560,12 +560,12 @@ export function CheckoutForm({
             <div className="min-w-0 flex-1 space-y-0.5">
               <div className="flex items-center justify-between">
                 <p className="text-foreground truncate font-semibold">{business.name}</p>
-                <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                <span className="bg-muted text-muted-foreground text-micro rounded px-1.5 py-0.5 font-bold tracking-wider uppercase">
                   {dict.inStore}
                 </span>
               </div>
               <p className="text-muted-foreground">{business.address}</p>
-              <p className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+              <p className="text-muted-foreground text-caption flex items-center gap-1.5">
                 <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
                 <span>{dict.pickupExpressNotice}</span>
               </p>
@@ -627,7 +627,7 @@ export function CheckoutForm({
                 <span className="text-foreground text-xs font-semibold">
                   {dict.asap.replace("{leadTime}", leadTimeText)}
                 </span>
-                <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold">
+                <span className="bg-primary/10 text-primary text-micro rounded px-1.5 py-0.5 font-bold">
                   {dict.recommended}
                 </span>
               </div>
@@ -670,7 +670,7 @@ export function CheckoutForm({
                   className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2"
                 >
                   <div className="space-y-1">
-                    <label htmlFor={dateId} className="text-foreground text-[11px] font-medium">
+                    <label htmlFor={dateId} className="text-foreground text-caption font-medium">
                       {dict.scheduledDate} <span className="text-destructive">*</span>
                     </label>
                     <Input
@@ -686,7 +686,7 @@ export function CheckoutForm({
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor={timeId} className="text-foreground text-[11px] font-medium">
+                    <label htmlFor={timeId} className="text-foreground text-caption font-medium">
                       {dict.scheduledTime}
                     </label>
                     <Input
@@ -754,7 +754,7 @@ export function CheckoutForm({
                     </span>
                   </div>
                   <p className="text-primary text-xs font-medium">{dict.payOnHandoverSubtext}</p>
-                  <div className="text-muted-foreground flex items-center gap-2 pt-1 text-[11px]">
+                  <div className="text-muted-foreground text-caption flex items-center gap-2 pt-1">
                     <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
                       <Banknote className="text-muted-foreground h-3 w-3" />
                       {dict.cashBadge}
@@ -804,11 +804,11 @@ export function CheckoutForm({
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground text-xs font-semibold">{dict.revolutPay}</span>
-                    <span className="border-border bg-muted text-muted-foreground py-0.2 rounded border px-1.5 text-[10px] font-medium">
+                    <span className="border-border bg-muted text-muted-foreground text-micro rounded border px-1.5 font-medium">
                       {dict.revolutSubtext}
                     </span>
                   </div>
-                  <p className="text-muted-foreground font-mono text-[11px]">
+                  <p className="text-muted-foreground text-caption font-mono">
                     @{settings?.revolutRevtag || "petiteboulangerie"}
                   </p>
                 </div>
@@ -851,11 +851,11 @@ export function CheckoutForm({
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-foreground text-xs font-semibold">{dict.weroPay}</span>
-                    <span className="border-border bg-muted text-muted-foreground py-0.2 rounded border px-1.5 text-[10px] font-medium">
+                    <span className="border-border bg-muted text-muted-foreground text-micro rounded border px-1.5 font-medium">
                       {dict.weroSubtext}
                     </span>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">{dict.weroDescription}</p>
+                  <p className="text-muted-foreground text-caption">{dict.weroDescription}</p>
                 </div>
               </div>
               <QrCode className="text-muted-foreground h-4 w-4 opacity-60" />
@@ -951,7 +951,7 @@ export function CheckoutForm({
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
       <div
         data-testid="checkout-action-bar"
-        className="border-border bg-card/95 sticky bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
+        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
         <div className="mx-auto max-w-4xl space-y-2">
           <Button
@@ -969,7 +969,7 @@ export function CheckoutForm({
             <ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
 
-          <p className="text-muted-foreground text-center text-[11px]">
+          <p className="text-muted-foreground text-caption text-center">
             🔒 {dict.pickupPolicyNotice}
           </p>
         </div>

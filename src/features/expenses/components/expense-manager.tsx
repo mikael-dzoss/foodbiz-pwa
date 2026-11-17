@@ -245,7 +245,7 @@ export function ExpenseManager({
         </div>
 
         <div className="flex items-baseline justify-between">
-          <div className="text-foreground font-tabular text-3xl font-extrabold tracking-tight">
+          <div className="text-foreground text-3xl font-extrabold tracking-tight tabular-nums">
             {formatMoney(currentTotal)}
           </div>
         </div>
@@ -273,7 +273,7 @@ export function ExpenseManager({
                 />
               ))}
             </div>
-            <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+            <div className="text-muted-foreground text-caption flex flex-wrap gap-x-3 gap-y-1">
               {categoryBreakdown.map((item) => (
                 <span key={item.tag} className="flex items-center gap-1">
                   <span
@@ -360,7 +360,7 @@ export function ExpenseManager({
               {/* Group Section Header */}
               <div className="text-muted-foreground flex items-center justify-between px-1 text-xs font-semibold tracking-wider uppercase">
                 <span data-testid={`month-header-${group.monthKey}`}>{group.monthLabel}</span>
-                <span className="font-tabular text-foreground font-medium">
+                <span className="text-foreground font-medium tabular-nums">
                   {formatMoney(group.totalAmount)}
                 </span>
               </div>
@@ -402,7 +402,7 @@ export function ExpenseManager({
 
                       {/* Right amount and chevron */}
                       <div className="flex items-center gap-1.5">
-                        <span className="text-foreground font-tabular text-sm font-semibold">
+                        <span className="text-foreground text-sm font-semibold tabular-nums">
                           {formatMoney(expense.amount)}
                         </span>
                         <ChevronRight className="text-muted-foreground/60 h-4 w-4 shrink-0" />

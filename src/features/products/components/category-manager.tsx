@@ -131,7 +131,7 @@ export function CategoryManager({
                 aria-label="New category name"
               />
             </div>
-            <p className="text-muted-foreground mt-1.5 flex items-center gap-1 text-[11px]">
+            <p className="text-muted-foreground text-caption mt-1.5 flex items-center gap-1">
               <Info className="h-3.5 w-3.5 shrink-0" />
               <span>Visible in ordering menu and kitchen tickets</span>
             </p>
@@ -326,11 +326,11 @@ export function CategoryManager({
                         </span>
                         <span className="text-muted-foreground/40">•</span>
                         {inCatalog ? (
-                          <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold">
+                          <span className="bg-primary-soft text-primary-soft-foreground text-caption inline-flex items-center rounded px-1.5 py-0.5 font-semibold">
                             In catalog
                           </span>
                         ) : (
-                          <span className="bg-destructive/10 text-destructive inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold">
+                          <span className="bg-destructive/10 text-destructive text-caption inline-flex items-center rounded px-1.5 py-0.5 font-semibold">
                             Unassigned
                           </span>
                         )}

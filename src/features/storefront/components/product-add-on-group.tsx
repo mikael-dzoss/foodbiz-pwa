@@ -40,9 +40,7 @@ export function ProductAddOnGroup({
     >
       <legend className="float-left mb-3 flex w-full items-start justify-between gap-3">
         <div>
-          <span className="text-foreground font-headline block text-base leading-snug font-bold">
-            {title}
-          </span>
+          <span className="text-foreground block text-base leading-snug font-bold">{title}</span>
           <span className="text-muted-foreground mt-0.5 block text-xs">{dict.addOnsSubtitle}</span>
         </div>
         <Badge variant="completed" data-testid="product-addons-optional-badge">

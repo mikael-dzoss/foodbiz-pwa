@@ -313,7 +313,7 @@ export function ProductManager({
               className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                 selectedFilter === "low_stock"
                   ? "bg-warning-soft text-warning-soft-foreground border-warning-soft border font-bold"
-                  : "border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 border"
+                  : "border-warning/30 bg-warning-soft/40 text-warning-soft-foreground hover:bg-warning-soft/70 border"
               }`}
             >
               Low Stock ({lowStockCount})
@@ -453,12 +453,12 @@ export function ProductManager({
                             {p.visible ? (
                               <Badge
                                 variant="outline"
-                                className="text-muted-foreground gap-1 text-[11px]"
+                                className="text-muted-foreground text-caption gap-1"
                               >
                                 <Eye className="h-3 w-3" /> Visible
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="gap-1 text-[11px]">
+                              <Badge variant="secondary" className="text-caption gap-1">
                                 <EyeOff className="h-3 w-3" /> Hidden
                               </Badge>
                             )}

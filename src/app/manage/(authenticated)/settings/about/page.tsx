@@ -34,7 +34,7 @@ export default async function AboutPage() {
       </div>
 
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.settings.about.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">

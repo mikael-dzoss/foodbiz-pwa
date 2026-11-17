@@ -95,7 +95,7 @@ export function StorefrontMenuDrawer({
           >
             {businessName.charAt(0).toUpperCase()}
           </span>
-          <SheetTitle className="text-base leading-tight">{businessName}</SheetTitle>
+          <SheetTitle>{businessName}</SheetTitle>
         </div>
         <SheetDescription className="sr-only">{dict.menuDrawerTitle}</SheetDescription>
 

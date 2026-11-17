@@ -171,7 +171,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.ordering.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.ordering.description}</p>
@@ -179,7 +179,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 1: Store Acceptance Status */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.statusSection}
         </h2>
         <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
@@ -217,7 +217,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
       {/* Section 2: Service Types */}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between px-1">
-          <h2 className="text-label-sm text-muted-foreground font-semibold tracking-wider uppercase">
+          <h2 className="text-label-sm text-muted-foreground tracking-wider uppercase">
             {dict.ordering.serviceTypesSection}
           </h2>
           <span className="text-muted-foreground text-xs font-medium">
@@ -304,7 +304,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 3: Opening Hours (Optional) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.hoursSection}
         </h2>
         <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
@@ -341,7 +341,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 4: Order Timing */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.timingSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
@@ -403,7 +403,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 5: Delivery Rules */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.deliverySection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
@@ -433,7 +433,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               />
             </div>
             {errors.deliveryFee && (
-              <p className="text-danger mt-1 text-xs">{errors.deliveryFee[0]}</p>
+              <p className="text-destructive mt-1 text-xs">{errors.deliveryFee[0]}</p>
             )}
           </div>
 
@@ -463,7 +463,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               />
             </div>
             {errors.minOrderAmount && (
-              <p className="text-danger mt-1 text-xs">{errors.minOrderAmount[0]}</p>
+              <p className="text-destructive mt-1 text-xs">{errors.minOrderAmount[0]}</p>
             )}
           </div>
         </div>
@@ -471,7 +471,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 5b: Preparation lead time (#225) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.leadTimeSection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
@@ -523,7 +523,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               </p>
             )}
             {errors.leadTimeValue && (
-              <p className="text-danger mt-1 text-xs">{errors.leadTimeValue[0]}</p>
+              <p className="text-destructive mt-1 text-xs">{errors.leadTimeValue[0]}</p>
             )}
           </fieldset>
         </div>
@@ -553,13 +553,13 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               </option>
             ))}
           </select>
-          {errors.timezone && <p className="text-danger mt-1 text-xs">{errors.timezone[0]}</p>}
+          {errors.timezone && <p className="text-destructive mt-1 text-xs">{errors.timezone[0]}</p>}
         </div>
       </div>
 
       {/* Section 6: Upcoming Capabilities */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.soonSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">

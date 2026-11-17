@@ -218,7 +218,7 @@ export function ProductFormSheet({
         data-testid="product-form-sheet"
       >
         <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
-          <SheetTitle className="text-foreground text-lg font-bold">
+          <SheetTitle className="text-foreground">
             {isEditing ? "Edit Product" : "Add Product"}
           </SheetTitle>
           <p className="text-muted-foreground text-xs font-medium">
@@ -256,7 +256,7 @@ export function ProductFormSheet({
 
               <div className="flex-1 space-y-1.5">
                 <p className="text-foreground text-xs font-semibold">Upload & compress image</p>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-caption">
                   PNG, JPG up to 5MB. Automatically resized.
                 </p>
 
@@ -296,7 +296,7 @@ export function ProductFormSheet({
               <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
                 General Information
               </span>
-              <span className="text-muted-foreground text-[11px]">* Required</span>
+              <span className="text-muted-foreground text-caption">* Required</span>
             </div>
 
             {/* Product Name */}
@@ -481,7 +481,7 @@ export function ProductFormSheet({
                 <label htmlFor="product-stock" className="text-foreground text-xs font-semibold">
                   {isEditing ? "Current Stock" : "Initial Stock"}
                 </label>
-                <p className="text-muted-foreground text-[11px]">
+                <p className="text-muted-foreground text-caption">
                   Alert threshold set at {lowStockThreshold} units
                 </p>
               </div>
@@ -525,7 +525,7 @@ export function ProductFormSheet({
           <div className="border-border bg-card flex items-center justify-between rounded-lg border p-3.5">
             <div>
               <span className="text-foreground text-xs font-semibold">Visible on menu</span>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-caption">
                 Customers can see and order this item on the storefront
               </p>
             </div>
@@ -570,7 +570,7 @@ export function ProductFormSheet({
 
           {/* Action Footer */}
           {/* TODO(design): scale down action buttons from h-12 to min-h-11 to align with Stitch mobile tokens */}
-          <div className="border-border bg-card -mx-5 -mb-4 flex items-center gap-3 border-t px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <div className="border-border bg-card pb-safe-4 -mx-5 -mb-4 flex items-center gap-3 border-t px-5 py-4">
             <Button
               type="button"
               variant="outline"

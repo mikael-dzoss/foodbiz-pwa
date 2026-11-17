@@ -90,7 +90,7 @@ export function OperationalWidgets({ triage, className, labels }: OperationalWid
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={order.status === "PREPARING" ? "preparing" : "confirmed"}
-                        className="text-[11px]"
+                        className="text-caption"
                       >
                         {order.status === "PREPARING" ? "In prep" : "New"}
                       </Badge>
@@ -195,7 +195,7 @@ export function OperationalWidgets({ triage, className, labels }: OperationalWid
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="border-destructive/40 text-destructive rounded border px-2 py-0.5 text-[11px] font-medium">
+                      <span className="border-destructive/40 text-destructive text-caption rounded border px-2 py-0.5 font-medium">
                         Restock
                       </span>
                       <ChevronRight className="text-muted-foreground h-4 w-4" />

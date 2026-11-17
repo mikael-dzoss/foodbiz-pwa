@@ -83,7 +83,7 @@ export function StorefrontHeader({
               <h1 className="text-foreground text-base leading-normal font-semibold">
                 {dict.storeInfo}
               </h1>
-              <span className="border-border bg-muted text-muted-foreground rounded border px-1.5 py-0.5 text-[11px] font-medium">
+              <span className="border-border bg-muted text-muted-foreground text-caption rounded border px-1.5 py-0.5 font-medium">
                 {dict.aboutBadge}
               </span>
             </div>
@@ -97,7 +97,7 @@ export function StorefrontHeader({
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <span className="text-foreground max-w-[170px] truncate text-base font-bold tracking-tight sm:max-w-xs">
+            <span className="text-foreground max-w-42.5 truncate text-base font-bold tracking-tight sm:max-w-xs">
               {businessName}
             </span>
           </div>
@@ -111,7 +111,7 @@ export function StorefrontHeader({
             />
             <span
               data-testid="header-brand"
-              className="text-foreground xs:max-w-[200px] max-w-[160px] truncate text-base font-bold tracking-tight sm:max-w-xs"
+              className="text-foreground xs:max-w-50 max-w-40 truncate text-base font-bold tracking-tight sm:max-w-xs"
             >
               {businessName}
             </span>
@@ -184,7 +184,7 @@ export function StorefrontHeader({
               {effectiveCartCount > 0 && (
                 <span
                   data-testid="header-cart-badge"
-                  className="bg-primary text-primary-foreground ring-card absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums shadow-xs ring-2"
+                  className="bg-primary text-primary-foreground ring-card text-micro absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 font-bold tabular-nums shadow-xs ring-2"
                 >
                   {effectiveCartCount}
                 </span>

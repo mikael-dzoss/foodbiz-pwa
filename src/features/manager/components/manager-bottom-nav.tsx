@@ -37,7 +37,7 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
   return (
     <nav
       aria-label="Manager mobile navigation"
-      className="border-border bg-card/95 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      className="border-border bg-card/95 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-md md:hidden"
     >
       <div className="flex h-16 items-center justify-around px-2">
         {/* Dashboard */}
@@ -83,7 +83,7 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
             {newOrdersCount > 0 && (
               <span
                 data-testid="orders-nav-badge"
-                className="bg-destructive text-destructive-foreground absolute -top-0.5 right-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                className="bg-destructive text-destructive-foreground text-micro absolute -top-0.5 right-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-bold"
               >
                 {newOrdersCount}
               </span>

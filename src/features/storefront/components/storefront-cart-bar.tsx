@@ -21,12 +21,12 @@ export function StorefrontCartBar({ locale, dict }: StorefrontCartBarProps) {
   const itemText = totalCount === 1 ? dict.item : dict.items;
 
   return (
-    <div className="sticky bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] z-30 mt-6 w-full">
+    <div className="bottom-sticky-safe sticky z-30 mt-6 w-full">
       <div className="border-border bg-card/95 mx-auto flex max-w-4xl items-center justify-between gap-4 rounded-xl border p-3.5 shadow-lg backdrop-blur-md dark:shadow-black/40">
         <div className="flex items-center gap-3">
           <div className="bg-primary text-primary-foreground relative flex h-10 w-10 items-center justify-center rounded-lg">
             <ShoppingCart className="h-5 w-5" />
-            <span className="bg-secondary text-secondary-foreground border-card absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[11px] font-bold tabular-nums">
+            <span className="bg-secondary text-secondary-foreground border-card text-caption absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 font-bold tabular-nums">
               {totalCount}
             </span>
           </div>

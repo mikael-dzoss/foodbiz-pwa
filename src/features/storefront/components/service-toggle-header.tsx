@@ -265,7 +265,7 @@ export function ServiceToggleHeader({
                 {`${dict.opensAt} ${openTime}`}
               </span>
               {orderTimingScheduled && (
-                <span className="text-muted-foreground mt-0.5 text-[11px] leading-snug">
+                <span className="text-muted-foreground text-caption mt-0.5 leading-snug">
                   {dict.storeClosedBanner}
                 </span>
               )}

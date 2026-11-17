@@ -12,11 +12,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  default: "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.99]",
-  secondary: "bg-primary-soft text-primary-soft-foreground hover:opacity-90 active:scale-[0.99]",
-  outline: "border border-border bg-card text-foreground hover:bg-muted active:scale-[0.99]",
-  ghost: "text-foreground hover:bg-muted active:scale-[0.99]",
-  destructive: "bg-destructive text-destructive-foreground hover:opacity-90 active:scale-[0.99]",
+  default: "bg-primary text-primary-foreground hover:opacity-90 active:scale-99",
+  secondary: "bg-primary-soft text-primary-soft-foreground hover:opacity-90 active:scale-99",
+  outline: "border border-border bg-card text-foreground hover:bg-muted active:scale-99",
+  ghost: "text-foreground hover:bg-muted active:scale-99",
+  destructive: "bg-destructive text-destructive-foreground hover:opacity-90 active:scale-99",
   link: "text-info underline-offset-4 hover:underline p-0 h-auto min-h-0 min-w-0",
 };
 

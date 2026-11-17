@@ -240,7 +240,7 @@ export function CartView({
         </div>
 
         {isBelowMinimum && (
-          <div className="border-border bg-muted/60 text-muted-foreground mt-2 flex items-center gap-2 rounded-lg border p-2 text-[11px]">
+          <div className="border-border bg-muted/60 text-muted-foreground text-caption mt-2 flex items-center gap-2 rounded-lg border p-2">
             <AlertTriangle className="text-secondary h-3.5 w-3.5 shrink-0" />
             <span>
               {dict.orderThresholdNotice.replace("{min}", formatMoney(minOrderAmount, locale))}
@@ -252,7 +252,7 @@ export function CartView({
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
       <div
         data-testid="cart-action-bar"
-        className="border-border bg-card/95 sticky bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
+        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
         <div className="mx-auto flex max-w-4xl items-center gap-3">
           <Button

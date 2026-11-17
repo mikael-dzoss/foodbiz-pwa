@@ -48,7 +48,7 @@ export function ListRow({
       <div className="flex min-w-0 items-center gap-3">
         {leading && <div className="shrink-0">{leading}</div>}
         <div className="min-w-0 flex-1">
-          <div className="text-body-md text-foreground truncate font-medium">{title}</div>
+          <div className="text-body-md text-foreground truncate">{title}</div>
           {subtitle && (
             <div className="text-body-sm text-muted-foreground truncate">{subtitle}</div>
           )}
@@ -56,9 +56,7 @@ export function ListRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {trailing && (
-          <div className="text-body-md text-foreground font-medium tabular-nums">{trailing}</div>
-        )}
+        {trailing && <div className="text-body-md text-foreground tabular-nums">{trailing}</div>}
         {showChevron && isClickable && <ChevronRight className="text-muted-foreground h-5 w-5" />}
       </div>
     </div>

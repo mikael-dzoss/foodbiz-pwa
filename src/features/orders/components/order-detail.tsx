@@ -485,7 +485,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         data-testid="guest-service-card"
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
-          <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
+          <span className="text-muted-foreground text-caption font-bold tracking-wider uppercase">
             Guest &amp; Service
           </span>
           <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold capitalize">
@@ -511,7 +511,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   <span
                     data-testid="order-submitted-name-badge"
                     title={`Ordered as ${currentOrder.submittedName}`}
-                    className="bg-warning-soft text-warning-soft-foreground border-warning/30 min-w-0 truncate rounded border px-1.5 py-0.5 text-[11px] font-medium"
+                    className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
                   >
                     Ordered as {currentOrder.submittedName}
                   </span>
@@ -524,7 +524,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             <div className="mb-3 grid grid-cols-2 gap-2">
               <a
                 href={`tel:${currentOrder.guestPhone}`}
-                className="border-border bg-card text-foreground hover:bg-muted flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all active:scale-95"
+                className="border-border bg-card text-foreground hover:bg-muted flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all active:scale-95"
                 data-testid="call-guest-button"
               >
                 <Phone className="text-primary h-4 w-4" />
@@ -535,7 +535,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="border-border bg-card text-foreground hover:bg-muted flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all active:scale-95"
+                  className="border-border bg-card text-foreground hover:bg-muted flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all active:scale-95"
                   data-testid="whatsapp-guest-button"
                 >
                   <MessageSquare className="text-primary h-4 w-4" />
@@ -664,7 +664,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         data-testid="payment-card"
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
-          <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
+          <span className="text-muted-foreground text-caption font-bold tracking-wider uppercase">
             Payment
           </span>
           {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" ? (
@@ -747,7 +747,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 onClick={() => setRefundDialogOpen(true)}
                 disabled={Boolean(refundDisabledReason)}
                 aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
-                className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-[40px] w-full gap-1.5 text-xs font-semibold"
+                className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-10 w-full gap-1.5 text-xs font-semibold"
                 data-testid="record-refund-cta"
               >
                 <CreditCard className="h-4 w-4" />
@@ -774,7 +774,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 onClick={() => setRefundDialogOpen(true)}
                 disabled={Boolean(refundDisabledReason)}
                 aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
-                className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-[36px] w-full gap-1.5 text-xs font-semibold"
+                className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-9 w-full gap-1.5 text-xs font-semibold"
                 data-testid="post-completion-refund-button"
               >
                 <CreditCard className="h-3.5 w-3.5" />
@@ -802,7 +802,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   size="sm"
                   onClick={handleMarkUnpaid}
                   disabled={isSubmitting}
-                  className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-[36px] w-full gap-1.5 text-xs font-semibold"
+                  className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-9 w-full gap-1.5 text-xs font-semibold"
                   data-testid="mark-unpaid-button"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -819,7 +819,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 setPaymentDialogMode("record");
                 setPaymentDialogOpen(true);
               }}
-              className="border-primary text-primary hover:bg-primary-soft/50 min-h-[44px] w-full gap-1.5 text-xs font-semibold"
+              className="border-primary text-primary hover:bg-primary-soft/50 min-h-11 w-full gap-1.5 text-xs font-semibold"
               data-testid="record-payment-button"
             >
               <CreditCard className="h-4 w-4" />
@@ -841,7 +841,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           </span>
         </div>
 
-        <div className="before:bg-border/60 relative space-y-4 pl-6 before:absolute before:top-2.5 before:bottom-2.5 before:left-2 before:w-[2px]">
+        <div className="before:bg-border/60 relative space-y-4 pl-6 before:absolute before:top-2.5 before:bottom-2.5 before:left-2 before:w-0.5">
           {timelineSteps.map((step, idx) => {
             return (
               <div key={idx} className="relative flex flex-col gap-0.5">
@@ -880,7 +880,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                     <span>{step.label}</span>
                     <span
                       className={cn(
-                        "ml-1 text-[10px] font-semibold uppercase",
+                        "text-micro ml-1 font-semibold uppercase",
                         step.state === "ongoing" && step.status !== "CANCELLED"
                           ? "text-warning-soft-foreground/80"
                           : "text-muted-foreground",
@@ -891,7 +891,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   </p>
                   <span
                     className={cn(
-                      "shrink-0 text-[11px] tabular-nums",
+                      "text-caption shrink-0 tabular-nums",
                       step.state === "ongoing"
                         ? step.status === "CANCELLED"
                           ? "text-destructive font-bold"
@@ -907,7 +907,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 {step.note && (
                   <p
                     className={cn(
-                      "text-[11px]",
+                      "text-caption",
                       step.state === "future"
                         ? "text-muted-foreground/75"
                         : "text-muted-foreground",
@@ -925,11 +925,11 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       {/* 5. Sticky Bottom Action Bar (Z-50, Full-width clearance) */}
       {currentOrder.status !== "COMPLETED" && currentOrder.status !== "CANCELLED" && (
         <div
-          className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-col gap-2 border-t p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur"
+          className="bg-card/95 border-border pb-safe-3.5 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-col gap-2 border-t p-3.5 shadow-lg backdrop-blur"
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
-            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-center gap-1.5 rounded-lg border p-2 text-[11px] font-semibold">
+            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption flex items-center gap-1.5 rounded-lg border p-2 font-semibold">
               <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
               <span>Payment required before completing order handover</span>
             </div>
@@ -942,7 +942,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   type="button"
                   onClick={handleAcceptOrder}
                   disabled={isSubmitting}
-                  className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
+                  className="bg-primary text-primary-foreground min-h-11 flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
                   data-testid="accept-order-button"
                 >
                   <CheckCircle2 className="h-4 w-4" />
@@ -957,7 +957,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                     setRejectDialogOpen(true);
                   }}
                   disabled={isSubmitting}
-                  className="border-destructive text-destructive hover:bg-destructive/10 min-h-[44px] gap-1 px-3.5 text-xs font-semibold active:scale-95"
+                  className="border-destructive text-destructive hover:bg-destructive/10 min-h-11 gap-1 px-3.5 text-xs font-semibold active:scale-95"
                   data-testid="reject-order-button"
                 >
                   <Ban className="h-4 w-4" />
@@ -972,7 +972,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   setPaymentDialogOpen(true);
                 }}
                 disabled={isSubmitting}
-                className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
+                className="bg-primary text-primary-foreground min-h-11 flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
                 data-testid="mark-paid-and-complete-button"
               >
                 <Check className="h-4 w-4" />
@@ -983,7 +983,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 type="button"
                 onClick={handleProgressStatus}
                 disabled={isSubmitting || (nextStep.nextStatus === "COMPLETED" && isNotPaid)}
-                className="bg-primary text-primary-foreground min-h-[44px] flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
+                className="bg-primary text-primary-foreground min-h-11 flex-1 gap-1.5 text-xs font-semibold shadow-none active:scale-95"
                 data-testid="next-status-action-button"
               >
                 <nextStep.icon className="h-4 w-4" />
@@ -997,7 +997,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 variant="outline"
                 onClick={() => setCancelDialogOpen(true)}
                 disabled={isSubmitting}
-                className="border-destructive text-destructive hover:bg-destructive/10 min-h-[44px] gap-1 px-3.5 text-xs font-semibold active:scale-95"
+                className="border-destructive text-destructive hover:bg-destructive/10 min-h-11 gap-1 px-3.5 text-xs font-semibold active:scale-95"
                 data-testid="cancel-order-button"
               >
                 <Ban className="h-4 w-4" />
@@ -1159,7 +1159,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
                 className={cn(
-                  "flex min-h-[44px] items-center justify-between rounded-lg border p-3 text-xs font-semibold capitalize transition-colors",
+                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold capitalize transition-colors",
                   selectedPaymentMethod === method
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",

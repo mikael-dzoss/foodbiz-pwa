@@ -54,7 +54,7 @@ export function InstallAppCard({ dict }: { dict: StorefrontDictionary }) {
       <Dialog open={iosHelpOpen} onOpenChange={setIosHelpOpen}>
         <DialogContent
           data-testid="install-ios-dialog"
-          className="animate-pop-in w-[calc(100%-2rem)] max-w-sm rounded-2xl p-5"
+          className="animate-pop-in w-screen-gutter max-w-sm rounded-2xl p-5"
         >
           <DialogTitle className="pr-10">{dict.installIosTitle}</DialogTitle>
           <DialogDescription className="sr-only">{dict.installAppSubtitle}</DialogDescription>

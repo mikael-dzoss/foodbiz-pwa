@@ -136,7 +136,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.payment.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.payment.description}</p>
@@ -149,7 +149,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
       >
         {/* Section 1: Direct Transfer Identifiers */}
         <div className="mb-6">
-          <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+          <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
             {dict.payment.identifiersSection}
           </h2>
           <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
@@ -208,7 +208,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
         {/* Section 2: Handover Payment Methods */}
         <div className="mb-6">
-          <h2 className="text-label-sm text-muted-foreground mb-1 px-1 font-semibold tracking-wider uppercase">
+          <h2 className="text-label-sm text-muted-foreground mb-1 px-1 tracking-wider uppercase">
             {dict.payment.methodsSection}
           </h2>
           <p className="text-body-sm text-muted-foreground mb-2 px-1">
@@ -299,7 +299,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
       {/* Section 3: Payment Instructions (Multilingual) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.payment.instructionsSection}
         </h2>
         <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
@@ -387,7 +387,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
       {/* Section 4: Upcoming Capabilities */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.payment.soonSection}
         </h2>
         <div className="border-border bg-card rounded-2xl border p-4 opacity-75 shadow-2xs">
