@@ -11,6 +11,7 @@ import {
   orderSchema,
   orderStatusEventSchema,
   manualOrderInputSchema,
+  serviceTypeSchema,
   updateOrderStatusInputSchema,
   recordRefundInputSchema,
   paidStatusSchema,
@@ -588,5 +589,50 @@ describe("Architectural boundaries", () => {
       expect(content).not.toMatch(/from\s+["']next/);
       expect(content).not.toMatch(/from\s+["']@supabase/);
     }
+  });
+});
+
+describe("order service types: read tolerance, strict input", () => {
+  const stored = {
+    id: "66666666-6666-4666-8666-666666666601",
+    businessId: "11111111-1111-4111-8111-111111111111",
+    guestId: "55555555-5555-4555-8555-555555555501",
+    channel: "in-person" as const,
+    status: "NEW" as const,
+    paid: "unpaid" as const,
+    paymentPreference: "on_handover" as const,
+    requestedDate: "2026-10-15",
+    items: [
+      {
+        productId: "33333333-3333-4333-8333-333333333301",
+        productName: "Burger",
+        quantity: 1,
+        unitPrice: 850,
+        totalPrice: 850,
+      },
+    ],
+    totalAmount: 850,
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-10-15T10:00:00.000Z",
+  };
+
+  it("reads every value of the database enum, including dine-in", () => {
+    for (const serviceType of ["pickup", "delivery", "dine-in"]) {
+      expect(orderSchema.safeParse({ ...stored, serviceType }).success).toBe(true);
+    }
+    expect(orderSchema.safeParse({ ...stored, serviceType: "drive-through" }).success).toBe(false);
+  });
+
+  it("keeps the input schemas to pickup and delivery", () => {
+    expect(serviceTypeSchema.safeParse("dine-in").success).toBe(false);
+    expect(
+      manualOrderInputSchema.safeParse({
+        guestPhone: "+33612345678",
+        guestName: "Jean Dupont",
+        serviceType: "dine-in",
+        channel: "phone",
+        items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+      }).success,
+    ).toBe(false);
   });
 });

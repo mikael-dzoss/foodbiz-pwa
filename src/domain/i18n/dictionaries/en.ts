@@ -622,6 +622,7 @@ export const enDictionary: Dictionary = {
     error: "An error occurred",
     retry: "Try again",
     back: "Back",
+    ownerOnlyNotice: "Only the shop owner can change this.",
   },
   auth: {
     continueWithGoogle: "Continue with Google",

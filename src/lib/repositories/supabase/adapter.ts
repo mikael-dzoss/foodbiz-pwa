@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { managerBusinessSummarySchema } from "@/domain/auth";
+import { managerBusinessSummarySchema, OwnerRequiredError } from "@/domain/auth";
 import {
   businessMemberRoleSchema,
   businessMemberSchema,
@@ -24,10 +24,13 @@ import {
   publicOrderSchema,
   type CancelOrderResult,
   type Order,
+  type OrderPaymentInput,
   type OrderStatus,
+  type OrderStatusTransitionInput,
   type PlaceOrderRepoInput,
   type PlacedOrderSummary,
   type PublicOrder,
+  type ReplaceOrderItemInput,
 } from "@/domain/order";
 import {
   productCategorySchema,
@@ -43,7 +46,6 @@ import type {
   CreateExpenseInput,
   CreateGuestInput,
   CreateMemberInput,
-  CreateOrderInput,
   CreateProductInput,
   ExpenseFilter,
   ExpenseRepository,
@@ -58,7 +60,6 @@ import type {
   UpdateCategoryInput,
   UpdateExpenseInput,
   UpdateGuestInput,
-  UpdateOrderInput,
   UpdateProductInput,
   UpdateSettingsInput,
   UserMembershipSummary,
@@ -337,19 +338,54 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
   return build(PLACE_ORDER_GENERIC_MESSAGE, "INTERNAL_ERROR");
 }
 
-function mapCancelOrderError(error: { code?: string; message?: string }): OrderRepoError {
+/** Fixed user-facing text per database reason prefix (allowlist); anything else gets a generic line. */
+const ORDER_INVALID_INPUT_MESSAGES: Readonly<Record<string, string>> = {
+  INVALID_STATUS_TRANSITION: "This status change is not allowed.",
+  INVALID_PAYMENT_STATE: "This payment change is not allowed for the order's current state.",
+  INVALID_ORDER_ITEMS: "Please check the order items.",
+  INVALID_ITEM_QUANTITY: "Item quantities must be whole numbers between 1 and 9999.",
+};
+
+/**
+ * Maps the order-state functions' errors (cancel_order, transition_order_status, record_order_*,
+ * mark_order_unpaid, replace_order_items) to OrderRepoError. Only the upper-case reason prefix and
+ * SQLSTATE decide; free text from unexpected database errors is never surfaced.
+ */
+function mapOrderRpcError(error: { code?: string; message?: string }, fallback: string): Error {
   const msg = error.message || "";
-  const code = error.code;
-  switch (code) {
+  const reason = /^([A-Z_]+):/.exec(msg)?.[1] ?? "";
+  if (reason === "OWNER_REQUIRED") return new OwnerRequiredError();
+  switch (error.code) {
     case "P0002":
-      return new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+      return reason === "PRODUCT_NOT_FOUND"
+        ? new OrderRepoError("Product not found", "PRODUCT_NOT_FOUND")
+        : new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    case "P0001":
+      return new OrderRepoError(
+        "Some items are no longer available in the requested quantity.",
+        "STOCK_ERROR",
+      );
+    case "P0007":
+      // Fixed text only: the database message is never forwarded.
+      return new OrderRepoError(
+        "This order can no longer be changed, please reload.",
+        "ORDER_STATE_CONFLICT",
+      );
     case "22023":
-      return new OrderRepoError(msg, "INVALID_INPUT");
+      return new OrderRepoError(
+        ORDER_INVALID_INPUT_MESSAGES[reason] ?? "Please check the order details.",
+        "INVALID_INPUT",
+      );
     case "42501":
       return new OrderRepoError("Permission denied", "UNAUTHORIZED");
     default:
-      return new OrderRepoError(msg || "Failed to cancel order", "INTERNAL_ERROR");
+      return new OrderRepoError(fallback, "INTERNAL_ERROR");
   }
+}
+
+/** Database `OWNER_REQUIRED` (trigger enforce_owner_only_columns) becomes a typed error. */
+function mapOwnerOnlyError(error: { code?: string; message?: string }): unknown {
+  return error.message?.startsWith("OWNER_REQUIRED") ? new OwnerRequiredError() : error;
 }
 
 function mapMemberRow(row: Tables<"business_members">): BusinessMember {
@@ -728,7 +764,7 @@ export function createSupabaseRepositories(
       });
 
       if (error) {
-        throw mapCancelOrderError(error);
+        throw mapOrderRpcError(error, "Failed to cancel order");
       }
 
       const res = data as {
@@ -795,153 +831,89 @@ export function createSupabaseRepositories(
       return (data ?? []).map((row) => mapOrderRow(row as OrderRowWithItems));
     },
 
-    async create(businessId: string, input: CreateOrderInput): Promise<Order> {
+    async transition(
+      businessId: string,
+      orderId: string,
+      input: OrderStatusTransitionInput,
+    ): Promise<Order> {
       const client = await getClient();
-
-      let orderNumber = input.orderNumber;
-      if (orderNumber === undefined) {
-        const { data: maxOrder, error: maxError } = await client
-          .from("orders")
-          .select("order_number")
-          .eq("business_id", businessId)
-          .order("order_number", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (maxError) throw maxError;
-        orderNumber = (maxOrder?.order_number ?? 0) + 1;
-      }
-
-      const paymentMethod =
-        input.paid !== "unpaid" ? (input.paymentMethod ?? "cash") : (input.paymentMethod ?? null);
-      const paidAt =
-        input.paid !== "unpaid"
-          ? (input.paidAt ?? new Date().toISOString())
-          : (input.paidAt ?? null);
-
-      const orderId = input.id ?? crypto.randomUUID();
-      const now = new Date().toISOString();
-      const defaultStatusHistory = [{ status: input.status, timestamp: now, note: null }];
-
-      const insertOrderData: TablesInsert<"orders"> = {
-        id: orderId,
-        business_id: businessId,
-        order_number: orderNumber,
-        guest_id: input.guestId,
-        submitted_name: input.submittedName ?? null,
-        service_type: input.serviceType,
-        channel: input.channel,
-        status: input.status,
-        paid: input.paid,
-        payment_preference: input.paymentPreference,
-        payment_method: paymentMethod,
-        paid_at: paidAt,
-        refunded_at: input.refundedAt ?? null,
-        requested_date: input.requestedDate,
-        requested_time: input.requestedTime ?? null,
-        total_amount: input.totalAmount,
-        tracking_token: input.trackingToken ?? crypto.randomUUID().replace(/-/g, ""),
-        cancellation_reason: input.cancellationReason ?? null,
-        notes: input.notes ?? null,
-        delivery_address: input.deliveryAddress ?? null,
-        status_history: (input.statusHistory ?? defaultStatusHistory) as Json,
-        created_at: now,
-        updated_at: now,
-      };
-
-      const { error: orderError } = await client.from("orders").insert(insertOrderData);
-      if (orderError) throw orderError;
-
-      const itemsToInsert: TablesInsert<"order_items">[] = input.items.map((it) => ({
-        id: it.id ?? crypto.randomUUID(),
-        order_id: orderId,
-        business_id: businessId,
-        product_id: it.productId,
-        product_name: it.productName,
-        quantity: it.quantity,
-        unit_price: it.unitPrice,
-        total_price: it.totalPrice,
-      }));
-
-      if (itemsToInsert.length > 0) {
-        const { error: itemsError } = await client.from("order_items").insert(itemsToInsert);
-        if (itemsError) throw itemsError;
-      }
-
-      const created = await orders.findById(businessId, orderId);
-      if (!created) throw new Error(`Created order ${orderId} could not be retrieved`);
-      return created;
+      const { error } = await client.rpc("transition_order_status", {
+        p_business_id: businessId,
+        p_order_id: orderId,
+        p_expected_status: input.expectedStatus,
+        p_new_status: input.nextStatus,
+        p_reason: input.reason ?? undefined,
+      });
+      if (error) throw mapOrderRpcError(error, "Failed to update order status");
+      return refetchOrder(businessId, orderId);
     },
 
-    async update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order> {
+    async recordPayment(
+      businessId: string,
+      orderId: string,
+      input: OrderPaymentInput,
+    ): Promise<Order> {
       const client = await getClient();
-      const updateData: TablesUpdate<"orders"> = {};
-      if (input.orderNumber !== undefined) updateData.order_number = input.orderNumber;
-      if (input.guestId !== undefined) updateData.guest_id = input.guestId;
-      if (input.submittedName !== undefined) updateData.submitted_name = input.submittedName;
-      if (input.serviceType !== undefined) updateData.service_type = input.serviceType;
-      if (input.channel !== undefined) updateData.channel = input.channel;
-      if (input.status !== undefined) updateData.status = input.status;
-      if (input.paid !== undefined) updateData.paid = input.paid;
-      if (input.paymentPreference !== undefined)
-        updateData.payment_preference = input.paymentPreference;
-      if (input.paymentMethod !== undefined) updateData.payment_method = input.paymentMethod;
-      if (input.paidAt !== undefined) updateData.paid_at = input.paidAt;
-      if (input.refundedAt !== undefined) updateData.refunded_at = input.refundedAt;
-      if (input.requestedDate !== undefined) updateData.requested_date = input.requestedDate;
-      if (input.requestedTime !== undefined) updateData.requested_time = input.requestedTime;
-      if (input.totalAmount !== undefined) updateData.total_amount = input.totalAmount;
-      if (input.trackingToken !== undefined) updateData.tracking_token = input.trackingToken;
-      if (input.cancellationReason !== undefined)
-        updateData.cancellation_reason = input.cancellationReason;
-      if (input.notes !== undefined) updateData.notes = input.notes;
-      if (input.deliveryAddress !== undefined) updateData.delivery_address = input.deliveryAddress;
-      if (input.statusHistory !== undefined)
-        updateData.status_history = input.statusHistory as Json;
+      const { error } = await client.rpc("record_order_payment", {
+        p_business_id: businessId,
+        p_order_id: orderId,
+        p_payment_method: input.paymentMethod,
+        p_and_complete: input.markCompleted ?? false,
+      });
+      if (error) throw mapOrderRpcError(error, "Failed to record payment");
+      return refetchOrder(businessId, orderId);
+    },
 
-      if (input.paid && input.paid !== "unpaid") {
-        if (updateData.payment_method === undefined) {
-          updateData.payment_method = input.paymentMethod ?? "cash";
-        }
-        if (updateData.paid_at === undefined) {
-          updateData.paid_at = input.paidAt ?? new Date().toISOString();
-        }
-      }
+    async markUnpaid(businessId: string, orderId: string): Promise<Order> {
+      const client = await getClient();
+      const { error } = await client.rpc("mark_order_unpaid", {
+        p_business_id: businessId,
+        p_order_id: orderId,
+      });
+      if (error) throw mapOrderRpcError(error, "Failed to mark order as unpaid");
+      return refetchOrder(businessId, orderId);
+    },
 
-      const { data: updatedOrder, error: orderError } = await client
-        .from("orders")
-        .update(updateData)
-        .eq("business_id", businessId)
-        .eq("id", id)
-        .select()
-        .maybeSingle();
+    async recordRefund(
+      businessId: string,
+      orderId: string,
+      reason?: string | null,
+    ): Promise<Order> {
+      const client = await getClient();
+      const { error } = await client.rpc("record_order_refund", {
+        p_business_id: businessId,
+        p_order_id: orderId,
+        p_reason: reason ?? undefined,
+      });
+      if (error?.code === "42501") throw new OwnerRequiredError();
+      if (error) throw mapOrderRpcError(error, "Failed to record refund");
+      return refetchOrder(businessId, orderId);
+    },
 
-      if (orderError) throw orderError;
-      if (!updatedOrder) throw new Error(`Order ${id} not found`);
-
-      if (input.items !== undefined) {
-        const itemsToInsert = input.items.map((it) => ({
-          id: it.id ?? crypto.randomUUID(),
-          order_id: id,
-          business_id: businessId,
+    async replaceItems(
+      businessId: string,
+      orderId: string,
+      items: readonly ReplaceOrderItemInput[],
+    ): Promise<Order> {
+      const client = await getClient();
+      // Only product and quantity cross the wire: names and prices are read server-side.
+      const { error } = await client.rpc("replace_order_items", {
+        p_business_id: businessId,
+        p_order_id: orderId,
+        p_items: items.map((it) => ({
           product_id: it.productId,
-          product_name: it.productName,
           quantity: it.quantity,
-          unit_price: it.unitPrice,
-          total_price: it.totalPrice,
-        }));
-        const { error: replaceError } = await client.rpc("replace_order_items", {
-          p_business_id: businessId,
-          p_order_id: id,
-          p_items: itemsToInsert as unknown as Json,
-        });
-        if (replaceError) throw replaceError;
-      }
-
-      const fetched = await orders.findById(businessId, id);
-      if (!fetched) throw new Error(`Order ${id} not found`);
-      return fetched;
+        })) as unknown as Json,
+      });
+      if (error) throw mapOrderRpcError(error, "Failed to update order items");
+      return refetchOrder(businessId, orderId);
     },
+  };
+
+  const refetchOrder = async (businessId: string, orderId: string): Promise<Order> => {
+    const fetched = await orders.findById(businessId, orderId);
+    if (!fetched) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    return fetched;
   };
 
   const guests: GuestRepository = {
@@ -1161,7 +1133,11 @@ export function createSupabaseRepositories(
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error(`Expense ${id} not found`);
+      if (!data) {
+        // RLS hides the row from a delete by a non-owner: tell "not allowed" from "not there".
+        if (await expenses.findById(businessId, id)) throw new OwnerRequiredError();
+        throw new Error(`Expense ${id} not found`);
+      }
     },
   };
 
@@ -1249,7 +1225,7 @@ export function createSupabaseRepositories(
         .select()
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) throw mapOwnerOnlyError(error);
       if (!data) throw new Error(`Business ${id} not found`);
       return mapBusinessRow(data);
     },
@@ -1309,7 +1285,7 @@ export function createSupabaseRepositories(
         .select()
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) throw mapOwnerOnlyError(error);
       if (!data) throw new Error(`Settings for business ${businessId} not found`);
       return mapSettingsRow(data);
     },

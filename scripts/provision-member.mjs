@@ -64,7 +64,7 @@ export function checkProvisionEnv(env = process.env) {
  *   --business-id <uuid>   | --business-id=<uuid>
  *   --email <email>        | --email=<email>
  *   --user-id <uuid>       | --user-id=<uuid>
- *   --role <role>          | --role=<role> (default: manager)
+ *   --role <role>          | --role=<role> (default: owner for the first member of a business, else manager)
  *   --yes                  | --yes=true
  *   --force                | --force=true
  * @param {string[]} [argv=[]]
@@ -72,7 +72,9 @@ export function checkProvisionEnv(env = process.env) {
  */
 export function parseProvisionArgs(argv = []) {
   const options = {
-    role: "manager",
+    // Left unset on purpose: the first member of a business becomes its owner (see
+    // provisionBusinessMember), later ones managers.
+    role: undefined,
     yes: false,
     force: false,
   };
@@ -108,7 +110,7 @@ export function parseProvisionArgs(argv = []) {
   }
 
   // L7: Validation of role
-  if (!options.role || !ALLOWED_ROLES.includes(options.role)) {
+  if (options.role !== undefined && !ALLOWED_ROLES.includes(options.role)) {
     throw new Error(`Invalid role "${options.role}". Allowed roles: ${ALLOWED_ROLES.join(", ")}`);
   }
 
@@ -153,9 +155,8 @@ export async function provisionBusinessMember(client, options = {}) {
     throw new Error("Supabase client is required");
   }
 
-  const role = options.role ?? "manager";
-  if (!ALLOWED_ROLES.includes(role)) {
-    throw new Error(`Invalid role "${role}". Allowed roles: ${ALLOWED_ROLES.join(", ")}`);
+  if (options.role !== undefined && !ALLOWED_ROLES.includes(options.role)) {
+    throw new Error(`Invalid role "${options.role}". Allowed roles: ${ALLOWED_ROLES.join(", ")}`);
   }
 
   // H8: Production safety guard for non-local host targets
@@ -255,6 +256,23 @@ export async function provisionBusinessMember(client, options = {}) {
     throw new Error("Exactly one of --email or --user-id must be specified");
   }
 
+  // Default role: the first member of a business is its owner (nobody is locked out of the
+  // owner-only settings); later members are managers. An explicit --role always wins.
+  let role = options.role;
+  if (role === undefined) {
+    const { data: owners, error: ownersError } = await client
+      .from("business_members")
+      .select("user_id")
+      .eq("business_id", business.id)
+      .eq("role", "owner");
+    if (ownersError) {
+      throw new Error(`Failed to query business owners: ${ownersError.message}`);
+    }
+    const hasOwner = (owners ?? []).length > 0;
+    const isOwner = (owners ?? []).some((o) => o.user_id === userId);
+    role = !hasOwner || isOwner ? "owner" : "manager";
+  }
+
   // H8: Check existing membership role change guard
   const { data: existingMember, error: queryMemberError } = await client
     .from("business_members")
@@ -278,19 +296,29 @@ export async function provisionBusinessMember(client, options = {}) {
     `Provisioning member: host=${targetHost}, business=${business.slug} (${business.id}), user=${userIdentifier} (${userId}), role=${role}`,
   );
 
-  // 3. Upsert into public.business_members idempotently
-  const { data: member, error: upsertError } = await client
-    .from("business_members")
-    .upsert(
-      {
-        business_id: business.id,
-        user_id: userId,
-        role,
-      },
-      { onConflict: "business_id,user_id" },
-    )
-    .select()
-    .single();
+  // 3. Upsert into public.business_members idempotently. A business has exactly one owner (unique
+  // index): if a concurrent run took the owner slot (23505), an implicit role falls back to
+  // manager; an explicit --role owner fails with a clear message.
+  const upsertMember = (memberRole) =>
+    client
+      .from("business_members")
+      .upsert(
+        { business_id: business.id, user_id: userId, role: memberRole },
+        { onConflict: "business_id,user_id" },
+      )
+      .select()
+      .single();
+
+  let { data: member, error: upsertError } = await upsertMember(role);
+  if (upsertError?.code === "23505" && role === "owner") {
+    if (options.role !== undefined) {
+      throw new Error(
+        `Business "${business.slug}" already has an owner; cannot provision a second one.`,
+      );
+    }
+    role = "manager";
+    ({ data: member, error: upsertError } = await upsertMember(role));
+  }
 
   if (upsertError) {
     throw new Error(`Failed to provision business member: ${upsertError.message}`);

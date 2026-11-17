@@ -1,4 +1,6 @@
-import type { Business, BusinessMember } from "@/domain/business";
+import { isOwnerRole, OwnerRequiredError } from "@/domain/auth";
+import type { Business, BusinessMember, BusinessMemberRole } from "@/domain/business";
+import { validateOrderTransition } from "@/domain/order-lifecycle";
 import { sumOrderProductQuantities } from "@/domain/featured";
 import type { Expense } from "@/domain/expense";
 import {
@@ -13,6 +15,7 @@ import {
   OrderRepoError,
   type CancelOrderResult,
   type Order,
+  type OrderStatus,
   type PlacedOrderSummary,
 } from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
@@ -40,6 +43,8 @@ import { createDefaultFixtures, type MockFixtures } from "./fixtures";
 
 export interface MockRepositories extends Repositories {
   reset(customFixtures?: MockFixtures): void;
+  /** The same data seen by a member with another role (owner-only rules apply to it). */
+  withRole(role: BusinessMemberRole): Repositories;
 }
 
 function findIndexOrThrow<T>(list: readonly T[], pred: (item: T) => boolean, msg: string): number {
@@ -48,9 +53,39 @@ function findIndexOrThrow<T>(list: readonly T[], pred: (item: T) => boolean, msg
   return idx;
 }
 
+export interface MockRepositoryOptions {
+  /** Role of the acting member; mirrors the database's owner-only rules. Defaults to owner. */
+  readonly actingRole?: BusinessMemberRole;
+}
+
+/** Settings columns only an owner may change (mirrors enforce_owner_only_columns in the database). */
+const OWNER_ONLY_SETTINGS_KEYS = [
+  "revolutRevtag",
+  "weroIdentifier",
+  "paymentMethods",
+  "paymentInstructionsEn",
+  "paymentInstructionsFr",
+] as const;
+
 export function createMockRepositories(
   initialFixtures: MockFixtures = createDefaultFixtures(),
+  options: MockRepositoryOptions = {},
 ): MockRepositories {
+  let actingRole = options.actingRole ?? "owner";
+  const requireOwner = (): void => {
+    if (!isOwnerRole(actingRole)) throw new OwnerRequiredError();
+  };
+  // The role is only read synchronously at the start of the guarded methods, so switching it around
+  // the call (not the awaited work) is enough.
+  const runAs = <T>(role: BusinessMemberRole, call: () => Promise<T>): Promise<T> => {
+    const previous = actingRole;
+    actingRole = role;
+    try {
+      return call();
+    } finally {
+      actingRole = previous;
+    }
+  };
   let fixtures: MockFixtures = structuredClone(initialFixtures);
   // Mirrors the database-side guards of place_order / storefront_order_tracking_token so the
   // shared contract suites behave the same on mock and live: idempotent replay, and attempt
@@ -184,6 +219,47 @@ export function createMockRepositories(
         return guest.phone === targetPhone;
       }
     });
+  };
+
+  const requireOrder = (bId: string, id: string): Order => {
+    const order = fixtures.orders.find((o) => o.businessId === bId && o.id === id);
+    if (!order) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    return order;
+  };
+
+  // Mirrors apply_order_transition: transition table, reason and payment rules, stock restore on
+  // cancellation and the history entry, all in one step.
+  const applyTransition = (
+    order: Order,
+    nextStatus: OrderStatus,
+    reason: string | null,
+    requireReason: boolean,
+  ): void => {
+    const trimmed = reason?.trim() || null;
+    const validation = validateOrderTransition({
+      currentStatus: order.status,
+      nextStatus,
+      paid: order.paid,
+      reason: requireReason ? trimmed : (trimmed ?? "n/a"),
+    });
+    if (!validation.ok) throw new OrderRepoError(validation.error, "INVALID_INPUT");
+
+    const now = new Date().toISOString();
+    if (nextStatus === "CANCELLED") {
+      for (const item of order.items) {
+        const prod = fixtures.products.find(
+          (p) => p.businessId === order.businessId && p.id === item.productId,
+        );
+        if (prod) prod.stock += item.quantity;
+      }
+      order.cancellationReason = trimmed ?? order.cancellationReason ?? null;
+    }
+    order.status = nextStatus;
+    order.statusHistory = [
+      ...(order.statusHistory ?? []),
+      { status: nextStatus, timestamp: now, note: trimmed },
+    ];
+    order.updatedAt = now;
   };
 
   const orders: OrderRepository = {
@@ -400,40 +476,174 @@ export function createMockRepositories(
     },
 
     async cancel(bId: string, orderId: string, reason?: string | null): Promise<CancelOrderResult> {
-      const order = fixtures.orders.find((o) => o.businessId === bId && o.id === orderId);
-      if (!order) {
-        throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
-      }
-      if (order.status === "COMPLETED" || order.status === "CANCELLED") {
-        throw new OrderRepoError(`Cannot cancel order in status ${order.status}`, "INVALID_INPUT");
-      }
-
-      // Restore stock
-      for (const item of order.items) {
-        const prod = fixtures.products.find((p) => p.businessId === bId && p.id === item.productId);
-        if (prod) {
-          prod.stock += item.quantity;
-        }
-      }
-
-      const now = new Date().toISOString();
-      const history = [
-        ...(order.statusHistory ?? [
-          { status: order.status, timestamp: order.createdAt, note: null },
-        ]),
-        { status: "CANCELLED" as const, timestamp: now, note: reason ?? null },
-      ];
-
-      order.status = "CANCELLED";
-      order.cancellationReason = reason ?? order.cancellationReason;
-      order.statusHistory = history;
-      order.updatedAt = now;
-
+      const order = requireOrder(bId, orderId);
+      // Same contract as cancel_order: no reason required, no expected status.
+      applyTransition(order, "CANCELLED", reason ?? null, false);
       return {
         orderId: order.id,
         status: "CANCELLED",
         cancellationReason: order.cancellationReason,
       };
+    },
+    async transition(bId, orderId, input) {
+      const order = requireOrder(bId, orderId);
+      if (order.status !== input.expectedStatus) {
+        throw new OrderRepoError(
+          `ORDER_STATE_CONFLICT: expected status ${input.expectedStatus} but the order is ${order.status}`,
+          "ORDER_STATE_CONFLICT",
+        );
+      }
+      applyTransition(order, input.nextStatus, input.reason ?? null, true);
+      return structuredClone(order);
+    },
+    async recordPayment(bId, orderId, input) {
+      const order = requireOrder(bId, orderId);
+      if (order.status === "CANCELLED") {
+        throw new OrderRepoError(
+          "Payment cannot be recorded for a cancelled order.",
+          "INVALID_INPUT",
+        );
+      }
+      if (order.paid === "refunded") {
+        throw new OrderRepoError(
+          "Payment cannot be recorded for a refunded order.",
+          "INVALID_INPUT",
+        );
+      }
+      if (order.paid === "paid") {
+        throw new OrderRepoError("This order is already paid.", "INVALID_INPUT");
+      }
+      const now = new Date().toISOString();
+      if (input.markCompleted) {
+        if (order.status !== "READY") {
+          throw new OrderRepoError(
+            `ORDER_STATE_CONFLICT: order must be READY to mark paid and complete (it is ${order.status})`,
+            "ORDER_STATE_CONFLICT",
+          );
+        }
+        order.status = "COMPLETED";
+        order.statusHistory = [
+          ...(order.statusHistory ?? []),
+          {
+            status: "COMPLETED",
+            timestamp: now,
+            note: `Paid via ${input.paymentMethod} and completed`,
+          },
+        ];
+      }
+      order.paid = "paid";
+      order.paymentMethod = input.paymentMethod;
+      order.paidAt = now;
+      order.updatedAt = now;
+      return structuredClone(order);
+    },
+    async markUnpaid(bId, orderId) {
+      const order = requireOrder(bId, orderId);
+      if (order.status === "COMPLETED") {
+        throw new OrderRepoError("Cannot mark a completed order as unpaid.", "INVALID_INPUT");
+      }
+      if (order.paid === "refunded") {
+        throw new OrderRepoError("Cannot mark a refunded order as unpaid.", "INVALID_INPUT");
+      }
+      if (order.paid === "unpaid") {
+        throw new OrderRepoError("Order is already marked as unpaid.", "INVALID_INPUT");
+      }
+      const now = new Date().toISOString();
+      order.paid = "unpaid";
+      order.paymentMethod = null;
+      order.paidAt = null;
+      order.statusHistory = [
+        ...(order.statusHistory ?? []),
+        { status: order.status, timestamp: now, note: "Payment marked as unpaid (undone)" },
+      ];
+      order.updatedAt = now;
+      return structuredClone(order);
+    },
+    async recordRefund(bId, orderId, reason) {
+      requireOwner();
+      const order = requireOrder(bId, orderId);
+      if (order.paid === "refunded") {
+        throw new OrderRepoError("Order is already marked as refunded.", "INVALID_INPUT");
+      }
+      if (order.paid === "unpaid") {
+        throw new OrderRepoError("Cannot refund an unpaid order.", "INVALID_INPUT");
+      }
+      const now = new Date().toISOString();
+      const trimmed = reason?.trim();
+      order.paid = "refunded";
+      order.refundedAt = now;
+      order.statusHistory = [
+        ...(order.statusHistory ?? []),
+        {
+          status: order.status,
+          timestamp: now,
+          note: trimmed ? `Refund recorded: ${trimmed}` : "Refund recorded",
+        },
+      ];
+      order.updatedAt = now;
+      return structuredClone(order);
+    },
+    async replaceItems(bId, orderId, items) {
+      const order = requireOrder(bId, orderId);
+      if (
+        order.status === "COMPLETED" ||
+        order.status === "CANCELLED" ||
+        order.paid === "paid" ||
+        order.paid === "refunded"
+      ) {
+        throw new OrderRepoError(
+          `ORDER_STATE_CONFLICT: order items cannot be changed once the order is ${order.status} (paid: ${order.paid})`,
+          "ORDER_STATE_CONFLICT",
+        );
+      }
+      if (items.length === 0) {
+        throw new OrderRepoError("An order needs at least one item.", "INVALID_INPUT");
+      }
+      const wanted = new Map<string, number>();
+      for (const it of items) {
+        wanted.set(it.productId, (wanted.get(it.productId) ?? 0) + it.quantity);
+      }
+      const current = new Map<string, Order["items"][number]>();
+      for (const it of order.items) current.set(it.productId, it);
+
+      // Validate everything before mutating: unknown product, then stock for the delta.
+      for (const [productId, quantity] of wanted) {
+        const product = fixtures.products.find((p) => p.businessId === bId && p.id === productId);
+        if (!product) throw new OrderRepoError("Product not found.", "PRODUCT_NOT_FOUND");
+        const delta = quantity - (current.get(productId)?.quantity ?? 0);
+        if (delta > product.stock) {
+          throw new OrderRepoError(`Insufficient stock for product ${product.name}`, "STOCK_ERROR");
+        }
+      }
+
+      for (const productId of new Set([...wanted.keys(), ...current.keys()])) {
+        const product = fixtures.products.find((p) => p.businessId === bId && p.id === productId);
+        if (!product) continue;
+        product.stock -= (wanted.get(productId) ?? 0) - (current.get(productId)?.quantity ?? 0);
+      }
+
+      let subtotal = 0;
+      const nextItems = [...wanted].map(([productId, quantity]) => {
+        const existing = current.get(productId);
+        const product = fixtures.products.find((p) => p.id === productId)!;
+        const unitPrice = existing?.unitPrice ?? product.price;
+        const totalPrice = unitPrice * quantity;
+        subtotal += totalPrice;
+        return {
+          id: crypto.randomUUID(),
+          productId,
+          productName: existing?.productName ?? product.name,
+          quantity,
+          unitPrice,
+          totalPrice,
+        };
+      });
+      const deliveryFee =
+        order.serviceType === "delivery" ? Math.max(0, fixtures.settings.deliveryFee ?? 0) : 0;
+      order.items = nextItems;
+      order.totalAmount = subtotal + deliveryFee;
+      order.updatedAt = new Date().toISOString();
+      return structuredClone(order);
     },
     async findTrackingTokenByTicketAndPhone(bId, orderNumber, phone) {
       // Same contract as storefront_order_tracking_token: failed lookups are counted per
@@ -458,51 +668,6 @@ export function createMockRepositories(
       if (filter?.fromDate) res = res.filter((o) => o.requestedDate >= filter.fromDate!);
       if (filter?.toDate) res = res.filter((o) => o.requestedDate <= filter.toDate!);
       return structuredClone(res);
-    },
-    async create(bId, input) {
-      const now = new Date().toISOString();
-      const nextOrderNumber =
-        input.orderNumber ??
-        fixtures.orders.reduce((max, o) => Math.max(max, o.orderNumber ?? 0), 0) + 1;
-      const o: Order = {
-        id: input.id ?? crypto.randomUUID(),
-        businessId: bId,
-        orderNumber: nextOrderNumber,
-        guestId: input.guestId,
-        submittedName: input.submittedName ?? null,
-        serviceType: input.serviceType,
-        channel: input.channel,
-        status: input.status,
-        paid: input.paid,
-        paymentPreference: input.paymentPreference,
-        paymentMethod: input.paymentMethod ?? null,
-        paidAt: input.paidAt ?? null,
-        requestedDate: input.requestedDate,
-        requestedTime: input.requestedTime ?? null,
-        items: input.items.map((it) => ({ ...it, id: it.id ?? crypto.randomUUID() })),
-        totalAmount: input.totalAmount,
-        trackingToken: input.trackingToken ?? crypto.randomUUID().replace(/-/g, ""),
-        cancellationReason: input.cancellationReason ?? null,
-        notes: input.notes ?? null,
-        deliveryAddress: input.deliveryAddress ?? null,
-        statusHistory: input.statusHistory ?? [
-          { status: input.status, timestamp: now, note: null },
-        ],
-        createdAt: now,
-        updatedAt: now,
-      };
-      fixtures.orders.push(o);
-      return structuredClone(o);
-    },
-    async update(bId, id, input) {
-      const idx = findIndexOrThrow(
-        fixtures.orders,
-        (o) => o.businessId === bId && o.id === id,
-        `Order ${id} not found`,
-      );
-      const updated = { ...fixtures.orders[idx], ...input, updatedAt: new Date().toISOString() };
-      fixtures.orders[idx] = updated;
-      return structuredClone(updated);
     },
   };
 
@@ -609,6 +774,7 @@ export function createMockRepositories(
       return structuredClone(updated);
     },
     async delete(bId, id) {
+      requireOwner();
       const idx = findIndexOrThrow(
         fixtures.expenses,
         (e) => e.businessId === bId && e.id === id,
@@ -651,6 +817,7 @@ export function createMockRepositories(
     },
     async update(id, input) {
       if (fixtures.business.id !== id) throw new Error(`Business ${id} not found`);
+      if (input.slug !== undefined && input.slug !== fixtures.business.slug) requireOwner();
       fixtures.business = { ...fixtures.business, ...input, updatedAt: new Date().toISOString() };
       return structuredClone(fixtures.business);
     },
@@ -660,6 +827,12 @@ export function createMockRepositories(
     async updateSettings(bId, input) {
       if (fixtures.settings.businessId !== bId)
         throw new Error(`Settings for business ${bId} not found`);
+      const touchesOwnerOnly = OWNER_ONLY_SETTINGS_KEYS.some(
+        (key) =>
+          input[key] !== undefined &&
+          JSON.stringify(input[key]) !== JSON.stringify(fixtures.settings[key]),
+      );
+      if (touchesOwnerOnly) requireOwner();
       fixtures.settings = { ...fixtures.settings, ...input };
       return structuredClone(fixtures.settings);
     },
@@ -738,7 +911,24 @@ export function createMockRepositories(
     },
   };
 
-  return { products, categories, orders, guests, expenses, business, members, reset };
+  const withRole = (role: BusinessMemberRole): Repositories => ({
+    products,
+    categories,
+    orders: {
+      ...orders,
+      recordRefund: (bId, id, reason) => runAs(role, () => orders.recordRefund(bId, id, reason)),
+    },
+    guests,
+    members,
+    expenses: { ...expenses, delete: (bId, id) => runAs(role, () => expenses.delete(bId, id)) },
+    business: {
+      ...business,
+      update: (id, input) => runAs(role, () => business.update(id, input)),
+      updateSettings: (bId, input) => runAs(role, () => business.updateSettings(bId, input)),
+    },
+  });
+
+  return { products, categories, orders, guests, expenses, business, members, reset, withRole };
 }
 
 let singletonInstance: MockRepositories | null = null;

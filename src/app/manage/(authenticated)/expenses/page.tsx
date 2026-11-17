@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
+import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
+import { isOwnerRole } from "@/domain/auth";
 import { listExpensesAction } from "@/features/expenses";
 import { ExpenseManager } from "@/features/expenses/components";
 import { APP_METADATA } from "@/config/app";
@@ -16,7 +18,8 @@ interface ExpensesPageProps {
 }
 
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
-  await requireManagerSession();
+  const session = await requireManagerSession();
+  const dict = getDictionary(DEFAULT_LOCALE);
   const params = searchParams ? await searchParams : undefined;
   const res = await listExpensesAction();
 
@@ -24,7 +27,13 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <ExpenseManager initialExpenses={expenses} initialAction={params?.action} />
+      <ExpenseManager
+        initialExpenses={expenses}
+        initialAction={params?.action}
+        deleteDisabledReason={
+          isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice
+        }
+      />
     </div>
   );
 }

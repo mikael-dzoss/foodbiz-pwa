@@ -39,6 +39,14 @@ A web app for small, part-time food business owners (home bakers, meal prep, foo
 
 Data segregation between roles is enforced with Supabase Row Level Security (see [`architecture.md`](architecture.md)). The exact customer sign-in/checkout flow is not yet defined.
 
+**Member roles.** A business member is an `owner`, a `manager` or `staff` (`business_members.role`; the first member of a business is its owner). Every member can run day-to-day operations (products, orders, customers, expenses, ordering and notification settings, business profile). **Owner-only** means that only a member whose role is `owner` can:
+
+1. change payment identifiers and payment-method settings (Revolut tag, Wero identifier, enabled payment methods, payment instructions);
+2. change the business slug (the public storefront address);
+3. hard-delete rows (orders, expenses, guests, products); catalog categories can still be deleted by any member when empty;
+
+and that nobody, owner included, can delete a business's settings row through the application. The rule is enforced by the database (RLS policies and a trigger raising `OWNER_REQUIRED`) and again by the Server Actions, which answer with the typed `FORBIDDEN` code; the settings and expense screens show the controls disabled with an explanation. Details: [`database/schema.md`](database/schema.md#52-access-control-matrix).
+
 ## 3. Manager modules
 
 | Module        | Key functionality                                                            | Legacy status           |

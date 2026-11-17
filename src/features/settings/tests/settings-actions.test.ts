@@ -115,14 +115,17 @@ vi.mock("@/lib/repositories", () => ({
   }),
 }));
 
-vi.mock("@/features/auth", () => ({
-  requireAuthenticatedAction: vi.fn(async () => ({
+const authState = vi.hoisted(() => ({ role: "owner" as "owner" | "manager" | "staff" }));
+
+vi.mock("@/features/auth", async () => {
+  const domainAuth = await vi.importActual<typeof import("@/domain/auth")>("@/domain/auth");
+  const requireAuthenticatedAction = vi.fn(async () => ({
     session: {
       user: {
         id: "00000000-0000-4000-8000-000000000002",
         email: "manager@test.com",
         name: "Marie Dupont",
-        role: "manager",
+        role: authState.role,
         businessId: testBusinessId,
       },
       business: {
@@ -134,11 +137,26 @@ vi.mock("@/features/auth", () => ({
       expiresAt: "2099-01-01T00:00:00.000Z",
     },
     businessId: testBusinessId,
-  })),
-}));
+  }));
+  return {
+    requireAuthenticatedAction,
+    requireOwnerAction: vi.fn(async () => {
+      const context = await requireAuthenticatedAction();
+      if (context.session.user.role !== "owner") throw new domainAuth.OwnerRequiredError();
+      return context;
+    }),
+    forbiddenResult: () => ({
+      success: false as const,
+      error: "Only an owner can do this.",
+      code: domainAuth.ACTION_FORBIDDEN_CODE,
+    }),
+    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
+  };
+});
 
 describe("Settings Server Actions", () => {
   beforeEach(() => {
+    authState.role = "owner";
     vi.clearAllMocks();
   });
 
@@ -218,7 +236,7 @@ describe("Settings Server Actions", () => {
           slug: "bakery",
           instagramUrl: "https://instagram.com/bakery",
         }),
-      ).toEqual({ success: false, error: "Unauthorized" });
+      ).toEqual({ success: false, error: "Failed to update business profile" });
       expect(mockBusinessRepo.update).not.toHaveBeenCalled();
     });
     it("validates and persists all social links, including clearing them", async () => {
@@ -314,7 +332,7 @@ describe("Settings Server Actions", () => {
       });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error).toBe("Profile update failed");
+        expect(res.error).toBe("Failed to update business profile");
       }
     });
 
@@ -624,7 +642,7 @@ describe("Settings Server Actions", () => {
       });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error).toBe("Payment write failed");
+        expect(res.error).toBe("Failed to update payment settings");
       }
     });
 
@@ -661,6 +679,54 @@ describe("Settings Server Actions", () => {
       if (!res.success) {
         expect(res.error).toBe("Failed to update inventory and finance settings");
       }
+    });
+  });
+
+  describe("owner-only settings", () => {
+    const paymentInput = {
+      revolutRevtag: "@intruder",
+      weroIdentifier: "",
+      paymentMethods: { cash: true, revolut: true, wero: true },
+      paymentInstructionsEn: "",
+      paymentInstructionsFr: "",
+    };
+
+    for (const role of ["manager", "staff"] as const) {
+      it(`refuses payment settings to a ${role} with the FORBIDDEN code and writes nothing`, async () => {
+        authState.role = role;
+        expect(await updatePaymentSettingsAction(paymentInput)).toEqual({
+          success: false,
+          error: "Only an owner can do this.",
+          code: "FORBIDDEN",
+        });
+        expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
+      });
+
+      it(`refuses a slug change to a ${role} but lets them edit the rest of the profile`, async () => {
+        authState.role = role;
+        const changed = await updateBusinessProfileAction({
+          name: "La Petite Boulangerie",
+          slug: "another-address",
+        });
+        expect(changed).toMatchObject({ success: false, code: "FORBIDDEN" });
+        expect(mockBusinessRepo.update).not.toHaveBeenCalled();
+
+        const unchanged = await updateBusinessProfileAction({
+          name: "Renamed Bakery",
+          slug: mockBusiness.slug,
+        });
+        expect(unchanged.success).toBe(true);
+        expect(mockBusinessRepo.update).toHaveBeenCalled();
+      });
+    }
+
+    it("turns a database refusal into the FORBIDDEN code", async () => {
+      const { OwnerRequiredError } = await import("@/domain/auth");
+      mockBusinessRepo.updateSettings.mockRejectedValueOnce(new OwnerRequiredError());
+      expect(await updatePaymentSettingsAction(paymentInput)).toMatchObject({
+        success: false,
+        code: "FORBIDDEN",
+      });
     });
   });
 });

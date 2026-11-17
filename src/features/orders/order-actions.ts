@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
-import { requireAuthenticatedAction } from "@/features/auth";
+import {
+  forbiddenResult,
+  isForbiddenError,
+  requireAuthenticatedAction,
+  requireOwnerAction,
+} from "@/features/auth";
 import {
   type NamedOrder,
   type Order,
@@ -10,6 +15,7 @@ import {
   type Guest,
   type Product,
   type PlacedOrderSummary,
+  OrderRepoError,
   serviceTypeSchema,
   uuidSchema,
   manualOrderInputSchema,
@@ -21,10 +27,30 @@ import {
   UNKNOWN_GUEST_NAME,
 } from "@/domain";
 import { z } from "zod";
+import type { ActionErrorCode } from "@/domain/auth";
 
 export type OrderActionResult<T = void> =
   | { success: true; data: T }
-  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: Record<string, string[]>;
+      /** Typed code for refusals the UI can act on (reload after a conflict). */
+      code?: "ORDER_STATE_CONFLICT" | ActionErrorCode;
+    };
+
+/** Failure result for a caught error; a stale-state conflict from the database carries its code. */
+function failure(
+  err: unknown,
+  fallback: string,
+): { success: false; error: string; code?: "ORDER_STATE_CONFLICT" } {
+  // Only repository errors carry vetted text; anything else gets the fixed fallback.
+  const message = err instanceof OrderRepoError ? err.message : fallback;
+  if (err instanceof OrderRepoError && err.code === "ORDER_STATE_CONFLICT") {
+    return { success: false, error: message, code: "ORDER_STATE_CONFLICT" };
+  }
+  return { success: false, error: message };
+}
 
 export interface EnrichedOrder extends NamedOrder {
   guestPhone?: string | null;
@@ -315,17 +341,17 @@ export async function createManualOrderAction(input: unknown): Promise<OrderActi
       return { success: false, error: message };
     }
 
-    // 4. Manual orders transition directly to CONFIRMED
-    const order = await repos.orders.update(businessId, summary.orderId, {
-      status: "CONFIRMED",
-      statusHistory: [
-        {
-          status: "CONFIRMED",
-          timestamp: now,
-          note: `Manual order created via ${data.channel}`,
-        },
-      ],
-    });
+    // 4. Manual orders transition directly to CONFIRMED (appends to the history place_order started)
+    let order: Order;
+    try {
+      order = await repos.orders.transition(businessId, summary.orderId, {
+        expectedStatus: "NEW",
+        nextStatus: "CONFIRMED",
+        reason: `Manual order created via ${data.channel}`,
+      });
+    } catch (err) {
+      return failure(err, "Failed to confirm manual order");
+    }
 
     revalidatePath("/manage/orders");
     revalidatePath("/manage/products");
@@ -372,39 +398,12 @@ export async function progressOrderStatusAction(input: unknown): Promise<OrderAc
       return { success: false, error: validation.error };
     }
 
-    const now = new Date().toISOString();
-    const history = [
-      ...(order.statusHistory ?? [
-        { status: order.status, timestamp: order.createdAt, note: null },
-      ]),
-      {
-        status: nextStatus,
-        timestamp: now,
-        note: reason ?? null,
-      },
-    ];
-
-    // If cancelling, restore stock atomically via repository cancel
-    if (nextStatus === "CANCELLED" && order.status !== "CANCELLED") {
-      await repos.orders.cancel(businessId, orderId, reason ?? null);
-      const updated = await repos.orders.update(businessId, orderId, {
-        statusHistory: history,
-      });
-
-      revalidatePath("/manage/orders");
-      revalidatePath(`/manage/orders/${orderId}`);
-      revalidatePath("/manage/products");
-
-      return { success: true, data: updated };
-    }
-
-    const updated = await repos.orders.update(businessId, orderId, {
-      status: nextStatus,
-      cancellationReason:
-        nextStatus === "CANCELLED"
-          ? (reason ?? order.cancellationReason)
-          : order.cancellationReason,
-      statusHistory: history,
+    // One atomic database step: expected-status check, transition table, stock restore on
+    // cancellation and the history entry. A concurrent change surfaces as ORDER_STATE_CONFLICT.
+    const updated = await repos.orders.transition(businessId, orderId, {
+      expectedStatus: order.status,
+      nextStatus,
+      reason: reason ?? null,
     });
 
     revalidatePath("/manage/orders");
@@ -415,8 +414,7 @@ export async function progressOrderStatusAction(input: unknown): Promise<OrderAc
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update order status";
-    return { success: false, error: message };
+    return failure(err, "Failed to update order status");
   }
 }
 
@@ -487,20 +485,21 @@ export async function recordPaymentAction(input: unknown): Promise<OrderActionRe
       };
     }
 
-    const now = new Date().toISOString();
-    const updated = await repos.orders.update(businessId, orderId, {
-      paid: "paid",
-      paymentMethod,
-      paidAt: now,
-    });
+    if (order.paid === "refunded") {
+      return {
+        success: false,
+        error: "Payment cannot be recorded for a refunded order.",
+      };
+    }
+
+    const updated = await repos.orders.recordPayment(businessId, orderId, { paymentMethod });
 
     revalidatePath("/manage/orders");
     revalidatePath(`/manage/orders/${orderId}`);
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to record payment";
-    return { success: false, error: message };
+    return failure(err, "Failed to record payment");
   }
 }
 
@@ -537,32 +536,14 @@ export async function markOrderUnpaidAction(input: unknown): Promise<OrderAction
       return { success: false, error: "Order is already marked as unpaid." };
     }
 
-    const now = new Date().toISOString();
-    const history: Array<{ status: OrderStatus; timestamp: string; note?: string | null }> = [
-      ...(order.statusHistory ?? [
-        { status: order.status, timestamp: order.createdAt, note: null },
-      ]),
-      {
-        status: order.status,
-        timestamp: now,
-        note: "Payment marked as unpaid (undone)",
-      },
-    ];
-
-    const updated = await repos.orders.update(businessId, orderId, {
-      paid: "unpaid",
-      paymentMethod: null,
-      paidAt: null,
-      statusHistory: history,
-    });
+    const updated = await repos.orders.markUnpaid(businessId, orderId);
 
     revalidatePath("/manage/orders");
     revalidatePath(`/manage/orders/${orderId}`);
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to mark order as unpaid";
-    return { success: false, error: message };
+    return failure(err, "Failed to mark order as unpaid");
   }
 }
 
@@ -593,24 +574,13 @@ export async function markPaidAndCompleteAction(input: unknown): Promise<OrderAc
       };
     }
 
-    const now = new Date().toISOString();
-    const history: Array<{ status: OrderStatus; timestamp: string; note?: string | null }> = [
-      ...(order.statusHistory ?? [
-        { status: order.status, timestamp: order.createdAt, note: null },
-      ]),
-      {
-        status: "COMPLETED" as const,
-        timestamp: now,
-        note: `Paid via ${paymentMethod} and completed`,
-      },
-    ];
+    if (order.paid === "refunded") {
+      return { success: false, error: "Cannot complete a refunded order." };
+    }
 
-    const updated = await repos.orders.update(businessId, orderId, {
-      paid: "paid",
+    const updated = await repos.orders.recordPayment(businessId, orderId, {
       paymentMethod,
-      paidAt: now,
-      status: "COMPLETED",
-      statusHistory: history,
+      markCompleted: true,
     });
 
     revalidatePath("/manage/orders");
@@ -618,8 +588,7 @@ export async function markPaidAndCompleteAction(input: unknown): Promise<OrderAc
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to mark paid and complete order";
-    return { success: false, error: message };
+    return failure(err, "Failed to mark paid and complete order");
   }
 }
 
@@ -663,7 +632,7 @@ export async function lookupGuestByPhoneAction(
  */
 export async function recordRefundAction(input: unknown): Promise<OrderActionResult<Order>> {
   try {
-    const { businessId } = await requireAuthenticatedAction();
+    const { businessId } = await requireOwnerAction();
     const parsed = recordRefundInputSchema.safeParse(input);
 
     if (!parsed.success) {
@@ -686,30 +655,14 @@ export async function recordRefundAction(input: unknown): Promise<OrderActionRes
       return { success: false, error: "Cannot refund an unpaid order." };
     }
 
-    const now = new Date().toISOString();
-    const history = [
-      ...(order.statusHistory ?? [
-        { status: order.status, timestamp: order.createdAt, note: null },
-      ]),
-      {
-        status: order.status,
-        timestamp: now,
-        note: reason ? `Refund recorded: ${reason}` : "Refund recorded",
-      },
-    ];
-
-    const updated = await repos.orders.update(businessId, orderId, {
-      paid: "refunded",
-      refundedAt: now,
-      statusHistory: history,
-    });
+    const updated = await repos.orders.recordRefund(businessId, orderId, reason ?? null);
 
     revalidatePath("/manage/orders");
     revalidatePath(`/manage/orders/${orderId}`);
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to record refund";
-    return { success: false, error: message };
+    if (isForbiddenError(err)) return forbiddenResult();
+    return failure(err, "Failed to record refund");
   }
 }

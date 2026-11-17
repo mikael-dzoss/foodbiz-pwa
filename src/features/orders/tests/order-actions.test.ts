@@ -1,12 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import {
-  findOrCreateGuest,
-  type Order,
-  type Product,
-  type Guest,
-  type CreateOrderInput,
-  type UpdateOrderInput,
-} from "@/domain";
+import { findOrCreateGuest, type Order, type Product, type Guest, OrderRepoError } from "@/domain";
 import {
   listOrdersAction,
   getOrderAction,
@@ -41,44 +34,6 @@ let mockProducts: Product[] = [];
 const mockOrderRepo = {
   list: vi.fn(async () => [...mockOrders]),
   findById: vi.fn(async (_bId: string, id: string) => mockOrders.find((o) => o.id === id) ?? null),
-  create: vi.fn(async (bId: string, input: CreateOrderInput) => {
-    const o: Order = {
-      id: input.id ?? "66666666-6666-4666-8666-666666666699",
-      businessId: bId,
-      orderNumber: input.orderNumber ?? mockOrders.length + 1,
-      guestId: input.guestId,
-      submittedName: input.submittedName ?? null,
-      serviceType: input.serviceType,
-      channel: input.channel,
-      status: input.status,
-      paid: input.paid,
-      paymentPreference: input.paymentPreference,
-      paymentMethod: input.paymentMethod ?? null,
-      paidAt: input.paidAt ?? null,
-      requestedDate: input.requestedDate,
-      requestedTime: input.requestedTime ?? null,
-      items: input.items,
-      totalAmount: input.totalAmount,
-      trackingToken: "track123",
-      cancellationReason: input.cancellationReason ?? null,
-      notes: input.notes ?? null,
-      deliveryAddress: input.deliveryAddress ?? null,
-      statusHistory: input.statusHistory ?? [
-        { status: input.status, timestamp: new Date().toISOString(), note: null },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    mockOrders.push(o);
-    return structuredClone(o);
-  }),
-  update: vi.fn(async (_bId: string, id: string, input: UpdateOrderInput) => {
-    const idx = mockOrders.findIndex((o) => o.id === id);
-    if (idx === -1) throw new Error("Order not found");
-    const updated = { ...mockOrders[idx], ...input, updatedAt: new Date().toISOString() };
-    mockOrders[idx] = updated;
-    return structuredClone(updated);
-  }),
   place: vi.fn(
     async (
       bId: string,
@@ -182,6 +137,98 @@ const mockOrderRepo = {
       cancellationReason: o.cancellationReason,
     };
   }),
+  // Atomic in the database (transition_order_status): expected-status check, restock on cancel,
+  // history entry. Reduced here to what the action tests observe.
+  transition: vi.fn(
+    async (
+      _bId: string,
+      orderId: string,
+      input: {
+        expectedStatus: Order["status"];
+        nextStatus: Order["status"];
+        reason?: string | null;
+      },
+    ) => {
+      const o = mockOrders.find((ord) => ord.id === orderId);
+      if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+      if (o.status !== input.expectedStatus) {
+        throw new OrderRepoError("The order changed, please reload.", "ORDER_STATE_CONFLICT");
+      }
+      if (input.nextStatus === "CANCELLED") {
+        for (const it of o.items) {
+          const prod = mockProducts.find((p) => p.id === it.productId);
+          if (prod) prod.stock += it.quantity;
+        }
+        o.cancellationReason = input.reason ?? o.cancellationReason;
+      }
+      o.status = input.nextStatus;
+      o.statusHistory = [
+        ...(o.statusHistory ?? []),
+        {
+          status: input.nextStatus,
+          timestamp: new Date().toISOString(),
+          note: input.reason ?? null,
+        },
+      ];
+      return structuredClone(o);
+    },
+  ),
+  recordPayment: vi.fn(
+    async (
+      _bId: string,
+      orderId: string,
+      input: { paymentMethod: "cash" | "revolut" | "wero"; markCompleted?: boolean },
+    ) => {
+      const o = mockOrders.find((ord) => ord.id === orderId);
+      if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+      o.paid = "paid";
+      o.paymentMethod = input.paymentMethod;
+      o.paidAt = new Date().toISOString();
+      if (input.markCompleted) {
+        o.status = "COMPLETED";
+        o.statusHistory = [
+          ...(o.statusHistory ?? []),
+          {
+            status: "COMPLETED",
+            timestamp: new Date().toISOString(),
+            note: `Paid via ${input.paymentMethod} and completed`,
+          },
+        ];
+      }
+      return structuredClone(o);
+    },
+  ),
+  markUnpaid: vi.fn(async (_bId: string, orderId: string) => {
+    const o = mockOrders.find((ord) => ord.id === orderId);
+    if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    o.paid = "unpaid";
+    o.paymentMethod = null;
+    o.paidAt = null;
+    o.statusHistory = [
+      ...(o.statusHistory ?? []),
+      {
+        status: o.status,
+        timestamp: new Date().toISOString(),
+        note: "Payment marked as unpaid (undone)",
+      },
+    ];
+    return structuredClone(o);
+  }),
+  recordRefund: vi.fn(async (_bId: string, orderId: string, reason?: string | null) => {
+    const o = mockOrders.find((ord) => ord.id === orderId);
+    if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
+    o.paid = "refunded";
+    o.refundedAt = new Date().toISOString();
+    o.statusHistory = [
+      ...(o.statusHistory ?? []),
+      {
+        status: o.status,
+        timestamp: new Date().toISOString(),
+        note: reason ? `Refund recorded: ${reason}` : "Refund recorded",
+      },
+    ];
+    return structuredClone(o);
+  }),
 };
 
 const mockGuestRepo = {
@@ -242,12 +289,29 @@ const mockRequireAuthenticatedAction = vi.fn(async () => ({
   businessId: testBusinessId,
 }));
 
-vi.mock("@/features/auth", () => ({
-  requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
-}));
+const authState = vi.hoisted(() => ({ role: "owner" as "owner" | "manager" | "staff" }));
+
+vi.mock("@/features/auth", async () => {
+  const domainAuth = await vi.importActual<typeof import("@/domain/auth")>("@/domain/auth");
+  return {
+    requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
+    requireOwnerAction: async () => {
+      const context = await mockRequireAuthenticatedAction();
+      if (authState.role !== "owner") throw new domainAuth.OwnerRequiredError();
+      return context;
+    },
+    forbiddenResult: () => ({
+      success: false as const,
+      error: "Only an owner can do this.",
+      code: domainAuth.ACTION_FORBIDDEN_CODE,
+    }),
+    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
+  };
+});
 
 describe("Order Server Actions", () => {
   beforeEach(() => {
+    authState.role = "owner";
     vi.clearAllMocks();
 
     mockGuests = [
@@ -616,7 +680,8 @@ describe("Order Server Actions", () => {
         // Product stock decremented
         expect(mockProducts[0].stock).toBe(initialStock - 3);
         // Status history recorded
-        expect(res.data.statusHistory?.[0].status).toBe("CONFIRMED");
+        // place_order starts the history (NEW); the manual order appends CONFIRMED instead of overwriting it.
+        expect(res.data.statusHistory?.map((e) => e.status)).toEqual(["NEW", "CONFIRMED"]);
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/orders");
       }
     });
@@ -952,6 +1017,30 @@ describe("Order Server Actions", () => {
   });
 
   describe("recordRefundAction", () => {
+    it("is owner-only: a manager gets FORBIDDEN and nothing is recorded", async () => {
+      authState.role = "manager";
+      mockOrders[1].status = "COMPLETED";
+      mockOrders[1].paid = "paid";
+      const spy = vi.spyOn(mockOrderRepo, "recordRefund");
+
+      const res = await recordRefundAction({ orderId: completedOrderId });
+
+      expect(res).toMatchObject({ success: false, code: "FORBIDDEN" });
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("never forwards a raw non-repository error message", async () => {
+      mockOrders[1].status = "COMPLETED";
+      mockOrders[1].paid = "paid";
+      vi.spyOn(mockOrderRepo, "recordRefund").mockRejectedValueOnce(
+        new Error('duplicate key value violates "orders_pkey"'),
+      );
+
+      const res = await recordRefundAction({ orderId: completedOrderId });
+
+      expect(res).toEqual({ success: false, error: "Failed to record refund" });
+    });
+
     it("records refund for a cancelled paid order, setting paid to 'refunded' and recording refundedAt", async () => {
       mockOrders[0].status = "CANCELLED";
       mockOrders[0].paid = "paid";
@@ -1046,6 +1135,54 @@ describe("Order Server Actions", () => {
       if (res.success) {
         expect(res.data?.name).toBe("Jean Dupont");
       }
+    });
+  });
+
+  describe("state conflicts and refunded orders", () => {
+    it("returns the ORDER_STATE_CONFLICT code when the order changed since it was read", async () => {
+      mockOrderRepo.transition.mockRejectedValueOnce(
+        new OrderRepoError("The order changed, please reload.", "ORDER_STATE_CONFLICT"),
+      );
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "PREPARING",
+      });
+      expect(res).toEqual({
+        success: false,
+        error: "The order changed, please reload.",
+        code: "ORDER_STATE_CONFLICT",
+      });
+    });
+
+    it("passes the expected status it validated against to the atomic transition", async () => {
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "PREPARING",
+      });
+      expect(res.success).toBe(true);
+      expect(mockOrderRepo.transition).toHaveBeenCalledWith(testBusinessId, validOrderId, {
+        expectedStatus: "CONFIRMED",
+        nextStatus: "PREPARING",
+        reason: null,
+      });
+    });
+
+    it("does not record payment on a refunded order", async () => {
+      mockOrders = mockOrders.map((o) =>
+        o.id === validOrderId ? { ...o, paid: "refunded" as const } : o,
+      );
+      const res = await recordPaymentAction({ orderId: validOrderId, paymentMethod: "cash" });
+      expect(res.success).toBe(false);
+      expect(mockOrderRepo.recordPayment).not.toHaveBeenCalled();
+    });
+
+    it("does not mark a refunded READY order paid and complete", async () => {
+      mockOrders = mockOrders.map((o) =>
+        o.id === validOrderId ? { ...o, status: "READY" as const, paid: "refunded" as const } : o,
+      );
+      const res = await markPaidAndCompleteAction({ orderId: validOrderId, paymentMethod: "cash" });
+      expect(res.success).toBe(false);
+      expect(mockOrderRepo.recordPayment).not.toHaveBeenCalled();
     });
   });
 });

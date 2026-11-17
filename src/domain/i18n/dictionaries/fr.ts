@@ -627,6 +627,7 @@ export const frDictionary: Dictionary = {
     error: "Une erreur est survenue",
     retry: "Réessayer",
     back: "Retour",
+    ownerOnlyNotice: "Seul le propriétaire de la boutique peut modifier ceci.",
   },
   auth: {
     continueWithGoogle: "Continuer avec Google",

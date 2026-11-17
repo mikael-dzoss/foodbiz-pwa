@@ -25,9 +25,15 @@ import { updateBusinessProfileAction } from "../actions";
 export interface BusinessProfileFormProps {
   business: Business;
   dict: SettingsDictionary;
+  /** Set for members who are not the owner: the slug (public address) is locked with this explanation. */
+  slugLockedReason?: string;
 }
 
-export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps) {
+export function BusinessProfileForm({
+  business,
+  dict,
+  slugLockedReason,
+}: BusinessProfileFormProps) {
   const { showToast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -275,8 +281,10 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
                 required
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                disabled={Boolean(slugLockedReason)}
+                aria-describedby={slugLockedReason ? "biz-slug-locked" : undefined}
                 placeholder="la-petite-boulangerie"
-                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 px-3 py-2.5 font-mono text-base focus:outline-none"
+                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 px-3 py-2.5 font-mono text-base focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 data-testid="input-business-slug"
               />
               <button
@@ -288,6 +296,15 @@ export function BusinessProfileForm({ business, dict }: BusinessProfileFormProps
                 {copied ? <Check className="text-primary h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
+            {slugLockedReason && (
+              <p
+                id="biz-slug-locked"
+                className="text-muted-foreground mt-1.5 text-xs"
+                data-testid="slug-owner-only-notice"
+              >
+                {slugLockedReason}
+              </p>
+            )}
             {errors.slug ? (
               <p className="text-destructive mt-1 flex items-center gap-1 text-xs">
                 <AlertCircle className="h-3.5 w-3.5" />

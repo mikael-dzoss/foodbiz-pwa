@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
-import { businessMemberRoleSchema } from "./business";
+import { businessMemberRoleSchema, type BusinessMemberRole } from "./business";
 
 export const MOCK_AUTH_COOKIE_NAME = "foodbiz_mock_session";
 
@@ -102,6 +102,29 @@ export function sanitizeManagerRedirectPath(
   return trimmed;
 }
 
+/** Typed code returned by Server Actions that refuse the caller's role (no raw text). */
+export const ACTION_FORBIDDEN_CODE = "FORBIDDEN" as const;
+export type ActionErrorCode = typeof ACTION_FORBIDDEN_CODE;
+
+/**
+ * "Owner-only" actions: payment identifiers and payment-method settings, the business slug and
+ * every hard delete. Managers and staff keep everything else. Enforced by the database (RLS and a
+ * trigger) and by the Server Actions; the UI only reflects it.
+ */
+export function isOwnerRole(role: BusinessMemberRole): boolean {
+  return role === "owner";
+}
+
+/** Thrown by a repository when the acting member is not an owner (database `OWNER_REQUIRED`). */
+export class OwnerRequiredError extends Error {
+  readonly code = ACTION_FORBIDDEN_CODE;
+
+  constructor(message = "Owner access required") {
+    super(message);
+    this.name = "OwnerRequiredError";
+  }
+}
+
 export const managerUserSchema = z.object({
   id: uuidSchema,
   email: z.string().email(),
@@ -134,7 +157,7 @@ export const MOCK_MANAGER_SESSION: ManagerSession = {
     id: "00000000-0000-4000-8000-000000000002",
     email: "manager@lapetiteboulangerie.fr",
     name: "Marie Dupont",
-    role: "manager",
+    role: "owner",
     businessId: "11111111-1111-4111-8111-111111111111",
   },
   business: {

@@ -8,6 +8,7 @@ describe("lib: auth dev-provisioning", () => {
   const mockSelect = vi.fn();
   const mockEq = vi.fn();
   const mockMaybeSingle = vi.fn();
+  const mockOwnersQuery = vi.fn();
 
   const mockAdminClient = {
     from: vi.fn((table: string) => {
@@ -23,6 +24,11 @@ describe("lib: auth dev-provisioning", () => {
       if (table === "business_members") {
         return {
           upsert: mockUpsert,
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockImplementation(() => mockOwnersQuery()),
+            }),
+          }),
         };
       }
       throw new Error(`Unexpected table: ${table}`);
@@ -55,6 +61,7 @@ describe("lib: auth dev-provisioning", () => {
       error: null,
     });
     mockUpsert.mockResolvedValue({ error: null });
+    mockOwnersQuery.mockResolvedValue({ data: [], error: null });
 
     vi.spyOn(adminModule, "createAdminClient").mockReturnValue(mockAdminClient as never);
   });
@@ -150,7 +157,7 @@ describe("lib: auth dev-provisioning", () => {
         {
           business_id: "11111111-1111-4111-8111-111111111111",
           user_id: validGoogleUser.id,
-          role: "manager",
+          role: "owner",
         },
         {
           onConflict: "business_id,user_id",
@@ -191,6 +198,56 @@ describe("lib: auth dev-provisioning", () => {
 
       const result = await maybeAutoProvisionDevManager(validGoogleUser);
       expect(result).toBe(false);
+    });
+
+    it("provisions the first member of a business as owner", async () => {
+      const result = await maybeAutoProvisionDevManager(validGoogleUser);
+      expect(result).toBe(true);
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "owner" }),
+        expect.anything(),
+      );
+    });
+
+    it("provisions a later member as manager when the business already has another owner", async () => {
+      mockOwnersQuery.mockResolvedValue({ data: [{ user_id: "someone-else" }], error: null });
+
+      const result = await maybeAutoProvisionDevManager(validGoogleUser);
+      expect(result).toBe(true);
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "manager" }),
+        expect.anything(),
+      );
+    });
+
+    it("falls back to manager when a concurrent provision took the owner slot (23505)", async () => {
+      mockUpsert
+        .mockResolvedValueOnce({ error: { code: "23505", message: "duplicate key" } })
+        .mockResolvedValueOnce({ error: null });
+
+      const result = await maybeAutoProvisionDevManager(validGoogleUser);
+      expect(result).toBe(true);
+      expect(mockUpsert).toHaveBeenLastCalledWith(
+        expect.objectContaining({ role: "manager" }),
+        expect.anything(),
+      );
+    });
+
+    it("keeps an existing owner as owner", async () => {
+      mockOwnersQuery.mockResolvedValue({ data: [{ user_id: validGoogleUser.id }], error: null });
+
+      await maybeAutoProvisionDevManager(validGoogleUser);
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "owner" }),
+        expect.anything(),
+      );
+    });
+
+    it("returns false when the owner lookup fails", async () => {
+      mockOwnersQuery.mockResolvedValue({ data: null, error: { message: "boom" } });
+
+      expect(await maybeAutoProvisionDevManager(validGoogleUser)).toBe(false);
+      expect(mockUpsert).not.toHaveBeenCalled();
     });
 
     it("accepts provider from user.app_metadata.providers array", async () => {

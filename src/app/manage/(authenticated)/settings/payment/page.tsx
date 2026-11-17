@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
+import { isOwnerRole } from "@/domain/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { getBusinessSettingsAction, PaymentSettingsForm } from "@/features/settings";
 import { APP_METADATA } from "@/config/app";
@@ -45,5 +46,11 @@ export default async function PaymentSettingsPage() {
           soundAlerts: true,
         };
 
-  return <PaymentSettingsForm settings={settings} dict={dict.settings} />;
+  return (
+    <PaymentSettingsForm
+      settings={settings}
+      dict={dict.settings}
+      readOnlyReason={isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice}
+    />
+  );
 }

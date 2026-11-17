@@ -1,3 +1,5 @@
+import type { Order } from "@/domain/order";
+import { nextPhone, pickStockedProduct, placeOrder } from "./order-state.contract";
 import type { Repositories } from "@/domain/repositories";
 import { describe, expect, it } from "vitest";
 
@@ -35,32 +37,34 @@ export function describeOrderRepositoryContract(
 
     it("sumQuantitiesByProduct returns tenant-scoped aggregates without private order/guest data", async () => {
       const repos = await getRepositories();
-      const product = (await repos.products.list(businessId))[0];
-      const guest = (await repos.guests.list(businessId))[0];
-      const input = {
-        guestId: guest.id,
-        serviceType: "pickup" as const,
-        channel: "storefront" as const,
-        status: "COMPLETED" as const,
-        paid: "paid" as const,
-        paymentPreference: "on_handover" as const,
-        requestedDate: "2030-01-01",
-        items: [
-          {
-            productId: product.id,
-            productName: product.name,
-            quantity: 2,
-            unitPrice: product.price,
-            totalPrice: product.price * 2,
-          },
-        ],
-        totalAmount: product.price * 2,
+      const product = await pickStockedProduct(repos, businessId);
+      const make = async (steps: "completed" | "cancelled" | "refunded" | "new") => {
+        const id = await placeOrder(repos, businessId, [{ productId: product.id, quantity: 2 }]);
+        if (steps === "new") return id;
+        if (steps === "cancelled") {
+          await repos.orders.cancel(businessId, id, "contract");
+          return id;
+        }
+        for (const [expectedStatus, nextStatus] of [
+          ["NEW", "CONFIRMED"],
+          ["CONFIRMED", "PREPARING"],
+          ["PREPARING", "READY"],
+        ] as const) {
+          await repos.orders.transition(businessId, id, { expectedStatus, nextStatus });
+        }
+        await repos.orders.recordPayment(businessId, id, {
+          paymentMethod: "cash",
+          markCompleted: true,
+        });
+        if (steps === "refunded") await repos.orders.recordRefund(businessId, id, "contract");
+        return id;
       };
-      const first = await repos.orders.create(businessId, input);
-      await repos.orders.create(businessId, input);
-      await repos.orders.create(businessId, { ...input, status: "CANCELLED" });
-      await repos.orders.create(businessId, { ...input, paid: "refunded" });
-      await repos.orders.create(businessId, { ...input, status: "NEW" });
+      const firstId = await make("completed");
+      const first = (await repos.orders.findById(businessId, firstId))!;
+      await make("completed");
+      await make("cancelled");
+      await make("refunded");
+      await make("new");
       const filter = {
         fromDate: first.createdAt,
         toDate: new Date().toISOString(),
@@ -110,87 +114,20 @@ export function describeOrderRepositoryContract(
       expect(notFound).toBeNull();
     });
 
-    it("create adds a new order with auto orderNumber and timestamps", async () => {
-      const repos = await getRepositories();
-      const product = (await repos.products.list(businessId))[0];
-      const guest = (await repos.guests.list(businessId))[0];
-
-      const created = await repos.orders.create(businessId, {
-        guestId: guest.id,
-        serviceType: "pickup",
-        channel: "storefront",
-        status: "NEW",
-        paid: "unpaid",
-        paymentPreference: "on_handover",
-        requestedDate: "2026-10-15",
-        items: [
-          {
-            productId: product.id,
-            productName: product.name,
-            quantity: 2,
-            unitPrice: product.price,
-            totalPrice: product.price * 2,
-          },
-        ],
-        totalAmount: product.price * 2,
-      });
-
-      expect(created.id).toBeDefined();
-      expect(created.orderNumber).toBeGreaterThan(0);
-      expect(created.status).toBe("NEW");
-      expect(created.totalAmount).toBe(product.price * 2);
-      expect(created.trackingToken).toBeDefined();
-
-      const found = await repos.orders.findById(businessId, created.id);
-      expect(found).not.toBeNull();
-      expect(found?.guestId).toBe(guest.id);
-    });
-
-    it("update modifies order fields and updates updatedAt", async () => {
-      const repos = await getRepositories();
-      const existing = (await repos.orders.list(businessId))[0];
-
-      const updated = await repos.orders.update(businessId, existing.id, {
-        status: "CANCELLED",
-        cancellationReason: "Customer request",
-      });
-
-      expect(updated.status).toBe("CANCELLED");
-      expect(updated.cancellationReason).toBe("Customer request");
-
-      const fetched = await repos.orders.findById(businessId, existing.id);
-      expect(fetched?.status).toBe("CANCELLED");
-    });
-
     it("findByTrackingToken returns order by token or null", async () => {
       const repos = await getRepositories();
-      const product = (await repos.products.list(businessId))[0];
-      const guest = (await repos.guests.list(businessId))[0];
-      const created = await repos.orders.create(businessId, {
-        guestId: guest.id,
-        serviceType: "pickup",
-        channel: "storefront",
-        status: "NEW",
-        paid: "unpaid",
-        paymentPreference: "on_handover",
-        requestedDate: "2026-10-15",
-        items: [
-          {
-            productId: product.id,
-            productName: product.name,
-            quantity: 1,
-            unitPrice: product.price,
-            totalPrice: product.price,
-          },
-        ],
-        totalAmount: product.price,
-        submittedName: "Private submitted name",
+      const product = await pickStockedProduct(repos, businessId);
+      const placed = await repos.orders.place(businessId, {
+        guestName: "Private Guest",
+        guestPhone: nextPhone(),
+        serviceType: "delivery",
+        channel: "phone",
+        requestedDate: "2030-01-01",
+        items: [{ productId: product.id, quantity: 1 }],
         deliveryAddress: "Private delivery address",
         notes: "Private door code",
-        statusHistory: [
-          { status: "NEW", timestamp: "2026-10-15T12:00:00.000Z", note: "Internal note" },
-        ],
       });
+      const created = (await repos.orders.findById(businessId, placed.orderId)) as Order;
 
       expect(created.trackingToken).toBeDefined();
       const found = await repos.orders.findByTrackingToken(created.trackingToken!);
@@ -295,15 +232,6 @@ export function describeOrderRepositoryContract(
 
       const fetchedOrder = await repos.orders.findById(businessId, placed.orderId);
       expect(fetchedOrder?.status).toBe("CANCELLED");
-    });
-
-    it("update throws when order does not exist", async () => {
-      const repos = await getRepositories();
-      await expect(
-        repos.orders.update(businessId, "00000000-0000-4000-8000-000000000099", {
-          status: "READY",
-        }),
-      ).rejects.toThrow();
     });
   });
 }

@@ -2,6 +2,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Order, OrderStatus } from "@/domain/order";
+import { validateOrderTransition } from "@/domain/order-lifecycle";
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
@@ -650,7 +652,12 @@ function createFakeSupabaseClient(
           refunded_at: null,
           requested_date: String(args.p_requested_date),
           requested_time: args.p_requested_time ? String(args.p_requested_time) : null,
-          total_amount: total,
+          total_amount:
+            total +
+            (args.p_service_type === "delivery"
+              ? (tables.business_settings.find((st) => st.business_id === args.p_business_id)
+                  ?.delivery_fee ?? 0)
+              : 0),
           tracking_token: crypto.randomUUID().replace(/-/g, ""),
           cancellation_reason: null,
           notes: args.p_notes ? String(args.p_notes) : null,
@@ -688,33 +695,60 @@ function createFakeSupabaseClient(
           error: null,
         };
       }
-      if (fnName === "cancel_order") {
-        const order = tables.orders.find(
-          (o) => o.business_id === args.p_business_id && o.id === args.p_order_id,
-        );
-        if (!order) {
-          return { data: null, error: { message: "ORDER_NOT_FOUND", code: "P0002" } };
-        }
-        if (order.status === "COMPLETED" || order.status === "CANCELLED") {
-          return {
-            data: null,
-            error: { message: "INVALID_STATUS_TRANSITION", code: "22023" },
-          };
-        }
-
-        const orderItems = tables.order_items.filter((it) => it.order_id === order.id);
-        for (const item of orderItems) {
-          const prod = tables.products.find((p) => p.id === item.product_id);
-          if (prod) {
-            prod.stock += item.quantity;
+      // The order-state functions below mirror supabase/migrations/20260101000024-26 closely enough
+      // to run the shared contract suites; the real behaviour is proved by pgTAP and the live suite.
+      type FakeOrder = (typeof tables.orders)[number];
+      const dbError = (code: string, message: string) => ({
+        data: null,
+        error: { code, message },
+      });
+      const findFakeOrder = (): FakeOrder | undefined =>
+        tables.orders.find((o) => o.business_id === args.p_business_id && o.id === args.p_order_id);
+      const notFound = () => dbError("P0002", "ORDER_NOT_FOUND: order not found");
+      const history = (o: FakeOrder, status: string, note: string | null) => {
+        o.status_history = [
+          ...((o.status_history as unknown[]) ?? []),
+          { status, timestamp: new Date().toISOString(), note },
+        ] as Json;
+        o.updated_at = new Date().toISOString();
+      };
+      const applyFakeTransition = (
+        order: FakeOrder,
+        next: OrderStatus,
+        reason: string | null,
+        requireReason: boolean,
+      ) => {
+        const trimmed = reason?.trim() || null;
+        const validation = validateOrderTransition({
+          currentStatus: order.status as OrderStatus,
+          nextStatus: next,
+          paid: order.paid as Order["paid"],
+          reason: requireReason ? trimmed : (trimmed ?? "n/a"),
+        });
+        if (!validation.ok)
+          return dbError("22023", `INVALID_STATUS_TRANSITION: ${validation.error}`);
+        if (next === "CANCELLED") {
+          for (const item of tables.order_items.filter((it) => it.order_id === order.id)) {
+            const prod = tables.products.find((p) => p.id === item.product_id);
+            if (prod) prod.stock += item.quantity;
           }
+          order.cancellation_reason = trimmed ?? order.cancellation_reason;
         }
+        order.status = next;
+        history(order, next, trimmed);
+        return null;
+      };
 
-        order.status = "CANCELLED";
-        order.cancellation_reason =
-          (args.p_cancellation_reason as string) ?? order.cancellation_reason;
-        order.updated_at = new Date().toISOString();
-
+      if (fnName === "cancel_order") {
+        const order = findFakeOrder();
+        if (!order) return notFound();
+        const failed = applyFakeTransition(
+          order,
+          "CANCELLED",
+          (args.p_cancellation_reason as string | undefined) ?? null,
+          false,
+        );
+        if (failed) return failed;
         return {
           data: {
             order_id: order.id,
@@ -724,29 +758,122 @@ function createFakeSupabaseClient(
           error: null,
         };
       }
-      if (fnName === "replace_order_items") {
-        const order = tables.orders.find(
-          (o) => o.business_id === args.p_business_id && o.id === args.p_order_id,
+      if (fnName === "transition_order_status") {
+        const order = findFakeOrder();
+        if (!order) return notFound();
+        if (order.status !== args.p_expected_status) {
+          return dbError("P0007", "ORDER_STATE_CONFLICT: expected status differs");
+        }
+        const failed = applyFakeTransition(
+          order,
+          args.p_new_status as OrderStatus,
+          (args.p_reason as string | undefined) ?? null,
+          true,
         );
-        if (!order) {
-          return { data: null, error: { message: "ORDER_NOT_FOUND", code: "P0002" } };
+        if (failed) return failed;
+        return { data: { order_id: order.id, status: order.status }, error: null };
+      }
+      if (fnName === "record_order_payment") {
+        const order = findFakeOrder();
+        if (!order) return notFound();
+        if (order.status === "CANCELLED" || order.paid !== "unpaid") {
+          return dbError("22023", "INVALID_PAYMENT_STATE: payment cannot be recorded");
         }
-        tables.order_items = tables.order_items.filter((it) => it.order_id !== order.id);
-        const newItems = (args.p_items as Array<Record<string, unknown>>) || [];
-        for (const it of newItems) {
-          tables.order_items.push({
-            id: (it.id as string) || crypto.randomUUID(),
+        if (args.p_and_complete) {
+          if (order.status !== "READY") {
+            return dbError("P0007", "ORDER_STATE_CONFLICT: order must be READY");
+          }
+          order.status = "COMPLETED";
+          history(order, "COMPLETED", `Paid via ${String(args.p_payment_method)} and completed`);
+        }
+        order.paid = "paid";
+        order.payment_method = args.p_payment_method as typeof order.payment_method;
+        order.paid_at = new Date().toISOString();
+        return { data: { order_id: order.id }, error: null };
+      }
+      if (fnName === "mark_order_unpaid") {
+        const order = findFakeOrder();
+        if (!order) return notFound();
+        if (order.status === "COMPLETED" || order.paid !== "paid") {
+          return dbError("22023", "INVALID_PAYMENT_STATE: cannot mark as unpaid");
+        }
+        order.paid = "unpaid";
+        order.payment_method = null;
+        order.paid_at = null;
+        history(order, order.status, "Payment marked as unpaid (undone)");
+        return { data: { order_id: order.id }, error: null };
+      }
+      if (fnName === "record_order_refund") {
+        const order = findFakeOrder();
+        if (!order) return notFound();
+        if (order.paid !== "paid") {
+          return dbError("22023", "INVALID_PAYMENT_STATE: only a paid order can be refunded");
+        }
+        const reason = (args.p_reason as string | undefined)?.trim();
+        order.paid = "refunded";
+        order.refunded_at = new Date().toISOString();
+        history(order, order.status, reason ? `Refund recorded: ${reason}` : "Refund recorded");
+        return { data: { order_id: order.id }, error: null };
+      }
+      if (fnName === "replace_order_items") {
+        const order = findFakeOrder();
+        if (!order) return notFound();
+        if (
+          order.status === "COMPLETED" ||
+          order.status === "CANCELLED" ||
+          order.paid !== "unpaid"
+        ) {
+          return dbError("P0007", "ORDER_STATE_CONFLICT: order is closed");
+        }
+        const requested = (args.p_items as Array<{ product_id: string; quantity: number }>) ?? [];
+        if (requested.length === 0) return dbError("22023", "INVALID_ORDER_ITEMS: empty");
+        const wanted = new Map<string, number>();
+        for (const it of requested) {
+          wanted.set(it.product_id, (wanted.get(it.product_id) ?? 0) + it.quantity);
+        }
+        const current = tables.order_items.filter((it) => it.order_id === order.id);
+        const oldQty = (pid: string) =>
+          current.filter((it) => it.product_id === pid).reduce((n, it) => n + it.quantity, 0);
+        for (const [pid, qty] of wanted) {
+          const prod = tables.products.find(
+            (p) => p.id === pid && p.business_id === order.business_id,
+          );
+          if (!prod) return dbError("P0002", "PRODUCT_NOT_FOUND: product not found");
+          if (qty - oldQty(pid) > prod.stock) return dbError("P0001", "INSUFFICIENT_STOCK: stock");
+        }
+        for (const pid of new Set([...wanted.keys(), ...current.map((it) => it.product_id)])) {
+          const prod = tables.products.find((p) => p.id === pid);
+          if (prod) prod.stock -= (wanted.get(pid as string) ?? 0) - oldQty(pid as string);
+        }
+        let subtotal = 0;
+        const next = [...wanted].map(([pid, qty]) => {
+          const existing = current.find((it) => it.product_id === pid);
+          const prod = tables.products.find((p) => p.id === pid)!;
+          const unit = existing?.unit_price ?? prod.price;
+          subtotal += unit * qty;
+          return {
+            id: crypto.randomUUID(),
             order_id: order.id,
-            business_id: String(args.p_business_id),
-            product_id: (it.product_id as string) || "00000000-0000-0000-0000-000000000000",
-            product_name: String(it.product_name || "Item"),
-            quantity: Number(it.quantity || 1),
-            unit_price: Number(it.unit_price || 0),
-            total_price: Number(it.total_price || 0),
+            business_id: order.business_id,
+            product_id: pid,
+            product_name: existing?.product_name ?? prod.name,
+            quantity: qty,
+            unit_price: unit,
+            total_price: unit * qty,
             created_at: new Date().toISOString(),
-          });
-        }
-        return { data: null, error: null };
+          };
+        });
+        tables.order_items = [
+          ...tables.order_items.filter((it) => it.order_id !== order.id),
+          ...next,
+        ];
+        const settings = tables.business_settings.find(
+          (st) => st.business_id === order.business_id,
+        );
+        order.total_amount =
+          subtotal + (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0);
+        order.updated_at = new Date().toISOString();
+        return { data: { order_id: order.id, total_amount: order.total_amount }, error: null };
       }
       throw new Error(`Unhandled RPC: ${fnName}`);
     },
@@ -1123,6 +1250,24 @@ describe("Supabase Repository Adapter", () => {
       await expect(
         rpcRepos.orders.cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000001"),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+      // 22023 / P0007 never forward the database text, only fixed strings
+      const leak = "secret detail: order 1234 price 99 at tenant xyz";
+      for (const [code, message] of [
+        ["22023", `INVALID_PAYMENT_STATE: ${leak}`],
+        ["22023", `SOMETHING_ELSE: ${leak}`],
+        ["P0007", `ORDER_STATE_CONFLICT: ${leak}`],
+      ] as const) {
+        cancelRpcMock.mockImplementationOnce(async () => ({
+          data: null,
+          error: { code, message },
+        }));
+        const err = await rpcRepos.orders
+          .cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000001")
+          .catch((e: Error) => e);
+        expect((err as Error).message).not.toContain("secret detail");
+        expect((err as Error).message.length).toBeGreaterThan(0);
+      }
     });
   });
 });

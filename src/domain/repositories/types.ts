@@ -5,10 +5,13 @@ import type { Guest } from "../guest";
 import type {
   CancelOrderResult,
   Order,
+  OrderPaymentInput,
   OrderStatus,
+  OrderStatusTransitionInput,
   PlaceOrderRepoInput,
   PlacedOrderSummary,
   PublicOrder,
+  ReplaceOrderItemInput,
 } from "../order";
 import type { Product, ProductCategory } from "../product";
 
@@ -61,32 +64,6 @@ export interface CategoryRepository {
   delete(businessId: string, id: string): Promise<void>;
 }
 
-export interface CreateOrderInput {
-  readonly id?: string;
-  readonly orderNumber?: number;
-  readonly guestId: string;
-  readonly submittedName?: string | null;
-  readonly serviceType: Order["serviceType"];
-  readonly channel: Order["channel"];
-  readonly status: OrderStatus;
-  readonly paid: Order["paid"];
-  readonly paymentPreference: Order["paymentPreference"];
-  readonly paymentMethod?: Order["paymentMethod"];
-  readonly paidAt?: string | null;
-  readonly refundedAt?: string | null;
-  readonly requestedDate: string;
-  readonly requestedTime?: string | null;
-  readonly items: Order["items"];
-  readonly totalAmount: number;
-  readonly trackingToken?: string;
-  readonly cancellationReason?: string | null;
-  readonly notes?: string | null;
-  readonly deliveryAddress?: string | null;
-  readonly statusHistory?: Order["statusHistory"];
-}
-
-export type UpdateOrderInput = Partial<Omit<CreateOrderInput, "id">>;
-
 export interface OrderFilter {
   readonly status?: OrderStatus;
   readonly guestId?: string;
@@ -109,12 +86,36 @@ export interface OrderRepository {
     phone: string,
   ): Promise<string | null>;
   list(businessId: string, filter?: OrderFilter): Promise<Order[]>;
-  create(businessId: string, input: CreateOrderInput): Promise<Order>;
-  update(businessId: string, id: string, input: UpdateOrderInput): Promise<Order>;
   /** Atomically validates stock, decrements stock, resolves guest, and places the order. */
   place(businessId: string, input: PlaceOrderRepoInput): Promise<PlacedOrderSummary>;
-  /** Atomically cancels an order and restores product inventory stock. */
+  /** Atomically cancels an order, restores product inventory stock and records the history entry. */
   cancel(businessId: string, orderId: string, reason?: string | null): Promise<CancelOrderResult>;
+  /**
+   * Moves an order along the lifecycle (`ALLOWED_ORDER_TRANSITIONS`), appending to its history in the
+   * same step. Throws `OrderRepoError` `ORDER_STATE_CONFLICT` when the current status is not
+   * `expectedStatus`, `INVALID_INPUT` when the transition or its preconditions are not allowed.
+   */
+  transition(
+    businessId: string,
+    orderId: string,
+    input: OrderStatusTransitionInput,
+  ): Promise<Order>;
+  /** Records payment (never on a cancelled or refunded order); `markCompleted` also completes a READY order. */
+  recordPayment(businessId: string, orderId: string, input: OrderPaymentInput): Promise<Order>;
+  /** Undoes a payment (not on a completed, refunded or unpaid order). */
+  markUnpaid(businessId: string, orderId: string): Promise<Order>;
+  /** Refunds a paid order. */
+  recordRefund(businessId: string, orderId: string, reason?: string | null): Promise<Order>;
+  /**
+   * Replaces the order lines. Names and prices come from the catalog (existing lines keep their
+   * snapshot), stock moves by the delta and the order total is recomputed. Refused once the order is
+   * completed, cancelled or refunded.
+   */
+  replaceItems(
+    businessId: string,
+    orderId: string,
+    items: readonly ReplaceOrderItemInput[],
+  ): Promise<Order>;
 }
 
 export interface CreateGuestInput {

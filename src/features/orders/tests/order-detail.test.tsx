@@ -161,6 +161,27 @@ describe("OrderDetail Component", () => {
     });
   });
 
+  it("refund control is enabled for an owner and disabled with a reason otherwise", () => {
+    const completedPaid: EnrichedOrder = {
+      ...mockOrder,
+      status: "COMPLETED",
+      paid: "paid",
+      paymentMethod: "cash",
+    };
+    const { unmount } = render(<OrderDetail order={completedPaid} />);
+    expect(
+      (screen.getByTestId("post-completion-refund-button") as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(screen.queryByTestId("refund-owner-only")).toBeNull();
+    unmount();
+
+    render(<OrderDetail order={completedPaid} refundDisabledReason="Only the shop owner." />);
+    const btn = screen.getByTestId("post-completion-refund-button") as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.getAttribute("aria-describedby")).toBe("refund-owner-only");
+    expect(screen.getByTestId("refund-owner-only").textContent).toBe("Only the shop owner.");
+  });
+
   it("opens cancel dialog and cancels order with reason", async () => {
     const cancelSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
       success: true,

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACTION_FORBIDDEN_CODE,
   MOCK_MANAGER_SESSION,
+  OwnerRequiredError,
+  isOwnerRole,
   authErrorCodeSchema,
   managerSessionSchema,
   managerUserSchema,
@@ -36,7 +39,7 @@ describe("domain: auth", () => {
   it("validates MOCK_MANAGER_SESSION fixture against schema", () => {
     const parsed = managerSessionSchema.safeParse(MOCK_MANAGER_SESSION);
     expect(parsed.success).toBe(true);
-    expect(MOCK_MANAGER_SESSION.user.role).toBe("manager");
+    expect(MOCK_MANAGER_SESSION.user.role).toBe("owner");
     expect(MOCK_MANAGER_SESSION.business.currency).toBe("EUR");
   });
 
@@ -146,5 +149,24 @@ describe("domain: auth", () => {
       expect(sanitizeManagerRedirectPath("/manage/orders\r\n")).toBe("/manage");
       expect(sanitizeManagerRedirectPath("/manage/\x00evil")).toBe("/manage");
     });
+  });
+});
+
+describe("owner-only roles", () => {
+  it("only the owner role is an owner", () => {
+    expect(isOwnerRole("owner")).toBe(true);
+    expect(isOwnerRole("manager")).toBe(false);
+    expect(isOwnerRole("staff")).toBe(false);
+  });
+
+  it("OwnerRequiredError carries the typed FORBIDDEN code", () => {
+    const error = new OwnerRequiredError();
+    expect(error.code).toBe(ACTION_FORBIDDEN_CODE);
+    expect(error.code).toBe("FORBIDDEN");
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  it("the mock session is the owner of the demo business so nobody is locked out", () => {
+    expect(MOCK_MANAGER_SESSION.user.role).toBe("owner");
   });
 });

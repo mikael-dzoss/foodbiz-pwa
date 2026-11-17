@@ -34,13 +34,13 @@ describe("scripts: provision-member", () => {
   });
 
   describe("parseProvisionArgs", () => {
-    it("parses valid space-separated arguments with default role manager", () => {
+    it("parses valid space-separated arguments leaving the role to be decided at provisioning", () => {
       const args = ["--business-slug", "la-petite-boulangerie", "--email", "manager@example.com"];
       const result = parseProvisionArgs(args);
       expect(result).toEqual({
         businessSlug: "la-petite-boulangerie",
         email: "manager@example.com",
-        role: "manager",
+        role: undefined,
         yes: false,
         force: false,
       });
@@ -207,7 +207,15 @@ describe("scripts: provision-member", () => {
       const mockBusinessSelect = vi.fn(() => ({ eq: mockBusinessEq }));
 
       const mockMemberMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-      const mockMemberEqUser = vi.fn(() => ({ maybeSingle: mockMemberMaybeSingle }));
+      // The owner lookup (`.eq(business).eq("role", "owner")`) is awaited directly: thenable result.
+      const ownersResult: { data: Array<{ user_id: string }>; error: null } = {
+        data: [],
+        error: null,
+      };
+      const mockMemberEqUser = vi.fn(() => ({
+        maybeSingle: mockMemberMaybeSingle,
+        then: (resolve: (value: typeof ownersResult) => unknown) => resolve(ownersResult),
+      }));
       const mockMemberEqBiz = vi.fn(() => ({ eq: mockMemberEqUser }));
       const mockMemberSelect = vi.fn(() => ({ eq: mockMemberEqBiz }));
 
@@ -238,6 +246,7 @@ describe("scripts: provision-member", () => {
           },
         },
         mockFrom,
+        ownersResult,
         mockBusinessMaybeSingle,
         mockMemberMaybeSingle,
         mockUpsert,
@@ -320,6 +329,109 @@ describe("scripts: provision-member", () => {
         expect.stringContaining("Provisioning member: host=localhost"),
       );
 
+      consoleSpy.mockRestore();
+    });
+
+    it("makes the first member of a business its owner when no role is given", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle, mockUpsert } =
+        createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: [{ id: "22222222-2222-4222-8222-222222222222", email: "a@example.com" }] },
+        error: null,
+      });
+      mockSingle.mockResolvedValueOnce({ data: { id: "m" }, error: null });
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "b",
+        email: "a@example.com",
+      });
+
+      expect(res.role).toBe("owner");
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "owner" }),
+        expect.anything(),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it("falls back to manager when a concurrent run took the owner slot (23505)", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: [{ id: "22222222-2222-4222-8222-222222222222", email: "a@example.com" }] },
+        error: null,
+      });
+      mockSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: "23505", message: "duplicate key" },
+      });
+      mockSingle.mockResolvedValueOnce({ data: { id: "m" }, error: null });
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "b",
+        email: "a@example.com",
+      });
+
+      expect(res.role).toBe("manager");
+      consoleSpy.mockRestore();
+    });
+
+    it("fails with a clear message when an explicit owner role hits the owner slot (23505)", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: [{ id: "22222222-2222-4222-8222-222222222222", email: "a@example.com" }] },
+        error: null,
+      });
+      mockSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: "23505", message: "duplicate key" },
+      });
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessSlug: "b",
+          email: "a@example.com",
+          role: "owner",
+        }),
+      ).rejects.toThrow(/already has an owner/i);
+      consoleSpy.mockRestore();
+    });
+
+    it("makes a later member a manager when the business already has an owner", async () => {
+      const { client, ownersResult, mockBusinessMaybeSingle, mockListUsers, mockSingle } =
+        createMockClient();
+      ownersResult.data = [{ user_id: "99999999-9999-4999-8999-999999999999" }];
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: [{ id: "22222222-2222-4222-8222-222222222222", email: "a@example.com" }] },
+        error: null,
+      });
+      mockSingle.mockResolvedValueOnce({ data: { id: "m" }, error: null });
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "b",
+        email: "a@example.com",
+      });
+
+      expect(res.role).toBe("manager");
       consoleSpy.mockRestore();
     });
 

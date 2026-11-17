@@ -2,18 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
-import { requireAuthenticatedAction } from "@/features/auth";
+import {
+  forbiddenResult,
+  isForbiddenError,
+  requireAuthenticatedAction,
+  requireOwnerAction,
+} from "@/features/auth";
 import {
   createExpenseInputSchema,
   updateExpenseInputSchema,
   uuidSchema,
+  type ActionErrorCode,
   type Expense,
 } from "@/domain";
 import type { ExpenseFilter } from "@/domain/repositories";
 
 export type ExpenseActionResult<T = void> =
   | { success: true; data: T }
-  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: Record<string, string[]>;
+      /** `FORBIDDEN` when the signed-in member's role may not do this (owner-only delete). */
+      code?: ActionErrorCode;
+    };
 
 /**
  * Lists expenses for the manager's business with optional tag or date range filter.
@@ -108,7 +120,8 @@ export async function updateExpenseAction(
  */
 export async function deleteExpenseAction(id: string): Promise<ExpenseActionResult<void>> {
   try {
-    const { businessId } = await requireAuthenticatedAction();
+    // Hard deletes are owner-only (also enforced by the expenses delete policy).
+    const { businessId } = await requireOwnerAction();
 
     const idParsed = uuidSchema.safeParse(id);
     if (!idParsed.success) {
@@ -123,7 +136,7 @@ export async function deleteExpenseAction(id: string): Promise<ExpenseActionResu
 
     return { success: true, data: undefined };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to delete expense";
-    return { success: false, error: message };
+    if (isForbiddenError(err)) return forbiddenResult();
+    return { success: false, error: "Failed to delete expense" };
   }
 }

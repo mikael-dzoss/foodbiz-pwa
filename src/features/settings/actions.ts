@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { getRepositories } from "@/lib/repositories";
-import { requireAuthenticatedAction } from "@/features/auth";
+import {
+  forbiddenResult,
+  isForbiddenError,
+  requireAuthenticatedAction,
+  requireOwnerAction,
+} from "@/features/auth";
 import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import {
   updateBusinessProfileSchema,
@@ -11,15 +16,23 @@ import {
   updatePaymentSettingsSchema,
   updateInventoryFinanceSettingsSchema,
   updateNotificationSettingsSchema,
+  type ActionErrorCode,
   type Business,
   type BusinessSettings,
   type SupportedLocale,
+  isOwnerRole,
   isSupportedLocale,
 } from "@/domain";
 
 export type SettingsActionResult<T = void> =
   | { success: true; data: T }
-  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+  | {
+      success: false;
+      error: string;
+      fieldErrors?: Record<string, string[]>;
+      /** `FORBIDDEN` when the signed-in member's role may not do this (owner-only settings). */
+      code?: ActionErrorCode;
+    };
 
 /**
  * Loads the current manager's business profile.
@@ -63,7 +76,7 @@ export async function updateBusinessProfileAction(
   input: unknown,
 ): Promise<SettingsActionResult<Business>> {
   try {
-    const { businessId } = await requireAuthenticatedAction();
+    const { businessId, session } = await requireAuthenticatedAction();
 
     const parsed = updateBusinessProfileSchema.safeParse(input);
     if (!parsed.success) {
@@ -75,6 +88,12 @@ export async function updateBusinessProfileAction(
     }
 
     const repos = getRepositories();
+
+    // The slug is the public storefront address: only an owner may change it.
+    const current = await repos.business.findById(businessId);
+    if (current && current.slug !== parsed.data.slug && !isOwnerRole(session.user.role)) {
+      return forbiddenResult();
+    }
 
     // Check slug uniqueness across other businesses
     const existingWithSlug = await repos.business.findBySlug(parsed.data.slug);
@@ -111,8 +130,8 @@ export async function updateBusinessProfileAction(
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update business profile";
-    return { success: false, error: message };
+    if (isForbiddenError(err)) return forbiddenResult();
+    return { success: false, error: "Failed to update business profile" };
   }
 }
 
@@ -182,7 +201,8 @@ export async function updatePaymentSettingsAction(
   input: unknown,
 ): Promise<SettingsActionResult<BusinessSettings>> {
   try {
-    const { businessId } = await requireAuthenticatedAction();
+    // Payment identifiers and payment methods: owner only (also enforced by a database trigger).
+    const { businessId } = await requireOwnerAction();
     const parsed = updatePaymentSettingsSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -201,8 +221,8 @@ export async function updatePaymentSettingsAction(
 
     return { success: true, data: updated };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update payment settings";
-    return { success: false, error: message };
+    if (isForbiddenError(err)) return forbiddenResult();
+    return { success: false, error: "Failed to update payment settings" };
   }
 }
 

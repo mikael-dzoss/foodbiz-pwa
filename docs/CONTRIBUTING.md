@@ -138,7 +138,9 @@ What this suite proves (`src/lib/repositories/tests/supabase-live.contract.test.
 - **Real RLS security boundaries:** anonymous callers cannot list orders/guests/expenses or read private `business_settings` columns (`publicOnly: true` enforcement), while storefront order placement works for visible products and is rejected for hidden products or non-storefront channels.
 - **Tenant isolation & CRUD:** authenticated business members have full CRUD on their tenant's resources, cannot view or modify other tenants' rows (cross-tenant denial), and cannot cancel orders from other businesses.
 - **True transactional concurrency (H9):** parallel anonymous checkouts for the last unit of stock via `Promise.all` result in exactly one successful placement and one `STOCK_ERROR` rejection, with 0 final stock and no overselling. Order numbers are strictly unique and sequential under concurrent load.
-- **Atomic order updates & cancel:** `orders.cancel` restores stock atomically, and `orders.update` with items replaces line items transactionally via the `replace_order_items` RPC.
+- **Server-side order state:** members cannot write `orders`/`order_items` directly (money and integrity fields); `transition`, `recordPayment`, `markUnpaid`, `recordRefund`, `cancel` and `replaceItems` go through database functions. The suite runs every lifecycle pair against the domain transition table, the stale-status `ORDER_STATE_CONFLICT`, and item replacement (prices from the catalog, total recomputed, stock by delta).
+- **Owner-only actions:** a manager and a staff member are refused (`FORBIDDEN`) payment settings, the slug and hard deletes; an owner succeeds; nobody can delete `business_settings`.
+- **Tenant-safe references:** composite foreign keys refuse cross-tenant references.
 
 #### Supabase-backed storefront journey
 

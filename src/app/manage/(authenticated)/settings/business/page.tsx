@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
+import { isOwnerRole } from "@/domain/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { getBusinessProfileAction, BusinessProfileForm } from "@/features/settings";
 import { APP_METADATA } from "@/config/app";
@@ -34,5 +35,11 @@ export default async function BusinessProfilePage() {
           updatedAt: new Date().toISOString(),
         };
 
-  return <BusinessProfileForm business={business} dict={dict.settings} />;
+  return (
+    <BusinessProfileForm
+      business={business}
+      dict={dict.settings}
+      slugLockedReason={isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice}
+    />
+  );
 }

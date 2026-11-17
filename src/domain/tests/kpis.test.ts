@@ -330,6 +330,40 @@ describe("KPI Engine", () => {
       expect(metrics.totalPendingRevenue).toBe(8000); // 2500 + 1500 + 4000 (across all non-cancelled)
     });
 
+    it("counts a refunded order as neither revenue nor pending revenue", () => {
+      const orders = [
+        makeOrder({
+          id: "10000000-0000-4000-8000-000000000031",
+          paid: "refunded",
+          totalAmount: 3000,
+          status: "COMPLETED",
+          requestedDate: "2026-10-04",
+          paidAt: "2026-10-04T10:00:00.000Z",
+          refundedAt: "2026-10-05T10:00:00.000Z",
+        }),
+        makeOrder({
+          id: "10000000-0000-4000-8000-000000000032",
+          paid: "refunded",
+          totalAmount: 2000,
+          status: "CANCELLED",
+          requestedDate: "2026-10-04",
+        }),
+        makeOrder({
+          id: "10000000-0000-4000-8000-000000000033",
+          paid: "unpaid",
+          totalAmount: 500,
+          status: "NEW",
+          requestedDate: "2026-10-04",
+        }),
+      ];
+
+      const metrics = calculateKpiMetrics({ orders, expenses: [], period });
+
+      expect(metrics.revenue).toBe(0);
+      expect(metrics.pendingRevenue).toBe(500);
+      expect(metrics.totalPendingRevenue).toBe(500);
+    });
+
     it("computes costs and profit accurately (including net loss)", () => {
       const orders = [
         makeOrder({

@@ -47,6 +47,8 @@ import { cn } from "@/lib/utils";
 
 export interface OrderDetailProps {
   order: EnrichedOrder;
+  /** Set for a member who is not an owner: refunds are owner-only, the control is disabled with this reason. */
+  refundDisabledReason?: string;
 }
 
 const STATUS_BADGE_MAP: Record<string, NonNullable<BadgeProps["variant"]>> = {
@@ -94,7 +96,7 @@ function formatRequestedDateTime(requestedDate?: string | null, requestedTime?: 
   return `${formattedDate} (ASAP)`;
 }
 
-export function OrderDetail({ order }: OrderDetailProps) {
+export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const router = useRouter();
   const [currentOrder, setCurrentOrder] = React.useState<EnrichedOrder>(order);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -737,12 +739,23 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 type="button"
                 variant="outline"
                 onClick={() => setRefundDialogOpen(true)}
+                disabled={Boolean(refundDisabledReason)}
+                aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
                 className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-[40px] w-full gap-1.5 text-xs font-semibold"
                 data-testid="record-refund-cta"
               >
                 <CreditCard className="h-4 w-4" />
                 <span>Record refund ({formatMoney(currentOrder.totalAmount)})</span>
               </Button>
+              {refundDisabledReason && (
+                <p
+                  id="refund-owner-only"
+                  className="text-muted-foreground text-body-sm"
+                  data-testid="refund-owner-only"
+                >
+                  {refundDisabledReason}
+                </p>
+              )}
             </div>
           )}
 
@@ -753,12 +766,23 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setRefundDialogOpen(true)}
+                disabled={Boolean(refundDisabledReason)}
+                aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
                 className="border-border text-muted-foreground hover:text-foreground hover:bg-muted min-h-[36px] w-full gap-1.5 text-xs font-semibold"
                 data-testid="post-completion-refund-button"
               >
                 <CreditCard className="h-3.5 w-3.5" />
                 <span>Record refund (customer dispute)</span>
               </Button>
+              {refundDisabledReason && (
+                <p
+                  id="refund-owner-only"
+                  className="text-muted-foreground text-body-sm"
+                  data-testid="refund-owner-only"
+                >
+                  {refundDisabledReason}
+                </p>
+              )}
             </div>
           )}
 
