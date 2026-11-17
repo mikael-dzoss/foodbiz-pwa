@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import ManageDashboardPage from "../(authenticated)/page";
 import * as auth from "@/lib/auth";
-import * as dashboardActions from "@/features/dashboard/dashboard-actions";
+import * as dashboardData from "@/features/dashboard/dashboard-data";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -36,16 +36,15 @@ vi.mock("@/features/dashboard/components/dashboard-view", () => ({
 import { buildDashboardData } from "@/domain";
 
 describe("ManageDashboardPage", () => {
-  it("renders dashboard view with data loaded from getDashboardDataAction", async () => {
-    vi.spyOn(dashboardActions, "getDashboardDataAction").mockResolvedValueOnce({
-      success: true,
-      data: buildDashboardData({
+  it("renders dashboard view with data loaded from getDashboardData", async () => {
+    const spy = vi.spyOn(dashboardData, "getDashboardData").mockResolvedValueOnce(
+      buildDashboardData({
         orders: [],
         expenses: [],
         products: [],
         periodPreset: "last_7_days",
       }),
-    });
+    );
 
     const jsx = await ManageDashboardPage({
       searchParams: Promise.resolve({ period: "last_7_days" }),
@@ -53,21 +52,27 @@ describe("ManageDashboardPage", () => {
 
     render(jsx);
     expect(auth.requireManagerSession).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith("last_7_days");
     expect(screen.getByTestId("dashboard-view").textContent).toContain(
       "Dashboard View - last_7_days",
     );
   });
 
-  it("handles fallback empty data when getDashboardDataAction fails", async () => {
-    vi.spyOn(dashboardActions, "getDashboardDataAction").mockResolvedValueOnce({
-      success: false,
-      error: "Failed to load dashboard data",
-    });
+  it("defaults to today for a missing or invalid period", async () => {
+    const spy = vi
+      .spyOn(dashboardData, "getDashboardData")
+      .mockResolvedValue(
+        buildDashboardData({ orders: [], expenses: [], products: [], periodPreset: "today" }),
+      );
 
-    const jsx = await ManageDashboardPage();
+    await ManageDashboardPage();
+    await ManageDashboardPage({ searchParams: Promise.resolve({ period: "bogus" }) });
+    expect(spy).toHaveBeenNthCalledWith(1, "today");
+    expect(spy).toHaveBeenNthCalledWith(2, "today");
+  });
 
-    render(jsx);
-    expect(auth.requireManagerSession).toHaveBeenCalled();
-    expect(screen.getByTestId("dashboard-view").textContent).toContain("Dashboard View - today");
+  it("lets a read failure reach the route error boundary instead of rendering empty data", async () => {
+    vi.spyOn(dashboardData, "getDashboardData").mockRejectedValueOnce(new Error("Offline"));
+    await expect(ManageDashboardPage()).rejects.toThrow("Offline");
   });
 });

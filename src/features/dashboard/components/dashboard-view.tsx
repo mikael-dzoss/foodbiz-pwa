@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { KPICard } from "@/components/ui/kpi-card";
 import {
   formatMoney,
@@ -9,7 +10,6 @@ import {
   type SupportedLocale,
 } from "@/domain";
 import { enDictionary, frDictionary } from "@/domain/i18n";
-import { getDashboardDataAction } from "../dashboard-actions";
 import { PeriodPicker } from "./period-picker";
 import { OperationalWidgets } from "./operational-widgets";
 import { RecentActivityFeed } from "./recent-activity-feed";
@@ -22,19 +22,18 @@ export interface DashboardViewProps {
 }
 
 export function DashboardView({ initialData, locale = "en", className }: DashboardViewProps) {
-  const [data, setData] = React.useState<DashboardData>(initialData);
+  const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
+  // The period lives in the URL: the page re-renders with fresh data on the server.
+  const [period, setPeriod] = React.useState(initialData.periodPreset);
+  const data = initialData;
 
   const dict = locale === "fr" ? frDictionary : enDictionary;
 
   const handlePeriodChange = (newPeriod: DashboardPeriodPreset) => {
-    setData((prev) => ({ ...prev, periodPreset: newPeriod }));
-
-    startTransition(async () => {
-      const res = await getDashboardDataAction({ periodPreset: newPeriod });
-      if (res.success) {
-        setData(res.data);
-      }
+    setPeriod(newPeriod);
+    startTransition(() => {
+      router.replace(`/manage?period=${newPeriod}`);
     });
   };
 
@@ -62,7 +61,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
 
         {/* Period Selector Tabs */}
         <PeriodPicker
-          value={data.periodPreset}
+          value={period}
           onChange={handlePeriodChange}
           disabled={isPending}
           labels={dict.dashboard.periods}

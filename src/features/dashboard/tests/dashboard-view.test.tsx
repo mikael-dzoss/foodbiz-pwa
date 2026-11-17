@@ -2,10 +2,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DashboardView } from "../components/dashboard-view";
 import type { DashboardData } from "@/domain";
-import * as actions from "../dashboard-actions";
 
-vi.mock("../dashboard-actions", () => ({
-  getDashboardDataAction: vi.fn(),
+const mockReplace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace }),
 }));
 
 const mockData: DashboardData = {
@@ -151,35 +151,13 @@ describe("DashboardView Component", () => {
     expect(aovCard.textContent).toContain("+4.1%");
   });
 
-  it("switches period when tab is clicked and refreshes dashboard data", async () => {
-    const updatedData: DashboardData = {
-      ...mockData,
-      periodPreset: "last_7_days",
-      period: { startDate: "2026-10-09", endDate: "2026-10-15" },
-      kpis: {
-        ...mockData.kpis,
-        current: {
-          ...mockData.kpis.current,
-          revenue: 125000,
-        },
-      },
-    };
-
-    vi.mocked(actions.getDashboardDataAction).mockResolvedValueOnce({
-      success: true,
-      data: updatedData,
-    });
-
+  it("switches period through the URL so the server re-renders with fresh data", async () => {
     render(<DashboardView initialData={mockData} />);
 
-    const sevenDaysTab = screen.getByTestId("period-tab-last_7_days");
-    fireEvent.click(sevenDaysTab);
+    fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
 
     await waitFor(() => {
-      expect(actions.getDashboardDataAction).toHaveBeenCalledWith({
-        periodPreset: "last_7_days",
-      });
-      expect(screen.getByTestId("kpi-revenue").textContent).toContain("€1,250.00");
+      expect(mockReplace).toHaveBeenCalledWith("/manage?period=last_7_days");
     });
   });
 

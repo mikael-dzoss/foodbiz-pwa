@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
 import { APP_METADATA } from "@/config/app";
-import { buildDashboardData, dashboardPeriodPresetSchema } from "@/domain";
-import { getDashboardDataAction, DashboardView } from "@/features/dashboard";
+import { dashboardPeriodPresetSchema } from "@/domain";
+import { DashboardView } from "@/features/dashboard";
+import { getDashboardData } from "@/features/dashboard/dashboard-data";
 
 export const metadata: Metadata = {
   title: `Dashboard | ${APP_METADATA.name}`,
@@ -22,16 +23,7 @@ export default async function ManageDashboardPage({ searchParams }: ManageDashbo
   const parsedPreset = dashboardPeriodPresetSchema.safeParse(params?.period);
   const periodPreset = parsedPreset.success ? parsedPreset.data : "today";
 
-  const res = await getDashboardDataAction({ periodPreset });
-
-  const initialData = res.success
-    ? res.data
-    : buildDashboardData({
-        orders: [],
-        expenses: [],
-        products: [],
-        periodPreset,
-      });
+  const initialData = await getDashboardData(periodPreset);
 
   return (
     <div className="mx-auto max-w-xl">
