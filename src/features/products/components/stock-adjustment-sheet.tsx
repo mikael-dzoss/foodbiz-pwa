@@ -12,6 +12,8 @@ import { formatMoney, getStockStatus } from "@/domain";
 import { adjustProductStockAction } from "../product-actions";
 import type { EnrichedProduct } from "../product-data";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface StockAdjustmentSheetProps {
   product: EnrichedProduct | null;
@@ -22,7 +24,13 @@ export interface StockAdjustmentSheetProps {
 }
 
 const QUICK_ADJUST_DELTAS = [-10, -5, -1, 1, 5, 10];
+/** Stored with the stock movement (English, language-neutral data); the screen shows localized labels. */
 const REASONS = ["Restock / Delivery", "Inventory count", "Waste / Damaged"] as const;
+const REASON_KEYS = {
+  "Restock / Delivery": "restock",
+  "Inventory count": "count",
+  "Waste / Damaged": "waste",
+} as const;
 
 export function StockAdjustmentSheet({
   product,
@@ -31,6 +39,8 @@ export function StockAdjustmentSheet({
   onStockAdjusted,
   lowStockThreshold = 5,
 }: StockAdjustmentSheetProps) {
+  const { locale, dict } = useManagerLocale();
+  const t = dict.productsAdmin.stock;
   const normalizedProduct = product ?? null;
   const [prevProduct, setPrevProduct] = React.useState<EnrichedProduct | null>(normalizedProduct);
   const [prevIsOpen, setPrevIsOpen] = React.useState<boolean>(isOpen);
@@ -40,7 +50,7 @@ export function StockAdjustmentSheet({
   const [, saveAction, isPending] = React.useActionState(async (): Promise<null> => {
     if (!product) return null;
     if (targetStock < 0) {
-      setError("Stock cannot be set below 0.");
+      setError(t.negative);
       return null;
     }
 
@@ -54,7 +64,7 @@ export function StockAdjustmentSheet({
       onStockAdjusted?.(product.id, targetStock);
       onOpenChange(false);
     } else {
-      setError(actionErrorMessage(res));
+      setError(actionErrorMessage(res, locale));
     }
     return null;
   }, null);
@@ -99,7 +109,7 @@ export function StockAdjustmentSheet({
       >
         {/* Header from Stitch M-43 Canvas */}
         <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
-          <SheetTitle className="text-foreground">Adjust Stock</SheetTitle>
+          <SheetTitle className="text-foreground">{t.title}</SheetTitle>
           <p className="text-muted-foreground text-xs font-medium">
             {product.name} · {product.categoryName}
           </p>
@@ -127,7 +137,7 @@ export function StockAdjustmentSheet({
                 <div>
                   <p className="text-foreground text-sm font-semibold">{product.name}</p>
                   <p className="text-muted-foreground text-xs font-medium tabular-nums">
-                    {formatMoney(product.price)}
+                    {formatMoney(product.price, locale)}
                   </p>
                 </div>
               </div>
@@ -135,21 +145,21 @@ export function StockAdjustmentSheet({
               <div className="text-right">
                 {currentStatus === "out_of_stock" && (
                   <Badge variant="destructive" className="font-semibold">
-                    0 in stock
+                    {t.stockOut}
                   </Badge>
                 )}
                 {currentStatus === "low_stock" && (
                   <Badge variant="warning" className="font-semibold">
-                    {currentStock} left
+                    {interpolate(t.stockLow, { count: currentStock })}
                   </Badge>
                 )}
                 {currentStatus === "in_stock" && (
                   <Badge variant="success" className="font-semibold">
-                    {currentStock} in stock
+                    {interpolate(t.stockIn, { count: currentStock })}
                   </Badge>
                 )}
                 <p className="text-muted-foreground text-caption mt-1">
-                  Alert below {lowStockThreshold}
+                  {interpolate(t.alertBelow, { count: lowStockThreshold })}
                 </p>
               </div>
             </div>
@@ -158,10 +168,10 @@ export function StockAdjustmentSheet({
             <div className="border-border bg-card space-y-3 rounded-lg border p-4">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-                  Adjust Quantity
+                  {t.adjustQuantity}
                 </span>
                 <span className="text-muted-foreground text-xs tabular-nums">
-                  Current: {currentStock} units
+                  {interpolate(t.current, { count: currentStock })}
                 </span>
               </div>
 
@@ -173,7 +183,7 @@ export function StockAdjustmentSheet({
                 >
                   {targetStock}
                 </div>
-                <p className="text-muted-foreground mt-0.5 text-xs">New total units</p>
+                <p className="text-muted-foreground mt-0.5 text-xs">{t.newTotal}</p>
               </div>
 
               {/* Quick Adjustment Chips Row */}
@@ -193,7 +203,7 @@ export function StockAdjustmentSheet({
               </div>
 
               {/* Direct Numerical Input Option */}
-              <Field id="direct-stock-input" label="Or enter exact quantity" className="pt-2">
+              <Field id="direct-stock-input" label={t.exactLabel} className="pt-2">
                 {(control) => (
                   <div className="relative">
                     <Input
@@ -207,7 +217,7 @@ export function StockAdjustmentSheet({
                       data-testid="direct-stock-input"
                     />
                     <span className="text-muted-foreground pointer-events-none absolute top-3 right-3 text-xs font-medium">
-                      units
+                      {t.units}
                     </span>
                   </div>
                 )}
@@ -217,13 +227,15 @@ export function StockAdjustmentSheet({
             {/* Section 3: Difference Banner & Reason */}
             <div className="bg-primary-soft/40 border-primary-soft text-primary-soft-foreground flex items-center justify-between rounded-lg border p-2.5 text-xs font-semibold">
               <span>
-                Difference: {stockDifference >= 0 ? `+${stockDifference}` : stockDifference} units
+                {interpolate(t.difference, {
+                  delta: stockDifference >= 0 ? `+${stockDifference}` : stockDifference,
+                })}
               </span>
               <span>
-                New stock: {targetStock}
+                {interpolate(t.newStock, { count: targetStock })}
                 {projectedStatus === "low_stock" && (
                   <span className="text-warning-soft-foreground ml-1.5 inline-flex items-center gap-1 font-medium">
-                    <AlertTriangle className="text-warning inline h-3 w-3" /> Low
+                    <AlertTriangle className="text-warning inline h-3 w-3" /> {t.low}
                   </span>
                 )}
               </span>
@@ -232,7 +244,7 @@ export function StockAdjustmentSheet({
             {/* Adjustment Reason Pills */}
             <div>
               <label className="text-foreground mb-1.5 block text-xs font-semibold">
-                Reason for adjustment
+                {t.reasonLabel}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {REASONS.map((r) => (
@@ -248,7 +260,7 @@ export function StockAdjustmentSheet({
                         : "border-border bg-card text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    {r}
+                    {t.reasons[REASON_KEYS[r]]}
                   </Button>
                 ))}
               </div>
@@ -265,9 +277,7 @@ export function StockAdjustmentSheet({
               </p>
             )}
 
-            <p className="text-muted-foreground text-caption">
-              Stock cannot be set below 0 units. Past order history is strictly preserved.
-            </p>
+            <p className="text-muted-foreground text-caption">{t.note}</p>
           </div>
 
           {/* Action Footer */}
@@ -280,7 +290,7 @@ export function StockAdjustmentSheet({
               disabled={isPending}
               className="h-12 flex-1 font-semibold"
             >
-              Cancel
+              {t.cancel}
             </Button>
             <Button
               type="submit"
@@ -293,7 +303,7 @@ export function StockAdjustmentSheet({
               ) : (
                 <Check className="mr-2 h-5 w-5" />
               )}
-              Update Stock
+              {t.update}
             </Button>
           </div>
         </form>

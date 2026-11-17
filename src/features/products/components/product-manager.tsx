@@ -27,6 +27,8 @@ import type { EnrichedProduct } from "../product-data";
 import type { ProductCategory, Product } from "@/domain";
 import { ProductFormSheet } from "./product-form-sheet";
 import { StockAdjustmentSheet } from "./stock-adjustment-sheet";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface ProductManagerProps {
   initialProducts: EnrichedProduct[];
@@ -39,6 +41,8 @@ export function ProductManager({
   categories,
   lowStockThreshold = 5,
 }: ProductManagerProps) {
+  const { locale, dict } = useManagerLocale();
+  const t = dict.productsAdmin;
   const [products, setProducts] = React.useState<EnrichedProduct[]>(initialProducts);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedFilter, setSelectedFilter] = React.useState<string>("all");
@@ -115,13 +119,13 @@ export function ProductManager({
     if (uncategorized.length > 0) {
       groups.push({
         id: "uncategorized",
-        name: "Uncategorized",
+        name: t.uncategorized,
         sortOrder: 9999,
         products: uncategorized,
       });
     }
     return groups;
-  }, [categories, filteredProducts]);
+  }, [categories, filteredProducts, t.uncategorized]);
 
   const sectionIds = React.useMemo(() => groupedCategories.map((g) => g.id), [groupedCategories]);
   const navItems = React.useMemo(
@@ -199,7 +203,7 @@ export function ProductManager({
   };
 
   const handleProductSaved = (saved: Product) => {
-    const catName = categories.find((c) => c.id === saved.categoryId)?.name ?? "Uncategorized";
+    const catName = categories.find((c) => c.id === saved.categoryId)?.name ?? t.uncategorized;
     setProducts((prev) => {
       const idx = prev.findIndex((p) => p.id === saved.id);
       if (idx >= 0) {
@@ -222,20 +226,18 @@ export function ProductManager({
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-title-lg text-foreground">Products</h1>
+              <h1 className="text-title-lg text-foreground">{t.title}</h1>
               <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
                 {totalCount}
               </span>
             </div>
-            <p className="text-muted-foreground text-xs font-medium">
-              Manage menu items, pricing, and stock
-            </p>
+            <p className="text-muted-foreground text-xs font-medium">{t.subtitle}</p>
           </div>
 
           {/* TODO(catalog): wire to business ordering schedule / store status toggle (#71, #83) */}
           <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
             <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
-            Menu Active
+            {t.menuActive}
           </span>
         </div>
 
@@ -246,7 +248,7 @@ export function ProductManager({
             className="border-border bg-card text-foreground hover:bg-muted inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors"
           >
             <Layers className="h-4 w-4" />
-            Categories ({categories.length})
+            {interpolate(t.categoriesLink, { count: categories.length })}
           </Link>
 
           <Button
@@ -256,7 +258,7 @@ export function ProductManager({
             data-testid="add-product-button"
           >
             <Plus className="mr-1 h-4 w-4 stroke-[2.5]" />
-            Add Product
+            {t.addProduct}
           </Button>
         </div>
       </div>
@@ -269,7 +271,7 @@ export function ProductManager({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products by name..."
+            placeholder={t.searchPlaceholder}
             className="h-11 pr-9 pl-9 text-sm"
             data-testid="product-search-input"
           />
@@ -280,7 +282,7 @@ export function ProductManager({
               type="button"
               onClick={() => setSearchQuery("")}
               className="text-muted-foreground hover:text-foreground absolute top-3 right-3"
-              aria-label="Clear search"
+              aria-label={t.clearSearch}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -293,7 +295,7 @@ export function ProductManager({
           onValueChange={(value) => setSelectedFilter(value as typeof selectedFilter)}
         >
           <TabsList
-            aria-label="Filter products"
+            aria-label={t.filterLabel}
             className="no-scrollbar -mx-4 h-auto w-auto min-w-0 justify-start gap-1.5 overflow-x-auto rounded-none bg-transparent px-4 py-1"
           >
             <TabsTrigger
@@ -301,7 +303,7 @@ export function ProductManager({
               value="all"
               className="border-border bg-card text-foreground hover:bg-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary min-h-9 shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-none transition-colors"
             >
-              All ({totalCount})
+              {interpolate(t.filters.all, { count: totalCount })}
             </TabsTrigger>
 
             {lowStockCount > 0 && (
@@ -310,7 +312,7 @@ export function ProductManager({
                 value="low_stock"
                 className="border-warning/30 bg-warning-soft/40 text-warning-soft-foreground hover:bg-warning-soft/70 data-[state=active]:bg-warning-soft data-[state=active]:text-warning-soft-foreground data-[state=active]:border-warning-soft min-h-9 shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-none transition-colors data-[state=active]:font-bold"
               >
-                Low Stock ({lowStockCount})
+                {interpolate(t.filters.lowStock, { count: lowStockCount })}
               </TabsTrigger>
             )}
 
@@ -320,7 +322,7 @@ export function ProductManager({
                 value="hidden"
                 className="border-border bg-card text-muted-foreground hover:bg-muted data-[state=active]:bg-muted data-[state=active]:text-foreground min-h-9 shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-none transition-colors data-[state=active]:font-bold"
               >
-                Hidden ({hiddenCount})
+                {interpolate(t.filters.hidden, { count: hiddenCount })}
               </TabsTrigger>
             )}
           </TabsList>
@@ -334,10 +336,13 @@ export function ProductManager({
             items={navItems}
             activeId={activeId}
             onSelect={handleSelectCategory}
-            menuTitle="Categories"
-            menuSubtitle={`${filteredProducts.length} ${filteredProducts.length === 1 ? "product" : "products"}`}
-            menuLabel="Browse categories"
-            dismissLabel="Dismiss"
+            menuTitle={t.categoriesMenuTitle}
+            menuSubtitle={interpolate(
+              filteredProducts.length === 1 ? t.productOne : t.productOther,
+              { count: filteredProducts.length },
+            )}
+            menuLabel={t.categoriesBrowse}
+            dismissLabel={t.dismiss}
           />
         </div>
       )}
@@ -405,7 +410,7 @@ export function ProductManager({
                             <div className="flex items-start justify-between gap-2">
                               <h3 className="text-label-md text-foreground truncate">{p.name}</h3>
                               <span className="text-foreground text-sm font-bold tabular-nums">
-                                {formatMoney(p.price)}
+                                {formatMoney(p.price, locale)}
                               </span>
                             </div>
 
@@ -414,7 +419,8 @@ export function ProductManager({
                               {p.unitCost > 0 && (
                                 <span className="tabular-nums">
                                   {" "}
-                                  · Cost: {formatMoney(p.unitCost)}
+                                  ·{" "}
+                                  {interpolate(t.cost, { amount: formatMoney(p.unitCost, locale) })}
                                 </span>
                               )}
                             </p>
@@ -423,18 +429,18 @@ export function ProductManager({
                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
                               {stockStatus === "out_of_stock" && (
                                 <Badge variant="destructive" className="font-semibold tabular-nums">
-                                  0 in stock
+                                  {t.stockOut}
                                 </Badge>
                               )}
                               {stockStatus === "low_stock" && (
                                 <Badge variant="warning" className="font-semibold tabular-nums">
                                   <AlertTriangle className="mr-1 inline h-3 w-3" />
-                                  {p.stock} left
+                                  {interpolate(t.stockLow, { count: p.stock })}
                                 </Badge>
                               )}
                               {stockStatus === "in_stock" && (
                                 <Badge variant="success" className="font-semibold tabular-nums">
-                                  {p.stock} in stock
+                                  {interpolate(t.stockIn, { count: p.stock })}
                                 </Badge>
                               )}
 
@@ -443,11 +449,11 @@ export function ProductManager({
                                   variant="outline"
                                   className="text-muted-foreground text-caption gap-1"
                                 >
-                                  <Eye className="h-3 w-3" /> Visible
+                                  <Eye className="h-3 w-3" /> {t.visible}
                                 </Badge>
                               ) : (
                                 <Badge variant="secondary" className="text-caption gap-1">
-                                  <EyeOff className="h-3 w-3" /> Hidden
+                                  <EyeOff className="h-3 w-3" /> {t.hidden}
                                 </Badge>
                               )}
                             </div>
@@ -465,7 +471,7 @@ export function ProductManager({
                               onClick={() => handleQuickStockStep(p.id, -1)}
                               disabled={p.stock <= 0}
                               className="text-foreground hover:bg-muted h-9 w-9"
-                              aria-label={`Decrease stock for ${p.name}`}
+                              aria-label={interpolate(t.decreaseStock, { name: p.name })}
                               data-testid={`quick-stock-minus-${p.id}`}
                             >
                               -
@@ -476,7 +482,10 @@ export function ProductManager({
                               size="none"
                               type="button"
                               onClick={() => handleOpenStockSheet(p)}
-                              aria-label={`${p.stock} - Open stock sheet for ${p.name}`}
+                              aria-label={interpolate(t.openStockSheet, {
+                                count: p.stock,
+                                name: p.name,
+                              })}
                               className="hover:bg-muted text-foreground flex h-9 min-w-10 items-center justify-center rounded-md px-1.5 text-xs font-bold tabular-nums transition-colors"
                               data-testid={`quick-stock-count-${p.id}`}
                             >
@@ -489,7 +498,7 @@ export function ProductManager({
                               size="icon"
                               onClick={() => handleQuickStockStep(p.id, 1)}
                               className="text-foreground hover:bg-muted h-9 w-9"
-                              aria-label={`Increase stock for ${p.name}`}
+                              aria-label={interpolate(t.increaseStock, { name: p.name })}
                               data-testid={`quick-stock-plus-${p.id}`}
                             >
                               +
@@ -501,9 +510,9 @@ export function ProductManager({
                               size="sm"
                               onClick={() => handleOpenStockSheet(p)}
                               className="text-muted-foreground hover:text-foreground h-9 px-2 text-xs"
-                              aria-label={`Adjust stock for ${p.name}`}
+                              aria-label={interpolate(t.adjustStock, { name: p.name })}
                             >
-                              <SlidersHorizontal className="mr-1 h-3.5 w-3.5" /> Adjust
+                              <SlidersHorizontal className="mr-1 h-3.5 w-3.5" /> {t.adjust}
                             </Button>
                           </div>
 
@@ -515,7 +524,9 @@ export function ProductManager({
                               size="icon"
                               onClick={() => handleToggleVisibility(p.id)}
                               className="text-muted-foreground hover:text-foreground h-9 w-9"
-                              aria-label={p.visible ? `Hide ${p.name}` : `Show ${p.name}`}
+                              aria-label={interpolate(p.visible ? t.hide : t.show, {
+                                name: p.name,
+                              })}
                               data-testid={`toggle-visibility-${p.id}`}
                             >
                               {p.visible ? (
@@ -531,7 +542,7 @@ export function ProductManager({
                               size="icon"
                               onClick={() => handleOpenEditForm(p)}
                               className="text-foreground hover:bg-muted h-9 w-9"
-                              aria-label={`Edit ${p.name}`}
+                              aria-label={interpolate(t.edit, { name: p.name })}
                               data-testid={`edit-product-${p.id}`}
                             >
                               <Pencil className="h-4 w-4" />
@@ -554,16 +565,16 @@ export function ProductManager({
             <div className="bg-primary-soft text-primary mx-auto flex h-14 w-14 items-center justify-center rounded-full">
               <Package className="h-7 w-7" />
             </div>
-            <h2 className="text-title-sm text-foreground mt-3">No products yet</h2>
+            <h2 className="text-title-sm text-foreground mt-3">{t.emptyTitle}</h2>
             <p className="text-muted-foreground mx-auto mt-1 max-w-xs text-xs">
-              Start building your menu by adding your first product with prices and stock.
+              {t.emptyDescription}
             </p>
             <Button
               type="button"
               onClick={handleOpenAddForm}
               className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 text-xs font-semibold"
             >
-              <Plus className="mr-1.5 h-4 w-4" /> Add your first product
+              <Plus className="mr-1.5 h-4 w-4" /> {t.addFirst}
             </Button>
           </div>
         ) : (
@@ -575,9 +586,9 @@ export function ProductManager({
             <div className="bg-muted text-muted-foreground mx-auto flex h-12 w-12 items-center justify-center rounded-full">
               <Search className="h-6 w-6" />
             </div>
-            <h2 className="text-title-sm text-foreground mt-3">No matching products</h2>
+            <h2 className="text-title-sm text-foreground mt-3">{t.noMatchTitle}</h2>
             <p className="text-muted-foreground mt-1 text-xs">
-              No products match &ldquo;{searchQuery}&rdquo; in the selected filter.
+              {interpolate(t.noMatchDescription, { query: searchQuery })}
             </p>
             <Button
               type="button"
@@ -588,7 +599,7 @@ export function ProductManager({
               }}
               className="mt-4 text-xs font-semibold"
             >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Clear filters
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> {t.clearFilters}
             </Button>
           </div>
         )}
@@ -597,10 +608,13 @@ export function ProductManager({
       {/* Summary footer: clean grounded alternative to speculative POS sync footer */}
       <div className="border-border bg-muted/20 text-muted-foreground flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-xs">
         <span>
-          {totalCount} total products across {categories.length} categories
+          {interpolate(t.footerTotals, { products: totalCount, categories: categories.length })}
         </span>
         <span className="tabular-nums">
-          {totalCount - outOfStockCount} active · {outOfStockCount} out of stock
+          {interpolate(t.footerActive, {
+            active: totalCount - outOfStockCount,
+            out: outOfStockCount,
+          })}
         </span>
       </div>
 
