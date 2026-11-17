@@ -35,6 +35,7 @@ grant select (
   min_order_amount,
   lead_time_value,
   lead_time_unit,
+  timezone,
   revolut_revtag,
   wero_identifier,
   payment_methods,

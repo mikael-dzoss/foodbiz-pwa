@@ -229,6 +229,8 @@ create table business_settings (
   lead_time_value integer not null default 1 check (lead_time_value between 1 and 999),
   lead_time_unit text not null default 'business_days'
     check (lead_time_unit in ('minutes', 'hours', 'business_days')),
+  -- Business operating time zone (#168): IANA name, validated by trigger (see 5.2.3)
+  timezone text not null default 'Europe/Paris',
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );
@@ -477,6 +479,10 @@ The Server Actions repeat the check (`requireOwnerAction`, typed `FORBIDDEN` res
 ### 5.2.2 Order writes: functions only (5.6)
 
 See [5.6](#56-order-state-functions).
+
+### 5.2.3 Business time zone
+
+`business_settings.timezone` (`text not null default 'Europe/Paris'`, migration `20260101000029_business_timezone.sql`) is the IANA zone every date is computed and rendered in: KPI day boundaries, "today", opening hours, order timestamps. The default fits the euro-only currency and makes the migration safe on existing rows. A `CHECK` cannot look a name up (`pg_timezone_names` is a view, so an `IMMUTABLE` wrapper would be a lie), so the `BEFORE INSERT OR UPDATE` trigger `business_settings_validate_timezone` raises `INVALID_TIMEZONE` (SQLSTATE `22023`) for a name missing from `pg_timezone_names`; it only runs when the value changes. Manager-editable (not owner-only) and readable by `anon` (column grant) because the storefront formats pickup and order times in the shop's zone. The zod schema (`timeZoneSchema`, `src/domain/timezone.ts`) mirrors the check.
 
 ### 5.3 Public Guest Tracking & Verification
 
