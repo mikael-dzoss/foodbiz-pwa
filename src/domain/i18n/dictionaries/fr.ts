@@ -473,6 +473,10 @@ export const frDictionary: Dictionary = {
       leadTimeUnitMinutes: "Minutes",
       leadTimeUnitHours: "Heures",
       leadTimeUnitBusinessDays: "Jours ouvrés",
+      timezoneSection: "Fuseau horaire",
+      timezoneLabel: "Fuseau horaire de l'établissement",
+      timezoneHelper:
+        "Les heures de commande, les horaires d'ouverture et les totaux du jour suivent ce fuseau.",
       leadTimePreview: "Les clients verront : Prêt dans {leadTime}",
       soonSection: "Fonctionnalités à venir",
       saveButton: "Enregistrer les paramètres",

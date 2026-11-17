@@ -440,6 +440,9 @@ export interface SettingsDictionary {
     leadTimeUnitMinutes: string;
     leadTimeUnitHours: string;
     leadTimeUnitBusinessDays: string;
+    timezoneSection: string;
+    timezoneLabel: string;
+    timezoneHelper: string;
     leadTimePreview: string;
     soonSection: string;
     saveButton: string;

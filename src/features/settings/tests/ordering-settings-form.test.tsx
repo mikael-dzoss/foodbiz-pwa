@@ -37,6 +37,7 @@ const mockSettings: BusinessSettings = {
   paymentInstructionsFr: "Veuillez présenter votre référence de commande.",
   inAppAlerts: true,
   soundAlerts: true,
+  timezone: "Europe/Paris",
 };
 
 const dict = getDictionary(DEFAULT_LOCALE).settings;
@@ -201,6 +202,7 @@ describe("OrderingSettingsForm component (M-63)", () => {
       paymentInstructionsFr: "",
       inAppAlerts: false,
       soundAlerts: false,
+      timezone: "Europe/Paris",
     };
 
     render(<OrderingSettingsForm settings={fallbackSettings} dict={dict} />);
@@ -335,5 +337,36 @@ describe("OrderingSettingsForm component (M-63)", () => {
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
     fireEvent.click(screen.getByTestId("save-ordering-button"));
     await waitFor(() => expect(screen.getByText("Lead time must be at least 1")).toBeDefined());
+  });
+
+  it("edits the business time zone and submits it (#168)", async () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+
+    const select = screen.getByTestId("select-timezone") as HTMLSelectElement;
+    expect(select.value).toBe("Europe/Paris");
+    expect(screen.getByText(dict.ordering.timezoneHelper)).toBeDefined();
+
+    fireEvent.change(select, { target: { value: "Asia/Tokyo" } });
+    fireEvent.click(screen.getByTestId("discard-button"));
+    expect(select.value).toBe("Europe/Paris");
+
+    fireEvent.change(select, { target: { value: "Africa/Douala" } });
+    fireEvent.click(screen.getByTestId("save-ordering-button"));
+    await waitFor(() =>
+      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+        expect.objectContaining({ timezone: "Africa/Douala" }),
+      ),
+    );
+  });
+
+  it("keeps a saved zone that is not in the shortlist selectable (#168)", () => {
+    render(
+      <OrderingSettingsForm
+        settings={{ ...mockSettings, timezone: "Asia/Tokyo" }}
+        dict={dict}
+        locale="fr"
+      />,
+    );
+    expect((screen.getByTestId("select-timezone") as HTMLSelectElement).value).toBe("Asia/Tokyo");
   });
 });
