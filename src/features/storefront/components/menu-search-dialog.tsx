@@ -9,6 +9,7 @@ import type { GroupedCategory } from "../catalog-data";
 import { ProductCatalogCard } from "./product-catalog-card";
 import { StorefrontCartBar } from "./storefront-cart-bar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface MenuSearchDialogProps {
   open: boolean;
@@ -115,7 +116,7 @@ export function MenuSearchDialog({
                   className="text-muted-foreground mr-2 h-4 w-4 shrink-0"
                   aria-hidden="true"
                 />
-                <input
+                <Input
                   ref={inputRef}
                   type="search"
                   autoFocus
@@ -124,7 +125,7 @@ export function MenuSearchDialog({
                   placeholder={dict.searchPlaceholder}
                   aria-label={dict.searchMenu}
                   data-testid="menu-search-input"
-                  className="text-foreground placeholder:text-muted-foreground h-11 w-full bg-transparent text-base focus:outline-hidden [&::-webkit-search-cancel-button]:hidden"
+                  className="text-foreground placeholder:text-muted-foreground h-11 min-h-0 w-full rounded-none border-0 bg-transparent px-0 py-0 text-base focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-search-cancel-button]:hidden"
                 />
                 {query.length > 0 && (
                   <Button
