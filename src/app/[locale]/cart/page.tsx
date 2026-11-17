@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
   getDictionary,
@@ -6,6 +7,7 @@ import {
   SUPPORTED_LOCALES,
   type SupportedLocale,
 } from "@/domain/i18n";
+import { storefrontAlternates } from "@/features/storefront/metadata";
 import { getStorefrontCatalog, CartView } from "@/features/storefront";
 
 // Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
@@ -17,6 +19,16 @@ export async function generateStaticParams() {
 
 export interface CartPageProps {
   params: Promise<{ locale: string }>;
+}
+
+export async function generateMetadata({ params }: CartPageProps): Promise<Metadata> {
+  const { locale: requested } = await params;
+  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  return {
+    title: getDictionary(locale).storefront.yourCart,
+    robots: { index: false },
+    alternates: storefrontAlternates(locale, "/cart"),
+  };
 }
 
 export default async function CartPage({ params }: CartPageProps) {

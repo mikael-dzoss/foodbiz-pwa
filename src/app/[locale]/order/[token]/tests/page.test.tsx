@@ -100,7 +100,7 @@ describe("OrderTrackingPage Route", () => {
     const meta = await generateMetadata({
       params: Promise.resolve({ locale: "en", token: "token-99" }),
     });
-    expect(meta.title).toBe("Order #99 Tracking | FoodBiz");
+    expect(meta.title).toBe("Order #99 Tracking");
     expect(meta.robots).toEqual({ index: false, follow: false });
   });
 

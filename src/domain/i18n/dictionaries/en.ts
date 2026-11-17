@@ -201,6 +201,7 @@ export const enDictionary: Dictionary = {
     aboutBusiness: "About {business}",
     linkCopied: "Link copied",
     trackTitle: "Track your order",
+    metaDescription: "Order online from {business}.",
     trackIntro: "Enter the phone number and order number from your confirmation.",
     trackPhoneLabel: "Phone number",
     trackOrderNumberLabel: "Order number",

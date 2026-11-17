@@ -3,10 +3,9 @@ import { requireManagerSession } from "@/lib/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { InventoryFinanceForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Inventory & Finance | ${APP_METADATA.name}`,
+  title: "Inventory & Finance",
   description: "Configure stock warning thresholds, currency, and sales tax rate.",
 };
 

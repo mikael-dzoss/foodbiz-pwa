@@ -4,7 +4,7 @@ import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n"
 import { listCustomers } from "@/features/customers/customer-data";
 import { CustomerList } from "@/features/customers/components/customer-list";
 
-export const metadata: Metadata = { title: "Customers | FoodBiz" };
+export const metadata: Metadata = { title: "Customers" };
 
 export default async function CustomersPage() {
   const customers = await listCustomers();

@@ -3,10 +3,9 @@ import { requireManagerSession } from "@/lib/auth";
 import { getRepositories } from "@/lib/repositories";
 import { ManualOrderForm } from "@/features/orders/components/manual-order-form";
 import { getBusinessToday } from "@/features/settings/settings-data";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `New Order | ${APP_METADATA.name}`,
+  title: "New Order",
   description: "Manually enter customer orders taken by phone, WhatsApp, or in person.",
 };
 

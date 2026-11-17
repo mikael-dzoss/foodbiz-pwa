@@ -6,7 +6,7 @@ import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `About | ${APP_METADATA.name}`,
+  title: "About",
   description: "Version, legal and support information.",
 };
 

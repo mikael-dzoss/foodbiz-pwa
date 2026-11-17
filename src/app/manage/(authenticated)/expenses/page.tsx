@@ -4,11 +4,10 @@ import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
 import { isOwnerRole } from "@/domain/auth";
 import { listExpenses } from "@/features/expenses/expense-data";
 import { ExpenseManager } from "@/features/expenses/components";
-import { APP_METADATA } from "@/config/app";
 import { getRequestNow } from "@/lib/request-time";
 
 export const metadata: Metadata = {
-  title: `Expenses | ${APP_METADATA.name}`,
+  title: "Expenses",
   description: "Track operating costs, ingredient purchases and business expenses.",
 };
 

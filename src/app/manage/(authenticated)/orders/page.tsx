@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
 import { listOrders } from "@/features/orders/order-data";
 import { OrderList } from "@/features/orders/components/order-list";
-import { APP_METADATA } from "@/config/app";
 import { getRequestNow } from "@/lib/request-time";
 
 export const metadata: Metadata = {
-  title: `Orders | ${APP_METADATA.name}`,
+  title: "Orders",
   description: "Triage and manage incoming orders by status and requested time.",
 };
 

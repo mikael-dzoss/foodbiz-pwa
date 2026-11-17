@@ -95,6 +95,7 @@ export interface StorefrontDictionary {
   aboutBusiness: string;
   linkCopied: string;
   trackTitle: string;
+  metaDescription: string;
   trackIntro: string;
   trackPhoneLabel: string;
   trackOrderNumberLabel: string;

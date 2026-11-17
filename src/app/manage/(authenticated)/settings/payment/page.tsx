@@ -4,10 +4,9 @@ import { isOwnerRole } from "@/domain/auth";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import { PaymentSettingsForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
-import { APP_METADATA } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: `Payment Settings | ${APP_METADATA.name}`,
+  title: "Payment Settings",
   description: "Configure accepted payment methods, transfer identifiers, and instructions.",
 };
 

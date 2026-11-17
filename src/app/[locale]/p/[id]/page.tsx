@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAddOnCandidates } from "@/domain/add-ons";
 import {
@@ -6,6 +7,7 @@ import {
   DEFAULT_LOCALE,
   type SupportedLocale,
 } from "@/domain/i18n";
+import { storefrontAlternates, toMetaDescription } from "@/features/storefront/metadata";
 import {
   getStorefrontCatalog,
   getStorefrontProduct,
@@ -18,6 +20,24 @@ export interface ProductPageProps {
 
 // Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
 export const instant = false;
+
+export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+  const { locale: requested, id } = await params;
+  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  const productData = await getStorefrontProduct(id);
+  if (!productData) return { title: getDictionary(locale).storefront.notFoundTitle };
+  const { product, business } = productData;
+  const description = toMetaDescription(
+    product.description,
+    getDictionary(locale).storefront.metaDescription.replace("{business}", business.name),
+  );
+  return {
+    title: product.name,
+    description,
+    alternates: storefrontAlternates(locale, `/p/${id}`),
+    openGraph: { title: product.name, description, type: "website" },
+  };
+}
 
 export default async function ProductDetailPage({ params }: ProductPageProps) {
   const resolvedParams = await params;

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { APP_METADATA } from "@/config/app";
 import { getServerEnv } from "@/config/env";
 import {
   authErrorCodeSchema,
@@ -10,7 +9,7 @@ import { DEFAULT_LOCALE, isSupportedLocale, type SupportedLocale } from "@/domai
 import { LoginView } from "@/features/auth/components/login-view";
 
 export const metadata: Metadata = {
-  title: `Manager Sign-in | ${APP_METADATA.name}`,
+  title: "Manager Sign-in",
   description: "Sign in to access your FoodBiz manager dashboard and operations.",
 };
 
