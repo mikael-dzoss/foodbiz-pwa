@@ -13,6 +13,7 @@ import {
 import { SoonBadge } from "@/components/feedback";
 import { signOutAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface MoreMenuSheetProps {
   isOpen?: boolean;
@@ -21,40 +22,41 @@ export interface MoreMenuSheetProps {
 }
 
 export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetProps) {
+  const { nav, manager } = useManagerLocale().dict;
   const menuItems = [
     {
-      title: "Categories",
+      title: manager.categories,
       href: "/manage/categories",
       icon: Folder,
-      description: "Manage product categories",
+      description: manager.moreItems.categories,
       isReady: true,
     },
     {
-      title: "Expenses",
+      title: nav.expenses,
       href: "/manage/expenses",
       icon: Receipt,
-      description: "Log receipts and operating costs",
+      description: manager.moreItems.expenses,
       isReady: true,
     },
     {
-      title: "Customers",
+      title: nav.customers,
       href: "/manage/customers",
       icon: Users,
-      description: "Guest history and repeat diners",
+      description: manager.moreItems.customers,
       isReady: true,
     },
     {
-      title: "Analytics",
+      title: nav.analytics,
       href: "/manage/analytics",
       icon: BarChart3,
-      description: "Sales trends and performance",
+      description: manager.moreItems.analytics,
       isReady: false,
     },
     {
-      title: "Settings",
+      title: nav.settings,
       href: "/manage/settings",
       icon: Settings,
-      description: "Account and business profile",
+      description: manager.moreItems.settings,
       isReady: true,
     },
   ];
@@ -68,8 +70,8 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
         data-testid="more-menu-sheet"
       >
         <SheetHeader className="mb-4">
-          <SheetTitle>More Options</SheetTitle>
-          <SheetDescription>Access management sections and settings</SheetDescription>
+          <SheetTitle>{manager.moreTitle}</SheetTitle>
+          <SheetDescription>{manager.moreDescription}</SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-2">
@@ -128,7 +130,7 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
               className="text-destructive hover:bg-destructive/10 focus-visible:ring-ring flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               <LogOut className="h-5 w-5" />
-              <span>Sign out</span>
+              <span>{manager.signOut}</span>
             </Button>
           </form>
         </div>

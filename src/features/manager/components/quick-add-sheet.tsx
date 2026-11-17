@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import type { QuickAddDictionary } from "@/domain/i18n";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface QuickAddSheetProps {
   dict: QuickAddDictionary;
@@ -20,24 +21,25 @@ export interface QuickAddSheetProps {
 }
 
 export function QuickAddSheet({ dict, isOpen, onOpenChange, trigger }: QuickAddSheetProps) {
+  const { manager } = useManagerLocale().dict;
   const quickActions = [
     {
       title: dict.newOrder,
       href: "/manage/orders/new",
       icon: ShoppingBag,
-      description: "Take customer order manually",
+      description: manager.quickAddDescriptions.order,
     },
     {
       title: dict.newProduct,
       href: "/manage/products/new",
       icon: PackagePlus,
-      description: "Add food or beverage item",
+      description: manager.quickAddDescriptions.product,
     },
     {
       title: dict.newExpense,
       href: "/manage/expenses/new",
       icon: Receipt,
-      description: "Log receipt or purchase",
+      description: manager.quickAddDescriptions.expense,
     },
   ];
 

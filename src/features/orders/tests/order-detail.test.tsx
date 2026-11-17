@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { ManagerLocaleProvider } from "@/components/i18n";
 import { OrderDetail } from "../components/order-detail";
 import type { EnrichedOrder } from "../order-data";
 import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
@@ -87,9 +88,9 @@ describe("OrderDetail Component", () => {
     render(<OrderDetail order={mockOrder} />);
     const timelineCard = screen.getByTestId("order-timeline-card");
 
-    expect(timelineCard.textContent).toContain("NEW");
-    expect(timelineCard.textContent).toContain("CONFIRMED");
-    expect(timelineCard.textContent).toContain("PREPARING");
+    expect(timelineCard.textContent).toContain("(New)");
+    expect(timelineCard.textContent).toContain("(Confirmed)");
+    expect(timelineCard.textContent).toContain("(Preparing)");
     expect(timelineCard.textContent).toContain("In kitchen");
   });
 
@@ -114,6 +115,29 @@ describe("OrderDetail Component", () => {
         nextStatus: "READY",
       });
     });
+  });
+
+  it("renders French copy and a French action error for a failed progression", async () => {
+    vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
+      ok: false,
+      code: "CONFLICT",
+      message: "Order was changed by someone else",
+    });
+
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <OrderDetail order={mockOrder} />
+      </ManagerLocaleProvider>,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Commande n° 42");
+    expect(screen.getByTestId("guest-service-card").textContent).toContain("Livraison");
+    const nextBtn = screen.getByTestId("next-status-action-button");
+    expect(nextBtn.textContent).toContain("Marquer comme prête");
+
+    fireEvent.click(nextBtn);
+
+    const error = await screen.findByTestId("order-detail-error");
+    expect(error.textContent).toBe("Ceci a changé entre-temps. Rechargez la page et réessayez.");
   });
 
   it("shows warning and dynamically displays 'Mark paid & complete' instead of 'Complete order' when order is READY and unpaid", () => {

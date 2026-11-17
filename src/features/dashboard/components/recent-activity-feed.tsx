@@ -6,6 +6,8 @@ import { Receipt, Wallet, ChevronRight, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatMoney, formatRelativeTime, type ActivityFeedItem } from "@/domain";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 import { cn } from "@/lib/utils";
 
 export interface RecentActivityFeedProps {
@@ -13,22 +15,18 @@ export interface RecentActivityFeedProps {
   /** Instant (ISO) the feed was built at; relative times are measured against it. */
   now: string;
   className?: string;
-  labels?: {
-    sectionTitle?: string;
-    viewAll?: string;
-    empty?: string;
-  };
 }
 
-export function RecentActivityFeed({ items, now, className, labels }: RecentActivityFeedProps) {
+export function RecentActivityFeed({ items, now, className }: RecentActivityFeedProps) {
+  const { locale, dict } = useManagerLocale();
+  const labels = dict.dashboard.activity;
+  const orderTexts = dict.orders;
   return (
     <section className={cn("space-y-3.5", className)} data-testid="recent-activity-section">
       <div className="flex items-center justify-between">
-        <h2 className="text-title-sm text-foreground">
-          {labels?.sectionTitle ?? "Recent activity"}
-        </h2>
+        <h2 className="text-title-sm text-foreground">{labels.sectionTitle}</h2>
         <span className="text-muted-foreground text-xs">
-          {items.length > 0 ? `${items.length} recent` : ""}
+          {items.length > 0 ? interpolate(labels.recentCount, { count: items.length }) : ""}
         </span>
       </div>
 
@@ -37,7 +35,20 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
           <div className="divide-border/40 divide-y" data-testid="activity-feed-list">
             {items.map((item) => {
               const isExpense = item.type === "expense";
-              const relativeTime = formatRelativeTime(item.timestamp, now);
+              const statusText = labels[item.statusKey];
+              const title = isExpense
+                ? item.description
+                : item.orderNumber
+                  ? interpolate(labels.orderTitle, { number: item.orderNumber })
+                  : interpolate(labels.orderTitleGuest, { guest: item.guestName ?? "" });
+              const subtitle = isExpense
+                ? item.tags
+                : interpolate(item.paymentMethod ? labels.guestPaidVia : labels.guestStatus, {
+                    guest: item.guestName ?? "",
+                    status: statusText,
+                    method: item.paymentMethod ? orderTexts.paymentMethods[item.paymentMethod] : "",
+                  });
+              const relativeTime = formatRelativeTime(item.timestamp, now, locale);
 
               return (
                 <Link
@@ -61,10 +72,10 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
                     </span>
                     <div className="flex flex-col">
                       <span className="text-foreground line-clamp-1 text-sm font-semibold">
-                        {item.title}
+                        {title}
                       </span>
                       <span className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
-                        {item.subtitle ? `${item.subtitle} · ` : ""}
+                        {subtitle ? `${subtitle} · ` : ""}
                         {relativeTime}
                       </span>
                     </div>
@@ -78,7 +89,9 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
                           isExpense ? "text-destructive" : "text-foreground",
                         )}
                       >
-                        {isExpense ? `- ${formatMoney(item.amount)}` : formatMoney(item.amount)}
+                        {isExpense
+                          ? `- ${formatMoney(item.amount, locale)}`
+                          : formatMoney(item.amount, locale)}
                       </span>
                       <Badge
                         variant={
@@ -92,7 +105,7 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
                         }
                         className="text-micro mt-0.5 px-1.5 py-0"
                       >
-                        {item.statusLabel}
+                        {statusText}
                       </Badge>
                     </div>
                     <ChevronRight className="text-muted-foreground h-4 w-4" />
@@ -104,7 +117,7 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
         ) : (
           <div className="text-muted-foreground flex flex-col items-center justify-center p-8 text-center">
             <Activity className="text-muted-foreground/60 mb-2 h-8 w-8" />
-            <p className="text-xs">{labels?.empty ?? "No recent activity yet"}</p>
+            <p className="text-xs">{labels.empty}</p>
           </div>
         )}
       </Card>

@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { KPICard } from "@/components/ui/kpi-card";
 import {
   formatMoney,
+  formatPercent,
   type DashboardData,
   type DashboardPeriodPreset,
-  type SupportedLocale,
 } from "@/domain";
-import { enDictionary, frDictionary } from "@/domain/i18n";
+import { useManagerLocale } from "@/components/i18n";
 import { PeriodPicker } from "./period-picker";
 import { OperationalWidgets } from "./operational-widgets";
 import { RecentActivityFeed } from "./recent-activity-feed";
@@ -17,11 +17,10 @@ import { cn } from "@/lib/utils";
 
 export interface DashboardViewProps {
   initialData: DashboardData;
-  locale?: SupportedLocale;
   className?: string;
 }
 
-export function DashboardView({ initialData, locale = "en", className }: DashboardViewProps) {
+export function DashboardView({ initialData, className }: DashboardViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
   // The period lives in the URL: the server data is the truth; the tapped tab only shows while pending.
@@ -29,7 +28,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
   const period = isPending ? pendingPeriod : initialData.periodPreset;
   const data = initialData;
 
-  const dict = locale === "fr" ? frDictionary : enDictionary;
+  const { locale, dict } = useManagerLocale();
 
   const handlePeriodChange = (newPeriod: DashboardPeriodPreset) => {
     setPendingPeriod(newPeriod);
@@ -64,6 +63,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
           onChange={handlePeriodChange}
           disabled={isPending}
           labels={dict.dashboard.periods}
+          ariaLabel={dict.dashboard.periodPickerLabel}
         />
       </header>
 
@@ -71,7 +71,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
       <section
         id="kpi-panel"
         role="region"
-        aria-label="Key Performance Indicators"
+        aria-label={dict.dashboard.kpiRegionLabel}
         className="space-y-3"
       >
         <div className="grid grid-cols-2 gap-3">
@@ -84,6 +84,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
               kpis.deltas?.revenue.percentage !== undefined
                 ? {
                     percentage: Math.abs(kpis.deltas.revenue.percentage),
+                    formatted: formatPercent(Math.abs(kpis.deltas.revenue.percentage), locale),
                     isPositive: kpis.deltas.revenue.percentage >= 0,
                     periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
                   }
@@ -100,6 +101,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
               kpis.deltas?.costs.percentage !== null && kpis.deltas?.costs.percentage !== undefined
                 ? {
                     percentage: Math.abs(kpis.deltas.costs.percentage),
+                    formatted: formatPercent(Math.abs(kpis.deltas.costs.percentage), locale),
                     isPositive: kpis.deltas.costs.percentage <= 0,
                     periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
                   }
@@ -117,6 +119,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
               kpis.deltas?.profit.percentage !== undefined
                 ? {
                     percentage: Math.abs(kpis.deltas.profit.percentage),
+                    formatted: formatPercent(Math.abs(kpis.deltas.profit.percentage), locale),
                     isPositive: kpis.deltas.profit.percentage >= 0,
                     periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
                   }
@@ -134,6 +137,10 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
               kpis.deltas?.paidOrderCount.percentage !== undefined
                 ? {
                     percentage: Math.abs(kpis.deltas.paidOrderCount.percentage),
+                    formatted: formatPercent(
+                      Math.abs(kpis.deltas.paidOrderCount.percentage),
+                      locale,
+                    ),
                     isPositive: kpis.deltas.paidOrderCount.percentage >= 0,
                     periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
                   }
@@ -152,6 +159,10 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
             kpis.deltas?.averageOrderValue.percentage !== undefined
               ? {
                   percentage: Math.abs(kpis.deltas.averageOrderValue.percentage),
+                  formatted: formatPercent(
+                    Math.abs(kpis.deltas.averageOrderValue.percentage),
+                    locale,
+                  ),
                   isPositive: kpis.deltas.averageOrderValue.percentage >= 0,
                   periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
                 }
@@ -163,14 +174,10 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
       </section>
 
       {/* Operational Triage Section */}
-      <OperationalWidgets triage={triage} labels={dict.dashboard.triage} />
+      <OperationalWidgets triage={triage} />
 
       {/* Recent Activity Feed Section */}
-      <RecentActivityFeed
-        items={activity}
-        now={initialData.generatedAt}
-        labels={dict.dashboard.activity}
-      />
+      <RecentActivityFeed items={activity} now={initialData.generatedAt} />
     </div>
   );
 }

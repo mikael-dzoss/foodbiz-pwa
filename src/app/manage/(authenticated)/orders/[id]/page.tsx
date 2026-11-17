@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { requireManagerSession } from "@/lib/auth";
 import { getOrder } from "@/features/orders/order-data";
 import { OrderDetail } from "@/features/orders/components/order-detail";
-import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
 import { isOwnerRole } from "@/domain/auth";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
@@ -20,7 +21,8 @@ export async function generateMetadata({ params }: OrderDetailPageProps): Promis
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const session = await requireManagerSession();
-  const dict = getDictionary(DEFAULT_LOCALE);
+  const locale = await getManagerLocale();
+  const dict = getDictionary(locale);
   const { id } = await params;
 
   const found = await getOrder(id);

@@ -32,7 +32,13 @@ import {
 } from "@/components/ui/dialog";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { useToast } from "@/components/ui/toast";
-import { formatMoney, isValidGuestName, isValidPhoneNumber, normalizeGuestName } from "@/domain";
+import {
+  formatCalendarDate,
+  formatMoney,
+  isValidGuestName,
+  isValidPhoneNumber,
+  normalizeGuestName,
+} from "@/domain";
 import type { Product } from "@/domain";
 import {
   createManualOrderAction,
@@ -41,6 +47,8 @@ import {
 } from "../order-actions";
 import { cn } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 function useSafeToast() {
   try {
@@ -50,9 +58,6 @@ function useSafeToast() {
   }
 }
 
-const NAME_UPDATE_TOAST_MESSAGE =
-  "Editing this name will update it for all orders linked to this phone number.";
-
 export interface ManualOrderFormProps {
   products: Product[];
   /** Today on the business calendar (YYYY-MM-DD): the default scheduled date. */
@@ -60,6 +65,9 @@ export interface ManualOrderFormProps {
 }
 
 export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
+  const { locale, dict } = useManagerLocale();
+  const o = dict.orders;
+  const t = o.manual;
   const router = useRouter();
   const { showToast } = useSafeToast();
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -119,8 +127,8 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
   const handleUnlockGuestName = () => {
     setIsNameLocked(false);
     setIsNameUnlockedByUser(true);
-    setNameEditNotice(NAME_UPDATE_TOAST_MESSAGE);
-    showToast(NAME_UPDATE_TOAST_MESSAGE);
+    setNameEditNotice(t.nameEditNotice);
+    showToast(t.nameEditNotice);
     setTimeout(() => {
       nameInputRef.current?.focus();
     }, 0);
@@ -170,22 +178,22 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
   const validateBeforePreviewOrSubmit = (): boolean => {
     if (selectedItems.length === 0) {
-      setErrorMessage("Please select at least one product with a quantity.");
+      setErrorMessage(t.errors.noItems);
       return false;
     }
 
     if (!guestPhone.trim() || !isValidPhoneNumber(guestPhone)) {
-      setErrorMessage("Please provide a valid phone number.");
+      setErrorMessage(t.errors.invalidPhone);
       return false;
     }
 
     if (!guestName.trim() || !isValidGuestName(guestName)) {
-      setErrorMessage("Please provide a valid guest name (2–50 characters).");
+      setErrorMessage(t.errors.invalidName);
       return false;
     }
 
     if (serviceType === "delivery" && !deliveryAddress.trim()) {
-      setErrorMessage("Please provide a delivery address.");
+      setErrorMessage(t.errors.noAddress);
       return false;
     }
 
@@ -237,7 +245,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       setPreviewOpen(false);
       router.push(`/manage/orders/${res.data.id}`);
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -265,13 +273,13 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           data-testid="cancel-header-link"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Orders</span>
+          <span>{t.back}</span>
         </Link>
 
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-title-md text-foreground">New Order</h1>
+          <h1 className="text-title-md text-foreground">{t.title}</h1>
           <span className="text-muted-foreground text-caption font-medium tracking-wider uppercase">
-            Screen M-30 • Manual
+            {t.screenTag}
           </span>
         </div>
 
@@ -283,7 +291,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             className="border-border bg-card text-foreground hover:bg-muted h-8 rounded-lg px-3 text-xs font-semibold"
             data-testid="cancel-header-button"
           >
-            Cancel
+            {t.cancel}
           </Button>
         </Link>
       </header>
@@ -304,14 +312,14 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
             <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-              1
+              {1}
             </span>
-            <h2 className="text-title-sm text-foreground">Step 1: Guest Information</h2>
+            <h2 className="text-title-sm text-foreground">{t.step1}</h2>
           </div>
           {matchedGuest && (
             <span className="text-primary flex items-center gap-1 text-xs font-medium">
               <CheckCircle2 className="fill-primary text-card h-3.5 w-3.5" />
-              Verified
+              {t.verified}
             </span>
           )}
         </div>
@@ -319,7 +327,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         {/* Phone Input with Auto-lookup */}
         <div className="space-y-1">
           <label htmlFor="guestPhone" className="text-muted-foreground block text-xs font-medium">
-            Phone number (auto-lookup) <span className="text-destructive">*</span>
+            {t.phoneLabel} <span className="text-destructive">*</span>
           </label>
           <div className="relative flex items-center">
             <Phone className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
@@ -339,7 +347,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             )}
           </div>
           {isLookingUpGuest && (
-            <span className="text-muted-foreground text-caption">Checking database...</span>
+            <span className="text-muted-foreground text-caption">{t.lookingUp}</span>
           )}
         </div>
 
@@ -352,14 +360,14 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               </div>
               <div>
                 <div className="text-foreground text-xs font-bold">{matchedGuest.name}</div>
-                <div className="text-muted-foreground text-caption">Returning guest</div>
+                <div className="text-muted-foreground text-caption">{t.returningGuest}</div>
               </div>
             </div>
             <span
               data-testid="guest-matched-badge"
               className="bg-primary-soft text-primary-soft-foreground border-primary/20 text-caption inline-flex items-center rounded border px-2 py-0.5 font-medium"
             >
-              Returning guest
+              {t.returningGuest}
             </span>
           </div>
         )}
@@ -367,7 +375,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         {/* Guest Name input */}
         <div className="space-y-1">
           <label htmlFor="guestName" className="text-muted-foreground block text-xs font-medium">
-            Name <span className="text-destructive">*</span>
+            {t.nameLabel} <span className="text-destructive">*</span>
           </label>
           <div className="relative flex items-center">
             <User className="text-muted-foreground pointer-events-none absolute left-3 h-4 w-4" />
@@ -377,7 +385,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               type="text"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              placeholder="e.g. Jean Dupont"
+              placeholder={t.namePlaceholder}
               disabled={isNameLocked}
               minLength={2}
               maxLength={50}
@@ -394,7 +402,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 size="none"
                 type="button"
                 onClick={handleUnlockGuestName}
-                aria-label="Edit guest name"
+                aria-label={t.editName}
                 data-testid="unlock-guest-name-button"
                 className="text-muted-foreground hover:text-foreground hover:bg-muted absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-md transition-colors"
               >
@@ -419,7 +427,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             id="intake-channel-label"
             className="text-muted-foreground text-caption mb-1.5 block font-medium"
           >
-            Intake channel
+            {t.intakeChannel}
           </p>
           <div
             role="group"
@@ -428,9 +436,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           >
             {(
               [
-                { id: "phone", label: "Phone", icon: Phone },
-                { id: "whatsapp", label: "WhatsApp", icon: MessageSquare },
-                { id: "in-person", label: "In-person", icon: Store },
+                { id: "phone", label: o.channels.phone, icon: Phone },
+                { id: "whatsapp", label: o.channels.whatsapp, icon: MessageSquare },
+                { id: "in-person", label: o.channels["in-person"], icon: Store },
               ] as const
             ).map((ch) => (
               <Button
@@ -461,18 +469,18 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
             <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-              2
+              {2}
             </span>
-            <h2 className="text-title-sm text-foreground">Step 2: Service &amp; Timing</h2>
+            <h2 className="text-title-sm text-foreground">{t.step2}</h2>
           </div>
           <span className="text-muted-foreground shrink-0 text-xs capitalize">
-            {serviceType} fulfillment
+            {interpolate(t.fulfillment, { service: o.service[serviceType] })}
           </span>
         </div>
 
         {/* Service Segmented Control: Strictly Pickup vs Delivery */}
         <SegmentedControl
-          aria-label="Service type"
+          aria-label={t.serviceType}
           value={serviceType}
           onValueChange={setServiceType}
           className="items-center rounded-lg p-0.5"
@@ -485,7 +493,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               label: (
                 <>
                   <ShoppingBag className="h-3.5 w-3.5" />
-                  <span>Pickup</span>
+                  <span>{o.service.pickup}</span>
                 </>
               ),
             },
@@ -495,7 +503,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               label: (
                 <>
                   <Truck className="h-3.5 w-3.5" />
-                  <span>Delivery</span>
+                  <span>{o.service.delivery}</span>
                 </>
               ),
             },
@@ -521,7 +529,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               <span
                 className={cn("text-xs font-bold", isAsap ? "text-primary" : "text-foreground")}
               >
-                ASAP
+                {t.asap}
               </span>
               <span
                 className={cn(
@@ -530,7 +538,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 )}
               />
             </div>
-            <span className="text-muted-foreground text-caption font-medium">Est. 20-25 min</span>
+            <span className="text-muted-foreground text-caption font-medium">{t.estimate}</span>
           </Button>
 
           <Button
@@ -550,7 +558,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               <span
                 className={cn("text-xs font-bold", !isAsap ? "text-primary" : "text-foreground")}
               >
-                Scheduled
+                {t.scheduled}
               </span>
               <span
                 className={cn(
@@ -560,7 +568,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               />
             </div>
             <span className="text-muted-foreground text-caption font-medium">
-              Select date &amp; time
+              {t.selectDateTime}
             </span>
           </Button>
         </div>
@@ -573,7 +581,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 htmlFor="reqDate"
                 className="text-muted-foreground text-caption block font-medium"
               >
-                Date
+                {t.date}
               </label>
               <Input
                 id="reqDate"
@@ -589,7 +597,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 htmlFor="reqTime"
                 className="text-muted-foreground text-caption block font-medium"
               >
-                Time
+                {t.time}
               </label>
               <Input
                 id="reqTime"
@@ -610,7 +618,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               htmlFor="deliveryAddress"
               className="text-muted-foreground block text-xs font-medium"
             >
-              Delivery Address <span className="text-destructive">*</span>
+              {t.deliveryAddress} <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <MapPin className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 h-4 w-4" />
@@ -618,7 +626,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 id="deliveryAddress"
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
-                placeholder="Street name, house number, floor..."
+                placeholder={t.addressPlaceholder}
                 className="min-h-16 resize-none rounded-lg pl-8 text-xs"
                 required
                 data-testid="delivery-address-input"
@@ -630,13 +638,13 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         {/* Kitchen & Handover Notes */}
         <div className="space-y-1">
           <label htmlFor="orderNotes" className="text-muted-foreground block text-xs font-medium">
-            Kitchen &amp; Handover Notes
+            {t.notesLabel}
           </label>
           <Textarea
             id="orderNotes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Special requests, allergies, sauce preferences..."
+            placeholder={t.notesPlaceholder}
             className="resize-none rounded-lg text-xs"
             rows={2}
             data-testid="order-notes-input"
@@ -649,12 +657,12 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
             <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-              3
+              {3}
             </span>
-            <h2 className="text-title-sm text-foreground">Step 3: Product Selection</h2>
+            <h2 className="text-title-sm text-foreground">{t.step3}</h2>
           </div>
           <span className="text-muted-foreground shrink-0 text-xs font-medium tabular-nums">
-            {totalItemCount} {totalItemCount === 1 ? "item" : "items"} selected
+            {interpolate(t.selectedCount, { count: totalItemCount })}
           </span>
         </div>
 
@@ -663,7 +671,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           type="search"
           value={productSearch}
           onChange={(e) => setProductSearch(e.target.value)}
-          placeholder="Search menu items..."
+          placeholder={t.searchPlaceholder}
           className="h-10 rounded-lg text-xs"
         />
 
@@ -690,20 +698,20 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                   </span>
                   <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
                     <span className="text-foreground font-medium tabular-nums">
-                      {formatMoney(product.price)}
+                      {formatMoney(product.price, locale)}
                     </span>
                     <span>•</span>
                     {isOutOfStock ? (
                       <span className="bg-destructive/15 text-destructive border-destructive/25 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-bold">
-                        Out of stock
+                        {t.outOfStock}
                       </span>
                     ) : product.stock <= 5 ? (
                       <span className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-bold tabular-nums">
-                        {product.stock} in stock (low)
+                        {interpolate(t.inStockLow, { count: product.stock })}
                       </span>
                     ) : (
                       <span className="bg-primary-soft text-primary-soft-foreground border-primary/20 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-semibold tabular-nums">
-                        {product.stock} in stock
+                        {interpolate(t.inStock, { count: product.stock })}
                       </span>
                     )}
                   </div>
@@ -715,6 +723,8 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                     min={0}
                     max={isOutOfStock ? 0 : product.stock}
                     onChange={(val) => handleQuantityChange(product.id, val)}
+                    decreaseLabel={dict.common.decreaseQuantity}
+                    increaseLabel={dict.common.increaseQuantity}
                   />
                 </div>
               </div>
@@ -730,13 +740,15 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         contentClassName="max-w-none justify-between"
         data-testid="manual-order-bottom-bar"
       >
-        <span className="sr-only">Step 4: Order Summary</span>
+        <span className="sr-only">{t.step4}</span>
         <div className="flex flex-col">
           <span className="text-muted-foreground text-caption font-medium">
-            {totalItemCount} {totalItemCount === 1 ? "item" : "items"}
+            {interpolate(totalItemCount === 1 ? o.itemOne : o.itemOther, {
+              count: totalItemCount,
+            })}
           </span>
           <span className="text-foreground text-base font-bold tabular-nums">
-            {formatMoney(totalAmount)}
+            {formatMoney(totalAmount, locale)}
           </span>
         </div>
 
@@ -748,8 +760,8 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           data-testid="create-order-submit-button"
         >
           {totalAmount > 0
-            ? `Preview & Create order (${formatMoney(totalAmount)})`
-            : "Preview & Create order"}
+            ? interpolate(t.previewCreateAmount, { amount: formatMoney(totalAmount, locale) })
+            : t.previewCreate}
         </Button>
       </ActionBar>
 
@@ -760,40 +772,46 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           data-testid="order-preview-dialog"
         >
           <DialogHeader>
-            <DialogTitle>Order Preview</DialogTitle>
-            <DialogDescription>
-              Review manual order details before submission to kitchen.
-            </DialogDescription>
+            <DialogTitle>{t.preview.title}</DialogTitle>
+            <DialogDescription>{t.preview.description}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3.5 text-xs">
             {/* Guest Details */}
             <div className="bg-muted/60 space-y-1 rounded-lg p-3">
               <span className="text-muted-foreground text-micro font-bold tracking-wider uppercase">
-                Guest &amp; Channel
+                {t.preview.guestChannel}
               </span>
               <p className="text-foreground text-sm font-semibold">
-                {guestName || "No guest name specified"}
+                {guestName || t.preview.noName}
               </p>
               <p className="text-muted-foreground">
-                {guestPhone || "No phone number"} • via {channel}
+                {interpolate(t.preview.via, {
+                  phone: guestPhone || t.preview.noPhone,
+                  channel: o.channels[channel],
+                })}
               </p>
             </div>
 
             {/* Service & Timing */}
             <div className="bg-muted/60 space-y-1 rounded-lg p-3">
               <span className="text-muted-foreground text-micro font-bold tracking-wider uppercase">
-                Fulfillment
+                {t.preview.fulfillment}
               </span>
               <p className="text-foreground font-semibold capitalize">
-                {serviceType}{" "}
+                {o.service[serviceType]}{" "}
                 {isAsap
-                  ? "(ASAP • Est. 20-25 min)"
-                  : `(Scheduled for ${requestedDate} at ${requestedTime || "anytime"})`}
+                  ? t.preview.asapEstimate
+                  : interpolate(t.preview.scheduledFor, {
+                      date: formatCalendarDate(requestedDate, locale, "medium"),
+                      time: requestedTime || t.preview.anytime,
+                    })}
               </p>
               {serviceType === "delivery" && (
                 <p className="text-muted-foreground">
-                  Address: {deliveryAddress || "No address provided"}
+                  {interpolate(t.preview.address, {
+                    address: deliveryAddress || t.preview.noAddress,
+                  })}
                 </p>
               )}
             </div>
@@ -801,17 +819,17 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             {/* Notes */}
             {notes.trim() && (
               <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-lg border p-2.5">
-                <span className="font-bold">Kitchen note:</span> {notes}
+                <span className="font-bold">{t.preview.kitchenNote}</span> {notes}
               </div>
             )}
 
             {/* Itemized summary */}
             <div className="border-border space-y-1.5 border-t pt-2">
               <span className="text-muted-foreground text-micro font-bold tracking-wider uppercase">
-                Selected Products ({totalItemCount})
+                {interpolate(t.preview.selectedProducts, { count: totalItemCount })}
               </span>
               {selectedItems.length === 0 ? (
-                <p className="text-muted-foreground py-1 italic">No items selected yet.</p>
+                <p className="text-muted-foreground py-1 italic">{t.preview.noItems}</p>
               ) : (
                 <div className="divide-border/60 divide-y">
                   {selectedItems.map((it) => (
@@ -820,7 +838,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                         <strong className="text-primary font-bold">{it.quantity}×</strong>{" "}
                         {it.product.name}
                       </span>
-                      <span className="font-bold tabular-nums">{formatMoney(it.lineTotal)}</span>
+                      <span className="font-bold tabular-nums">
+                        {formatMoney(it.lineTotal, locale)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -829,16 +849,16 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
             {/* Total */}
             <div className="border-border flex items-center justify-between border-t pt-2 text-sm font-bold">
-              <span>Total Amount</span>
+              <span>{t.preview.totalAmount}</span>
               <span className="text-primary text-base tabular-nums">
-                {formatMoney(totalAmount)}
+                {formatMoney(totalAmount, locale)}
               </span>
             </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setPreviewOpen(false)}>
-              Back to edit
+              {t.preview.backToEdit}
             </Button>
             <Button
               type="button"
@@ -851,7 +871,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               className="bg-primary text-primary-foreground font-semibold"
               data-testid="confirm-create-order-button"
             >
-              {isSubmitting ? "Creating order..." : "Confirm & Create order"}
+              {isSubmitting ? t.preview.creating : t.preview.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>

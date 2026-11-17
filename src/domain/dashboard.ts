@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { type DateRange, calculateKpiReport, resolveDateRange } from "./kpis";
 import type { Expense } from "./expense";
-import type { NamedOrder, OrderStatus } from "./order";
+import type { NamedOrder, OrderStatus, PaymentMethod } from "./order";
 import type { Product } from "./product";
 import { type StockLevelStatus, getStockStatus } from "./stock";
 
@@ -64,14 +64,23 @@ export interface OperationalTriage {
 export type ActivityItemVariant =
   "paid" | "unpaid" | "expense" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
 
+/** Which status text the presentation layer shows (it owns the wording and the locale). */
+export type ActivityStatusKey =
+  "cancelled" | "paid" | "unpaid" | "confirmed" | "preparing" | "expense";
+
 export interface ActivityFeedItem {
   readonly id: string;
   readonly type: "order" | "expense";
-  readonly title: string;
-  readonly subtitle?: string;
+  /** Orders: number and guest; the feed text is built from them in the active locale. */
+  readonly orderNumber?: number;
+  readonly guestName?: string;
+  readonly paymentMethod?: PaymentMethod | null;
+  /** Expenses: what was bought and its tags (comma separated). */
+  readonly description?: string;
+  readonly tags?: string;
   readonly amount: number;
   readonly timestamp: string;
-  readonly statusLabel: string;
+  readonly statusKey: ActivityStatusKey;
   readonly statusVariant: ActivityItemVariant;
   readonly href: string;
 }
@@ -197,38 +206,29 @@ export function buildActivityFeed(
 ): ActivityFeedItem[] {
   const orderItems: ActivityFeedItem[] = orders.map((o) => {
     const timestamp = o.createdAt || `${o.requestedDate}T12:00:00.000Z`;
-    const title = o.orderNumber ? `Order #${o.orderNumber}` : `Order (${o.guestName})`;
-    let subtitle = o.guestName;
-    if (o.paid === "paid") {
-      subtitle = o.paymentMethod
-        ? `${o.guestName} · Paid (${o.paymentMethod})`
-        : `${o.guestName} · Paid`;
-    } else {
-      subtitle = `${o.guestName} · Unpaid`;
-    }
-
     const statusVariant: ActivityItemVariant =
       o.status === "CANCELLED" ? "cancelled" : o.paid === "paid" ? "paid" : "unpaid";
 
-    const statusLabel =
+    const statusKey: ActivityStatusKey =
       o.status === "CANCELLED"
-        ? "Cancelled"
+        ? "cancelled"
         : o.paid === "paid"
-          ? "Paid"
+          ? "paid"
           : o.status === "CONFIRMED"
-            ? "Confirmed"
+            ? "confirmed"
             : o.status === "PREPARING"
-              ? "Preparing"
-              : "Unpaid";
+              ? "preparing"
+              : "unpaid";
 
     return {
       id: o.id,
       type: "order",
-      title,
-      subtitle,
+      orderNumber: o.orderNumber,
+      guestName: o.guestName,
+      paymentMethod: o.paid === "paid" ? (o.paymentMethod ?? null) : null,
       amount: o.totalAmount,
       timestamp,
-      statusLabel,
+      statusKey,
       statusVariant,
       href: `/manage/orders/${o.id}`,
     };
@@ -240,11 +240,11 @@ export function buildActivityFeed(
     return {
       id: e.id,
       type: "expense",
-      title: e.description,
-      subtitle: tagString,
+      description: e.description,
+      tags: tagString,
       amount: e.amount,
       timestamp,
-      statusLabel: "Expense",
+      statusKey: "expense",
       statusVariant: "expense",
       href: "/manage/expenses",
     };

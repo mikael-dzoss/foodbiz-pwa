@@ -22,6 +22,7 @@ import { QuickAddSheet } from "./quick-add-sheet";
 import { useOrderAlerts } from "@/features/orders";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface ManagerSidebarProps {
   navDict: NavigationDictionary;
@@ -30,6 +31,7 @@ export interface ManagerSidebarProps {
 
 export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
   const pathname = usePathname();
+  const { manager } = useManagerLocale().dict;
   const { newOrdersCount } = useOrderAlerts();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
@@ -44,7 +46,7 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
     { href: "/manage", label: navDict.dashboard, icon: LayoutDashboard },
     { href: "/manage/orders", label: navDict.orders, icon: ShoppingBag },
     { href: "/manage/products", label: navDict.products, icon: Package },
-    { href: "/manage/categories", label: "Categories", icon: Folder },
+    { href: "/manage/categories", label: manager.categories, icon: Folder },
     { href: "/manage/expenses", label: navDict.expenses, icon: Receipt },
     { href: "/manage/customers", label: navDict.customers, icon: Users },
     { href: "/manage/analytics", label: navDict.analytics, icon: BarChart3 },
@@ -53,7 +55,7 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
 
   return (
     <aside
-      aria-label="Manager desktop sidebar"
+      aria-label={manager.desktopNavLabel}
       className="border-border bg-card hidden border-r p-4 md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col"
     >
       {/* Brand */}
@@ -65,7 +67,7 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
           <span className="text-foreground text-sm leading-tight font-semibold">
             {APP_METADATA.name}
           </span>
-          <span className="text-muted-foreground text-xs">Manager</span>
+          <span className="text-muted-foreground text-xs">{manager.brandRole}</span>
         </div>
       </div>
 
@@ -132,7 +134,7 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
             className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <LogOut className="h-5 w-5 shrink-0" />
-            <span>Sign out</span>
+            <span>{manager.signOut}</span>
           </Button>
         </form>
       </div>

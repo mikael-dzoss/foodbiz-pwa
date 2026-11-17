@@ -1,4 +1,7 @@
+"use client";
+
 import * as React from "react";
+import { useManagerLocale } from "@/components/i18n";
 import { cn } from "@/lib/utils";
 
 export interface SoonBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -6,12 +9,8 @@ export interface SoonBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   "data-testid"?: string;
 }
 
-export function SoonBadge({
-  label = "Soon",
-  className,
-  "data-testid": testId,
-  ...props
-}: SoonBadgeProps) {
+export function SoonBadge({ label, className, "data-testid": testId, ...props }: SoonBadgeProps) {
+  const { manager } = useManagerLocale().dict;
   return (
     <span
       className={cn(
@@ -21,7 +20,7 @@ export function SoonBadge({
       data-testid={testId}
       {...props}
     >
-      {label}
+      {label ?? manager.soon}
     </span>
   );
 }

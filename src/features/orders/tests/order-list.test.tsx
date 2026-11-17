@@ -1,5 +1,6 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { ManagerLocaleProvider } from "@/components/i18n";
 import { OrderList } from "../components/order-list";
 import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
 import type { ListOrdersResult } from "../order-data";
@@ -231,7 +232,22 @@ describe("OrderList Component", () => {
     // Check NEW highlight
     const newCard = screen.getByTestId("order-card-ord-1");
     expect(newCard.className).toContain("border-info");
-    expect(newCard.textContent).toContain("NEW");
+    expect(newCard.textContent).toContain("New");
+  });
+
+  it("renders the list in the manager's French locale", () => {
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />
+      </ManagerLocaleProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Commandes" })).toBeDefined();
+    expect(screen.getByTestId("tab-active").textContent).toContain("En cours");
+    expect(screen.getByTestId("filter-unpaid").textContent).toContain("Impayées");
+    expect(screen.getByTestId("order-card-ord-1").textContent).toContain("Nouvelle");
+    expect(screen.getByTestId("order-card-ord-1").textContent).toContain("Retrait");
+    expect(screen.getByTestId("order-card-ord-1").textContent).toContain("17,00");
   });
 
   it("switches to completed tab and displays completed orders", () => {

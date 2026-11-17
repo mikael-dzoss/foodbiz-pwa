@@ -23,7 +23,7 @@ export function LoginView({
 
   return (
     <div className="bg-background text-foreground selection:bg-primary-soft selection:text-primary flex min-h-screen flex-col items-center justify-between antialiased">
-      <h1 className="sr-only">Manager Sign-in</h1>
+      <h1 className="sr-only">{dict.login.pageHeading}</h1>
 
       {/* Mobile Screen Container (Strict mobile context matching Stitch A-01) */}
       <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-between px-4 pb-6">
@@ -31,7 +31,7 @@ export function LoginView({
         <header className="border-border mx-auto flex h-14 w-full max-w-sm items-center justify-between border-b px-2">
           <Link
             href="/"
-            aria-label="Go back to storefront"
+            aria-label={dict.login.backToStorefront}
             className="text-primary hover:bg-muted -ml-2 inline-flex items-center justify-center rounded-lg p-2 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -52,7 +52,7 @@ export function LoginView({
             <h2 className="text-title-lg text-foreground">FoodBiz</h2>
             <div className="mt-1.5">
               <span className="text-primary-soft-foreground bg-primary-soft inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-normal">
-                Manager Portal
+                {dict.login.portalBadge}
               </span>
             </div>
           </section>
@@ -64,10 +64,8 @@ export function LoginView({
 
             {/* Heading & Body */}
             <div className="mb-6">
-              <h3 className="text-title-sm text-foreground">Welcome back</h3>
-              <p className="text-muted-foreground mt-1 text-sm leading-snug">
-                Sign in to manage your menu, orders, and daily operations.
-              </p>
+              <h3 className="text-title-sm text-foreground">{dict.login.welcome}</h3>
+              <p className="text-muted-foreground mt-1 text-sm leading-snug">{dict.login.intro}</p>
             </div>
 
             {/* Primary Action: Continue with Google */}
@@ -78,7 +76,7 @@ export function LoginView({
                 size="none"
                 id="google-sign-in-btn"
                 type="submit"
-                aria-label="Continue with Google"
+                aria-label={dict.auth.continueWithGoogle}
                 className="bg-card text-foreground border-border hover:bg-muted active:bg-muted/80 focus-visible:ring-ring flex h-12 w-full items-center justify-center gap-3 rounded-lg border text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -99,7 +97,7 @@ export function LoginView({
                     fill="#EA4335"
                   />
                 </svg>
-                <span>{dict.auth.continueWithGoogle || "Continue with Google"}</span>
+                <span>{dict.auth.continueWithGoogle}</span>
               </Button>
             </form>
 
@@ -112,7 +110,7 @@ export function LoginView({
                     <div className="border-border w-full border-t" />
                   </div>
                   <span className="bg-card text-muted-foreground text-caption relative px-3 font-semibold tracking-wider uppercase">
-                    or for development
+                    {dict.login.developmentDivider}
                   </span>
                 </div>
 
@@ -123,11 +121,12 @@ export function LoginView({
                     size="none"
                     id="sign-in-submit-btn"
                     type="submit"
-                    aria-label="Sign in as Manager (Demo Account)"
+                    data-testid="btn-demo-sign-in"
+                    aria-label={dict.login.demoSignIn}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-opacity focus-visible:ring-2 focus-visible:outline-none active:opacity-90"
                   >
                     <Store className="h-4.5 w-4.5" />
-                    <span>Sign in as Manager (Demo Account)</span>
+                    <span>{dict.login.demoSignIn}</span>
                   </Button>
                 </form>
               </>
@@ -136,9 +135,7 @@ export function LoginView({
             {/* Helper Note & Compliance */}
             <div className="border-border mt-5 flex items-center justify-center gap-1.5 border-t pt-4 text-center">
               <Lock className="text-muted-foreground h-4 w-4 shrink-0" />
-              <p className="text-muted-foreground text-xs leading-snug">
-                Authorized managers and staff only. Contact support if you need access.
-              </p>
+              <p className="text-muted-foreground text-xs leading-snug">{dict.login.restricted}</p>
             </div>
           </section>
 
@@ -147,16 +144,16 @@ export function LoginView({
           <div className="text-muted-foreground mt-4 flex items-center justify-between px-2 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="bg-primary inline-block h-2 w-2 rounded-full" />
-              <span className="font-medium">System Online</span>
+              <span className="font-medium">{dict.login.systemOnline}</span>
             </div>
-            <div className="font-medium tabular-nums">Latency: 24ms</div>
+            <div className="font-medium tabular-nums">{dict.login.latency}</div>
           </div>
         </div>
 
         {/* Bottom Metadata & Legal from Stitch Spec */}
         <footer className="pt-2 pb-2 text-center">
           <p className="text-muted-foreground text-caption tracking-normal tabular-nums">
-            FoodBiz Operations v1.2 · Encrypted Connection
+            {dict.login.footer}
           </p>
         </footer>
       </main>

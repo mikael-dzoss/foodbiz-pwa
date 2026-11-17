@@ -10,6 +10,7 @@ import { MoreMenuSheet } from "./more-menu-sheet";
 import { useOrderAlerts } from "@/features/orders";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface ManagerBottomNavProps {
   navDict: NavigationDictionary;
@@ -18,6 +19,7 @@ export interface ManagerBottomNavProps {
 
 export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProps) {
   const pathname = usePathname();
+  const { manager } = useManagerLocale().dict;
   const { newOrdersCount } = useOrderAlerts();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -37,7 +39,7 @@ export function ManagerBottomNav({ navDict, quickAddDict }: ManagerBottomNavProp
 
   return (
     <nav
-      aria-label="Manager mobile navigation"
+      aria-label={manager.mobileNavLabel}
       className="border-border bg-card/95 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-md md:hidden"
     >
       <div className="flex h-16 items-center justify-around px-2">
