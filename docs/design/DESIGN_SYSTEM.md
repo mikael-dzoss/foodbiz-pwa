@@ -105,6 +105,21 @@ Inter only (`next/font`, Latin + Latin Extended), `font-feature-settings: "tnum"
 
 The first eight are `@utility` blocks (size, line height and weight together, so variants such as `md:text-title-lg` work); `text-caption` and `text-micro` are `--text-*` theme sizes. A composite utility sits in the utilities layer, so a later `font-*` or `leading-*` on the same element overrides its weight or line height. `src/lib/utils.ts` teaches `cn()` (tailwind-merge) all of these names.
 
+### Title roles
+
+Titles look the same on every screen: each role has one utility that carries size, line height and weight, and a title takes no `text-<size>`, `font-*` or `leading-*` override. `text-foreground`, spacing, truncation and layout classes are fine.
+
+| Role                                 | Element                        | Utility                                                        |
+| ------------------------------------ | ------------------------------ | -------------------------------------------------------------- |
+| Screen title (one per screen)        | `h1`                           | `text-title-lg`                                                |
+| Compact app-bar title                | `h1` in a sticky top bar       | `text-title-md`                                                |
+| Section title                        | `h2`                           | `text-title-md`                                                |
+| Group label (overline above a group) | `h2`/`h3`                      | `text-label-sm uppercase tracking-wider text-muted-foreground` |
+| Sheet and dialog title               | `SheetTitle`, `DialogTitle`    | component default (`text-title-md`)                            |
+| Card and list-item title             | `h3` or the row's primary text | `text-label-md`                                                |
+
+Exceptions only where common practice calls for them, each noted next to the code: storefront marketing headings (hero, product name on its detail page) may use `text-display`, and visually hidden headings (`sr-only`). Existing screens move to these roles in slice 12.
+
 Other tokens in `globals.css`:
 
 - `--breakpoint-xs` 25 rem (400 px): `xs:` variant for narrow phones.
