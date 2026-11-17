@@ -289,12 +289,29 @@ const mockRequireAuthenticatedAction = vi.fn(async () => ({
   businessId: testBusinessId,
 }));
 
-vi.mock("@/features/auth", () => ({
-  requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
-}));
+const authState = vi.hoisted(() => ({ role: "owner" as "owner" | "manager" | "staff" }));
+
+vi.mock("@/features/auth", async () => {
+  const domainAuth = await vi.importActual<typeof import("@/domain/auth")>("@/domain/auth");
+  return {
+    requireAuthenticatedAction: () => mockRequireAuthenticatedAction(),
+    requireOwnerAction: async () => {
+      const context = await mockRequireAuthenticatedAction();
+      if (authState.role !== "owner") throw new domainAuth.OwnerRequiredError();
+      return context;
+    },
+    forbiddenResult: () => ({
+      success: false as const,
+      error: "Only an owner can do this.",
+      code: domainAuth.ACTION_FORBIDDEN_CODE,
+    }),
+    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
+  };
+});
 
 describe("Order Server Actions", () => {
   beforeEach(() => {
+    authState.role = "owner";
     vi.clearAllMocks();
 
     mockGuests = [
@@ -1000,6 +1017,30 @@ describe("Order Server Actions", () => {
   });
 
   describe("recordRefundAction", () => {
+    it("is owner-only: a manager gets FORBIDDEN and nothing is recorded", async () => {
+      authState.role = "manager";
+      mockOrders[1].status = "COMPLETED";
+      mockOrders[1].paid = "paid";
+      const spy = vi.spyOn(mockOrderRepo, "recordRefund");
+
+      const res = await recordRefundAction({ orderId: completedOrderId });
+
+      expect(res).toMatchObject({ success: false, code: "FORBIDDEN" });
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("never forwards a raw non-repository error message", async () => {
+      mockOrders[1].status = "COMPLETED";
+      mockOrders[1].paid = "paid";
+      vi.spyOn(mockOrderRepo, "recordRefund").mockRejectedValueOnce(
+        new Error('duplicate key value violates "orders_pkey"'),
+      );
+
+      const res = await recordRefundAction({ orderId: completedOrderId });
+
+      expect(res).toEqual({ success: false, error: "Failed to record refund" });
+    });
+
     it("records refund for a cancelled paid order, setting paid to 'refunded' and recording refundedAt", async () => {
       mockOrders[0].status = "CANCELLED";
       mockOrders[0].paid = "paid";

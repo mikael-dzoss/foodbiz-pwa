@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { getRepositories } from "@/lib/repositories";
-import { requireAuthenticatedAction } from "@/features/auth";
+import {
+  forbiddenResult,
+  isForbiddenError,
+  requireAuthenticatedAction,
+  requireOwnerAction,
+} from "@/features/auth";
 import {
   type NamedOrder,
   type Order,
@@ -22,6 +27,7 @@ import {
   UNKNOWN_GUEST_NAME,
 } from "@/domain";
 import { z } from "zod";
+import type { ActionErrorCode } from "@/domain/auth";
 
 export type OrderActionResult<T = void> =
   | { success: true; data: T }
@@ -30,7 +36,7 @@ export type OrderActionResult<T = void> =
       error: string;
       fieldErrors?: Record<string, string[]>;
       /** Typed code for refusals the UI can act on (reload after a conflict). */
-      code?: "ORDER_STATE_CONFLICT";
+      code?: "ORDER_STATE_CONFLICT" | ActionErrorCode;
     };
 
 /** Failure result for a caught error; a stale-state conflict from the database carries its code. */
@@ -38,7 +44,8 @@ function failure(
   err: unknown,
   fallback: string,
 ): { success: false; error: string; code?: "ORDER_STATE_CONFLICT" } {
-  const message = err instanceof Error ? err.message : fallback;
+  // Only repository errors carry vetted text; anything else gets the fixed fallback.
+  const message = err instanceof OrderRepoError ? err.message : fallback;
   if (err instanceof OrderRepoError && err.code === "ORDER_STATE_CONFLICT") {
     return { success: false, error: message, code: "ORDER_STATE_CONFLICT" };
   }
@@ -625,7 +632,7 @@ export async function lookupGuestByPhoneAction(
  */
 export async function recordRefundAction(input: unknown): Promise<OrderActionResult<Order>> {
   try {
-    const { businessId } = await requireAuthenticatedAction();
+    const { businessId } = await requireOwnerAction();
     const parsed = recordRefundInputSchema.safeParse(input);
 
     if (!parsed.success) {
@@ -655,6 +662,7 @@ export async function recordRefundAction(input: unknown): Promise<OrderActionRes
 
     return { success: true, data: updated };
   } catch (err) {
+    if (isForbiddenError(err)) return forbiddenResult();
     return failure(err, "Failed to record refund");
   }
 }

@@ -776,7 +776,7 @@ function createFakeSupabaseClient(
       if (fnName === "record_order_payment") {
         const order = findFakeOrder();
         if (!order) return notFound();
-        if (order.status === "CANCELLED" || order.paid === "refunded") {
+        if (order.status === "CANCELLED" || order.paid !== "unpaid") {
           return dbError("22023", "INVALID_PAYMENT_STATE: payment cannot be recorded");
         }
         if (args.p_and_complete) {
@@ -821,7 +821,7 @@ function createFakeSupabaseClient(
         if (
           order.status === "COMPLETED" ||
           order.status === "CANCELLED" ||
-          order.paid === "refunded"
+          order.paid !== "unpaid"
         ) {
           return dbError("P0007", "ORDER_STATE_CONFLICT: order is closed");
         }
@@ -1250,6 +1250,24 @@ describe("Supabase Repository Adapter", () => {
       await expect(
         rpcRepos.orders.cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000001"),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+      // 22023 / P0007 never forward the database text, only fixed strings
+      const leak = "secret detail: order 1234 price 99 at tenant xyz";
+      for (const [code, message] of [
+        ["22023", `INVALID_PAYMENT_STATE: ${leak}`],
+        ["22023", `SOMETHING_ELSE: ${leak}`],
+        ["P0007", `ORDER_STATE_CONFLICT: ${leak}`],
+      ] as const) {
+        cancelRpcMock.mockImplementationOnce(async () => ({
+          data: null,
+          error: { code, message },
+        }));
+        const err = await rpcRepos.orders
+          .cancel(DEMO_BUSINESS_ID, "00000000-0000-0000-0000-000000000001")
+          .catch((e: Error) => e);
+        expect((err as Error).message).not.toContain("secret detail");
+        expect((err as Error).message.length).toBeGreaterThan(0);
+      }
     });
   });
 });

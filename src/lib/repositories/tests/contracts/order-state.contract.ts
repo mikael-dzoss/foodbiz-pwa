@@ -70,6 +70,7 @@ export async function orderInStatus(
 export function describeOrderStateContract(
   getRepositories: () => Promise<Repositories> | Repositories,
   businessId: string,
+  getNonOwnerRepositories?: () => Promise<Repositories> | Repositories,
 ): void {
   describe("OrderRepository state contract", () => {
     it("transition appends to the history, honours expectedStatus and the reason rule", async () => {
@@ -198,6 +199,40 @@ export function describeOrderStateContract(
         repos.orders.recordPayment(businessId, cancelled, { paymentMethod: "cash" }),
       ).rejects.toMatchObject({ code: "INVALID_INPUT" });
     });
+
+    it("an already paid order cannot be paid again; a paid order refuses item edits", async () => {
+      const repos = await getRepositories();
+      const product = await pickStockedProduct(repos, businessId);
+      const id = await placeOrder(repos, businessId, [{ productId: product.id, quantity: 1 }]);
+      await repos.orders.recordPayment(businessId, id, { paymentMethod: "cash" });
+
+      await expect(
+        repos.orders.recordPayment(businessId, id, { paymentMethod: "wero" }),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+      expect((await repos.orders.findById(businessId, id))!.paymentMethod).toBe("cash");
+      await expect(
+        repos.orders.replaceItems(businessId, id, [{ productId: product.id, quantity: 2 }]),
+      ).rejects.toMatchObject({ code: "ORDER_STATE_CONFLICT" });
+    });
+
+    it.runIf(Boolean(getNonOwnerRepositories))(
+      "refunds are owner-only: a non-owner member gets FORBIDDEN",
+      async () => {
+        const repos = await getRepositories();
+        const nonOwner = await getNonOwnerRepositories!();
+        const product = await pickStockedProduct(repos, businessId);
+        const id = await placeOrder(repos, businessId, [{ productId: product.id, quantity: 1 }]);
+        await repos.orders.recordPayment(businessId, id, { paymentMethod: "cash" });
+
+        await expect(nonOwner.orders.recordRefund(businessId, id, "x")).rejects.toMatchObject({
+          code: "FORBIDDEN",
+        });
+        expect((await repos.orders.findById(businessId, id))!.paid).toBe("paid");
+        await expect(repos.orders.recordRefund(businessId, id, "x")).resolves.toMatchObject({
+          paid: "refunded",
+        });
+      },
+    );
 
     it("replaceItems recomputes the total, moves stock by the delta and refuses closed orders", async () => {
       const repos = await getRepositories();

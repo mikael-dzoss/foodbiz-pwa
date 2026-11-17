@@ -338,6 +338,14 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
   return build(PLACE_ORDER_GENERIC_MESSAGE, "INTERNAL_ERROR");
 }
 
+/** Fixed user-facing text per database reason prefix (allowlist); anything else gets a generic line. */
+const ORDER_INVALID_INPUT_MESSAGES: Readonly<Record<string, string>> = {
+  INVALID_STATUS_TRANSITION: "This status change is not allowed.",
+  INVALID_PAYMENT_STATE: "This payment change is not allowed for the order's current state.",
+  INVALID_ORDER_ITEMS: "Please check the order items.",
+  INVALID_ITEM_QUANTITY: "Item quantities must be whole numbers between 1 and 9999.",
+};
+
 /**
  * Maps the order-state functions' errors (cancel_order, transition_order_status, record_order_*,
  * mark_order_unpaid, replace_order_items) to OrderRepoError. Only the upper-case reason prefix and
@@ -358,12 +366,16 @@ function mapOrderRpcError(error: { code?: string; message?: string }, fallback: 
         "STOCK_ERROR",
       );
     case "P0007":
+      // Fixed text only: the database message is never forwarded.
       return new OrderRepoError(
-        msg.replace(/^ORDER_STATE_CONFLICT:\s*/, "") || "The order changed, please reload.",
+        "This order can no longer be changed, please reload.",
         "ORDER_STATE_CONFLICT",
       );
     case "22023":
-      return new OrderRepoError(msg.replace(/^[A-Z_]+:\s*/, "") || msg, "INVALID_INPUT");
+      return new OrderRepoError(
+        ORDER_INVALID_INPUT_MESSAGES[reason] ?? "Please check the order details.",
+        "INVALID_INPUT",
+      );
     case "42501":
       return new OrderRepoError("Permission denied", "UNAUTHORIZED");
     default:
@@ -873,6 +885,7 @@ export function createSupabaseRepositories(
         p_order_id: orderId,
         p_reason: reason ?? undefined,
       });
+      if (error?.code === "42501") throw new OwnerRequiredError();
       if (error) throw mapOrderRpcError(error, "Failed to record refund");
       return refetchOrder(businessId, orderId);
     },

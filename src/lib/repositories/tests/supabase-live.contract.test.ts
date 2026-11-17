@@ -429,8 +429,12 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   });
 
   // Lifecycle transitions (every pair against the domain table), payments, refunds and item
-  // replacement, with a manager of business A on the live database.
-  describeOrderStateContract(() => memberARepos, businessAId);
+  // replacement, as the owner of business A (refunds are owner-only) with a manager as the non-owner.
+  describeOrderStateContract(
+    () => ownerARepos,
+    businessAId,
+    () => memberARepos,
+  );
 
   describe("Anonymous Storefront Boundary (RLS & place_order RPC)", () => {
     it("anon orders.place succeeds for visible product via storefront channel", async () => {

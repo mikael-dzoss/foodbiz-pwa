@@ -510,6 +510,9 @@ export function createMockRepositories(
           "INVALID_INPUT",
         );
       }
+      if (order.paid === "paid") {
+        throw new OrderRepoError("This order is already paid.", "INVALID_INPUT");
+      }
       const now = new Date().toISOString();
       if (input.markCompleted) {
         if (order.status !== "READY") {
@@ -557,6 +560,7 @@ export function createMockRepositories(
       return structuredClone(order);
     },
     async recordRefund(bId, orderId, reason) {
+      requireOwner();
       const order = requireOrder(bId, orderId);
       if (order.paid === "refunded") {
         throw new OrderRepoError("Order is already marked as refunded.", "INVALID_INPUT");
@@ -584,6 +588,7 @@ export function createMockRepositories(
       if (
         order.status === "COMPLETED" ||
         order.status === "CANCELLED" ||
+        order.paid === "paid" ||
         order.paid === "refunded"
       ) {
         throw new OrderRepoError(
@@ -909,7 +914,10 @@ export function createMockRepositories(
   const withRole = (role: BusinessMemberRole): Repositories => ({
     products,
     categories,
-    orders,
+    orders: {
+      ...orders,
+      recordRefund: (bId, id, reason) => runAs(role, () => orders.recordRefund(bId, id, reason)),
+    },
     guests,
     members,
     expenses: { ...expenses, delete: (bId, id) => runAs(role, () => expenses.delete(bId, id)) },

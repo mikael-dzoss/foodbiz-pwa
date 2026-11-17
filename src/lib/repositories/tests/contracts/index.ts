@@ -33,7 +33,7 @@ export function describeRepositoryContracts(
     describeProductRepositoryContract(getRepositories, businessId);
     describeCategoryRepositoryContract(getRepositories, businessId);
     describeOrderRepositoryContract(getRepositories, businessId);
-    describeOrderStateContract(getRepositories, businessId);
+    describeOrderStateContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeOrderPlacementContract(getRepositories, businessId);
     describeGuestRepositoryContract(getRepositories, businessId);
     describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
