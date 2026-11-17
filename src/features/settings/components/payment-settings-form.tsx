@@ -16,6 +16,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
 import { Switch, useToast } from "@/components/ui";
 import { updatePaymentSettingsAction } from "../actions";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface PaymentSettingsFormProps {
   settings: BusinessSettings;
@@ -95,7 +96,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.message || "Failed to save payment settings");
+        showToast(actionErrorMessage(res));
       }
     });
   };

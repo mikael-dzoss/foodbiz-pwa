@@ -128,7 +128,7 @@ describe("CategoryManager component", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("A category with this name already exists")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 
@@ -174,9 +174,7 @@ describe("CategoryManager component", () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Cannot delete category: 3 product(s) are assigned to it."),
-      ).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 

@@ -24,16 +24,17 @@ export interface DashboardViewProps {
 export function DashboardView({ initialData, locale = "en", className }: DashboardViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
-  // The period lives in the URL: the page re-renders with fresh data on the server.
-  const [period, setPeriod] = React.useState(initialData.periodPreset);
+  // The period lives in the URL: the server data is the truth; the tapped tab only shows while pending.
+  const [pendingPeriod, setPendingPeriod] = React.useState(initialData.periodPreset);
+  const period = isPending ? pendingPeriod : initialData.periodPreset;
   const data = initialData;
 
   const dict = locale === "fr" ? frDictionary : enDictionary;
 
   const handlePeriodChange = (newPeriod: DashboardPeriodPreset) => {
-    setPeriod(newPeriod);
+    setPendingPeriod(newPeriod);
     startTransition(() => {
-      router.replace(`/manage?period=${newPeriod}`);
+      router.replace(`/manage?period=${newPeriod}`, { scroll: false });
     });
   };
 

@@ -22,6 +22,7 @@ import { SoonBadge } from "@/components/feedback";
 import { STANDARD_EXPENSE_TAGS, type Expense, type StandardExpenseTag } from "@/domain";
 import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "../expense-actions";
 import { Check, Trash2, FileText, AlertCircle } from "lucide-react";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface ExpenseSheetProps {
   open: boolean;
@@ -156,7 +157,7 @@ function ExpenseForm({
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(res.message);
+          setErrorMessage(actionErrorMessage(res));
           if (res.fieldErrors) {
             setFieldErrors(res.fieldErrors);
           }
@@ -173,7 +174,7 @@ function ExpenseForm({
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(res.message);
+          setErrorMessage(actionErrorMessage(res));
           if (res.fieldErrors) {
             setFieldErrors(res.fieldErrors);
           }
@@ -198,11 +199,11 @@ function ExpenseForm({
         setShowDeleteConfirm(false);
         onClose();
       } else {
-        setErrorMessage(res.message);
+        setErrorMessage(actionErrorMessage(res));
         setShowDeleteConfirm(false);
       }
     } catch {
-      setErrorMessage("Failed to delete expense.");
+      setErrorMessage(actionErrorMessage({ code: "INTERNAL" }));
       setShowDeleteConfirm(false);
     } finally {
       setIsDeleting(false);

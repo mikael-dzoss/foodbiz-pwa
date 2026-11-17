@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui";
 import { signOutAction } from "@/features/auth/actions";
 import { switchLanguageAction } from "../actions";
 import { APP_METADATA } from "@/config/app";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface AccountSettingsProps {
   session: ManagerSession;
@@ -46,7 +47,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
           newLocale === "fr" ? "Langue mise à jour en Français" : "Language updated to English",
         );
       } else {
-        showToast(res.message);
+        showToast(actionErrorMessage(res, currentLocale));
       }
     });
   };

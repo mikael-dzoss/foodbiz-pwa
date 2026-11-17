@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import type { CategoryWithProductCount } from "../category-data";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface CategoryManagerProps {
   initialCategories: CategoryWithProductCount[];
@@ -53,7 +54,7 @@ export function CategoryManager({
       setNewName("");
       setNewRole("regular");
     } else {
-      setCreateError(res.message);
+      setCreateError(actionErrorMessage(res));
     }
   };
 
@@ -82,7 +83,7 @@ export function CategoryManager({
       setEditingId(null);
       setEditName("");
     } else {
-      setRenameError(res.message);
+      setRenameError(actionErrorMessage(res));
     }
   };
 
@@ -96,7 +97,7 @@ export function CategoryManager({
     if (res.ok) {
       setCategories((prev) => prev.filter((c) => c.id !== id));
     } else {
-      setDeleteError(res.message);
+      setDeleteError(actionErrorMessage(res));
     }
   };
 

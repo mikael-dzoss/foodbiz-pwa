@@ -21,6 +21,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonItem } from "@/components/feedback";
 import { useToast } from "@/components/ui";
 import { updateBusinessProfileAction } from "../actions";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface BusinessProfileFormProps {
   business: Business;
@@ -138,7 +139,7 @@ export function BusinessProfileForm({
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.message || "Failed to save profile");
+        showToast(actionErrorMessage(res));
       }
     });
   };

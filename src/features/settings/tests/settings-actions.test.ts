@@ -252,6 +252,14 @@ describe("Settings Server Actions", () => {
       }
     });
 
+    it("returns NOT_FOUND when the business no longer exists", async () => {
+      mockBusinessRepo.findById.mockResolvedValueOnce(null);
+      const res = await updateBusinessProfileAction({ name: "Test Name", slug: "test-name" });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.code).toBe("NOT_FOUND");
+      expect(mockBusinessRepo.update).not.toHaveBeenCalled();
+    });
+
     it("handles repository Error exceptions in updateBusinessProfile", async () => {
       mockBusinessRepo.update.mockRejectedValueOnce(new Error("Profile update failed"));
       const res = await updateBusinessProfileAction({

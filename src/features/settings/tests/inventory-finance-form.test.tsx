@@ -161,7 +161,7 @@ describe("InventoryFinanceForm component (M-65)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("General database failure");
+      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 

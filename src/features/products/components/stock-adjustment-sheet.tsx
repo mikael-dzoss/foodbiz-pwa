@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { formatMoney, getStockStatus } from "@/domain";
 import { adjustProductStockAction } from "../product-actions";
 import type { EnrichedProduct } from "../product-data";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface StockAdjustmentSheetProps {
   product: EnrichedProduct | null;
@@ -85,7 +86,7 @@ export function StockAdjustmentSheet({
         onStockAdjusted?.(product.id, targetStock);
         onOpenChange(false);
       } else {
-        setError(res.message || "Failed to adjust stock");
+        setError(actionErrorMessage(res));
       }
     });
   };

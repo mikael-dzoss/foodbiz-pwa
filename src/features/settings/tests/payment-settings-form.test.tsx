@@ -173,7 +173,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("Failed to update payment settings");
+      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 

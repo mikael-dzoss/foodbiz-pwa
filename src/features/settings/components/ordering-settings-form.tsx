@@ -19,6 +19,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
 import { Switch, useToast } from "@/components/ui";
 import { updateOrderingSettingsAction } from "../actions";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface OrderingSettingsFormProps {
   settings: BusinessSettings;
@@ -131,7 +132,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.message || "Failed to save ordering settings");
+        showToast(actionErrorMessage(res));
       }
     });
   };

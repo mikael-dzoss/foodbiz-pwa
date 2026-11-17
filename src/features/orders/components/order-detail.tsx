@@ -44,6 +44,7 @@ import {
 } from "../order-actions";
 import type { EnrichedOrder } from "../order-data";
 import { cn } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface OrderDetailProps {
   order: EnrichedOrder;
@@ -149,7 +150,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -172,7 +173,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -203,7 +204,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -228,7 +229,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -259,7 +260,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -281,7 +282,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -305,7 +306,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 

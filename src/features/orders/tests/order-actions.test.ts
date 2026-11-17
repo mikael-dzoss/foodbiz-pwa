@@ -1120,6 +1120,12 @@ describe("Order Server Actions", () => {
       }
     });
 
+    it("rejects phone input longer than 30 characters", async () => {
+      const res = await lookupGuestByPhoneAction("1".repeat(31));
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.code).toBe("VALIDATION");
+    });
+
     it("finds existing guest by phone", async () => {
       const res = await lookupGuestByPhoneAction("06 12 34 56 78");
       expect(res.ok).toBe(true);

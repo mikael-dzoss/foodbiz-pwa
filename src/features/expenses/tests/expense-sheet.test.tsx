@@ -128,7 +128,7 @@ describe("ExpenseSheet Component", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("expense-error-message")).toBeDefined();
-      expect(screen.getByText("Validation failed on server")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
       expect(screen.getByText("Server rejected description")).toBeDefined();
     });
   });
@@ -146,7 +146,7 @@ describe("ExpenseSheet Component", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("expense-error-message")).toBeDefined();
-      expect(screen.getByText("Update rejected by database")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 
@@ -183,7 +183,7 @@ describe("ExpenseSheet Component", () => {
     fireEvent.click(screen.getByTestId("expense-delete-confirm-button"));
 
     await waitFor(() => {
-      expect(screen.getByText("Cannot delete expense")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 
@@ -196,7 +196,7 @@ describe("ExpenseSheet Component", () => {
     fireEvent.click(screen.getByTestId("expense-delete-confirm-button"));
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to delete expense.")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 

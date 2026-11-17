@@ -134,7 +134,7 @@ describe("NotificationsAppForm component (M-67)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("Failed to update notification preferences");
+      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 

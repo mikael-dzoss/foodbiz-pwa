@@ -278,7 +278,7 @@ describe("OrderingSettingsForm component (M-63)", () => {
           leadTimeUnit: "business_days" as const,
         }),
       );
-      expect(mockShowToast).toHaveBeenCalledWith("Failed to save ordering settings");
+      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 

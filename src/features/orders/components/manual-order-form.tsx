@@ -38,6 +38,7 @@ import {
   type GuestPrefill,
 } from "../order-actions";
 import { cn } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 function useSafeToast() {
   try {
@@ -232,7 +233,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
       setPreviewOpen(false);
       router.push(`/manage/orders/${res.data.id}`);
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 

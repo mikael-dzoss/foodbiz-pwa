@@ -157,8 +157,25 @@ describe("DashboardView Component", () => {
     fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith("/manage?period=last_7_days");
+      expect(mockReplace).toHaveBeenCalledWith("/manage?period=last_7_days", {
+        scroll: false,
+      });
     });
+  });
+
+  it("derives the selected period from server data, not from the last click", async () => {
+    const { rerender } = render(<DashboardView initialData={mockData} />);
+    const selected = (id: string) => screen.getByTestId(id).getAttribute("aria-selected");
+    expect(selected("period-tab-today")).toBe("true");
+
+    // Navigation that never lands (failed/cancelled): the tab falls back to the server value.
+    fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
+    await waitFor(() => expect(selected("period-tab-today")).toBe("true"));
+
+    // Back/forward: new server data moves the tab.
+    rerender(<DashboardView initialData={{ ...mockData, periodPreset: "last_30_days" }} />);
+    expect(selected("period-tab-last_30_days")).toBe("true");
+    expect(selected("period-tab-today")).toBe("false");
   });
 
   it("renders translated French strings when locale='fr'", () => {

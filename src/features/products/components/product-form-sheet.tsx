@@ -25,6 +25,7 @@ import {
 } from "../product-actions";
 import type { EnrichedProduct } from "../product-data";
 import { compressImageFile } from "../utils/image-compression";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface ProductFormSheetProps {
   product?: EnrichedProduct | null;
@@ -134,7 +135,7 @@ export function ProductFormSheet({
       if (res.ok) {
         setImageUrl(res.data.imageUrl);
       } else {
-        setGeneralError(res.message || "Failed to upload image");
+        setGeneralError(actionErrorMessage(res));
       }
     } catch (err) {
       setGeneralError(err instanceof Error ? err.message : "Error compressing image");
@@ -201,7 +202,7 @@ export function ProductFormSheet({
         onProductSaved?.(res.data);
         onOpenChange(false);
       } else {
-        setGeneralError(res.message || "Failed to save product");
+        setGeneralError(actionErrorMessage(res));
         if (res.fieldErrors) {
           setFieldErrors(res.fieldErrors);
         }

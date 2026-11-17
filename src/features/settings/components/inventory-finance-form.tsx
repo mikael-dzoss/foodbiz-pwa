@@ -22,6 +22,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
 import { useToast } from "@/components/ui";
 import { updateInventoryFinanceSettingsAction } from "../actions";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface InventoryFinanceFormProps {
   settings: BusinessSettings;
@@ -70,7 +71,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.message || "Failed to save inventory & finance preferences");
+        showToast(actionErrorMessage(res));
       }
     });
   };

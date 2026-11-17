@@ -22,6 +22,7 @@ import { SoonBadge } from "@/components/feedback";
 import { Switch, useToast } from "@/components/ui";
 import { updateNotificationSettingsAction } from "../actions";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface NotificationsAppFormProps {
   settings: BusinessSettings;
@@ -70,7 +71,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
       if (res.ok) {
         showToast(dict.notifications.saveSuccess);
       } else {
-        showToast(res.message || "Failed to save preferences");
+        showToast(actionErrorMessage(res));
       }
     });
   };
