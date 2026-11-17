@@ -24,6 +24,9 @@ import { switchLanguageAction } from "../actions";
 import { APP_METADATA } from "@/config/app";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { Button } from "@/components/ui/button";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
 
 export interface AccountSettingsProps {
   session: ManagerSession;
@@ -34,6 +37,8 @@ export interface AccountSettingsProps {
 export function AccountSettings({ session, dict, currentLocale }: AccountSettingsProps) {
   const { theme, setTheme } = useTheme();
   const { showToast } = useToast();
+  const { dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   const [locale, setLocale] = useState<SupportedLocale>(currentLocale);
   const [isPending, startTransition] = useTransition();
 
@@ -43,9 +48,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
     startTransition(async () => {
       const res = await switchLanguageAction(newLocale);
       if (res.ok) {
-        showToast(
-          newLocale === "fr" ? "Langue mise à jour en Français" : "Language updated to English",
-        );
+        showToast(getDictionary(newLocale).settingsExtra.languageUpdated);
       } else {
         showToast(actionErrorMessage(res, currentLocale));
       }
@@ -67,7 +70,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
           <span>{dict.title}</span>
         </Link>
         <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          M-61
+          {"M-61"}
         </span>
       </div>
 
@@ -86,7 +89,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
             {/* Google security badge indicator */}
             <div
               className="border-background bg-card text-primary absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full border shadow-xs"
-              title="Verified via Google Workspace"
+              title={x.verifiedGoogle}
             >
               <ShieldCheck className="text-primary h-3.5 w-3.5" />
             </div>
@@ -138,7 +141,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
                   label: (
                     <>
                       {locale === "en" && <Check className="text-primary h-4 w-4" />}
-                      <span>English (EN)</span>
+                      <span>{x.languageEnglish}</span>
                     </>
                   ),
                 },
@@ -148,7 +151,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
                   label: (
                     <>
                       {locale === "fr" && <Check className="text-primary h-4 w-4" />}
-                      <span>Français (FR)</span>
+                      <span>{x.languageFrench}</span>
                     </>
                   ),
                 },
@@ -246,10 +249,10 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="text-primary h-4 w-4" />
             <span>
-              {APP_METADATA.name} POS & Operations {dict.about.version}
+              {interpolate(x.posLine, { name: APP_METADATA.name, version: dict.about.version })}
             </span>
           </div>
-          <span>Connected to European Region (Brussels)</span>
+          <span>{x.connectedRegion}</span>
         </div>
       </div>
     </div>

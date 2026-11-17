@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
-import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
 import { SettingsHub } from "@/features/settings";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
 
 export default async function SettingsPage() {
   const session = await requireManagerSession();
-  const dict = getDictionary(DEFAULT_LOCALE);
+  const locale = await getManagerLocale();
+  const dict = getDictionary(locale);
 
   return <SettingsHub session={session} dict={dict.settings} />;
 }

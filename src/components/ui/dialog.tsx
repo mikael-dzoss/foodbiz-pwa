@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useManagerLocale } from "@/components/i18n";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,30 +31,40 @@ export const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     "data-testid"?: string;
     hideCloseButton?: boolean;
+    /** Accessible name of the close button; manager screens default to the manager locale. */
+    closeLabel?: string;
   }
->(({ className, children, "data-testid": testId, hideCloseButton = false, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "border-border bg-card fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border p-6 shadow-lg",
-        "duration-200 motion-reduce:transition-none",
-        className,
-      )}
-      data-testid={testId}
-      {...props}
-    >
-      {children}
-      {!hideCloseButton && (
-        <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
-      )}
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
+>(
+  (
+    { className, children, "data-testid": testId, hideCloseButton = false, closeLabel, ...props },
+    ref,
+  ) => {
+    const managerClose = useManagerLocale().dict.common.close;
+    return (
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogPrimitive.Content
+          ref={ref}
+          className={cn(
+            "border-border bg-card fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border p-6 shadow-lg",
+            "duration-200 motion-reduce:transition-none",
+            className,
+          )}
+          data-testid={testId}
+          {...props}
+        >
+          {children}
+          {!hideCloseButton && (
+            <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
+              <X className="h-4 w-4" />
+              <span className="sr-only">{closeLabel ?? managerClose}</span>
+            </DialogPrimitive.Close>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    );
+  },
+);
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

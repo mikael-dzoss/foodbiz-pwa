@@ -11,6 +11,9 @@ export interface QuantityStepperProps {
   max?: number;
   disabled?: boolean;
   onChange: (value: number) => void;
+  /** Accessible names of the two buttons (translated by the caller). */
+  decreaseLabel: string;
+  increaseLabel: string;
   className?: string;
   "data-testid"?: string;
 }
@@ -21,6 +24,8 @@ export function QuantityStepper({
   max = 999,
   disabled = false,
   onChange,
+  decreaseLabel,
+  increaseLabel,
   className,
   "data-testid": testId,
 }: QuantityStepperProps) {
@@ -51,7 +56,7 @@ export function QuantityStepper({
         size="icon"
         onClick={handleDecrement}
         disabled={disabled || value <= min}
-        aria-label="Decrease quantity"
+        aria-label={decreaseLabel}
         className="text-foreground hover:bg-muted h-12 w-12"
         data-testid="quantity-decrement"
       >
@@ -71,7 +76,7 @@ export function QuantityStepper({
         size="icon"
         onClick={handleIncrement}
         disabled={disabled || value >= max}
-        aria-label="Increase quantity"
+        aria-label={increaseLabel}
         className="text-foreground hover:bg-muted h-12 w-12"
         data-testid="quantity-increment"
       >

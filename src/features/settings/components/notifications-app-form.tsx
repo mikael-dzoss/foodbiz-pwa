@@ -22,6 +22,8 @@ import { ActionBar, Button, Switch, useToast } from "@/components/ui";
 import { updateNotificationSettingsAction } from "../actions";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface NotificationsAppFormProps {
   settings: BusinessSettings;
@@ -30,6 +32,8 @@ export interface NotificationsAppFormProps {
 
 export function NotificationsAppForm({ settings, dict }: NotificationsAppFormProps) {
   const { showToast, showError } = useToast();
+  const { locale: managerLocale, dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   type SaveResult = Awaited<ReturnType<typeof updateNotificationSettingsAction>> | null;
 
   // 1. Alert toggles
@@ -42,19 +46,19 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
   const handleInstallClick = async () => {
     if (canPrompt) {
       if ((await promptInstall()) === "accepted") {
-        showToast("FoodBiz Manager PWA installed successfully");
+        showToast(x.pwaInstalled);
       }
     } else if (isStandalone) {
-      showToast("FoodBiz is already installed on this device");
+      showToast(x.pwaAlreadyInstalled);
     } else {
-      showToast("To install, tap Share or Menu in your browser, then 'Add to Home Screen'");
+      showToast(x.pwaHowTo);
     }
   };
 
   const handleDiscard = () => {
     setInAppAlerts(settings.inAppAlerts ?? true);
     setSoundAlerts(settings.soundAlerts ?? true);
-    showToast("Changes discarded");
+    showToast(x.discarded);
   };
 
   const [, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
@@ -67,7 +71,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
     if (res.ok) {
       showToast(dict.notifications.saveSuccess);
     } else {
-      showError(actionErrorMessage(res));
+      showError(actionErrorMessage(res, managerLocale));
     }
     return res;
   }, null);
@@ -88,7 +92,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
           <span>{dict.title}</span>
         </Link>
         <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          M-67
+          {"M-67"}
         </span>
       </div>
 
@@ -217,7 +221,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
                   {dict.notifications.aboutLinkText}
                 </span>
                 <span className="text-muted-foreground block text-xs">
-                  Version {dict.about.version} • Legal terms, support contacts & license
+                  {interpolate(x.aboutVersionLine, { version: dict.about.version })}
                 </span>
               </div>
             </div>
@@ -240,10 +244,10 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Email Order Confirmations
+                  {x.soon.emailConfirmTitle}
                 </span>
                 <span className="text-muted-foreground block text-xs">
-                  Instant email copies sent on customer checkout
+                  {x.soon.emailConfirmDesc}
                 </span>
               </div>
             </div>
@@ -259,11 +263,9 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Mobile Push Notifications
+                  {x.soon.pushTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Background Web Push even when the browser is closed
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.pushDesc}</span>
               </div>
             </div>
             {/* TODO(notifications): wire Web Push service worker subscriptions (#74) */}
@@ -278,11 +280,9 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Invite Staff & Team Permissions
+                  {x.soon.teamTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Cashier, kitchen display, and manager access controls
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.teamDesc}</span>
               </div>
             </div>
             {/* TODO(team): wire staff invitations and RBAC (#74) */}

@@ -29,6 +29,8 @@ import {
 } from "@/components/ui";
 import { updateOrderingSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface OrderingSettingsFormProps {
   settings: BusinessSettings;
@@ -38,6 +40,8 @@ export interface OrderingSettingsFormProps {
 
 export function OrderingSettingsForm({ settings, dict, locale = "en" }: OrderingSettingsFormProps) {
   const { showToast, showError } = useToast();
+  const { locale: managerLocale, dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   type SaveResult = Awaited<ReturnType<typeof updateOrderingSettingsAction>> | null;
   const [dismissed, setDismissed] = useState<SaveResult>(null);
 
@@ -105,7 +109,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     setLeadTimeUnit(settings.leadTimeUnit ?? "business_days");
     setTimezone(settings.timezone);
     setDismissed(result);
-    showToast("Changes discarded");
+    showToast(x.discarded);
   };
 
   const activeServiceCount = [pickup, delivery, dineIn].filter(Boolean).length;
@@ -146,7 +150,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     if (res.ok) {
       showToast(dict.ordering.saveSuccess);
     } else {
-      showError(actionErrorMessage(res));
+      showError(actionErrorMessage(res, managerLocale));
     }
     return res;
   }, null);
@@ -170,7 +174,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
           <span>{dict.title}</span>
         </Link>
         <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          M-63
+          {"M-63"}
         </span>
       </div>
 
@@ -224,7 +228,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
             {dict.ordering.serviceTypesSection}
           </h2>
           <span className="text-muted-foreground text-xs font-medium">
-            {activeServiceCount} of 3 active
+            {interpolate(x.activeOfThree, { count: activeServiceCount })}
           </span>
         </div>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
@@ -327,13 +331,11 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   rows={2}
                   value={openingHours}
                   onChange={(e) => setOpeningHours(e.target.value)}
-                  placeholder="e.g. Mon-Sat: 08:00 - 19:30, Sun: Closed"
+                  placeholder={x.hoursPlaceholder}
                   className="min-h-0 rounded-xl py-2 text-sm"
                 />
               </Field>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Leave empty for continuous dark kitchen or on-demand delivery operations.
-              </p>
+              <p className="text-muted-foreground mt-1 text-xs">{x.hoursEmptyHint}</p>
             </div>
           </div>
         </div>
@@ -570,11 +572,9 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Delivery Zones & Postcode Limits
+                  {x.soon.zonesTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Radius or postal code geo-fencing for dispatch
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.zonesDesc}</span>
               </div>
             </div>
             {/* TODO(ordering): wire live delivery zone bounds (#71) */}
@@ -588,11 +588,9 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Time Slots & Hourly Kitchen Capacity
+                  {x.soon.slotsTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Throttle peak orders per 15-minute fulfillment slot
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.slotsDesc}</span>
               </div>
             </div>
             {/* TODO(ordering): wire kitchen order throttling (#71) */}

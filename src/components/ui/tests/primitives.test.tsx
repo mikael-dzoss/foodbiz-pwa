@@ -224,7 +224,15 @@ describe("Base UI Primitives (#28)", () => {
     it("increments and decrements value within bounds", () => {
       const handleChange = vi.fn();
       render(
-        <QuantityStepper data-testid="stepper" value={2} min={1} max={5} onChange={handleChange} />,
+        <QuantityStepper
+          data-testid="stepper"
+          value={2}
+          min={1}
+          max={5}
+          onChange={handleChange}
+          decreaseLabel="Decrease quantity"
+          increaseLabel="Increase quantity"
+        />,
       );
 
       expect(screen.getByTestId("quantity-value").textContent).toBe("2");

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { ManagerLocaleProvider } from "@/components/i18n";
 import { PaymentSettingsForm } from "../components/payment-settings-form";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import type { BusinessSettings } from "@/domain/business";
@@ -188,6 +189,30 @@ describe("PaymentSettingsForm component (M-64)", () => {
 
     await waitFor(() => {
       expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
+    });
+  });
+
+  it("shows the save toast and action errors in the manager's French locale", async () => {
+    const frDict = getDictionary("fr");
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <PaymentSettingsForm settings={mockSettings} dict={frDict.settings} />
+      </ManagerLocaleProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("save-payment-button"));
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith(frDict.settings.payment.saveSuccess);
+    });
+
+    vi.mocked(actions.updatePaymentSettingsAction).mockResolvedValueOnce({
+      ok: false,
+      code: "INTERNAL",
+      message: "Failed to update payment settings",
+    });
+    fireEvent.click(screen.getByTestId("save-payment-button"));
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith("Une erreur est survenue. Veuillez réessayer.");
     });
   });
 

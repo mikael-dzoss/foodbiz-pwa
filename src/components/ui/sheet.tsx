@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useManagerLocale } from "@/components/i18n";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,35 +31,40 @@ export const SheetContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     side?: "bottom" | "top" | "left" | "right";
     "data-testid"?: string;
+    /** Accessible name of the close button; manager screens default to the manager locale. */
+    closeLabel?: string;
   }
->(({ side = "bottom", className, children, "data-testid": testId, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "bg-card fixed z-50 gap-4 p-6 shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none",
-        side === "bottom" &&
-          "border-border pb-safe-6 inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-xl border-t",
-        side === "right" && "border-border inset-y-0 right-0 h-full w-3/4 max-w-sm border-l",
-        side === "left" &&
-          "border-border pb-safe-6 inset-y-0 left-0 flex h-full w-4/5 max-w-xs flex-col border-r",
-        className,
-      )}
-      data-testid={testId}
-      {...props}
-    >
-      {side === "bottom" && (
-        <div className="bg-muted-foreground/30 mx-auto mb-4 h-1.5 w-12 rounded-full" />
-      )}
-      {children}
-      <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </SheetPortal>
-));
+>(({ side = "bottom", className, children, "data-testid": testId, closeLabel, ...props }, ref) => {
+  const managerClose = useManagerLocale().dict.common.close;
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "bg-card fixed z-50 gap-4 p-6 shadow-lg transition-transform duration-200 ease-out motion-reduce:transition-none",
+          side === "bottom" &&
+            "border-border pb-safe-6 inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-xl border-t",
+          side === "right" && "border-border inset-y-0 right-0 h-full w-3/4 max-w-sm border-l",
+          side === "left" &&
+            "border-border pb-safe-6 inset-y-0 left-0 flex h-full w-4/5 max-w-xs flex-col border-r",
+          className,
+        )}
+        data-testid={testId}
+        {...props}
+      >
+        {side === "bottom" && (
+          <div className="bg-muted-foreground/30 mx-auto mb-4 h-1.5 w-12 rounded-full" />
+        )}
+        {children}
+        <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">{closeLabel ?? managerClose}</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </SheetPortal>
+  );
+});
 SheetContent.displayName = "SheetContent";
 
 export const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

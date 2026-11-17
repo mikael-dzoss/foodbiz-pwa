@@ -158,7 +158,7 @@ export function CartView({
           <Input
             id="promo-input"
             type="text"
-            placeholder="e.g. MORNING10"
+            placeholder={dict.promoPlaceholder}
             disabled
             aria-label={`${dict.discountCode} (${dict.soon})`}
             className="h-9 text-xs"

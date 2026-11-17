@@ -20,6 +20,7 @@ import { SoonItem } from "@/components/feedback";
 import { ActionBar, Button, Field, Input, Textarea, useToast } from "@/components/ui";
 import { updateBusinessProfileAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface BusinessProfileFormProps {
   business: Business;
@@ -34,6 +35,8 @@ export function BusinessProfileForm({
   slugLockedReason,
 }: BusinessProfileFormProps) {
   const { showToast, showError } = useToast();
+  const { locale: managerLocale, dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   type SaveResult = Awaited<ReturnType<typeof updateBusinessProfileAction>> | null;
   const [dismissed, setDismissed] = useState<SaveResult>(null);
 
@@ -90,7 +93,7 @@ export function BusinessProfileForm({
       tiktokUrl: business.tiktokUrl || "",
     });
     setDismissed(result);
-    showToast("Changes discarded");
+    showToast(x.discarded);
   };
 
   const handleCopyUrl = async () => {
@@ -98,7 +101,7 @@ export function BusinessProfileForm({
     try {
       await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
-      showToast("Store URL copied to clipboard");
+      showToast(x.urlCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       showToast(fullUrl);
@@ -107,7 +110,7 @@ export function BusinessProfileForm({
 
   const handleLogoUploadClick = () => {
     // In MVP, logo upload opens file input or sets mock logo
-    showToast("Logo upload ready — select an image to preview");
+    showToast(x.logoReady);
   };
 
   const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
@@ -130,7 +133,7 @@ export function BusinessProfileForm({
     if (res.ok) {
       showToast(dict.business.saveSuccess);
     } else {
-      showError(actionErrorMessage(res));
+      showError(actionErrorMessage(res, managerLocale));
     }
     return res;
   }, null);
@@ -156,7 +159,7 @@ export function BusinessProfileForm({
           <span>{dict.title}</span>
         </Link>
         <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          M-62
+          {"M-62"}
         </span>
       </div>
 
@@ -195,9 +198,7 @@ export function BusinessProfileForm({
               <label className="text-foreground block text-sm font-semibold">
                 {dict.business.logoLabel}
               </label>
-              <p className="text-body-sm text-muted-foreground mb-2">
-                PNG, JPG or WebP (square 1:1)
-              </p>
+              <p className="text-body-sm text-muted-foreground mb-2">{x.logoHint}</p>
               <Button
                 variant="unstyled"
                 size="none"
@@ -259,7 +260,7 @@ export function BusinessProfileForm({
                       setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
                     }
                     disabled={Boolean(slugLockedReason)}
-                    placeholder="la-petite-boulangerie"
+                    placeholder={x.slugPlaceholder}
                     className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 py-2.5 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
                     data-testid="input-business-slug"
                   />
@@ -268,7 +269,7 @@ export function BusinessProfileForm({
                     size="none"
                     type="button"
                     onClick={handleCopyUrl}
-                    aria-label="Copy storefront URL"
+                    aria-label={x.copyUrl}
                     className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
                   >
                     {copied ? (
@@ -294,7 +295,7 @@ export function BusinessProfileForm({
                       <span>{dict.business.activeBadge}</span>
                     </span>
                     <span className="text-muted-foreground truncate text-xs">
-                      foodbiz.app/s/{slug || "slug"}
+                      {`foodbiz.app/s/${slug || "slug"}`}
                     </span>
                   </div>
                 )}
@@ -338,7 +339,7 @@ export function BusinessProfileForm({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="bonjour@lapetiteboulangerie.fr"
+                  placeholder={x.emailPlaceholder}
                   data-testid="input-business-email"
                   className="rounded-xl py-2.5 pr-3.5 pl-11"
                 />
@@ -374,7 +375,7 @@ export function BusinessProfileForm({
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="12 Rue de la Roquette, 75011 Paris, France"
+                  placeholder={x.addressPlaceholder}
                   data-testid="input-business-address"
                   className="min-h-0 rounded-xl py-2.5 pr-3.5 pl-11"
                 />

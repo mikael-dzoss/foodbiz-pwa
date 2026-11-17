@@ -20,6 +20,8 @@ import { SoonItem } from "@/components/feedback";
 import { signOutAction } from "@/features/auth/actions";
 import { APP_METADATA } from "@/config/app";
 import { Button } from "@/components/ui/button";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface SettingsHubProps {
   session: ManagerSession;
@@ -27,6 +29,8 @@ export interface SettingsHubProps {
 }
 
 export function SettingsHub({ session, dict }: SettingsHubProps) {
+  const { dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   const managerInitial = session.user.name ? session.user.name[0].toUpperCase() : "M";
 
   return (
@@ -267,10 +271,10 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="text-primary h-4 w-4" />
             <span>
-              {APP_METADATA.name} POS & Operations {dict.about.version}
+              {interpolate(x.posLine, { name: APP_METADATA.name, version: dict.about.version })}
             </span>
           </div>
-          <span>Connected to European Region (Brussels)</span>
+          <span>{x.connectedRegion}</span>
         </div>
       </div>
     </div>

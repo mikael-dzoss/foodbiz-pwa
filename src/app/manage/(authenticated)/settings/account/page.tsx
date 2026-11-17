@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { requireManagerSession } from "@/lib/auth";
-import {
-  getDictionary,
-  DEFAULT_LOCALE,
-  isSupportedLocale,
-  type SupportedLocale,
-} from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { AccountSettings } from "@/features/settings";
 
 export const metadata: Metadata = {
@@ -16,10 +11,7 @@ export const metadata: Metadata = {
 
 export default async function AccountSettingsPage() {
   const session = await requireManagerSession();
-  const cookieStore = await cookies();
-  const localeCookie = cookieStore.get("foodbiz_locale")?.value;
-  const currentLocale: SupportedLocale =
-    localeCookie && isSupportedLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
+  const currentLocale = await getManagerLocale();
 
   const dict = getDictionary(currentLocale);
 
