@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { APP_METADATA } from "@/config/app";
 import { ThemeProvider, ThemeScript } from "@/components/theme";
 import { ToastProvider } from "@/components/ui";
+import { PwaInstallCapture } from "@/lib/pwa/pwa-install-capture";
+import { getSiteUrl } from "@/config/site-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -11,15 +13,22 @@ const inter = Inter({
   display: "swap",
 });
 
+// No title template here: each area (`/[locale]` storefront, `/manage`) owns its own, so a page
+// title is never suffixed twice.
 export const metadata: Metadata = {
-  title: { default: APP_METADATA.name, template: `%s · ${APP_METADATA.shortName}` },
+  metadataBase: getSiteUrl(),
+  title: APP_METADATA.name,
   description: APP_METADATA.description,
   applicationName: APP_METADATA.name,
   appleWebApp: { capable: true, title: APP_METADATA.shortName, statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
-  themeColor: APP_METADATA.themeColor,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: APP_METADATA.themeColor },
+    { media: "(prefers-color-scheme: dark)", color: APP_METADATA.themeColorDark },
+  ],
   width: "device-width",
   initialScale: 1,
   // Without `cover` every env(safe-area-inset-*) resolves to 0, so bars sit under the home indicator.
@@ -37,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col">
+        <PwaInstallCapture />
         <ThemeProvider>
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>

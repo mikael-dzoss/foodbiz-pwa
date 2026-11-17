@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { resetPwaInstallStore } from "@/lib/pwa/install-store";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { NotificationsAppForm } from "../components/notifications-app-form";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
@@ -63,6 +64,7 @@ vi.mock("../actions", () => ({
 }));
 
 afterEach(() => {
+  resetPwaInstallStore();
   vi.clearAllMocks();
 });
 

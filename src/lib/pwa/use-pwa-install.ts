@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
+import { useSyncExternalStore } from "react";
+import {
+  getPwaInstallState,
+  getServerPwaInstallState,
+  promptPwaInstall,
+  subscribePwaInstall,
+} from "./install-store";
 
 function subscribeStandalone(callback: () => void) {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -39,8 +40,11 @@ export type PwaInstallOutcome = "accepted" | "dismissed" | "unavailable";
 
 /** Shared PWA install state: native prompt (Chromium), iOS detection and standalone mode. */
 export function usePwaInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [justInstalled, setJustInstalled] = useState(false);
+  const { deferredPrompt, installed } = useSyncExternalStore(
+    subscribePwaInstall,
+    getPwaInstallState,
+    getServerPwaInstallState,
+  );
   const isRunningStandalone = useSyncExternalStore(
     subscribeStandalone,
     getStandaloneSnapshot,
@@ -48,28 +52,10 @@ export function usePwaInstall() {
   );
   const isIos = useSyncExternalStore(noopSubscribe, getIosSnapshot, () => false);
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  const promptInstall = useCallback(async (): Promise<PwaInstallOutcome> => {
-    if (!deferredPrompt) return "unavailable";
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") setJustInstalled(true);
-    setDeferredPrompt(null);
-    return outcome;
-  }, [deferredPrompt]);
-
   return {
-    isStandalone: isRunningStandalone || justInstalled,
+    isStandalone: isRunningStandalone || installed,
     canPrompt: deferredPrompt !== null,
     isIos,
-    promptInstall,
+    promptInstall: promptPwaInstall,
   };
 }
