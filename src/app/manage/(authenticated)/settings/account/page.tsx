@@ -15,8 +15,6 @@ export const metadata: Metadata = {
   description: "Manage your profile, language and display preferences.",
 };
 
-export const instant = false;
-
 export default async function AccountSettingsPage() {
   const session = await requireManagerSession();
   const cookieStore = await cookies();

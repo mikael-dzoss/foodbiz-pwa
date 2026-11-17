@@ -19,8 +19,6 @@ export async function generateMetadata({ params }: OrderDetailPageProps): Promis
   };
 }
 
-export const instant = false;
-
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const session = await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

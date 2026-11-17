@@ -9,8 +9,6 @@ export const metadata: Metadata = {
   description: "Account, store preferences and system configuration.",
 };
 
-export const instant = false;
-
 export default async function SettingsPage() {
   const session = await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

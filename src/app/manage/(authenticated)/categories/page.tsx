@@ -12,8 +12,6 @@ export const metadata: Metadata = {
   description: "Organise your menu and products.",
 };
 
-export const instant = false;
-
 export default async function CategoriesPage() {
   await requireManagerSession();
   const categories = await listCategories();

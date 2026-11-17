@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { ErrorState } from "@/components/feedback";
+import { Button } from "@/components/ui/button";
 import { getDictionary } from "@/domain/i18n";
 
 /** Root error boundary: generic localized copy, never the raw error text. */
@@ -21,6 +23,13 @@ export default function ErrorPage({ error, retry }: { error: unknown; retry: () 
         retryLabel={retryLabel}
         data-testid="app-error"
       />
+      <div className="mt-4">
+        <Button asChild variant="outline">
+          <Link href="/" data-testid="app-error-home">
+            Back to home
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

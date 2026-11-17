@@ -12,8 +12,6 @@ export const metadata: Metadata = {
   description: "Track operating costs, ingredient purchases and business expenses.",
 };
 
-export const instant = false;
-
 interface ExpensesPageProps {
   searchParams?: Promise<{ action?: string }>;
 }

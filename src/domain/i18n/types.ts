@@ -254,6 +254,10 @@ export interface StorefrontDictionary {
   pageErrorTitle: string;
   pageErrorMessage: string;
   pageErrorRetry: string;
+  pageErrorHome: string;
+  notFoundTitle: string;
+  notFoundMessage: string;
+  notFoundHome: string;
   viewConfirmation: string;
   trackOrder: string;
   nameRequiredError: string;
@@ -346,6 +350,14 @@ export interface CommonDictionary {
     title: string;
     message: string;
     reference: string;
+    backToDashboard: string;
+  };
+  /** Manager area not-found (a record or page does not exist). */
+  notFound: {
+    title: string;
+    message: string;
+    backToDashboard: string;
+    backToOrders: string;
   };
 }
 

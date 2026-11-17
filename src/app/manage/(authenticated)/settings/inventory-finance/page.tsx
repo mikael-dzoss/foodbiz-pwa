@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: "Configure stock warning thresholds, currency, and sales tax rate.",
 };
 
-export const instant = false;
-
 export default async function InventoryFinancePage() {
   await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

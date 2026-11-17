@@ -11,8 +11,6 @@ export const metadata: Metadata = {
   description: "Configure accepted payment methods, transfer identifiers, and instructions.",
 };
 
-export const instant = false;
-
 export default async function PaymentSettingsPage() {
   const session = await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);
