@@ -41,7 +41,7 @@ Dependencies point one way: `domain` ← `lib/repositories` ← `features` ← `
 2. `placeOrderAction` (`features/storefront/storefront-actions.ts`) parses the input with the zod schema from `domain/checkout.ts`, checks the honeypot and quantity caps, applies the per-IP limiter, then re-reads prices and stock and recomputes totals on the server.
 3. It gets repositories from `getStorefrontRepositories()` (`lib/repositories/storefront.ts`) and calls `repos.orders.place(businessId, input)`. The business id comes from `STOREFRONT_BUSINESS_ID`, never from the request.
 4. In Supabase mode the adapter (`lib/repositories/supabase/adapter.ts`) calls the `place_order` Postgres function through `client.rpc("place_order", ...)`. The function locks and decrements stock, resolves the guest by phone, enforces the limits below and returns the order and its tracking token.
-5. On success the action calls `revalidateTag` for the storefront catalog and `revalidatePath` for the manager orders and products pages.
+5. On success the action calls `revalidateStorefrontCatalog()` (`updateTag` on the catalog tags) and `revalidatePath` for the manager orders and products pages.
 
 ## Repository pattern and data source
 
@@ -53,6 +53,11 @@ Dependencies point one way: `domain` ← `lib/repositories` ← `features` ← `
 `DATA_SOURCE` (`mock` or `supabase`, default `mock`) selects the adapter in `getRepositories()` (`lib/repositories/factory.ts`). `src/config/env.ts` rejects `DATA_SOURCE=mock` when `NODE_ENV` or `APP_ENV` is `production`, so a production build cannot run on mock data. The `build` script therefore defaults `DATA_SOURCE` to `supabase`. `DATA_SOURCE=supabase` also requires `STOREFRONT_BUSINESS_ID`.
 
 The storefront does not use `getRepositories()`. Every code path an anonymous visitor reaches uses `getStorefrontRepositories()`, which builds the Supabase adapter on the cookie-less public client with `publicOnly: true`, so reads select public columns only. The storefront serves one business: `getStorefrontBusinessId()` returns `STOREFRONT_BUSINESS_ID` (or the demo business in mock mode).
+
+## Server Actions and data access
+
+- **Writes** are Server Actions built with `defineAction(name, { auth, input }, handler)` (`src/lib/actions/define-action.ts`). It checks auth outside the try (a login redirect is never swallowed), parses `input` with zod, runs the handler and returns `ActionResult<T>` (`src/lib/actions/types.ts`): `{ ok: true, data }` or `{ ok: false, code, message, reason?, fieldErrors?, lineErrors? }`. `code` is one of `VALIDATION`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL`. Handlers return data or throw `ActionError(code, safeMessage)`; `OrderRepoError` and `OwnerRequiredError` are mapped, Next control-flow errors are rethrown (`unstable_rethrow`), anything else is logged and returned as `INTERNAL` with fixed text, never raw database text. `auth: "owner"` is for owner-only actions.
+- **Reads** are `server-only` data modules (`*-data.ts` next to the feature, e.g. `features/customers/customer-data.ts`) called directly from pages and layouts. A read failure throws to the route's `error.tsx`; it is never an empty list. Only reads triggered from the browser (the order-alert poll, the guest phone lookup) stay Server Actions.
 
 ## Supabase clients
 
@@ -73,13 +78,13 @@ All Supabase access goes through `src/lib/supabase/`.
 1. `/manage/login` offers Google sign-in. `signInWithGoogleAction` (`features/auth/actions.ts`) calls `signInWithOAuth` with `redirectTo` set to `<NEXT_PUBLIC_SITE_URL>/auth/callback`. In production `NEXT_PUBLIC_SITE_URL` is required; outside production the action falls back to the request origin.
 2. Google returns to Supabase Auth, which redirects to `/auth/callback` (`app/auth/callback/route.ts`). The route exchanges the code for a session (PKCE), then calls `getManagerSession()`. A signed-in user with no `business_members` row is sent to `/manage/login?error=no_access`.
 3. `src/proxy.ts` runs on every request except static assets. In Supabase mode it calls `updateSession`, which creates a server client and calls `auth.getClaims()` to refresh the session cookie, and redirects unauthenticated `/manage/*` requests (except `/manage/login`) to the login page. In mock mode it only checks the mock cookie.
-4. The proxy is a convenience, not the boundary. The checks that count: `(authenticated)/layout.tsx` and pages such as the dashboard call `requireManagerSession()`, every manager Server Action calls `requireAuthenticatedAction()` (`features/auth/server-action-guard.ts`), and RLS in Postgres restricts rows to business members.
+4. The proxy is a convenience, not the boundary. The checks that count: `(authenticated)/layout.tsx` and pages such as the dashboard call `requireManagerSession()`, every manager Server Action goes through `defineAction` (below), which calls `requireAuthenticatedAction()` or `requireOwnerAction()` (`features/auth/server-action-guard.ts`); the session lookup is `React.cache`d, so it runs once per request, and RLS in Postgres restricts rows to business members.
 
 `getManagerSession()` uses `auth.getUser()` and looks up the membership. In development and test only, an email in `ALLOWED_MANAGER_EMAILS` is auto-provisioned to the demo business. The membership roles are `owner`, `manager` and `staff`; staff accounts and roles are tracked in [#135](https://github.com/mikael-dzoss/foodbiz-pwa/issues/135).
 
 ## Caching
 
-`cacheComponents` is on, so routes are dynamic unless a function opts into caching. The only cached data is the storefront catalog: `getStorefrontCatalog()` and `getStorefrontProduct()` in `features/storefront/catalog-data.ts` use `"use cache"`, `cacheLife("hours")` and the tags `storefront-catalog`, `storefront-catalog-<businessId>` and `storefront-product-<id>`. Anything that changes catalog data (placing an order, product, category and settings actions) calls `revalidateStorefrontCatalog()` or `revalidateTag(tag, "max")`. Storefront and manager pages export `instant = false` and are allowed to block on the server. Manager data is not cached: it is read per request after the session check. The storefront catalog is prerendered at build time, so a build needs a reachable Supabase.
+`cacheComponents` is on, so routes are dynamic unless a function opts into caching. The only cached data is the storefront catalog: `getStorefrontCatalog()` and `getStorefrontProduct()` in `features/storefront/catalog-data.ts` use `"use cache"`, `cacheLife("hours")` and the tags `storefront-catalog`, `storefront-catalog-<businessId>` and `storefront-product-<id>`. Anything that changes catalog data (placing an order, product, category and settings actions) calls `revalidateStorefrontCatalog()` (`updateTag` for read-your-own-writes, plus `revalidatePath("/[locale]", "layout")`). Storefront and manager pages export `instant = false` and are allowed to block on the server. Manager data is not cached: it is read per request after the session check. The storefront catalog is prerendered at build time, so a build needs a reachable Supabase.
 
 ## Abuse protection
 

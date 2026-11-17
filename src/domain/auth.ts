@@ -102,9 +102,8 @@ export function sanitizeManagerRedirectPath(
   return trimmed;
 }
 
-/** Typed code returned by Server Actions that refuse the caller's role (no raw text). */
+/** Code of `OwnerRequiredError`; Server Actions map it to their `FORBIDDEN` result code. */
 export const ACTION_FORBIDDEN_CODE = "FORBIDDEN" as const;
-export type ActionErrorCode = typeof ACTION_FORBIDDEN_CODE;
 
 /**
  * "Owner-only" actions: payment identifiers and payment-method settings, the business slug and
@@ -127,7 +126,7 @@ export class OwnerRequiredError extends Error {
 
 export const managerUserSchema = z.object({
   id: uuidSchema,
-  email: z.string().email(),
+  email: z.email(),
   name: z.string().trim().min(1),
   role: businessMemberRoleSchema,
   businessId: uuidSchema,

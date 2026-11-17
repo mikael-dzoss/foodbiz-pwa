@@ -22,8 +22,8 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 
 ## State, Mutations & Forms
 
-- Server state lives in the database: read in Server Components, mutate via Server Actions (`'use server'`), then revalidate (`revalidatePath`/`revalidateTag`/`updateTag`).
-- Server Actions return typed results (in practice `{ success: true, data } | { success: false, error }`); no thrown strings.
+- Server state lives in the database: read in Server Components through `server-only` `*-data.ts` modules (errors throw to `error.tsx`), mutate via Server Actions (`'use server'`), then revalidate (`revalidatePath`/`updateTag`; `revalidateStorefrontCatalog()` for anything the public storefront shows).
+- Every Server Action is `defineAction(...)` from `src/lib/actions/define-action.ts` and returns `ActionResult<T>` (`{ ok: true, data } | { ok: false, code, message, ... }`, see `src/lib/actions/types.ts`); clients map `code` to dictionary text; no raw error text, no thrown strings.
 - Forms: `<form action>` (progressive enhancement); client-side validation reuses the same zod schema from `src/domain/`; field errors are announced accessibly.
 - Local UI state with React hooks; no global client store unless justified.
 

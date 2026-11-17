@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { revalidatePath, updateTag } from "next/cache";
 import {
   evaluateStoreOperatingStatus,
   getStorefrontCatalog,
@@ -220,8 +221,11 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
   });
 
   describe("revalidateStorefrontCatalog", () => {
-    it("runs revalidation without throwing", async () => {
-      await expect(revalidateStorefrontCatalog(DEMO_BUSINESS_ID)).resolves.toBeUndefined();
+    it("expires the catalog tags and the storefront layout", () => {
+      revalidateStorefrontCatalog(DEMO_BUSINESS_ID);
+      expect(updateTag).toHaveBeenCalledWith("storefront-catalog");
+      expect(updateTag).toHaveBeenCalledWith(`storefront-catalog-${DEMO_BUSINESS_ID}`);
+      expect(revalidatePath).toHaveBeenCalledWith("/[locale]", "layout");
     });
   });
 });
