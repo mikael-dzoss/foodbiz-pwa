@@ -112,8 +112,9 @@ Letter spacing 0 except `display` (−0.01em). Max two weights per screen beside
 - `sm` ≥ 640: wider gutters; `lg` ≥ 1024: manager sidebar replaces bottom nav, content max-width 72 rem; storefront grid 2–4 columns, content max-width 64 rem.
 - Fixed top bars add `env(safe-area-inset-top)`; bottom nav, sticky action bars and toasts add `env(safe-area-inset-bottom)`.
 - Viewport `interactive-widget=resizes-content`; forms scroll, submit buttons are never covered by the keyboard.
-- Touch targets ≥ 32 × 32 px (`min-h-8 min-w-8`), ≥ 8 px apart (above WCAG 2.2 AA 2.5.8's 24 px). The reference is the 32 px add button on catalog rows (#228); the storefront Delivery/Pickup segments are also 32 px (#227).
-- Use larger targets where the design already gives them room (primary actions, featured cards). Never enlarge a control that already meets 32 px at the cost of a polished layout.
+- Touch targets ≥ 36 × 36 px (`min-h-9 min-w-9`), ≥ 8 px apart.
+- Owner-approved 32 px exceptions (still above WCAG 2.2 AA 2.5.8's 24 px): the add button on catalog rows, so it covers less of the photo (#228), and the storefront Delivery/Pickup segments, so the toggle matches the 38 px readiness badge (#227). A new exception needs owner approval and is listed here.
+- Use larger targets where the design already gives them room (primary actions, featured cards). Never enlarge a control that already meets 36 px at the cost of a polished layout.
 
 ## 6. Iconography
 
@@ -162,7 +163,7 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 ## 10. Accessibility checklist
 
 - [ ] Text contrast ≥ 4.5:1, controls and focus ring ≥ 3:1, in light and dark
-- [ ] Targets ≥ 32 px; visible focus on every interactive element
+- [ ] Targets ≥ 36 px (32 px only for the §5 exceptions); visible focus on every interactive element
 - [ ] Semantic landmarks (`header`, `nav`, `main`), one `h1` per screen
 - [ ] Labels on every control; errors linked via `aria-describedby`
 - [ ] Status never conveyed by colour alone

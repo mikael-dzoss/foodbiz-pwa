@@ -16,8 +16,8 @@ Build production-quality Mobile PWA user interfaces that are accessible, perform
 To prevent UI drift and ensure the app feels native on iOS/Android, every UI component must adhere to these mobile ergonomics:
 
 ### Touch Targets & Hit Areas
-- Minimum touch target is **32x32px** (project rule, above WCAG 2.2 AA 2.5.8's 24px; see DESIGN_SYSTEM.md). Larger is fine where the design already has room; never enlarge a compliant control at the cost of a polished layout.
-- In Tailwind: `min-h-8 min-w-8` or sufficient padding (e.g., `p-2`).
+- Minimum touch target is **36x36px** (project rule; 32px only for the owner-approved exceptions in DESIGN_SYSTEM.md §5). Larger is fine where the design already has room; never enlarge a compliant control at the cost of a polished layout.
+- In Tailwind: `min-h-9 min-w-9` or sufficient padding (e.g., `p-2`).
 - For icons alone, add padding so the visual icon is small but the clickable area is large.
 
 ### Safe Area Insets (Notches & Home Indicators)
@@ -79,7 +79,7 @@ export function TaskItem({ task }: { task: Task }) {
 
   return (
     <button 
-      className={`min-h-8 min-w-8 p-2 flex items-center ${isPending ? 'opacity-50' : ''}`}
+      className={`min-h-9 min-w-9 p-2 flex items-center ${isPending ? 'opacity-50' : ''}`}
       onClick={() => {
         startTransition(async () => {
           setOptimisticTask(!task.done);
@@ -109,7 +109,7 @@ export function TaskItem({ task }: { task: Task }) {
 
 ## 6. Verification
 Before concluding a UI task, verify:
-- [ ] Tap targets are >= 32x32px.
+- [ ] Tap targets are >= 36x36px (32px only for listed exceptions).
 - [ ] Safe area insets are respected for fixed elements.
 - [ ] Interactive elements have `active:` states.
 - [ ] Component is a Server Component unless hooks/browser-APIs force `'use client'`.
