@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isoDateSchema, isoDateTimeSchema, moneySchema, uuidSchema } from "./common";
+import { extractDate } from "./kpis";
 
 export const STANDARD_EXPENSE_TAGS = [
   "Ingredients",
@@ -126,7 +127,10 @@ export function filterExpenses(
   options?: {
     period?: ExpensePeriodFilter;
     tag?: string;
+    /** Current instant (or YYYY-MM-DD day); required with a period filter. */
     referenceDate?: Date | string;
+    /** Business time zone the reference instant is read in. */
+    timeZone: string;
   },
 ): Expense[] {
   let result = [...expenses];
@@ -137,10 +141,11 @@ export function filterExpenses(
   }
 
   if (options?.period && options.period !== "all") {
-    const ref = options.referenceDate ? new Date(options.referenceDate) : new Date();
-
-    const refYear = ref.getUTCFullYear();
-    const refMonth = ref.getUTCMonth();
+    if (!options.referenceDate) throw new Error("referenceDate is required with a period filter");
+    const [refYear, refMonthNumber] = extractDate(options.referenceDate, options.timeZone)
+      .split("-")
+      .map(Number);
+    const refMonth = refMonthNumber - 1;
 
     let targetYear = refYear;
     let targetMonth = refMonth;

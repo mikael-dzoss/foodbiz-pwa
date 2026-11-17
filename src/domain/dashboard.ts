@@ -82,6 +82,8 @@ export interface DashboardData {
   readonly kpis: ReturnType<typeof calculateKpiReport>;
   readonly triage: OperationalTriage;
   readonly activity: readonly ActivityFeedItem[];
+  /** The instant the data was built for (ISO): relative times are measured against it. */
+  readonly generatedAt: string;
 }
 
 /**
@@ -259,7 +261,10 @@ export interface BuildDashboardDataInput {
   expenses: readonly Expense[];
   products: readonly Product[];
   periodPreset?: DashboardPeriodPreset;
-  referenceDate?: string | Date;
+  /** The current instant, supplied by the caller (domain code never reads the clock). */
+  now: Date;
+  /** Business time zone: decides which calendar day "today" and each timestamp fall on. */
+  timeZone: string;
 }
 
 /**
@@ -267,12 +272,13 @@ export interface BuildDashboardDataInput {
  */
 export function buildDashboardData(input: BuildDashboardDataInput): DashboardData {
   const periodPreset = input.periodPreset ?? "today";
-  const period = resolveDateRange(periodPreset, input.referenceDate);
+  const period = resolveDateRange(periodPreset, input.now, input.timeZone);
   const kpis = calculateKpiReport({
     orders: input.orders,
     expenses: input.expenses,
     period,
     compareWithPrevious: true,
+    timeZone: input.timeZone,
   });
 
   const triage: OperationalTriage = {
@@ -289,5 +295,6 @@ export function buildDashboardData(input: BuildDashboardDataInput): DashboardDat
     kpis,
     triage,
     activity,
+    generatedAt: input.now.toISOString(),
   };
 }

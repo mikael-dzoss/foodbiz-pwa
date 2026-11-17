@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isoDateSchema, moneySchema } from "./common";
 import type { Expense } from "./expense";
 import type { Order } from "./order";
+import { getZonedDay } from "./timezone";
 
 export const dateRangeSchema = z
   .object({
@@ -70,22 +71,24 @@ export const kpiReportSchema = z.object({
 export type KpiReport = z.infer<typeof kpiReportSchema>;
 
 /**
- * Normalizes a date string or Date object into a calendar date string (YYYY-MM-DD).
+ * Normalizes a date string or instant into the calendar day (YYYY-MM-DD) it falls on in
+ * `timeZone` (the business zone). A bare date string is already a calendar day and is returned
+ * as is; a timestamp without an offset is read as UTC.
  */
-export function extractDate(value: string | Date): string {
+export function extractDate(value: string | Date, timeZone: string): string {
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) {
       throw new Error("Invalid date object");
     }
-    return value.toISOString().slice(0, 10);
+    return getZonedDay(value, timeZone);
   }
 
   if (typeof value === "string") {
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
     if (!match) {
       throw new Error(`Invalid date format: ${value}`);
     }
-    const [, y, m, d] = match;
+    const [, y, m, d, rest] = match;
     const year = parseInt(y, 10);
     const month = parseInt(m, 10);
     const day = parseInt(d, 10);
@@ -98,7 +101,13 @@ export function extractDate(value: string | Date): string {
     ) {
       throw new Error(`Invalid date values: ${value}`);
     }
-    return `${y}-${m}-${d}`;
+    if (rest === "") return `${y}-${m}-${d}`;
+    const hasOffset = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i.test(rest);
+    const instant = new Date(hasOffset ? value : `${value}Z`);
+    if (Number.isNaN(instant.getTime())) {
+      throw new Error(`Invalid date values: ${value}`);
+    }
+    return getZonedDay(instant, timeZone);
   }
 
   throw new Error("Value must be a string or Date object");
@@ -115,13 +124,16 @@ function addDaysUtc(d: Date, days: number): Date {
 }
 
 /**
- * Resolves a date preset into a DateRange using an injectable reference date (defaults to now).
+ * Resolves a date preset into a DateRange of calendar days in `timeZone`. `referenceDate` is the
+ * current instant (or a bare YYYY-MM-DD day); the caller supplies it, domain code never reads the
+ * clock.
  */
 export function resolveDateRange(
   preset: KpiPeriodPreset,
-  referenceDate?: string | Date,
+  referenceDate: string | Date,
+  timeZone: string,
 ): DateRange {
-  const refStr = referenceDate ? extractDate(referenceDate) : extractDate(new Date());
+  const refStr = extractDate(referenceDate, timeZone);
   const [refY, refM, refD] = refStr.split("-").map((n) => parseInt(n, 10));
   const refUtc = new Date(Date.UTC(refY, refM - 1, refD));
 
@@ -185,54 +197,56 @@ function isDateInPeriod(dateStr: string, period: DateRange): boolean {
   return dateStr >= period.startDate && dateStr <= period.endDate;
 }
 
-function getOrderPaidDate(order: Order): string | null {
+function getOrderPaidDate(order: Order, timeZone: string): string | null {
   if (order.paid !== "paid") return null;
-  if (order.paidAt) return extractDate(order.paidAt);
-  if (order.updatedAt) return extractDate(order.updatedAt);
-  if (order.requestedDate) return extractDate(order.requestedDate);
-  if (order.createdAt) return extractDate(order.createdAt);
+  if (order.paidAt) return extractDate(order.paidAt, timeZone);
+  if (order.updatedAt) return extractDate(order.updatedAt, timeZone);
+  if (order.requestedDate) return extractDate(order.requestedDate, timeZone);
+  if (order.createdAt) return extractDate(order.createdAt, timeZone);
   return null;
 }
 
-function getOrderCompletedDate(order: Order): string | null {
+function getOrderCompletedDate(order: Order, timeZone: string): string | null {
   if (order.status !== "COMPLETED") return null;
-  if (order.updatedAt) return extractDate(order.updatedAt);
-  if (order.requestedDate) return extractDate(order.requestedDate);
-  if (order.createdAt) return extractDate(order.createdAt);
+  if (order.updatedAt) return extractDate(order.updatedAt, timeZone);
+  if (order.requestedDate) return extractDate(order.requestedDate, timeZone);
+  if (order.createdAt) return extractDate(order.createdAt, timeZone);
   return null;
 }
 
-function getOrderCancelledDate(order: Order): string | null {
+function getOrderCancelledDate(order: Order, timeZone: string): string | null {
   if (order.status !== "CANCELLED") return null;
-  if (order.updatedAt) return extractDate(order.updatedAt);
-  if (order.createdAt) return extractDate(order.createdAt);
+  if (order.updatedAt) return extractDate(order.updatedAt, timeZone);
+  if (order.createdAt) return extractDate(order.createdAt, timeZone);
   return null;
 }
 
-function getOrderPendingDate(order: Order): string | null {
+function getOrderPendingDate(order: Order, timeZone: string): string | null {
   if (order.status === "CANCELLED" || order.paid === "paid") return null;
-  if (order.requestedDate) return extractDate(order.requestedDate);
-  if (order.createdAt) return extractDate(order.createdAt);
-  if (order.updatedAt) return extractDate(order.updatedAt);
+  if (order.requestedDate) return extractDate(order.requestedDate, timeZone);
+  if (order.createdAt) return extractDate(order.createdAt, timeZone);
+  if (order.updatedAt) return extractDate(order.updatedAt, timeZone);
   return null;
 }
 
-function getExpenseDate(expense: Expense): string {
-  if (expense.date) return extractDate(expense.date);
-  return extractDate(expense.createdAt);
+function getExpenseDate(expense: Expense, timeZone: string): string {
+  if (expense.date) return extractDate(expense.date, timeZone);
+  return extractDate(expense.createdAt, timeZone);
 }
 
 export interface CalculateKpiMetricsInput {
   orders: readonly Order[];
   expenses: readonly Expense[];
   period: DateRange;
+  /** Business time zone: decides which calendar day each timestamp belongs to. */
+  timeZone: string;
 }
 
 /**
  * Calculates cash-basis KPI metrics for a given period.
  */
 export function calculateKpiMetrics(input: CalculateKpiMetricsInput): KpiMetrics {
-  const { orders, expenses, period } = input;
+  const { orders, expenses, period, timeZone } = input;
 
   let revenue = 0;
   let paidOrderCount = 0;
@@ -245,7 +259,7 @@ export function calculateKpiMetrics(input: CalculateKpiMetricsInput): KpiMetrics
   for (const order of orders) {
     if (order.status !== "CANCELLED") {
       if (order.paid === "paid") {
-        const paidDate = getOrderPaidDate(order);
+        const paidDate = getOrderPaidDate(order, timeZone);
         if (paidDate && isDateInPeriod(paidDate, period)) {
           revenue += order.totalAmount;
           paidOrderCount += 1;
@@ -253,26 +267,26 @@ export function calculateKpiMetrics(input: CalculateKpiMetricsInput): KpiMetrics
       } else if (order.paid === "unpaid") {
         // A refunded order is neither revenue nor pending: the money went back.
         totalPendingRevenue += order.totalAmount;
-        const pendingDate = getOrderPendingDate(order);
+        const pendingDate = getOrderPendingDate(order, timeZone);
         if (pendingDate && isDateInPeriod(pendingDate, period)) {
           pendingRevenue += order.totalAmount;
         }
       }
     }
 
-    const completedDate = getOrderCompletedDate(order);
+    const completedDate = getOrderCompletedDate(order, timeZone);
     if (completedDate && isDateInPeriod(completedDate, period)) {
       completedOrderCount += 1;
     }
 
-    const cancelledDate = getOrderCancelledDate(order);
+    const cancelledDate = getOrderCancelledDate(order, timeZone);
     if (cancelledDate && isDateInPeriod(cancelledDate, period)) {
       cancelledOrderCount += 1;
     }
   }
 
   for (const expense of expenses) {
-    const expenseDate = getExpenseDate(expense);
+    const expenseDate = getExpenseDate(expense, timeZone);
     if (isDateInPeriod(expenseDate, period)) {
       costs += expense.amount;
     }
@@ -314,6 +328,7 @@ export interface CalculateKpiReportInput {
   period: DateRange;
   previousPeriod?: DateRange | null;
   compareWithPrevious?: boolean;
+  timeZone: string;
 }
 
 /**
@@ -324,6 +339,7 @@ export function calculateKpiReport(input: CalculateKpiReportInput): KpiReport {
     orders: input.orders,
     expenses: input.expenses,
     period: input.period,
+    timeZone: input.timeZone,
   });
 
   const compare = input.compareWithPrevious ?? true;
@@ -342,6 +358,7 @@ export function calculateKpiReport(input: CalculateKpiReportInput): KpiReport {
     orders: input.orders,
     expenses: input.expenses,
     period: prevPeriod,
+    timeZone: input.timeZone,
   });
 
   const deltas = {

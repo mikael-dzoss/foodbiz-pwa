@@ -34,22 +34,22 @@ describe("Formatting Utilities (#32)", () => {
     const fixedDate = new Date("2026-10-09T14:30:00Z");
 
     it("formats dates in short, medium, and long styles", () => {
-      expect(formatDate(fixedDate, "en", "short")).toBe("09/10/2026");
-      expect(formatDate(fixedDate, "en", "medium")).toContain("2026");
-      expect(formatDate(fixedDate, "en", "long")).toContain("October");
+      expect(formatDate(fixedDate, "UTC", "en", "short")).toBe("09/10/2026");
+      expect(formatDate(fixedDate, "UTC", "en", "medium")).toContain("2026");
+      expect(formatDate(fixedDate, "UTC", "en", "long")).toContain("October");
 
-      expect(formatDate(fixedDate, "fr", "short")).toBe("09/10/2026");
-      expect(formatDate(fixedDate, "fr", "long").toLowerCase()).toContain("octobre");
+      expect(formatDate(fixedDate, "UTC", "fr", "short")).toBe("09/10/2026");
+      expect(formatDate(fixedDate, "UTC", "fr", "long").toLowerCase()).toContain("octobre");
     });
 
     it("formats time as HH:mm 24-hour", () => {
-      const timeStr = formatTime(fixedDate, "en");
+      const timeStr = formatTime(fixedDate, "UTC", "en");
       expect(timeStr).toMatch(/^\d{2}:\d{2}$/);
     });
 
     it("accepts string and timestamp inputs", () => {
-      expect(formatDate("2026-10-09T14:30:00Z", "en", "short")).toBe("09/10/2026");
-      expect(formatDate(fixedDate.getTime(), "en", "short")).toBe("09/10/2026");
+      expect(formatDate("2026-10-09T14:30:00Z", "UTC", "en", "short")).toBe("09/10/2026");
+      expect(formatDate(fixedDate.getTime(), "UTC", "en", "short")).toBe("09/10/2026");
     });
   });
 
