@@ -74,6 +74,14 @@ export interface ZonedParts {
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/**
+ * The zone to format with: `timeZone` when valid, otherwise the default. The database accepts a
+ * few `pg_timezone_names` entries that `Intl` may reject (e.g. `Factory`); rendering must not throw.
+ */
+export function safeTimeZone(timeZone: string): string {
+  return isValidTimeZone(timeZone) ? timeZone : DEFAULT_TIMEZONE;
+}
+
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
 function toDate(value: Date | string | number): Date {
@@ -81,7 +89,8 @@ function toDate(value: Date | string | number): Date {
 }
 
 /** Wall-clock parts of an instant in `timeZone`. */
-export function getZonedParts(instant: Date | string | number, timeZone: string): ZonedParts {
+export function getZonedParts(instant: Date | string | number, zone: string): ZonedParts {
+  const timeZone = safeTimeZone(zone);
   let formatter = formatters.get(timeZone);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat("en-US", {

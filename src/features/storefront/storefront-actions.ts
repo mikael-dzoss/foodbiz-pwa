@@ -121,6 +121,9 @@ export const placeOrderAction = defineAction(
     ]);
 
     // 5. Order request for the repository (also used to replay a retry, see rejectOrReplay)
+    // place_order checks "past" and the horizon against the database's UTC current_date with a
+    // one-day slack; every IANA zone is within a day of UTC, so this default always passes. Don't
+    // tighten that slack without making place_order zone-aware (far-east zones would break).
     const todayDate = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
     const placeInput = {
       guestName: data.name,

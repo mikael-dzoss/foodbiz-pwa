@@ -10,7 +10,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(12);
+select plan(13);
 
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
@@ -94,7 +94,10 @@ select throws_ok(
   '42501', null,
   'anon still cannot read private settings columns');
 
-update public.business_settings set timezone = 'UTC';
+select throws_ok(
+  $$update public.business_settings set timezone = 'UTC'$$,
+  '42501', null,
+  'anon cannot update the time zone');
 
 reset role;
 

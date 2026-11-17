@@ -13,6 +13,7 @@ import {
   startOfZonedDay,
   timeZoneSchema,
 } from "../index";
+import { DEFAULT_TIMEZONE, safeTimeZone } from "../timezone";
 
 const PARIS = "Europe/Paris";
 const DOUALA = "Africa/Douala";
@@ -73,6 +74,17 @@ describe("formatting in the business zone (#168)", () => {
     expect(formatCalendarDate("2026-10-09", "en", "short")).toBe("09/10/2026");
     expect(formatCalendarDate("2026-01-01", "en", "long")).toBe("1 January 2026");
     expect(formatCalendarDate("2026-10-09T00:00:00Z", "fr", "short")).toBe("09/10/2026");
+  });
+});
+
+describe("invalid stored zones (#168)", () => {
+  it("fall back to the default zone instead of throwing while rendering", () => {
+    const instant = new Date("2026-10-09T22:30:00Z");
+    expect(safeTimeZone("Factory")).toBe(DEFAULT_TIMEZONE);
+    expect(safeTimeZone(NEW_YORK)).toBe(NEW_YORK);
+    expect(formatTime(instant, "Factory", "en")).toBe(formatTime(instant, DEFAULT_TIMEZONE, "en"));
+    expect(formatDate(instant, "Not/AZone", "en", "short")).toBe("10/10/2026");
+    expect(getZonedParts(instant, "Factory")).toEqual(getZonedParts(instant, DEFAULT_TIMEZONE));
   });
 });
 

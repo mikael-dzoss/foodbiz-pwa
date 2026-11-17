@@ -1,4 +1,5 @@
 import type { SupportedLocale } from "../i18n/types";
+import { safeTimeZone } from "../timezone";
 
 function toDate(date: Date | string | number): Date {
   if (date instanceof Date) {
@@ -28,7 +29,10 @@ export function formatDate(
       : style === "long"
         ? { year: "numeric", month: "long", day: "numeric" }
         : { year: "numeric", month: "short", day: "numeric" };
-  return new Intl.DateTimeFormat(LOCALE_MAP[locale], { ...options, timeZone }).format(toDate(date));
+  return new Intl.DateTimeFormat(LOCALE_MAP[locale], {
+    ...options,
+    timeZone: safeTimeZone(timeZone),
+  }).format(toDate(date));
 }
 
 /**
@@ -43,7 +47,7 @@ export function formatTime(
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone,
+    timeZone: safeTimeZone(timeZone),
   }).format(toDate(date));
 }
 
