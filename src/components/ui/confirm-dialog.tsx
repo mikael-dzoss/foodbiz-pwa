@@ -25,6 +25,9 @@ export interface ConfirmDialogProps {
   loading?: boolean;
   /** Test id of the dialog; the buttons are `<id>-confirm` and `<id>-cancel`. */
   "data-testid"?: string;
+  /** Overrides for existing button test ids. */
+  confirmTestId?: string;
+  cancelTestId?: string;
 }
 
 /** Confirmation built on `Dialog`. The caller owns `open` and closes it from `onConfirm`. */
@@ -39,6 +42,8 @@ export function ConfirmDialog({
   destructive = false,
   loading = false,
   "data-testid": testId = "confirm-dialog",
+  confirmTestId,
+  cancelTestId,
 }: ConfirmDialogProps) {
   const cancelRef = React.useRef<HTMLButtonElement>(null);
 
@@ -64,7 +69,7 @@ export function ConfirmDialog({
             variant="outline"
             disabled={loading}
             onClick={() => onOpenChange(false)}
-            data-testid={`${testId}-cancel`}
+            data-testid={cancelTestId ?? `${testId}-cancel`}
           >
             {cancelLabel}
           </Button>
@@ -72,7 +77,7 @@ export function ConfirmDialog({
             variant={destructive ? "destructive" : "default"}
             loading={loading}
             onClick={onConfirm}
-            data-testid={`${testId}-confirm`}
+            data-testid={confirmTestId ?? `${testId}-confirm`}
           >
             {confirmLabel}
           </Button>
