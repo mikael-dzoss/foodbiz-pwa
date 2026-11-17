@@ -79,7 +79,7 @@ for (const locale of ["en", "fr"] as const) {
               await expect(firstRow).toHaveCSS("padding-top", "14px");
               await expect(firstRow).toHaveCSS("padding-bottom", "14px");
               const row = await firstRow.boundingBox();
-              expect(row?.height).toBe(90);
+              expect(row?.height).toBe(86);
               await expect(main.getByTestId("customer-results-count")).toBeVisible();
               await expect(main.getByTestId("customer-list")).toHaveCSS("row-gap", "normal");
               await expect(main.locator("header")).toHaveCSS("height", "56px");

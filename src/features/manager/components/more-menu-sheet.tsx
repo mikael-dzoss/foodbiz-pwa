@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { SoonBadge } from "@/components/feedback";
 import { signOutAction } from "@/features/auth/actions";
+import { Button } from "@/components/ui/button";
 
 export interface MoreMenuSheetProps {
   isOpen?: boolean;
@@ -120,13 +121,15 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
         {/* Sign out */}
         <div className="border-border mt-4 border-t pt-4">
           <form action={signOutAction}>
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="submit"
               className="text-destructive hover:bg-destructive/10 focus-visible:ring-ring flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               <LogOut className="h-5 w-5" />
               <span>Sign out</span>
-            </button>
+            </Button>
           </form>
         </div>
       </SheetContent>

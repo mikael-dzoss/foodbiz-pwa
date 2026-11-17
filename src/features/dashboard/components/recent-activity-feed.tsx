@@ -24,7 +24,7 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
   return (
     <section className={cn("space-y-3.5", className)} data-testid="recent-activity-section">
       <div className="flex items-center justify-between">
-        <h2 className="text-foreground text-base font-bold tracking-tight">
+        <h2 className="text-title-sm text-foreground">
           {labels?.sectionTitle ?? "Recent activity"}
         </h2>
         <span className="text-muted-foreground text-xs">

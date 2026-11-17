@@ -352,6 +352,8 @@ export interface CommonDictionary {
 export interface SettingsDictionary {
   title: string;
   subtitle: string;
+  /** Label of a pending Save button. */
+  saving: string;
   coreSection: string;
   operationsSection: string;
   systemSection: string;

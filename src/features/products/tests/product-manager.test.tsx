@@ -213,7 +213,7 @@ describe("ProductManager Component (Screen M-40)", () => {
 
     // Status filter chips still filter sections and update CategoryNav items
     const lowStockChip = screen.getByRole("tab", { name: /Low Stock/i });
-    fireEvent.click(lowStockChip);
+    fireEvent.mouseDown(lowStockChip);
     expect(screen.getByText("Tiramisu Maison")).toBeDefined();
     expect(screen.queryByText("Burger Gourmet")).toBeNull();
     expect(screen.queryByTestId("category-nav-tab-cat-1")).toBeNull();
@@ -221,14 +221,14 @@ describe("ProductManager Component (Screen M-40)", () => {
 
     // Hidden chip filters to hidden items and updates CategoryNav items
     const hiddenChip = screen.getByRole("tab", { name: /Hidden/i });
-    fireEvent.click(hiddenChip);
+    fireEvent.mouseDown(hiddenChip);
     expect(screen.getByText("Seasonal Special")).toBeDefined();
     expect(screen.queryByText("Tiramisu Maison")).toBeNull();
     expect(screen.getByTestId("category-nav-tab-cat-1")).toBeDefined();
     expect(screen.queryByTestId("category-nav-tab-cat-2")).toBeNull();
 
     // All chip restores all categories
-    fireEvent.click(screen.getByRole("tab", { name: /All/i }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /All/i }));
     expect(screen.getByTestId("category-nav-tab-cat-1")).toBeDefined();
     expect(screen.getByTestId("category-nav-tab-cat-2")).toBeDefined();
 

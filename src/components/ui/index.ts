@@ -11,6 +11,8 @@ export { Skeleton } from "./skeleton";
 export { Switch } from "./switch";
 export { Checkbox } from "./checkbox";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export { NativeSelect } from "./native-select";
+export type { NativeSelectProps } from "./native-select";
 export {
   Select,
   SelectGroup,
@@ -44,7 +46,15 @@ export {
   SheetDescription,
 } from "./sheet";
 export { ToastProvider, useToast, useToastOptional } from "./toast";
-export type { ToastProps } from "./toast";
+export type { ToastProps, ToastVariant } from "./toast";
+export { Field } from "./field";
+export type { FieldProps, FieldControlProps } from "./field";
+export { ConfirmDialog } from "./confirm-dialog";
+export type { ConfirmDialogProps } from "./confirm-dialog";
+export { ActionBar } from "./action-bar";
+export type { ActionBarProps, ActionBarPlacement } from "./action-bar";
+export { SegmentedControl } from "./segmented-control";
+export type { SegmentedControlProps, SegmentedOption } from "./segmented-control";
 export { KPICard } from "./kpi-card";
 export type { KPICardProps } from "./kpi-card";
 export { ListRow } from "./list-row";

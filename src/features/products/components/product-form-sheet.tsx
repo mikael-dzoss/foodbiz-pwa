@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useTransition, type ChangeEvent, type FormEvent } from "react";
+import { useActionState, useState, type ChangeEvent } from "react";
 import { allergenSchema, type Allergen } from "@/domain/allergen";
 import { getDictionary, type ProductsDictionary } from "@/domain/i18n";
 import Image from "next/image";
 import { Camera, Check, Loader2, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -66,7 +68,6 @@ export function ProductFormSheet({
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const normalizedProduct = product ?? null;
@@ -148,11 +149,9 @@ export function ProductFormSheet({
     setImageUrl(null);
   };
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-
+  const [, formAction, isPending] = useActionState(async (): Promise<null> => {
     // Client-side schema validation with inline translated errors
-    const clientValidation = productFormInputSchema.safeParse({
+    const payload = {
       name,
       categoryId,
       description: description || null,
@@ -163,7 +162,8 @@ export function ProductFormSheet({
       allergens,
       suggestAddOns,
       imageUrl,
-    });
+    };
+    const clientValidation = productFormInputSchema.safeParse(payload);
 
     if (!clientValidation.success) {
       const errors: Record<string, string[]> = {};
@@ -173,42 +173,28 @@ export function ProductFormSheet({
         errors[field].push(issue.message);
       }
       setFieldErrors(errors);
-      return;
+      return null;
     }
 
     setFieldErrors({});
     setGeneralError(null);
 
-    startTransition(async () => {
-      const payload = {
-        name,
-        categoryId,
-        description: description || null,
-        price: priceStr,
-        unitCost: unitCostStr || 0,
-        stock,
-        visible,
-        allergens,
-        suggestAddOns,
-        imageUrl,
-      };
+    const res =
+      isEditing && product
+        ? await updateProductAction({ id: product.id, ...payload })
+        : await createProductAction(payload);
 
-      const res =
-        isEditing && product
-          ? await updateProductAction({ id: product.id, ...payload })
-          : await createProductAction(payload);
-
-      if (res.ok) {
-        onProductSaved?.(res.data);
-        onOpenChange(false);
-      } else {
-        setGeneralError(actionErrorMessage(res));
-        if (res.fieldErrors) {
-          setFieldErrors(res.fieldErrors);
-        }
+    if (res.ok) {
+      onProductSaved?.(res.data);
+      onOpenChange(false);
+    } else {
+      setGeneralError(actionErrorMessage(res));
+      if (res.fieldErrors) {
+        setFieldErrors(res.fieldErrors);
       }
-    });
-  };
+    }
+    return null;
+  }, null);
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -226,7 +212,7 @@ export function ProductFormSheet({
           </p>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 px-5 py-4">
+        <form action={formAction} className="space-y-5 px-5 py-4">
           {/* Section 1: Product Photo Upload */}
           <div className="space-y-2">
             <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
@@ -300,46 +286,30 @@ export function ProductFormSheet({
             </div>
 
             {/* Product Name */}
-            <div>
-              <label
-                htmlFor="product-name"
-                className="text-foreground mb-1 block text-xs font-medium"
-              >
-                Product name *
-              </label>
+            <Field id="product-name" label="Product name" required error={fieldErrors.name?.[0]}>
               <Input
-                id="product-name"
                 name="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Burger Gourmet"
                 className="h-11 text-sm font-medium"
-                aria-describedby={fieldErrors.name ? "name-error" : undefined}
                 data-testid="product-name-input"
                 required
               />
-              {fieldErrors.name && (
-                <p id="name-error" className="text-destructive mt-1 text-xs font-medium">
-                  {fieldErrors.name[0]}
-                </p>
-              )}
-            </div>
+            </Field>
 
             {/* Category */}
-            <div>
-              <label
-                htmlFor="product-category"
-                className="text-foreground mb-1 block text-xs font-medium"
-              >
-                Category *
-              </label>
-              <select
-                id="product-category"
+            <Field
+              id="product-category"
+              label="Category"
+              required
+              error={fieldErrors.categoryId?.[0]}
+            >
+              <NativeSelect
                 name="categoryId"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="border-input bg-card text-foreground focus:ring-ring h-11 w-full rounded-md border px-3 text-sm font-medium focus:ring-2 focus:outline-none"
-                aria-describedby={fieldErrors.categoryId ? "cat-error" : undefined}
+                className="h-11 text-sm font-medium"
                 data-testid="product-category-select"
                 required
               >
@@ -348,24 +318,12 @@ export function ProductFormSheet({
                     {cat.name}
                   </option>
                 ))}
-              </select>
-              {fieldErrors.categoryId && (
-                <p id="cat-error" className="text-destructive mt-1 text-xs font-medium">
-                  {fieldErrors.categoryId[0]}
-                </p>
-              )}
-            </div>
+              </NativeSelect>
+            </Field>
 
             {/* Description */}
-            <div>
-              <label
-                htmlFor="product-description"
-                className="text-foreground mb-1 block text-xs font-medium"
-              >
-                Description (optional)
-              </label>
+            <Field id="product-description" label="Description (optional)">
               <Textarea
-                id="product-description"
                 name="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -374,7 +332,7 @@ export function ProductFormSheet({
                 className="text-sm font-normal"
                 data-testid="product-description-input"
               />
-            </div>
+            </Field>
           </div>
 
           <fieldset className="border-border bg-card rounded-lg border p-3.5">
@@ -383,7 +341,9 @@ export function ProductFormSheet({
             </legend>
             <div className="flex flex-wrap gap-2">
               {allergenSchema.options.map((allergen) => (
-                <button
+                <Button
+                  variant="unstyled"
+                  size="none"
                   key={allergen}
                   type="button"
                   aria-pressed={allergens.includes(allergen)}
@@ -399,7 +359,7 @@ export function ProductFormSheet({
                   data-testid={`product-allergen-${allergen}`}
                 >
                   {dict.allergenLabels[allergen]}
-                </button>
+                </Button>
               ))}
             </div>
             {fieldErrors.allergens && (
@@ -423,54 +383,33 @@ export function ProductFormSheet({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="product-price"
-                  className="text-foreground mb-1 block text-xs font-medium"
-                >
-                  Selling price (€) *
-                </label>
+              <Field
+                id="product-price"
+                label="Selling price (€)"
+                required
+                error={fieldErrors.price?.[0]}
+              >
                 <Input
-                  id="product-price"
                   name="price"
                   value={priceStr}
                   onChange={(e) => setPriceStr(e.target.value)}
                   placeholder="12.50"
                   className="h-11 text-sm font-semibold tabular-nums"
-                  aria-describedby={fieldErrors.price ? "price-error" : undefined}
                   data-testid="product-price-input"
                   required
                 />
-                {fieldErrors.price && (
-                  <p id="price-error" className="text-destructive mt-1 text-xs font-medium">
-                    {fieldErrors.price[0]}
-                  </p>
-                )}
-              </div>
+              </Field>
 
-              <div>
-                <label
-                  htmlFor="product-unit-cost"
-                  className="text-foreground mb-1 block text-xs font-medium"
-                >
-                  Unit cost (€)
-                </label>
+              <Field id="product-unit-cost" label="Unit cost (€)" error={fieldErrors.unitCost?.[0]}>
                 <Input
-                  id="product-unit-cost"
                   name="unitCost"
                   value={unitCostStr}
                   onChange={(e) => setUnitCostStr(e.target.value)}
                   placeholder="4.20"
                   className="h-11 text-sm font-semibold tabular-nums"
-                  aria-describedby={fieldErrors.unitCost ? "cost-error" : undefined}
                   data-testid="product-unit-cost-input"
                 />
-                {fieldErrors.unitCost && (
-                  <p id="cost-error" className="text-destructive mt-1 text-xs font-medium">
-                    {fieldErrors.unitCost[0]}
-                  </p>
-                )}
-              </div>
+              </Field>
             </div>
           </div>
 

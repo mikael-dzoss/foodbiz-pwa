@@ -43,12 +43,14 @@ const mockSettings: BusinessSettings = {
 const dict = getDictionary(DEFAULT_LOCALE).settings;
 
 const mockShowToast = vi.fn();
+const mockShowError = vi.fn();
 vi.mock("@/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/ui")>();
   return {
     ...actual,
     useToast: () => ({
       showToast: mockShowToast,
+      showError: mockShowError,
     }),
   };
 });
@@ -92,16 +94,27 @@ describe("PaymentSettingsForm component (M-64)", () => {
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
 
     const frTab = screen.getByTestId("tab-instructions-fr");
-    fireEvent.click(frTab);
+    fireEvent.mouseDown(frTab);
 
     const frTextarea = screen.getByTestId("textarea-instructions-fr") as HTMLTextAreaElement;
     expect(frTextarea.value).toBe("Veuillez présenter votre référence de commande.");
 
     const enTab = screen.getByTestId("tab-instructions-en");
-    fireEvent.click(enTab);
+    fireEvent.mouseDown(enTab);
 
     const enTextarea = screen.getByTestId("textarea-instructions-en") as HTMLTextAreaElement;
     expect(enTextarea.value).toBe("Please present your order reference upon arrival.");
+  });
+
+  it("switches instruction tabs with the arrow keys (roving tabindex)", async () => {
+    render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
+    const enTab = screen.getByTestId("tab-instructions-en");
+    const frTab = screen.getByTestId("tab-instructions-fr");
+    expect(enTab.getAttribute("role")).toBe("tab");
+    enTab.focus();
+    fireEvent.keyDown(enTab, { key: "ArrowRight" });
+    await waitFor(() => expect(frTab.getAttribute("aria-selected")).toBe("true"));
+    expect(screen.getByTestId("textarea-instructions-fr")).toBeDefined();
   });
 
   it("handles discard button to reset changes", () => {
@@ -118,7 +131,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     expect(mockShowToast).toHaveBeenCalledWith("Changes discarded");
   });
 
-  it("blocks submit and shows error if all payment methods are disabled", () => {
+  it("blocks submit and shows error if all payment methods are disabled", async () => {
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
 
     const cashSwitch = screen.getByTestId("switch-payment-cash");
@@ -132,9 +145,9 @@ describe("PaymentSettingsForm component (M-64)", () => {
     const submitBtn = screen.getByTestId("save-payment-button");
     fireEvent.click(submitBtn);
 
+    expect(await screen.findByTestId("error-payment-methods")).toBeDefined();
     expect(actions.updatePaymentSettingsAction).not.toHaveBeenCalled();
-    expect(screen.getByTestId("error-payment-methods")).toBeDefined();
-    expect(mockShowToast).toHaveBeenCalledWith(dict.payment.atLeastOneMethodError);
+    expect(mockShowError).toHaveBeenCalledWith(dict.payment.atLeastOneMethodError);
   });
 
   it("submits updated payment settings successfully", async () => {
@@ -174,7 +187,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
+      expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 
@@ -198,7 +211,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     fireEvent.change(enTextarea, { target: { value: "Updated EN instructions" } });
 
     const frTab = screen.getByTestId("tab-instructions-fr");
-    fireEvent.click(frTab);
+    fireEvent.mouseDown(frTab);
 
     const frTextarea = screen.getByTestId("textarea-instructions-fr");
     fireEvent.change(frTextarea, { target: { value: "Updated FR instructions" } });
@@ -258,7 +271,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
 
     const frTab = screen.getByTestId("tab-instructions-fr");
     expect(frTab.matches(":disabled")).toBe(false);
-    fireEvent.click(frTab);
+    fireEvent.mouseDown(frTab);
     const fr = screen.getByTestId("textarea-instructions-fr");
     expect(fr.matches(":disabled")).toBe(true);
     expect(

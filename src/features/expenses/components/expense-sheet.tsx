@@ -8,15 +8,9 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SoonBadge } from "@/components/feedback";
 import { STANDARD_EXPENSE_TAGS, type Expense, type StandardExpenseTag } from "@/domain";
@@ -66,11 +60,18 @@ function ExpenseForm({
   );
 
   // UI & submission states
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+
+  const clearFieldError = (field: string) =>
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
 
   const handleTagToggle = (tag: StandardExpenseTag) => {
     setSelectedTags((prev) => {
@@ -102,8 +103,7 @@ function ExpenseForm({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [, formAction, isSubmitting] = React.useActionState(async (): Promise<null> => {
     setErrorMessage(null);
     setFieldErrors({});
 
@@ -116,7 +116,7 @@ function ExpenseForm({
         ...prev,
         amount: ["Amount must be greater than 0"],
       }));
-      return;
+      return null;
     }
 
     if (!description.trim()) {
@@ -124,7 +124,7 @@ function ExpenseForm({
         ...prev,
         description: ["Description is required"],
       }));
-      return;
+      return null;
     }
 
     if (!date.trim()) {
@@ -132,7 +132,7 @@ function ExpenseForm({
         ...prev,
         date: ["Date is required"],
       }));
-      return;
+      return null;
     }
 
     if (selectedTags.length === 0) {
@@ -140,10 +140,8 @@ function ExpenseForm({
         ...prev,
         tags: ["At least one tag is required"],
       }));
-      return;
+      return null;
     }
-
-    setIsSubmitting(true);
 
     try {
       if (isEdit && expense) {
@@ -184,10 +182,9 @@ function ExpenseForm({
       }
     } catch {
       setErrorMessage("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+    return null;
+  }, null);
 
   const handleDelete = async () => {
     if (!expense) return;
@@ -241,137 +238,93 @@ function ExpenseForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action={formAction} className="space-y-4">
         {/* Amount input */}
         <div className="space-y-1.5">
-          <label
-            htmlFor="expense-amount"
-            className="text-foreground text-xs font-semibold tracking-wider uppercase"
-          >
-            Amount (€)
-          </label>
-          <div className="border-input bg-card focus-within:border-primary relative flex items-center rounded-lg border p-2.5 transition-colors">
-            <span className="text-muted-foreground mr-2 text-xl font-bold">€</span>
-            <input
-              id="expense-amount"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              placeholder="0.00"
-              value={amountStr}
-              onChange={(e) => {
-                setAmountStr(e.target.value);
-                if (fieldErrors.amount) {
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.amount;
-                    return next;
-                  });
-                }
-              }}
-              className="text-foreground placeholder:text-muted-foreground/50 w-full bg-transparent text-xl font-bold tabular-nums focus:outline-none"
-              data-testid="expense-amount-input"
-              aria-describedby={fieldErrors.amount ? "amount-error" : undefined}
-            />
-          </div>
-          {fieldErrors.amount && (
-            <p id="amount-error" className="text-destructive text-xs">
-              {fieldErrors.amount[0]}
-            </p>
-          )}
+          <Field id="expense-amount" label="Amount (€)" error={fieldErrors.amount?.[0]}>
+            {(control) => (
+              <div className="border-input bg-card focus-within:border-primary relative flex items-center rounded-lg border p-2.5 transition-colors">
+                <span className="text-muted-foreground mr-2 text-xl font-bold">€</span>
+                <Input
+                  {...control}
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  value={amountStr}
+                  onChange={(e) => {
+                    setAmountStr(e.target.value);
+                    clearFieldError("amount");
+                  }}
+                  className="text-foreground placeholder:text-muted-foreground/50 h-auto min-h-0 w-full border-0 bg-transparent p-0 text-xl font-bold tabular-nums focus-visible:ring-0 focus-visible:ring-offset-0"
+                  data-testid="expense-amount-input"
+                />
+              </div>
+            )}
+          </Field>
 
           {/* Quick increment chips */}
           <div className="flex items-center gap-2 pt-1">
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => handleQuickAddAmount(1000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
               +€10
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => handleQuickAddAmount(5000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
               +€50
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={() => handleQuickAddAmount(10000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
               +€100
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Description / Vendor */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="expense-description"
-            className="text-foreground text-xs font-semibold tracking-wider uppercase"
-          >
-            Description / Vendor
-          </label>
+        <Field
+          id="expense-description"
+          label="Description / Vendor"
+          error={fieldErrors.description?.[0]}
+        >
           <Input
-            id="expense-description"
             type="text"
             placeholder="e.g. Fresh vegetables, Metro Wholesale"
             value={description}
             onChange={(e) => {
               setDescription(e.target.value);
-              if (fieldErrors.description) {
-                setFieldErrors((prev) => {
-                  const next = { ...prev };
-                  delete next.description;
-                  return next;
-                });
-              }
+              clearFieldError("description");
             }}
             data-testid="expense-description-input"
-            aria-describedby={fieldErrors.description ? "desc-error" : undefined}
           />
-          {fieldErrors.description && (
-            <p id="desc-error" className="text-destructive text-xs">
-              {fieldErrors.description[0]}
-            </p>
-          )}
-        </div>
+        </Field>
 
         {/* Date */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="expense-date"
-            className="text-foreground text-xs font-semibold tracking-wider uppercase"
-          >
-            Date of expense
-          </label>
-          <div className="relative">
-            <Input
-              id="expense-date"
-              type="date"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                if (fieldErrors.date) {
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.date;
-                    return next;
-                  });
-                }
-              }}
-              data-testid="expense-date-input"
-              aria-describedby={fieldErrors.date ? "date-error" : undefined}
-            />
-          </div>
-          {fieldErrors.date && (
-            <p id="date-error" className="text-destructive text-xs">
-              {fieldErrors.date[0]}
-            </p>
-          )}
-        </div>
+        <Field id="expense-date" label="Date of expense" error={fieldErrors.date?.[0]}>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => {
+              setDate(e.target.value);
+              clearFieldError("date");
+            }}
+            data-testid="expense-date-input"
+          />
+        </Field>
 
         {/* Expense Category Tags */}
         <div className="space-y-1.5">
@@ -382,7 +335,9 @@ function ExpenseForm({
             {STANDARD_EXPENSE_TAGS.map((tag) => {
               const isSelected = selectedTags.includes(tag);
               return (
-                <button
+                <Button
+                  variant="unstyled"
+                  size="none"
                   key={tag}
                   type="button"
                   onClick={() => handleTagToggle(tag)}
@@ -396,7 +351,7 @@ function ExpenseForm({
                 >
                   {isSelected && <Check className="h-3.5 w-3.5" />}
                   <span>{tag}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -444,7 +399,9 @@ function ExpenseForm({
           {/* Destructive delete option in edit mode */}
           {isEdit && (
             <div className="pt-2 text-center">
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={Boolean(deleteDisabledReason)}
@@ -454,7 +411,7 @@ function ExpenseForm({
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Delete this expense</span>
-              </button>
+              </Button>
               {deleteDisabledReason && (
                 <p
                   id="expense-delete-reason"
@@ -470,36 +427,19 @@ function ExpenseForm({
       </form>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent data-testid="expense-delete-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete Expense</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this expense ({expense?.description})? This action
-              cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-row justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isDeleting}
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isDeleting}
-              onClick={handleDelete}
-              data-testid="expense-delete-confirm-button"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        destructive
+        loading={isDeleting}
+        title="Delete Expense"
+        description={`Are you sure you want to delete this expense (${expense?.description})? This action cannot be undone.`}
+        cancelLabel="Cancel"
+        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        onConfirm={handleDelete}
+        data-testid="expense-delete-dialog"
+        confirmTestId="expense-delete-confirm-button"
+      />
     </>
   );
 }

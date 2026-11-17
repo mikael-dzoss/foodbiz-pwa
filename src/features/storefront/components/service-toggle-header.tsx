@@ -1,18 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Clock, Info } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { BusinessSettings } from "@/domain/business";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
-import { useToastOptional } from "@/components/ui";
+import { SegmentedControl, useToastOptional } from "@/components/ui";
 import {
   useCartOptional,
   resolveServiceMode,
   type StorefrontServiceMode,
 } from "../context/cart-context";
 import { OrderingDetailsDialog } from "./ordering-details-dialog";
+import { Button } from "@/components/ui/button";
 
 export interface ServiceToggleHeaderProps {
   isAcceptingOrders: boolean;
@@ -43,8 +44,6 @@ export function ServiceToggleHeader({
 }: ServiceToggleHeaderProps) {
   const cart = useCartOptional();
   const toast = useToastOptional();
-  const deliveryBtnRef = useRef<HTMLButtonElement>(null);
-  const pickupBtnRef = useRef<HTMLButtonElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const deliveryEnabled = settings?.serviceTypes?.delivery ?? true;
@@ -90,76 +89,38 @@ export function ServiceToggleHeader({
     cart?.setServiceMode(targetMode);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, current: StorefrontServiceMode) => {
-    if (
-      e.key === "ArrowRight" ||
-      e.key === "ArrowDown" ||
-      e.key === "ArrowLeft" ||
-      e.key === "ArrowUp"
-    ) {
-      e.preventDefault();
-      const nextMode: StorefrontServiceMode = current === "delivery" ? "pickup" : "delivery";
-      if (nextMode === "delivery") {
-        deliveryBtnRef.current?.focus();
-      } else {
-        pickupBtnRef.current?.focus();
-      }
-      handleSelectMode(nextMode);
-    }
-  };
-
   return (
     <section data-testid="service-toggle-header" className="mb-4 flex flex-col gap-3">
       {/* Row 1: Segmented Delivery | Pickup toggle + Readiness badge */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div
-          role="radiogroup"
+        {/* 32px segments are an owner-approved exception (#227): they match the readiness badge. */}
+        <SegmentedControl
           aria-label={dict.fulfillmentMode}
           data-testid="service-mode-toggle"
-          className="border-border bg-muted inline-flex items-center rounded-full border p-0.5"
-        >
-          <button
-            ref={deliveryBtnRef}
-            type="button"
-            role="radio"
-            aria-checked={activeMode === "delivery"}
-            aria-disabled={!deliveryEnabled || undefined}
-            data-testid="service-mode-delivery"
-            onClick={() => handleSelectMode("delivery")}
-            onKeyDown={(e) => handleKeyDown(e, "delivery")}
-            className={`focus-visible:ring-ring min-h-8 min-w-11 rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-hidden motion-reduce:transition-none ${
-              activeMode === "delivery"
-                ? "bg-primary text-primary-foreground"
-                : !deliveryEnabled
-                  ? "text-muted-foreground cursor-not-allowed"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {dict.deliveryToggleLabel}
-          </button>
+          value={activeMode}
+          onValueChange={handleSelectMode}
+          className="border-border bg-muted inline-flex items-center gap-0 rounded-full border p-0.5"
+          optionClassName="min-h-8 min-w-11 flex-none rounded-full px-3 py-1 text-xs font-semibold duration-150"
+          selectedClassName="bg-primary text-primary-foreground"
+          options={[
+            {
+              value: "delivery",
+              label: dict.deliveryToggleLabel,
+              unavailable: !deliveryEnabled,
+              "data-testid": "service-mode-delivery",
+            },
+            {
+              value: "pickup",
+              label: dict.pickupToggleLabel,
+              unavailable: !pickupEnabled,
+              "data-testid": "service-mode-pickup",
+            },
+          ]}
+        />
 
-          <button
-            ref={pickupBtnRef}
-            type="button"
-            role="radio"
-            aria-checked={activeMode === "pickup"}
-            aria-disabled={!pickupEnabled || undefined}
-            data-testid="service-mode-pickup"
-            onClick={() => handleSelectMode("pickup")}
-            onKeyDown={(e) => handleKeyDown(e, "pickup")}
-            className={`focus-visible:ring-ring min-h-8 min-w-11 rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-hidden motion-reduce:transition-none ${
-              activeMode === "pickup"
-                ? "bg-primary text-primary-foreground"
-                : !pickupEnabled
-                  ? "text-muted-foreground cursor-not-allowed"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {dict.pickupToggleLabel}
-          </button>
-        </div>
-
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           data-testid="readiness-badge"
           aria-haspopup="dialog"
@@ -171,7 +132,7 @@ export function ServiceToggleHeader({
             {dict.orderReadyTime.replace("{leadTime}", leadTimeText)}
           </span>
           <span className="sr-only">{` – ${dict.orderingDetailsOpen}`}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Row 2: Bordered 2-tile card (Service fee/address | Store status) */}
@@ -182,7 +143,9 @@ export function ServiceToggleHeader({
         className="border-border bg-card divide-border grid grid-cols-2 divide-x rounded-xl border p-1.5"
       >
         {/* Left tile */}
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           data-testid="service-info-tile"
           aria-haspopup="dialog"
@@ -214,10 +177,12 @@ export function ServiceToggleHeader({
               )}
             </>
           )}
-        </button>
+        </Button>
 
         {/* Right tile */}
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           data-testid="store-status-tile"
           aria-haspopup="dialog"
@@ -272,7 +237,7 @@ export function ServiceToggleHeader({
               <span className="sr-only">{dict.scheduledOnlyNotice}</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       <OrderingDetailsDialog

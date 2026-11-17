@@ -121,7 +121,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
                   <h2
                     id={`category-heading-${group.id}`}
                     tabIndex={-1}
-                    className="text-foreground scroll-mt-28 text-base font-semibold tracking-tight focus:outline-hidden"
+                    className="text-title-sm text-foreground scroll-mt-28 focus:outline-hidden"
                   >
                     {group.name}
                   </h2>

@@ -30,7 +30,7 @@ export function FeaturedCarousel({
         <h2
           id="category-heading-featured"
           tabIndex={-1}
-          className="text-foreground scroll-mt-28 text-base font-semibold tracking-tight focus:outline-hidden"
+          className="text-title-sm text-foreground scroll-mt-28 focus:outline-hidden"
         >
           {dict.featuredItems}
         </h2>
@@ -82,7 +82,7 @@ export function FeaturedCarousel({
                 data-testid={`featured-add-to-cart-${product.id}`}
               />
             </div>
-            <h3 className="text-foreground mt-2 text-sm font-semibold">
+            <h3 className="text-label-md text-foreground mt-2">
               <Link
                 href={`/${locale}/p/${product.id}`}
                 data-testid={`featured-product-link-${product.id}`}

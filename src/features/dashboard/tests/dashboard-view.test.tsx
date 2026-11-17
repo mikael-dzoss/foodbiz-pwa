@@ -152,10 +152,20 @@ describe("DashboardView Component", () => {
     expect(aovCard.textContent).toContain("+4.1%");
   });
 
+  it("moves between period tabs with the arrow keys", async () => {
+    render(<DashboardView initialData={mockData} />);
+    const today = screen.getByTestId("period-tab-today");
+    today.focus();
+    fireEvent.keyDown(today, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith("/manage?period=last_7_days", { scroll: false }),
+    );
+  });
+
   it("switches period through the URL so the server re-renders with fresh data", async () => {
     render(<DashboardView initialData={mockData} />);
 
-    fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
+    fireEvent.mouseDown(screen.getByTestId("period-tab-last_7_days"));
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith("/manage?period=last_7_days", {
@@ -170,7 +180,7 @@ describe("DashboardView Component", () => {
     expect(selected("period-tab-today")).toBe("true");
 
     // Navigation that never lands (failed/cancelled): the tab falls back to the server value.
-    fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
+    fireEvent.mouseDown(screen.getByTestId("period-tab-last_7_days"));
     await waitFor(() => expect(selected("period-tab-today")).toBe("true"));
 
     // Back/forward: new server data moves the tab.

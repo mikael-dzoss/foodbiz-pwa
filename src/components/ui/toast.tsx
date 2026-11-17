@@ -1,11 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export type ToastVariant = "default" | "error";
 
 export interface ToastProps {
   id?: string;
   message: string;
+  variant?: ToastVariant;
   duration?: number;
   action?: {
     label: string;
@@ -17,6 +21,8 @@ export interface ToastProps {
 
 interface ToastContextValue {
   showToast: (message: string, duration?: number, action?: ToastProps["action"]) => void;
+  /** Error variant: destructive surface, icon, announced assertively. */
+  showError: (message: string, duration?: number) => void;
 }
 
 const ToastContext = React.createContext<ToastContextValue | undefined>(undefined);
@@ -24,10 +30,15 @@ const ToastContext = React.createContext<ToastContextValue | undefined>(undefine
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastProps[]>([]);
 
-  const showToast = React.useCallback(
-    (message: string, duration = 4000, action?: ToastProps["action"]) => {
+  const push = React.useCallback(
+    (
+      message: string,
+      duration: number,
+      action: ToastProps["action"] | undefined,
+      variant: ToastVariant,
+    ) => {
       const id = Math.random().toString(36).substring(2, 9);
-      const newToast: ToastProps = { id, message, duration, action };
+      const newToast: ToastProps = { id, message, duration, action, variant };
 
       setToasts((prev) => [...prev, newToast]);
 
@@ -38,8 +49,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const showToast = React.useCallback(
+    (message: string, duration = 4000, action?: ToastProps["action"]) =>
+      push(message, duration, action, "default"),
+    [push],
+  );
+
+  const showError = React.useCallback(
+    (message: string, duration = 6000) => push(message, duration, undefined, "error"),
+    [push],
+  );
+
+  const value = React.useMemo(() => ({ showToast, showError }), [showToast, showError]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div
         aria-live="polite"
@@ -48,13 +72,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            data-testid="toast-item"
+            data-testid={toast.variant === "error" ? "toast-error" : "toast-item"}
+            role={toast.variant === "error" ? "alert" : undefined}
             className={cn(
-              "bg-foreground text-background pointer-events-auto flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm shadow-lg",
+              "pointer-events-auto flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm shadow-lg",
+              toast.variant === "error"
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-foreground text-background",
               "w-full max-w-sm transition-all duration-200 motion-reduce:transition-none",
             )}
           >
-            <span>{toast.message}</span>
+            <span className="flex items-center gap-2">
+              {toast.variant === "error" ? (
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              ) : null}
+              {toast.message}
+            </span>
             {toast.action && (
               <button
                 type="button"

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,12 +14,11 @@ import {
   Send,
   Users,
   CheckCircle2,
-  Loader2,
 } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
-import { Switch, useToast } from "@/components/ui";
+import { ActionBar, Button, Switch, useToast } from "@/components/ui";
 import { updateNotificationSettingsAction } from "../actions";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
 import { actionErrorMessage } from "@/lib/actions/error-message";
@@ -30,8 +29,8 @@ export interface NotificationsAppFormProps {
 }
 
 export function NotificationsAppForm({ settings, dict }: NotificationsAppFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updateNotificationSettingsAction>> | null;
 
   // 1. Alert toggles
   const [inAppAlerts, setInAppAlerts] = useState(settings.inAppAlerts ?? true);
@@ -58,27 +57,23 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
     showToast("Changes discarded");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    startTransition(async () => {
-      const res = await updateNotificationSettingsAction({
-        notifications: inAppAlerts,
-        inAppAlerts,
-        soundAlerts,
-      });
-
-      if (res.ok) {
-        showToast(dict.notifications.saveSuccess);
-      } else {
-        showToast(actionErrorMessage(res));
-      }
+  const [, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
+    const res = await updateNotificationSettingsAction({
+      notifications: inAppAlerts,
+      inAppAlerts,
+      soundAlerts,
     });
-  };
 
+    if (res.ok) {
+      showToast(dict.notifications.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="notifications-app-form"
     >
@@ -99,9 +94,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.notifications.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.notifications.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.notifications.description}</p>
       </div>
 
@@ -194,7 +187,9 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               </div>
             </div>
 
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               type="button"
               onClick={handleInstallClick}
               data-testid="button-install-pwa"
@@ -204,7 +199,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
               <span>
                 {isStandalone ? "Reinstall / Check Status" : dict.notifications.installAppButton}
               </span>
-            </button>
+            </Button>
           </div>
 
           {/* Link to About & Support */}
@@ -296,35 +291,28 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
         </div>
       </div>
 
-      {/* Sticky Bottom Actions */}
-      <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-4 backdrop-blur-md">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <button
-            type="button"
-            onClick={handleDiscard}
-            disabled={isPending}
-            data-testid="discard-button"
-            className="border-border hover:bg-muted active:bg-muted/80 text-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          >
-            {dict.notifications.discardButton}
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            data-testid="save-notifications-button"
-            className="bg-primary hover:bg-primary/90 active:bg-primary/95 text-primary-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <span>{dict.notifications.saveButton}</span>
-            )}
-          </button>
-        </div>
-      </div>
+      {/* Sticky Save/Discard bar: above the manager bottom nav, static on desktop */}
+      <ActionBar data-testid="settings-action-bar">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleDiscard}
+          disabled={isPending}
+          data-testid="discard-button"
+          className="flex-1 rounded-xl"
+        >
+          {dict.notifications.discardButton}
+        </Button>
+        <Button
+          type="submit"
+          disabled={isPending}
+          loading={isPending}
+          data-testid="save-notifications-button"
+          className="flex-1 rounded-xl"
+        >
+          {isPending ? dict.saving : dict.notifications.saveButton}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

@@ -34,9 +34,7 @@ export default async function AboutPage() {
       </div>
 
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.settings.about.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.settings.about.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">
           Food business operations and mobile point-of-sale platform.
         </p>
@@ -48,7 +46,7 @@ export default async function AboutPage() {
             F
           </div>
           <div>
-            <h2 className="text-foreground text-base font-semibold">{APP_METADATA.name}</h2>
+            <h2 className="text-title-sm text-foreground">{APP_METADATA.name}</h2>
             <p className="text-muted-foreground text-xs">
               Version {dict.settings.about.version} (Build 2026.10)
             </p>

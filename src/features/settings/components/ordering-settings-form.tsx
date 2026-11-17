@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   ChevronLeft,
   Clock,
@@ -9,7 +9,6 @@ import {
   ShoppingBag,
   Store,
   AlertCircle,
-  Loader2,
   MapPin,
   Layers,
 } from "lucide-react";
@@ -18,7 +17,16 @@ import { formatLeadTime, leadTimeUnitSchema, type LeadTimeUnit } from "@/domain/
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SELECTABLE_TIMEZONES } from "@/domain/timezone";
 import { SoonBadge } from "@/components/feedback";
-import { Switch, useToast } from "@/components/ui";
+import {
+  ActionBar,
+  Button,
+  Field,
+  Input,
+  NativeSelect,
+  Switch,
+  Textarea,
+  useToast,
+} from "@/components/ui";
 import { updateOrderingSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
@@ -29,8 +37,9 @@ export interface OrderingSettingsFormProps {
 }
 
 export function OrderingSettingsForm({ settings, dict, locale = "en" }: OrderingSettingsFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updateOrderingSettingsAction>> | null;
+  const [dismissed, setDismissed] = useState<SaveResult>(null);
 
   // 1. Store acceptance status
   const [acceptingOrders, setAcceptingOrders] = useState(settings.acceptingOrders ?? true);
@@ -80,7 +89,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     : [timezone, ...SELECTABLE_TIMEZONES];
 
   // Errors
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const handleDiscard = () => {
     setAcceptingOrders(settings.acceptingOrders ?? true);
@@ -96,61 +104,58 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     setLeadTimeValue(String(settings.leadTimeValue ?? 1));
     setLeadTimeUnit(settings.leadTimeUnit ?? "business_days");
     setTimezone(settings.timezone);
-    setErrors({});
+    setDismissed(result);
     showToast("Changes discarded");
   };
 
   const activeServiceCount = [pickup, delivery, dineIn].filter(Boolean).length;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
+  const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     // Client check: at least one service type must be enabled
     if (!pickup && !delivery && !dineIn) {
-      setErrors({
-        serviceTypes: ["At least one fulfillment mode must be enabled"],
-      });
-      showToast("At least one fulfillment mode must be enabled");
-      return;
+      showError("At least one fulfillment mode must be enabled");
+      return {
+        ok: false,
+        code: "VALIDATION",
+        message: "At least one fulfillment mode must be enabled",
+        fieldErrors: { serviceTypes: ["At least one fulfillment mode must be enabled"] },
+      };
     }
 
     const deliveryFeeCents = Math.round((parseFloat(deliveryFeeEuros) || 0) * 100);
     const minOrderCents = Math.round((parseFloat(minOrderEuros) || 0) * 100);
 
-    startTransition(async () => {
-      const res = await updateOrderingSettingsAction({
-        acceptingOrders,
-        serviceTypes: {
-          pickup,
-          delivery,
-          dineIn,
-        },
-        openingHours,
-        orderTimingAsap,
-        orderTimingScheduled,
-        orderTimingTimeOptional,
-        deliveryFee: deliveryFeeCents,
-        minOrderAmount: minOrderCents,
-        leadTimeValue: parsedLeadTimeValue,
-        leadTimeUnit,
-        timezone,
-      });
-
-      if (res.ok) {
-        showToast(dict.ordering.saveSuccess);
-      } else {
-        if (res.fieldErrors) {
-          setErrors(res.fieldErrors);
-        }
-        showToast(actionErrorMessage(res));
-      }
+    const res = await updateOrderingSettingsAction({
+      acceptingOrders,
+      serviceTypes: {
+        pickup,
+        delivery,
+        dineIn,
+      },
+      openingHours,
+      orderTimingAsap,
+      orderTimingScheduled,
+      orderTimingTimeOptional,
+      deliveryFee: deliveryFeeCents,
+      minOrderAmount: minOrderCents,
+      leadTimeValue: parsedLeadTimeValue,
+      leadTimeUnit,
+      timezone,
     });
-  };
+
+    if (res.ok) {
+      showToast(dict.ordering.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
+  const errors: Record<string, string[]> =
+    result && result !== dismissed && !result.ok ? (result.fieldErrors ?? {}) : {};
 
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="ordering-settings-form"
     >
@@ -171,9 +176,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.ordering.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.ordering.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.ordering.description}</p>
       </div>
 
@@ -313,24 +316,21 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               <Clock className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <label
-                htmlFor="opening-hours-input"
-                className="text-foreground block text-sm font-semibold"
-              >
-                {dict.ordering.hoursLabel}
-              </label>
-              <p className="text-body-sm text-muted-foreground mt-0.5">
-                {dict.ordering.hoursHelper}
-              </p>
-              <textarea
+              <Field
                 id="opening-hours-input"
-                data-testid="input-opening-hours"
-                rows={2}
-                value={openingHours}
-                onChange={(e) => setOpeningHours(e.target.value)}
-                placeholder="e.g. Mon-Sat: 08:00 - 19:30, Sun: Closed"
-                className="border-input bg-background text-foreground focus-visible:ring-ring mt-3 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              />
+                label={dict.ordering.hoursLabel}
+                hint={dict.ordering.hoursHelper}
+                hintPosition="above"
+              >
+                <Textarea
+                  data-testid="input-opening-hours"
+                  rows={2}
+                  value={openingHours}
+                  onChange={(e) => setOpeningHours(e.target.value)}
+                  placeholder="e.g. Mon-Sat: 08:00 - 19:30, Sun: Closed"
+                  className="min-h-0 rounded-xl py-2 text-sm"
+                />
+              </Field>
               <p className="text-muted-foreground mt-1 text-xs">
                 Leave empty for continuous dark kitchen or on-demand delivery operations.
               </p>
@@ -407,65 +407,58 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
           {dict.ordering.deliverySection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
-          <div>
-            <label
-              htmlFor="delivery-fee-input"
-              className="text-foreground block text-sm font-semibold"
-            >
-              {dict.ordering.deliveryFeeLabel}
-            </label>
-            <p className="text-body-sm text-muted-foreground mt-0.5">
-              {dict.ordering.deliveryFeeHelper}
-            </p>
-            <div className="relative mt-2">
-              <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium">
-                €
-              </span>
-              <input
-                id="delivery-fee-input"
-                data-testid="input-delivery-fee"
-                type="number"
-                step="0.10"
-                min="0"
-                value={deliveryFeeEuros}
-                onChange={(e) => setDeliveryFeeEuros(e.target.value)}
-                className="border-input bg-background text-foreground focus-visible:ring-ring w-full rounded-xl border py-2 pr-3 pl-8 font-mono text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              />
-            </div>
-            {errors.deliveryFee && (
-              <p className="text-destructive mt-1 text-xs">{errors.deliveryFee[0]}</p>
+          <Field
+            id="delivery-fee-input"
+            label={dict.ordering.deliveryFeeLabel}
+            hint={dict.ordering.deliveryFeeHelper}
+            hintPosition="above"
+            error={errors.deliveryFee?.[0]}
+          >
+            {(control) => (
+              <div className="relative">
+                <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium">
+                  €
+                </span>
+                <Input
+                  {...control}
+                  data-testid="input-delivery-fee"
+                  type="number"
+                  step="0.10"
+                  min="0"
+                  value={deliveryFeeEuros}
+                  onChange={(e) => setDeliveryFeeEuros(e.target.value)}
+                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono text-sm"
+                />
+              </div>
             )}
-          </div>
+          </Field>
 
-          <div className="border-border border-t pt-3">
-            <label
-              htmlFor="min-order-input"
-              className="text-foreground block text-sm font-semibold"
-            >
-              {dict.ordering.minOrderLabel}
-            </label>
-            <p className="text-body-sm text-muted-foreground mt-0.5">
-              {dict.ordering.minOrderHelper}
-            </p>
-            <div className="relative mt-2">
-              <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium">
-                €
-              </span>
-              <input
-                id="min-order-input"
-                data-testid="input-min-order"
-                type="number"
-                step="0.50"
-                min="0"
-                value={minOrderEuros}
-                onChange={(e) => setMinOrderEuros(e.target.value)}
-                className="border-input bg-background text-foreground focus-visible:ring-ring w-full rounded-xl border py-2 pr-3 pl-8 font-mono text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              />
-            </div>
-            {errors.minOrderAmount && (
-              <p className="text-destructive mt-1 text-xs">{errors.minOrderAmount[0]}</p>
+          <Field
+            id="min-order-input"
+            label={dict.ordering.minOrderLabel}
+            hint={dict.ordering.minOrderHelper}
+            hintPosition="above"
+            error={errors.minOrderAmount?.[0]}
+            className="border-border border-t pt-3"
+          >
+            {(control) => (
+              <div className="relative">
+                <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium">
+                  €
+                </span>
+                <Input
+                  {...control}
+                  data-testid="input-min-order"
+                  type="number"
+                  step="0.50"
+                  min="0"
+                  value={minOrderEuros}
+                  onChange={(e) => setMinOrderEuros(e.target.value)}
+                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono text-sm"
+                />
+              </div>
             )}
-          </div>
+          </Field>
         </div>
       </div>
 
@@ -483,7 +476,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               {dict.ordering.leadTimeHelper}
             </p>
             <div className="mt-2 flex gap-2">
-              <input
+              <Input
                 id="lead-time-value-input"
                 data-testid="input-lead-time-value"
                 type="number"
@@ -492,12 +485,12 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                 max="999"
                 step="1"
                 aria-label={dict.ordering.leadTimeLabel}
-                aria-invalid={!!errors.leadTimeValue}
+                aria-invalid={errors.leadTimeValue ? true : undefined}
                 value={leadTimeValue}
                 onChange={(e) => setLeadTimeValue(e.target.value)}
-                className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-24 rounded-xl border px-3 py-2 font-mono text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="h-11 w-24 shrink-0 rounded-xl py-2 font-mono text-sm"
               />
-              <select
+              <NativeSelect
                 id="lead-time-unit-select"
                 data-testid="select-lead-time-unit"
                 aria-label={dict.ordering.leadTimeUnitLabel}
@@ -506,12 +499,12 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   const parsed = leadTimeUnitSchema.safeParse(e.target.value);
                   if (parsed.success) setLeadTimeUnit(parsed.data);
                 }}
-                className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 flex-1 rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="h-11 rounded-xl text-sm"
               >
                 <option value="minutes">{dict.ordering.leadTimeUnitMinutes}</option>
                 <option value="hours">{dict.ordering.leadTimeUnitHours}</option>
                 <option value="business_days">{dict.ordering.leadTimeUnitBusinessDays}</option>
-              </select>
+              </NativeSelect>
             </div>
             {leadTimePreview && (
               <p
@@ -523,7 +516,13 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               </p>
             )}
             {errors.leadTimeValue && (
-              <p className="text-destructive mt-1 text-xs">{errors.leadTimeValue[0]}</p>
+              <p
+                role="alert"
+                className="text-body-sm text-destructive mt-1 flex items-start gap-1.5"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{errors.leadTimeValue[0]}</span>
+              </p>
             )}
           </fieldset>
         </div>
@@ -531,29 +530,30 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 5c: Business time zone (#168) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.timezoneSection}
         </h2>
         <div className="border-border bg-card space-y-2 rounded-2xl border p-4 shadow-2xs">
-          <label htmlFor="timezone-select" className="text-foreground block text-sm font-semibold">
-            {dict.ordering.timezoneLabel}
-          </label>
-          <p className="text-body-sm text-muted-foreground">{dict.ordering.timezoneHelper}</p>
-          <select
+          <Field
             id="timezone-select"
-            data-testid="select-timezone"
-            aria-invalid={!!errors.timezone}
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            label={dict.ordering.timezoneLabel}
+            hint={dict.ordering.timezoneHelper}
+            hintPosition="above"
+            error={errors.timezone?.[0]}
           >
-            {timezoneOptions.map((zone) => (
-              <option key={zone} value={zone}>
-                {zone}
-              </option>
-            ))}
-          </select>
-          {errors.timezone && <p className="text-destructive mt-1 text-xs">{errors.timezone[0]}</p>}
+            <NativeSelect
+              data-testid="select-timezone"
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="h-11 rounded-xl text-sm"
+            >
+              {timezoneOptions.map((zone) => (
+                <option key={zone} value={zone}>
+                  {zone}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
         </div>
       </div>
 
@@ -601,35 +601,28 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
         </div>
       </div>
 
-      {/* Sticky Bottom Actions */}
-      <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-4 backdrop-blur-md">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <button
-            type="button"
-            onClick={handleDiscard}
-            disabled={isPending}
-            data-testid="discard-button"
-            className="border-border hover:bg-muted active:bg-muted/80 text-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          >
-            {dict.ordering.discardButton}
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            data-testid="save-ordering-button"
-            className="bg-primary hover:bg-primary/90 active:bg-primary/95 text-primary-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <span>{dict.ordering.saveButton}</span>
-            )}
-          </button>
-        </div>
-      </div>
+      {/* Sticky Save/Discard bar: above the manager bottom nav, static on desktop */}
+      <ActionBar data-testid="settings-action-bar">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleDiscard}
+          disabled={isPending}
+          data-testid="discard-button"
+          className="flex-1 rounded-xl"
+        >
+          {dict.ordering.discardButton}
+        </Button>
+        <Button
+          type="submit"
+          disabled={isPending}
+          loading={isPending}
+          data-testid="save-ordering-button"
+          className="flex-1 rounded-xl"
+        >
+          {isPending ? dict.saving : dict.ordering.saveButton}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

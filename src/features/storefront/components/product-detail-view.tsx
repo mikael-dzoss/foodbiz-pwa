@@ -8,10 +8,12 @@ import { formatMoney } from "@/domain/formatting/money";
 import type { AddOnCandidates } from "@/domain/add-ons";
 import type { StorefrontProduct } from "@/domain/storefront-product";
 import { getDictionary, type SupportedLocale, type StorefrontDictionary } from "@/domain/i18n";
+import { ActionBar } from "@/components/ui/action-bar";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import type { StorefrontProductData } from "../catalog-data";
 import { useCart } from "../context/cart-context";
 import { ProductAddOnGroup } from "./product-add-on-group";
+import { Button } from "@/components/ui/button";
 
 export interface ProductDetailViewProps {
   productData: StorefrontProductData;
@@ -132,7 +134,7 @@ export function ProductDetailView({
       <section className="border-border/80 bg-card rounded-2xl border p-4">
         <div className="mb-2 flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-foreground text-xl leading-snug font-bold">{product.name}</h1>
+            <h1 className="text-title-lg text-foreground">{product.name}</h1>
           </div>
           <div className="shrink-0 text-right">
             <span className="text-primary block text-2xl font-bold tracking-tight tabular-nums">
@@ -243,72 +245,73 @@ export function ProductDetailView({
       )}
 
       {/* Sticky Bottom Action Bar with Stepper & Add Button (Stitch C-02) */}
-      <aside
-        aria-label="Purchase actions"
-        className="border-border bg-card/95 pb-safe-min-4 fixed right-0 bottom-0 left-0 z-30 border-t p-4 shadow-lg backdrop-blur-md"
-      >
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          {/* Quantity Stepper */}
-          <div className="shrink-0">
-            <QuantityStepper
-              value={quantity}
-              onChange={setQuantity}
-              min={1}
-              max={Math.max(1, product.stock)}
-              disabled={!canOrder}
-            />
-          </div>
-
-          {/* Primary Add to Cart Button */}
-          {isOutOfStock ? (
-            <button
-              type="button"
-              disabled
-              data-testid="product-add-button"
-              className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-6 text-sm font-semibold opacity-60"
-            >
-              {dict.outOfStock}
-            </button>
-          ) : isStoreUnavailable ? (
-            <button
-              type="button"
-              disabled
-              data-testid="product-add-button"
-              className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-4 text-center text-xs font-semibold opacity-60"
-            >
-              <span>{unavailableShortText}</span>
-              <span className="sr-only"> — {unavailableFullNotice}</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={!canOrder || maxAddable === 0}
-              data-testid="product-add-button"
-              className={`focus-visible:ring-ring flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-xs transition-all focus-visible:ring-2 focus-visible:outline-hidden active:scale-98 ${
-                justAdded
-                  ? "bg-emerald-600 text-white"
-                  : "bg-primary text-primary-foreground hover:bg-primary/95"
-              } ${!canOrder || maxAddable === 0 ? "cursor-not-allowed opacity-50" : ""}`}
-            >
-              {justAdded ? (
-                <>
-                  <Check className="h-5 w-5" />
-                  <span>{dict.addedToCart}</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="h-5 w-5" />
-                  <span>
-                    {dict.addQuantityToCart.replace("{count}", String(quantity))} •{" "}
-                    {formatMoney(totalPrice, locale)}
-                  </span>
-                </>
-              )}
-            </button>
-          )}
+      <ActionBar placement="bottom" role="complementary" aria-label="Purchase actions">
+        {/* Quantity Stepper */}
+        <div className="shrink-0">
+          <QuantityStepper
+            value={quantity}
+            onChange={setQuantity}
+            min={1}
+            max={Math.max(1, product.stock)}
+            disabled={!canOrder}
+          />
         </div>
-      </aside>
+
+        {/* Primary Add to Cart Button */}
+        {isOutOfStock ? (
+          <Button
+            variant="unstyled"
+            size="none"
+            type="button"
+            disabled
+            data-testid="product-add-button"
+            className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-6 text-sm font-semibold opacity-60"
+          >
+            {dict.outOfStock}
+          </Button>
+        ) : isStoreUnavailable ? (
+          <Button
+            variant="unstyled"
+            size="none"
+            type="button"
+            disabled
+            data-testid="product-add-button"
+            className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-4 text-center text-xs font-semibold opacity-60"
+          >
+            <span>{unavailableShortText}</span>
+            <span className="sr-only"> — {unavailableFullNotice}</span>
+          </Button>
+        ) : (
+          <Button
+            variant="unstyled"
+            size="none"
+            type="button"
+            onClick={handleAddToCart}
+            disabled={!canOrder || maxAddable === 0}
+            data-testid="product-add-button"
+            className={`focus-visible:ring-ring flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-xs transition-all focus-visible:ring-2 focus-visible:outline-hidden active:scale-98 ${
+              justAdded
+                ? "bg-emerald-600 text-white"
+                : "bg-primary text-primary-foreground hover:bg-primary/95"
+            } ${!canOrder || maxAddable === 0 ? "cursor-not-allowed opacity-50" : ""}`}
+          >
+            {justAdded ? (
+              <>
+                <Check className="h-5 w-5" />
+                <span>{dict.addedToCart}</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="h-5 w-5" />
+                <span>
+                  {dict.addQuantityToCart.replace("{count}", String(quantity))} •{" "}
+                  {formatMoney(totalPrice, locale)}
+                </span>
+              </>
+            )}
+          </Button>
+        )}
+      </ActionBar>
     </div>
   );
 }

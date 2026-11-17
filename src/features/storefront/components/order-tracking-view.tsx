@@ -130,7 +130,7 @@ export function OrderTrackingView({
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex flex-col items-center text-center">
-            <h1 className="text-foreground text-sm leading-tight font-semibold">{dict.title}</h1>
+            <h1 className="text-title-md text-foreground">{dict.title}</h1>
             <span className="text-muted-foreground text-xs font-medium">{business.name}</span>
           </div>
           <span className="w-11" aria-hidden="true" />
@@ -150,7 +150,7 @@ export function OrderTrackingView({
                 </span>
                 <div className="mt-0.5 flex items-center gap-2">
                   <h2
-                    className="text-foreground text-xl font-bold tracking-tight tabular-nums"
+                    className="text-title-lg text-foreground tabular-nums"
                     data-testid="tracking-order-title"
                   >
                     {dict.orderLabel} #{order.orderNumber ?? "—"}
@@ -240,7 +240,7 @@ export function OrderTrackingView({
             data-testid="tracking-stepper"
           >
             <div className="border-border/60 mb-4 flex items-center justify-between border-b pb-2.5">
-              <h3 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+              <h3 className="text-label-sm text-muted-foreground tracking-wider uppercase">
                 {dict.liveOrderProgress}
               </h3>
               <span className="text-muted-foreground text-xs">{dict.refreshHint}</span>
@@ -305,10 +305,10 @@ export function OrderTrackingView({
                       <div className="flex items-baseline justify-between gap-2">
                         <h4
                           className={cn(
-                            "text-xs font-bold",
+                            "text-label-md",
                             isCurrent && "text-primary",
                             isDone && "text-foreground",
-                            state === "upcoming" && "text-muted-foreground/75 font-medium",
+                            state === "upcoming" && "text-muted-foreground/75",
                           )}
                         >
                           {step.title}
@@ -342,7 +342,7 @@ export function OrderTrackingView({
             <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
               <div className="flex items-center gap-1.5">
                 <Store className="text-primary h-4 w-4" />
-                <h3 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+                <h3 className="text-label-sm text-muted-foreground tracking-wider uppercase">
                   {dict.fulfillmentDetails}
                 </h3>
               </div>
@@ -388,7 +388,7 @@ export function OrderTrackingView({
             data-testid="tracking-summary-card"
           >
             <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
-              <h3 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+              <h3 className="text-label-sm text-muted-foreground tracking-wider uppercase">
                 {dict.orderSummary} ({order.items.reduce((acc, it) => acc + it.quantity, 0)})
               </h3>
               <Badge

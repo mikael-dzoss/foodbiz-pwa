@@ -7,6 +7,7 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@/domain/i18n";
+import { Button } from "@/components/ui/button";
 
 export interface LoginErrorBannerProps {
   error?: AuthErrorCode | string | null;
@@ -39,13 +40,15 @@ export function LoginErrorBanner({ error, locale }: LoginErrorBannerProps) {
       </div>
       {errorCode === "no_access" && (
         <form action={signOutAction} className="mt-1 pl-6.5">
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="submit"
             data-testid="login-error-signout-btn"
             className="text-primary hover:text-primary/80 focus-visible:ring-ring text-xs font-semibold underline underline-offset-2 transition-colors focus-visible:outline-none"
           >
             {activeLocale === "fr" ? "Se déconnecter" : "Sign out"}
-          </button>
+          </Button>
         </form>
       )}
     </div>

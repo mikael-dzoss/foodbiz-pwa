@@ -22,6 +22,8 @@ export const viewport: Viewport = {
   themeColor: APP_METADATA.themeColor,
   width: "device-width",
   initialScale: 1,
+  // Without `cover` every env(safe-area-inset-*) resolves to 0, so bars sit under the home indicator.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

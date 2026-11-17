@@ -90,14 +90,14 @@ describe("ExpenseSheet Component", () => {
     // Submit with zero amount
     fireEvent.click(screen.getByTestId("expense-submit-button"));
 
-    expect(screen.getByText("Amount must be greater than 0")).toBeDefined();
+    expect(await screen.findByText("Amount must be greater than 0")).toBeDefined();
 
     // Set valid amount
     const amountInput = screen.getByTestId("expense-amount-input");
     fireEvent.change(amountInput, { target: { value: "15.00" } });
 
     fireEvent.click(screen.getByTestId("expense-submit-button"));
-    expect(screen.getByText("Description is required")).toBeDefined();
+    expect(await screen.findByText("Description is required")).toBeDefined();
 
     // Set description
     fireEvent.change(descInput, { target: { value: "Delivery" } });
@@ -107,7 +107,7 @@ describe("ExpenseSheet Component", () => {
     fireEvent.change(dateInput, { target: { value: "" } });
 
     fireEvent.click(screen.getByTestId("expense-submit-button"));
-    expect(screen.getByText("Date is required")).toBeDefined();
+    expect(await screen.findByText("Date is required")).toBeDefined();
   });
 
   it("handles create action API failure and field errors", async () => {

@@ -22,6 +22,7 @@ import {
 import { SoonBadge } from "@/components/feedback";
 import { useToastOptional } from "@/components/ui";
 import { useCartOptional } from "../context/cart-context";
+import { Button } from "@/components/ui/button";
 
 export interface StorefrontMenuDrawerProps {
   locale: SupportedLocale;
@@ -76,7 +77,9 @@ export function StorefrontMenuDrawer({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <button
+      <Button
+        variant="unstyled"
+        size="none"
         type="button"
         onClick={() => setOpen(true)}
         aria-label={dict.menuOpen}
@@ -86,7 +89,7 @@ export function StorefrontMenuDrawer({
         className="text-foreground hover:bg-muted focus-visible:ring-ring -ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden"
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
-      </button>
+      </Button>
       <SheetContent side="left" data-testid="storefront-menu-drawer" className="gap-0 p-4">
         <div className="border-border mb-3 flex items-center gap-3 border-b pr-10 pb-4">
           <span
@@ -114,7 +117,9 @@ export function StorefrontMenuDrawer({
             </li>
             <li>
               {/* TODO(customers): enable once WhatsApp OTP order history ships (#235) */}
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 disabled
                 aria-label={`${dict.orderHistory} (${dict.soon})`}
@@ -126,7 +131,7 @@ export function StorefrontMenuDrawer({
                 </RowIcon>
                 <span className="flex-1">{dict.orderHistory}</span>
                 <SoonBadge label={dict.soon} />
-              </button>
+              </Button>
             </li>
             <li>
               <SheetClose asChild>
@@ -149,13 +154,20 @@ export function StorefrontMenuDrawer({
               </SheetClose>
             </li>
             <li>
-              <button type="button" onClick={handleShare} className={ROW} data-testid="menu-share">
+              <Button
+                variant="unstyled"
+                size="none"
+                type="button"
+                onClick={handleShare}
+                className={ROW}
+                data-testid="menu-share"
+              >
                 <RowIcon>
                   <Share2 className="h-4 w-4" />
                 </RowIcon>
                 <span className="flex-1">{dict.shareShopLink}</span>
                 <ChevronRight className="text-muted-foreground h-4 w-4" aria-hidden="true" />
-              </button>
+              </Button>
             </li>
             <li>
               <SheetClose asChild>

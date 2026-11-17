@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 import { ThemeProvider } from "@/components/theme";
@@ -31,5 +31,31 @@ describe("P-01 Patterns Component Inventory Screen", () => {
     expect(screen.getByTestId("section-skeleton")).toBeDefined();
     expect(screen.getByTestId("section-toast")).toBeDefined();
     expect(screen.getByTestId("section-overlays")).toBeDefined();
+  });
+
+  it("showcases Field, SegmentedControl, ConfirmDialog, ActionBar and the error toast", () => {
+    render(
+      <ThemeProvider>
+        <ToastProvider>
+          <PatternsPage />
+        </ToastProvider>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId("section-field")).toBeDefined();
+    expect(screen.getByTestId("section-segmented")).toBeDefined();
+    expect(screen.getByTestId("section-action-bar")).toBeDefined();
+    expect(screen.getByTestId("pattern-action-bar")).toBeDefined();
+
+    fireEvent.click(screen.getByTestId("pattern-segment-delivery"));
+    expect(screen.getByTestId("pattern-segment-delivery").getAttribute("aria-checked")).toBe(
+      "true",
+    );
+
+    fireEvent.click(screen.getByTestId("trigger-confirm-dialog"));
+    expect(screen.getByTestId("pattern-confirm-dialog")).toBeDefined();
+
+    fireEvent.click(screen.getByTestId("trigger-error-toast"));
+    expect(screen.getByTestId("toast-error")).toBeDefined();
   });
 });

@@ -106,7 +106,7 @@ export function CustomerList({
                 data-testid={`customer-${summary.guest.id}`}
               >
                 <div className="min-w-0 flex-1">
-                  <h2 className="group-hover:text-primary truncate text-base font-medium">
+                  <h2 className="text-label-md group-hover:text-primary truncate">
                     {summary.guest.name}
                   </h2>
                   <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">

@@ -14,16 +14,16 @@ import {
   ShieldCheck,
   Check,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { ManagerSession } from "@/domain/auth";
 import type { SettingsDictionary, SupportedLocale } from "@/domain/i18n";
 import { useTheme } from "@/components/theme";
 import { SoonItem } from "@/components/feedback";
-import { useToast } from "@/components/ui";
+import { SegmentedControl, useToast } from "@/components/ui";
 import { signOutAction } from "@/features/auth/actions";
 import { switchLanguageAction } from "../actions";
 import { APP_METADATA } from "@/config/app";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { Button } from "@/components/ui/button";
 
 export interface AccountSettingsProps {
   session: ManagerSession;
@@ -72,9 +72,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
       </div>
 
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.account.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.account.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.account.description}</p>
       </div>
 
@@ -124,110 +122,84 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
         <div className="border-border bg-card divide-border space-y-4 rounded-2xl border p-4 shadow-2xs">
           {/* Language Selector */}
           <div>
-            <label className="text-foreground mb-2 block text-sm font-semibold">
+            <p className="text-foreground mb-2 block text-sm font-semibold">
               {dict.account.languageLabel}
-            </label>
-            <div
-              role="radiogroup"
+            </p>
+            <SegmentedControl
               aria-label={dict.account.languageLabel}
-              className="bg-muted grid grid-cols-2 gap-1 rounded-xl p-1"
-            >
-              <button
-                type="button"
-                role="radio"
-                aria-checked={locale === "en"}
-                disabled={isPending}
-                onClick={() => handleLanguageChange("en")}
-                className={cn(
-                  "focus-visible:ring-ring flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all focus-visible:ring-2 focus-visible:outline-none",
-                  locale === "en"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                data-testid="lang-en"
-              >
-                {locale === "en" && <Check className="text-primary h-4 w-4" />}
-                <span>English (EN)</span>
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={locale === "fr"}
-                disabled={isPending}
-                onClick={() => handleLanguageChange("fr")}
-                className={cn(
-                  "focus-visible:ring-ring flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all focus-visible:ring-2 focus-visible:outline-none",
-                  locale === "fr"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                data-testid="lang-fr"
-              >
-                {locale === "fr" && <Check className="text-primary h-4 w-4" />}
-                <span>Français (FR)</span>
-              </button>
-            </div>
+              value={locale}
+              onValueChange={handleLanguageChange}
+              disabled={isPending}
+              className="grid grid-cols-2"
+              options={[
+                {
+                  value: "en",
+                  "data-testid": "lang-en",
+                  label: (
+                    <>
+                      {locale === "en" && <Check className="text-primary h-4 w-4" />}
+                      <span>English (EN)</span>
+                    </>
+                  ),
+                },
+                {
+                  value: "fr",
+                  "data-testid": "lang-fr",
+                  label: (
+                    <>
+                      {locale === "fr" && <Check className="text-primary h-4 w-4" />}
+                      <span>Français (FR)</span>
+                    </>
+                  ),
+                },
+              ]}
+            />
           </div>
 
           {/* Theme Selector */}
           <div>
-            <label className="text-foreground mb-2 block text-sm font-semibold">
+            <p className="text-foreground mb-2 block text-sm font-semibold">
               {dict.account.themeLabel}
-            </label>
-            <div
-              role="radiogroup"
+            </p>
+            <SegmentedControl
               aria-label={dict.account.themeLabel}
-              className="bg-muted grid grid-cols-3 gap-1 rounded-xl p-1"
-            >
-              <button
-                type="button"
-                role="radio"
-                aria-checked={theme === "system"}
-                onClick={() => setTheme("system")}
-                className={cn(
-                  "focus-visible:ring-ring flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all focus-visible:ring-2 focus-visible:outline-none sm:text-sm",
-                  theme === "system"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                data-testid="theme-system"
-              >
-                <Laptop className="h-4 w-4 shrink-0" />
-                <span>{dict.account.themeSystem}</span>
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={theme === "light"}
-                onClick={() => setTheme("light")}
-                className={cn(
-                  "focus-visible:ring-ring flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all focus-visible:ring-2 focus-visible:outline-none sm:text-sm",
-                  theme === "light"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                data-testid="theme-light"
-              >
-                <Sun className="h-4 w-4 shrink-0" />
-                <span>{dict.account.themeLight}</span>
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={theme === "dark"}
-                onClick={() => setTheme("dark")}
-                className={cn(
-                  "focus-visible:ring-ring flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-all focus-visible:ring-2 focus-visible:outline-none sm:text-sm",
-                  theme === "dark"
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                data-testid="theme-dark"
-              >
-                <Moon className="h-4 w-4 shrink-0" />
-                <span>{dict.account.themeDark}</span>
-              </button>
-            </div>
+              value={theme}
+              onValueChange={setTheme}
+              className="grid grid-cols-3"
+              optionClassName="gap-1.5 text-xs sm:text-sm"
+              options={[
+                {
+                  value: "system",
+                  "data-testid": "theme-system",
+                  label: (
+                    <>
+                      <Laptop className="h-4 w-4 shrink-0" />
+                      <span>{dict.account.themeSystem}</span>
+                    </>
+                  ),
+                },
+                {
+                  value: "light",
+                  "data-testid": "theme-light",
+                  label: (
+                    <>
+                      <Sun className="h-4 w-4 shrink-0" />
+                      <span>{dict.account.themeLight}</span>
+                    </>
+                  ),
+                },
+                {
+                  value: "dark",
+                  "data-testid": "theme-dark",
+                  label: (
+                    <>
+                      <Moon className="h-4 w-4 shrink-0" />
+                      <span>{dict.account.themeDark}</span>
+                    </>
+                  ),
+                },
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -259,13 +231,15 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
       {/* Section 4: Sign out */}
       <div className="border-border mt-8 border-t pt-6">
         <form action={signOutAction} data-testid="signout-form">
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="submit"
             className="border-destructive/30 text-destructive hover:bg-destructive/10 active:bg-destructive/20 focus-visible:ring-destructive flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <LogOut className="h-5 w-5" />
             <span>{dict.account.signOut}</span>
-          </button>
+          </Button>
         </form>
 
         <div className="text-muted-foreground mt-4 flex flex-col items-center justify-center gap-1 text-center text-xs">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useMemo, useSyncExternalStore } from "react";
+import { useActionState, useState, useId, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -33,9 +33,12 @@ import {
   type GuestContactStorage,
 } from "@/domain/checkout";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
+import { ActionBar } from "@/components/ui/action-bar";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { useZonedToday } from "@/components/time/business-timezone";
@@ -256,12 +259,11 @@ export function CheckoutForm({
 
   const canSubmit = validationResult.success && items.length > 0 && !isSubmitting;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [, formAction] = useActionState(async (): Promise<null> => {
     if (!validationResult.success) {
       const firstIssue = validationResult.error.issues[0];
       setErrorFeedback(firstIssue?.message || "Please check the form fields.");
-      return;
+      return null;
     }
 
     setErrorFeedback(null);
@@ -304,7 +306,7 @@ export function CheckoutForm({
         if (!orderResult.ok) {
           setErrorFeedback(dict[placeOrderErrorKey(orderResult)]);
           setIsSubmitting(false);
-          return;
+          return null;
         }
 
         // Display brief confirmation screen first, keeping order state visible
@@ -324,14 +326,15 @@ export function CheckoutForm({
           }
         }, delay);
 
-        return;
+        return null;
       }
     } catch {
       setErrorFeedback(dict.orderErrorInternal);
     } finally {
       setIsSubmitting(false);
     }
-  };
+    return null;
+  }, null);
 
   // Confirmation view displayed upon order submission announcing redirection
   if (submittedSuccess || confirmedOrder) {
@@ -343,9 +346,7 @@ export function CheckoutForm({
         <div className="bg-primary/10 text-primary mb-4 flex h-16 w-16 items-center justify-center rounded-full">
           <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.orderPlacedTitle}
-        </h2>
+        <h2 className="text-title-sm text-foreground">{dict.orderPlacedTitle}</h2>
         {confirmedOrder?.orderNumber && (
           <p className="text-primary mt-1 text-sm font-semibold">#{confirmedOrder.orderNumber}</p>
         )}
@@ -380,7 +381,7 @@ export function CheckoutForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" data-testid="checkout-form" noValidate>
+    <form action={formAction} className="space-y-6" data-testid="checkout-form" noValidate>
       {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
       <div
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
@@ -403,7 +404,7 @@ export function CheckoutForm({
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+          <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
             <span className="text-primary font-bold">1.</span>
             {dict.customerContact}
           </h2>
@@ -414,12 +415,11 @@ export function CheckoutForm({
 
         {/* Full Name field with Lock / Unlock affordance */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor={nameId} className="text-foreground text-xs font-medium">
-              {dict.fullName} <span className="text-destructive">*</span>
-            </label>
-            {isNameLocked && (
-              <button
+          {isNameLocked && (
+            <div className="flex justify-end">
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={() => {
                   setIsUnlocked(true);
@@ -430,28 +430,32 @@ export function CheckoutForm({
               >
                 <Pencil className="h-3.5 w-3.5" />
                 <span>{dict.editName}</span>
-              </button>
-            )}
-          </div>
+              </Button>
+            </div>
+          )}
 
-          <div className="relative">
-            {isNameLocked && (
-              <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <Lock className="h-4 w-4" />
+          <Field id={nameId} label={dict.fullName} required>
+            {(control) => (
+              <div className="relative">
+                {isNameLocked && (
+                  <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                )}
+                <Input
+                  {...control}
+                  type="text"
+                  value={name}
+                  disabled={isNameLocked}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder={dict.fullNamePlaceholder}
+                  className={isNameLocked ? "pl-9 font-medium" : ""}
+                  data-testid="checkout-name-input"
+                  required
+                />
               </div>
             )}
-            <Input
-              id={nameId}
-              type="text"
-              value={name}
-              disabled={isNameLocked}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder={dict.fullNamePlaceholder}
-              className={isNameLocked ? "pl-9 font-medium" : ""}
-              data-testid="checkout-name-input"
-              required
-            />
-          </div>
+          </Field>
 
           {/* Toast / Callout when prefilled from device memory */}
           {hasLoadedFromStorage && isNameLocked && (
@@ -466,90 +470,91 @@ export function CheckoutForm({
         </div>
 
         {/* Mobile Phone field with E.164 validation */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor={phoneId} className="text-foreground text-xs font-medium">
-              {dict.phone} <span className="text-destructive">*</span>
-            </label>
-          </div>
-          <div className="relative flex items-center">
-            <span className="text-muted-foreground border-border absolute left-3 border-r pr-2 text-xs font-semibold tabular-nums select-none">
-              FR +33
+        <Field
+          id={phoneId}
+          label={dict.phone}
+          required
+          hint={
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <span>{dict.phoneHelper}</span>
             </span>
-            <Input
-              id={phoneId}
-              type="tel"
-              value={phone}
-              onChange={(e) => setCustomPhone(e.target.value)}
-              placeholder={dict.phonePlaceholder}
-              data-testid="checkout-phone-input"
-              error={phone.length > 0 && !isPhoneValid}
-              className="pl-20 tabular-nums"
-              required
-            />
-          </div>
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
-            <span>{dict.phoneHelper}</span>
-          </p>
-        </div>
+          }
+        >
+          {(control) => (
+            <div className="relative flex items-center">
+              <span className="text-muted-foreground border-border absolute left-3 border-r pr-2 text-xs font-semibold tabular-nums select-none">
+                FR +33
+              </span>
+              <Input
+                {...control}
+                type="tel"
+                value={phone}
+                onChange={(e) => setCustomPhone(e.target.value)}
+                placeholder={dict.phonePlaceholder}
+                data-testid="checkout-phone-input"
+                error={phone.length > 0 && !isPhoneValid}
+                className="pl-20 tabular-nums"
+                required
+              />
+            </div>
+          )}
+        </Field>
       </section>
 
       {/* 2. Fulfillment Mode */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+        <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
           <span className="text-primary font-bold">2.</span>
           {dict.fulfillmentMode}
         </h2>
 
         {/* Segmented Mode Pills */}
-        <div
-          className="bg-muted grid grid-cols-2 gap-1.5 rounded-xl p-1"
-          role="radiogroup"
+        <SegmentedControl
           aria-label={dict.fulfillmentMode}
-        >
-          {pickupAllowed && (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={serviceType === "pickup"}
-              onClick={() => handleSelectServiceType("pickup")}
-              data-testid="service-pickup-button"
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
-                serviceType === "pickup"
-                  ? "border-primary bg-primary/10 text-primary border shadow-xs"
-                  : "text-muted-foreground hover:text-foreground font-medium"
-              }`}
-            >
-              <Store className="h-4 w-4" />
-              <span>{dict.pickupFree}</span>
-            </button>
-          )}
-
-          {deliveryAllowed && (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={serviceType === "delivery"}
-              onClick={() => handleSelectServiceType("delivery")}
-              data-testid="service-delivery-button"
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
-                serviceType === "delivery"
-                  ? "border-primary bg-primary/10 text-primary border shadow-xs"
-                  : "text-muted-foreground hover:text-foreground font-medium"
-              }`}
-            >
-              <Truck className="h-4 w-4" />
-              <span>
-                {dict.deliveryPaid} (
-                {settings?.deliveryFee
-                  ? formatMoney(settings.deliveryFee, locale)
-                  : dict.serviceFree}
-                )
-              </span>
-            </button>
-          )}
-        </div>
+          value={serviceType}
+          onValueChange={handleSelectServiceType}
+          className="grid grid-cols-2 gap-1.5"
+          optionClassName="min-h-9 py-2.5 text-xs font-semibold transition-all"
+          selectedClassName="border-primary bg-primary/10 text-primary border shadow-xs"
+          idleClassName="text-muted-foreground hover:text-foreground font-medium"
+          options={[
+            ...(pickupAllowed
+              ? [
+                  {
+                    value: "pickup" as const,
+                    "data-testid": "service-pickup-button",
+                    label: (
+                      <>
+                        <Store className="h-4 w-4" />
+                        <span>{dict.pickupFree}</span>
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+            ...(deliveryAllowed
+              ? [
+                  {
+                    value: "delivery" as const,
+                    "data-testid": "service-delivery-button",
+                    label: (
+                      <>
+                        <Truck className="h-4 w-4" />
+                        <span>
+                          {dict.deliveryPaid} (
+                          {settings?.deliveryFee
+                            ? formatMoney(settings.deliveryFee, locale)
+                            : dict.serviceFree}
+                          )
+                        </span>
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         {/* Conditional Address or Pickup Location */}
         {serviceType === "pickup" ? (
@@ -591,7 +596,7 @@ export function CheckoutForm({
 
       {/* 3. Order Timing */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+        <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
           <span className="text-primary font-bold">3.</span>
           {dict.orderTiming}
         </h2>
@@ -708,7 +713,7 @@ export function CheckoutForm({
       {/* 4. Payment Preference */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+          <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
             <span className="text-primary font-bold">4.</span>
             {dict.paymentMethod}
           </h2>
@@ -890,7 +895,7 @@ export function CheckoutForm({
       {/* 6. Order Summary Card */}
       <section className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="border-border flex items-center justify-between border-b pb-2">
-          <h2 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+          <h2 className="text-label-sm text-muted-foreground tracking-wider uppercase">
             {dict.orderSummary}
           </h2>
           <span className="border-border bg-muted text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums">
@@ -949,31 +954,30 @@ export function CheckoutForm({
       )}
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
-      <div
+      <ActionBar
+        placement="floating"
+        contentClassName="space-y-2"
         data-testid="checkout-action-bar"
-        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
-        <div className="mx-auto max-w-4xl space-y-2">
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            loading={isSubmitting}
-            className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
-            data-testid="place-order-button"
-          >
-            <span>
-              {isSubmitting
-                ? dict.placingOrder
-                : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
-            </span>
-            <ArrowRight className="ml-1.5 h-4 w-4" />
-          </Button>
+        <Button
+          type="submit"
+          disabled={!canSubmit}
+          loading={isSubmitting}
+          className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
+          data-testid="place-order-button"
+        >
+          <span>
+            {isSubmitting
+              ? dict.placingOrder
+              : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
+          </span>
+          <ArrowRight className="ml-1.5 h-4 w-4" />
+        </Button>
 
-          <p className="text-muted-foreground text-caption text-center">
-            🔒 {dict.pickupPolicyNotice}
-          </p>
-        </div>
-      </div>
+        <p className="text-muted-foreground text-caption text-center">
+          🔒 {dict.pickupPolicyNotice}
+        </p>
+      </ActionBar>
     </form>
   );
 }

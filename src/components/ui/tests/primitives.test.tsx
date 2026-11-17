@@ -259,3 +259,31 @@ describe("Base UI Primitives (#28)", () => {
     });
   });
 });
+
+describe("Toast error variant", () => {
+  function Trigger() {
+    const { showToast, showError } = useToast();
+    return (
+      <>
+        <button type="button" data-testid="t-ok" onClick={() => showToast("Saved")} />
+        <button type="button" data-testid="t-err" onClick={() => showError("Could not save")} />
+      </>
+    );
+  }
+
+  it("renders errors as an assertive destructive alert and default toasts unchanged", () => {
+    render(
+      <ToastProvider>
+        <Trigger />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByTestId("t-ok"));
+    expect(screen.getByTestId("toast-item").className).toContain("bg-foreground");
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByTestId("t-err"));
+    const error = screen.getByTestId("toast-error");
+    expect(error.getAttribute("role")).toBe("alert");
+    expect(error.className).toContain("bg-destructive");
+    expect(error.textContent).toContain("Could not save");
+  });
+});

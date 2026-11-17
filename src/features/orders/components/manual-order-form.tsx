@@ -19,7 +19,9 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   Dialog,
   DialogContent,
@@ -267,7 +269,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         </Link>
 
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-foreground text-base leading-tight font-bold">New Order</h1>
+          <h1 className="text-title-md text-foreground">New Order</h1>
           <span className="text-muted-foreground text-caption font-medium tracking-wider uppercase">
             Screen M-30 • Manual
           </span>
@@ -299,12 +301,12 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Step 1: Guest Information Card (Matching Stitch M-30) */}
       <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
-        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+        <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
-            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               1
             </span>
-            <h2 className="text-foreground text-sm font-semibold">Step 1: Guest Information</h2>
+            <h2 className="text-title-sm text-foreground">Step 1: Guest Information</h2>
           </div>
           {matchedGuest && (
             <span className="text-primary flex items-center gap-1 text-xs font-medium">
@@ -387,7 +389,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               data-testid="guest-name-input"
             />
             {matchedGuest && isNameLocked && (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 type="button"
                 onClick={handleUnlockGuestName}
                 aria-label="Edit guest name"
@@ -395,7 +399,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 className="text-muted-foreground hover:text-foreground hover:bg-muted absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-md transition-colors"
               >
                 <Pencil className="h-4 w-4" />
-              </button>
+              </Button>
             )}
           </div>
           {nameEditNotice && (
@@ -411,10 +415,17 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
         {/* Channel Selector Chips (Phone, WhatsApp, In-person with icons) */}
         <div>
-          <label className="text-muted-foreground text-caption mb-1.5 block font-medium">
+          <p
+            id="intake-channel-label"
+            className="text-muted-foreground text-caption mb-1.5 block font-medium"
+          >
             Intake channel
-          </label>
-          <div className="grid grid-cols-3 gap-1.5">
+          </p>
+          <div
+            role="group"
+            aria-labelledby="intake-channel-label"
+            className="grid grid-cols-3 gap-1.5"
+          >
             {(
               [
                 { id: "phone", label: "Phone", icon: Phone },
@@ -422,21 +433,24 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 { id: "in-person", label: "In-person", icon: Store },
               ] as const
             ).map((ch) => (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 key={ch.id}
                 type="button"
                 onClick={() => setChannel(ch.id)}
+                aria-pressed={channel === ch.id}
                 className={cn(
-                  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-all active:scale-95",
+                  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold whitespace-nowrap transition-all active:scale-95",
                   channel === ch.id
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",
                 )}
                 data-testid={`channel-${ch.id}`}
               >
-                <ch.icon className="h-3.5 w-3.5" />
+                <ch.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span>{ch.label}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -444,53 +458,55 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Step 2: Service & Timing Card (Matching Stitch M-30) */}
       <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
-        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+        <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
-            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               2
             </span>
-            <h2 className="text-foreground text-sm font-semibold">Step 2: Service &amp; Timing</h2>
+            <h2 className="text-title-sm text-foreground">Step 2: Service &amp; Timing</h2>
           </div>
-          <span className="text-muted-foreground text-xs capitalize">
+          <span className="text-muted-foreground shrink-0 text-xs capitalize">
             {serviceType} fulfillment
           </span>
         </div>
 
         {/* Service Segmented Control: Strictly Pickup vs Delivery */}
-        <div className="bg-muted flex items-center rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setServiceType("pickup")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-all",
-              serviceType === "pickup"
-                ? "bg-card text-primary font-bold shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            data-testid="service-type-pickup"
-          >
-            <ShoppingBag className="h-3.5 w-3.5" />
-            <span>Pickup</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setServiceType("delivery")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-all",
-              serviceType === "delivery"
-                ? "bg-card text-primary font-bold shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            data-testid="service-type-delivery"
-          >
-            <Truck className="h-3.5 w-3.5" />
-            <span>Delivery</span>
-          </button>
-        </div>
+        <SegmentedControl
+          aria-label="Service type"
+          value={serviceType}
+          onValueChange={setServiceType}
+          className="items-center rounded-lg p-0.5"
+          optionClassName="min-h-9 gap-1 rounded-md py-1.5 text-xs font-semibold"
+          selectedClassName="bg-card text-primary font-bold shadow-xs"
+          options={[
+            {
+              value: "pickup",
+              "data-testid": "service-type-pickup",
+              label: (
+                <>
+                  <ShoppingBag className="h-3.5 w-3.5" />
+                  <span>Pickup</span>
+                </>
+              ),
+            },
+            {
+              value: "delivery",
+              "data-testid": "service-type-delivery",
+              label: (
+                <>
+                  <Truck className="h-3.5 w-3.5" />
+                  <span>Delivery</span>
+                </>
+              ),
+            },
+          ]}
+        />
 
         {/* Timing Options: ASAP vs Scheduled (2-card selector matching Stitch M-30) */}
         <div className="grid grid-cols-2 gap-2">
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => setIsAsap(true)}
             className={cn(
@@ -515,9 +531,11 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               />
             </div>
             <span className="text-muted-foreground text-caption font-medium">Est. 20-25 min</span>
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => setIsAsap(false)}
             className={cn(
@@ -544,7 +562,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <span className="text-muted-foreground text-caption font-medium">
               Select date &amp; time
             </span>
-          </button>
+          </Button>
         </div>
 
         {/* Date and Time pickers when Scheduled */}
@@ -628,14 +646,14 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Step 3: Product Selection & Quantities Card (Matching Stitch M-30) */}
       <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
-        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+        <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
-            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               3
             </span>
-            <h2 className="text-foreground text-sm font-semibold">Step 3: Product Selection</h2>
+            <h2 className="text-title-sm text-foreground">Step 3: Product Selection</h2>
           </div>
-          <span className="text-muted-foreground text-xs font-medium tabular-nums">
+          <span className="text-muted-foreground shrink-0 text-xs font-medium tabular-nums">
             {totalItemCount} {totalItemCount === 1 ? "item" : "items"} selected
           </span>
         </div>
@@ -706,8 +724,10 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       </section>
 
       {/* Sticky Bottom Order Summary Bar (Z-50) */}
-      <div
-        className="bg-card/95 border-border pb-safe-3.5 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border-t p-3.5 shadow-lg backdrop-blur"
+      <ActionBar
+        placement="bottom"
+        className="pb-safe-3.5 z-50 mx-auto max-w-xl px-3.5 pt-3.5"
+        contentClassName="max-w-none justify-between"
         data-testid="manual-order-bottom-bar"
       >
         <span className="sr-only">Step 4: Order Summary</span>
@@ -731,7 +751,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             ? `Preview & Create order (${formatMoney(totalAmount)})`
             : "Preview & Create order"}
         </Button>
-      </div>
+      </ActionBar>
 
       {/* Read-Only Order Preview Modal Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

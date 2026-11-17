@@ -24,6 +24,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -432,7 +433,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             {currentOrder.status}
           </Badge>
           {/* TODO(print): wire to thermal receipt printer (#48) */}
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={handlePrint}
             aria-label="Print kitchen ticket"
@@ -440,28 +443,28 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             data-testid="print-ticket-button"
           >
             <Printer className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
       {printNotice && (
         <div className="bg-primary-soft text-primary-soft-foreground flex items-center justify-between rounded-lg p-2.5 text-xs font-medium">
           <span>Kitchen ticket print job queued (mock printer).</span>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => setPrintNotice(false)}
             className="text-xs font-bold underline"
           >
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Title & Metadata */}
       <div>
-        <h1 className="text-foreground text-xl font-bold tracking-tight">
-          Order #{currentOrder.orderNumber ?? "—"}
-        </h1>
+        <h1 className="text-title-lg text-foreground">Order #{currentOrder.orderNumber ?? "—"}</h1>
         <p className="text-muted-foreground mt-0.5 text-xs">
           Created on {formatDate(currentOrder.createdAt, timeZone, "en", "long")} at{" "}
           {formatTime(currentOrder.createdAt, timeZone, "en")} • via {currentOrder.channel}
@@ -499,7 +502,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         </div>
 
         <div className="pt-2.5">
-          <h2 className="text-foreground mb-0.5 text-base font-bold">{currentOrder.guestName}</h2>
+          <h2 className="text-title-sm text-foreground mb-0.5">{currentOrder.guestName}</h2>
           <div className="mb-3 flex min-w-0 items-center gap-1.5 text-xs font-medium">
             <span className="text-muted-foreground shrink-0 tabular-nums">
               {currentOrder.guestPhone ?? "No phone recorded"}
@@ -590,7 +593,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
           <div className="flex items-center gap-2">
-            <h2 className="text-foreground text-sm font-bold">Order Items</h2>
+            <h2 className="text-title-sm text-foreground">Order Items</h2>
             <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
               {currentOrder.items.reduce((s, it) => s + it.quantity, 0)} items
             </span>
@@ -835,7 +838,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         data-testid="order-timeline-card"
       >
         <div className="border-border/60 mb-2.5 flex items-center justify-between border-b pb-2.5">
-          <h2 className="text-foreground text-sm font-bold">Order Timeline</h2>
+          <h2 className="text-title-sm text-foreground">Order Timeline</h2>
           <span className="text-muted-foreground text-xs font-medium tabular-nums">
             Status: {currentOrder.status}
           </span>
@@ -924,8 +927,10 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
       {/* 5. Sticky Bottom Action Bar (Z-50, Full-width clearance) */}
       {currentOrder.status !== "COMPLETED" && currentOrder.status !== "CANCELLED" && (
-        <div
-          className="bg-card/95 border-border pb-safe-3.5 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-col gap-2 border-t p-3.5 shadow-lg backdrop-blur"
+        <ActionBar
+          placement="bottom"
+          className="pb-safe-3.5 z-50 mx-auto max-w-xl px-3.5 pt-3.5"
+          contentClassName="max-w-none flex-col items-stretch gap-2"
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
@@ -1005,7 +1010,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               </Button>
             )}
           </div>
-        </div>
+        </ActionBar>
       )}
 
       {/* Reject Order Dialog (NEW orders) */}
@@ -1154,7 +1159,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
           <div className="flex flex-col gap-2 py-3">
             {(["cash", "revolut", "wero"] as const).map((method) => (
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 key={method}
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
@@ -1168,7 +1175,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               >
                 <span>{method}</span>
                 {selectedPaymentMethod === method && <Check className="h-4 w-4" />}
-              </button>
+              </Button>
             ))}
           </div>
 

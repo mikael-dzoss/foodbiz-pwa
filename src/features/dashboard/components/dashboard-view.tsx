@@ -49,9 +49,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
       <header className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-foreground text-2xl font-bold tracking-tight">
-              {dict.dashboard.title}
-            </h1>
+            <h1 className="text-title-lg text-foreground">{dict.dashboard.title}</h1>
             <p className="text-muted-foreground text-xs font-normal">{dict.dashboard.subtitle}</p>
           </div>
           <span className="bg-primary-soft text-primary-soft-foreground text-caption inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium">

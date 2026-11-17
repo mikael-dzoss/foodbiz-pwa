@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState, useState } from "react";
 import { categoryRoleSchema, type CategoryRole } from "@/domain/category";
 import { getDictionary, type ProductsDictionary } from "@/domain/i18n";
 import type { ProductCategory } from "@/domain/product";
@@ -11,7 +11,9 @@ import {
 } from "../category-actions";
 import { Plus, Edit2, Trash2, Check, X, Folder, GripVertical, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import type { CategoryWithProductCount } from "../category-data";
 import { actionErrorMessage } from "@/lib/actions/error-message";
@@ -30,7 +32,6 @@ export function CategoryManager({
   const [newRole, setNewRole] = useState<CategoryRole>("regular");
   const [editRole, setEditRole] = useState<CategoryRole>("regular");
   const [createError, setCreateError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -39,15 +40,11 @@ export function CategoryManager({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleCreate = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
-
-    setIsCreating(true);
+  const [, createAction, isCreating] = useActionState(async (): Promise<null> => {
+    if (!newName.trim()) return null;
     setCreateError(null);
 
     const res = await createCategoryAction({ name: newName, role: newRole });
-    setIsCreating(false);
 
     if (res.ok) {
       setCategories((prev) => [...prev, { ...res.data, productCount: 0 }]);
@@ -56,7 +53,8 @@ export function CategoryManager({
     } else {
       setCreateError(actionErrorMessage(res));
     }
-  };
+    return null;
+  }, null);
 
   const startEditing = (cat: ProductCategory) => {
     setEditingId(cat.id);
@@ -105,51 +103,40 @@ export function CategoryManager({
     <div className="space-y-5">
       {/* 1. Add Category Section (Stitch M-42 Form Card) */}
       <section className="bg-card border-border rounded-lg border p-4 shadow-none sm:p-5">
-        <form onSubmit={handleCreate} className="space-y-3">
-          <h2 className="text-foreground text-sm font-semibold">Add New Category</h2>
+        <form action={createAction} className="space-y-3">
+          <h2 className="text-title-sm text-foreground">Add New Category</h2>
 
-          <div>
-            <label
-              htmlFor="new-category-name-input"
-              className="text-muted-foreground mb-1.5 block text-xs font-medium"
-            >
-              Category name
-            </label>
-            <div className="relative">
-              {/* TODO(design): scale down h-12/text-base to h-11/text-sm to match Stitch mobile tokens */}
-              <Input
-                id="new-category-name-input"
-                type="text"
-                placeholder="e.g. Desserts, Drinks..."
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  if (createError) setCreateError(null);
-                }}
-                className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-12 rounded-lg text-base"
-                data-testid="new-category-name-input"
-                aria-label="New category name"
-              />
-            </div>
-            <p className="text-muted-foreground text-caption mt-1.5 flex items-center gap-1">
-              <Info className="h-3.5 w-3.5 shrink-0" />
-              <span>Visible in ordering menu and kitchen tickets</span>
-            </p>
-          </div>
+          <Field
+            id="new-category-name-input"
+            label="Category name"
+            hint={
+              <span className="flex items-center gap-1">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                <span>Visible in ordering menu and kitchen tickets</span>
+              </span>
+            }
+            error={createError}
+          >
+            <Input
+              type="text"
+              placeholder="e.g. Desserts, Drinks..."
+              value={newName}
+              onChange={(e) => {
+                setNewName(e.target.value);
+                if (createError) setCreateError(null);
+              }}
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-12 rounded-lg text-base"
+              data-testid="new-category-name-input"
+              aria-label="New category name"
+            />
+          </Field>
 
-          <div>
-            <label
-              htmlFor="new-category-role"
-              className="text-muted-foreground mb-1.5 block text-xs font-medium"
-            >
-              {dict.categoryRoleLabel}
-            </label>
-            <select
-              id="new-category-role"
+          <Field id="new-category-role" label={dict.categoryRoleLabel}>
+            <NativeSelect
               value={newRole}
               onChange={(e) => setNewRole(categoryRoleSchema.parse(e.target.value))}
               disabled={isCreating}
-              className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              className="rounded-lg text-sm"
               data-testid="new-category-role-select"
             >
               {categoryRoleSchema.options.map((role) => (
@@ -157,8 +144,8 @@ export function CategoryManager({
                   {dict.categoryRoles[role]}
                 </option>
               ))}
-            </select>
-          </div>
+            </NativeSelect>
+          </Field>
 
           {/* TODO(design): scale down button from h-12 to min-h-11 (h-10 or h-11) */}
           <Button
@@ -171,12 +158,6 @@ export function CategoryManager({
             <Plus className="h-4 w-4" />
             <span>Add Category</span>
           </Button>
-
-          {createError && (
-            <p role="alert" className="text-destructive mt-1 text-xs font-medium">
-              {createError}
-            </p>
-          )}
         </form>
       </section>
 
@@ -187,14 +168,16 @@ export function CategoryManager({
           className="border-destructive/30 bg-destructive/10 text-destructive flex items-center justify-between rounded-lg border p-3.5 text-xs font-medium"
         >
           <span>{deleteError}</span>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             data-testid="dismiss-category-error"
             onClick={() => setDeleteError(null)}
             className="text-destructive/80 hover:text-destructive min-h-11 min-w-11 text-xs underline"
           >
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
@@ -203,7 +186,7 @@ export function CategoryManager({
         {/* Section Header */}
         <div className="border-border flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-foreground text-sm font-semibold">
+            <h2 className="text-title-sm text-foreground">
               All Categories <span className="sr-only">Categories ({categories.length})</span>
             </h2>
             <span className="bg-muted text-foreground border-border rounded-full border px-2 py-0.5 text-xs font-semibold">
@@ -227,18 +210,15 @@ export function CategoryManager({
               if (isEditing) {
                 return (
                   <div key={cat.id} className="bg-card p-3.5">
-                    <div className="mb-2">
-                      <label
-                        htmlFor={`edit-category-role-${cat.id}`}
-                        className="text-muted-foreground mb-1.5 block text-xs font-medium"
-                      >
-                        {dict.categoryRoleLabel}
-                      </label>
-                      <select
-                        id={`edit-category-role-${cat.id}`}
+                    <Field
+                      id={`edit-category-role-${cat.id}`}
+                      label={dict.categoryRoleLabel}
+                      className="mb-2"
+                    >
+                      <NativeSelect
                         value={editRole}
                         onChange={(e) => setEditRole(categoryRoleSchema.parse(e.target.value))}
-                        className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                        className="rounded-lg text-sm"
                         data-testid={`edit-category-role-select-${cat.id}`}
                       >
                         {categoryRoleSchema.options.map((role) => (
@@ -246,8 +226,8 @@ export function CategoryManager({
                             {dict.categoryRoles[role]}
                           </option>
                         ))}
-                      </select>
-                    </div>
+                      </NativeSelect>
+                    </Field>
                     <div className="flex items-center gap-2">
                       <Input
                         id={`edit-category-name-${cat.id}`}
@@ -305,14 +285,16 @@ export function CategoryManager({
                   role="listitem"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <button
+                    <Button
+                      variant="unstyled"
+                      size="none"
                       type="button"
                       data-testid={`reorder-category-${cat.id}`}
                       aria-label={`Reorder ${cat.name}`}
                       className="text-muted-foreground/60 hover:text-foreground -ml-1 min-h-11 min-w-11 touch-manipulation p-1"
                     >
                       <GripVertical className="h-4 w-4" />
-                    </button>
+                    </Button>
                     <div className="min-w-0">
                       <div className="text-foreground truncate text-sm font-semibold">
                         {cat.name}

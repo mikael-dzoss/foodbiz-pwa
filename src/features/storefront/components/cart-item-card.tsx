@@ -6,6 +6,7 @@ import type { CartItem } from "../context/cart-context";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
+import { Button } from "@/components/ui/button";
 
 export interface CartItemCardProps {
   item: CartItem;
@@ -46,9 +47,7 @@ export function CartItemCard({
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
-              <h3 className="text-foreground truncate text-sm leading-snug font-semibold">
-                {item.name}
-              </h3>
+              <h3 className="text-label-md text-foreground truncate">{item.name}</h3>
               {isAtMaxStock && (
                 <span className="border-border bg-muted text-muted-foreground text-micro inline-flex items-center rounded border px-1.5 py-0.5 font-medium">
                   {dict.maxStockReached} ({item.maxStock})
@@ -60,14 +59,16 @@ export function CartItemCard({
             </p>
           </div>
 
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${item.name}`}
             className="text-muted-foreground hover:text-destructive -mt-1 -mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors active:opacity-80"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Footer Row: Line Total on Left, Quantity Stepper on Right */}

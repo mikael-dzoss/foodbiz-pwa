@@ -4,6 +4,7 @@ import { signInMockAction, signInWithGoogleAction } from "@/features/auth/action
 import { LoginErrorBanner, LoginNextInput } from "./login-error-banner";
 import type { AuthErrorCode } from "@/domain/auth";
 import { DEFAULT_LOCALE, getDictionary, type SupportedLocale } from "@/domain/i18n";
+import { Button } from "@/components/ui/button";
 
 export interface LoginViewProps {
   error?: AuthErrorCode | string | null;
@@ -48,7 +49,7 @@ export function LoginView({
               <span className="text-primary text-2xl font-bold tracking-tighter">F</span>
             </div>
             {/* Brand Title & Subtitle Badge */}
-            <h2 className="text-foreground text-title-lg font-bold tracking-tight">FoodBiz</h2>
+            <h2 className="text-title-lg text-foreground">FoodBiz</h2>
             <div className="mt-1.5">
               <span className="text-primary-soft-foreground bg-primary-soft inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-normal">
                 Manager Portal
@@ -63,7 +64,7 @@ export function LoginView({
 
             {/* Heading & Body */}
             <div className="mb-6">
-              <h3 className="text-foreground text-xl font-bold tracking-tight">Welcome back</h3>
+              <h3 className="text-title-sm text-foreground">Welcome back</h3>
               <p className="text-muted-foreground mt-1 text-sm leading-snug">
                 Sign in to manage your menu, orders, and daily operations.
               </p>
@@ -72,7 +73,9 @@ export function LoginView({
             {/* Primary Action: Continue with Google */}
             <form action={signInWithGoogleAction}>
               <LoginNextInput next={next} />
-              <button
+              <Button
+                variant="unstyled"
+                size="none"
                 id="google-sign-in-btn"
                 type="submit"
                 aria-label="Continue with Google"
@@ -97,7 +100,7 @@ export function LoginView({
                   />
                 </svg>
                 <span>{dict.auth.continueWithGoogle || "Continue with Google"}</span>
-              </button>
+              </Button>
             </form>
 
             {/* M5: Demo Account & Divider ONLY rendered when showDemoAccount is true */}
@@ -115,7 +118,9 @@ export function LoginView({
 
                 {/* Secondary Action: Demo Account */}
                 <form action={signInMockAction}>
-                  <button
+                  <Button
+                    variant="unstyled"
+                    size="none"
                     id="sign-in-submit-btn"
                     type="submit"
                     aria-label="Sign in as Manager (Demo Account)"
@@ -123,7 +128,7 @@ export function LoginView({
                   >
                     <Store className="h-4.5 w-4.5" />
                     <span>Sign in as Manager (Demo Account)</span>
-                  </button>
+                  </Button>
                 </form>
               </>
             )}

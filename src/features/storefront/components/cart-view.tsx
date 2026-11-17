@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,9 +62,7 @@ export function CartView({
         <div className="bg-muted text-muted-foreground mb-4 flex h-20 w-20 items-center justify-center rounded-full">
           <ShoppingBag className="h-10 w-10 opacity-50" />
         </div>
-        <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.emptyCartTitle}
-        </h2>
+        <h2 className="text-title-sm text-foreground">{dict.emptyCartTitle}</h2>
         <p className="text-muted-foreground mt-2 max-w-sm text-sm">{dict.emptyCartMessage}</p>
         <div className="mt-6">
           <Button asChild size="lg" className="rounded-xl px-6">
@@ -90,9 +89,7 @@ export function CartView({
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground text-base font-semibold tracking-tight">
-              {dict.yourCart}
-            </h1>
+            <h1 className="text-title-md text-foreground">{dict.yourCart}</h1>
             <span
               data-testid="cart-count-badge"
               className="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
@@ -102,7 +99,9 @@ export function CartView({
           </div>
         </div>
 
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           onClick={clearCart}
           aria-label={dict.clearCart}
@@ -110,7 +109,7 @@ export function CartView({
           data-testid="clear-cart-top-button"
         >
           <Trash2 className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Minimum Order Indicator */}
@@ -144,14 +143,16 @@ export function CartView({
             </label>
             <SoonBadge label={dict.soon} data-testid="discount-soon-badge" />
           </div>
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="button"
             onClick={() => showToast(dict.voucherUnavailableNotice)}
             className="text-primary cursor-pointer text-xs font-medium hover:underline"
             data-testid="have-voucher-button"
           >
             {dict.haveVoucher}
-          </button>
+          </Button>
         </div>
         <div className="flex gap-2">
           <Input
@@ -177,7 +178,9 @@ export function CartView({
 
       {/* Kitchen / Packing Notes Disclosure */}
       <section className="border-border bg-card overflow-hidden rounded-xl border shadow-2xs">
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           onClick={() => setIsNotesOpen((prev) => !prev)}
           aria-expanded={isNotesOpen}
@@ -194,7 +197,7 @@ export function CartView({
           ) : (
             <ChevronRight className="text-muted-foreground h-4 w-4 transition-transform" />
           )}
-        </button>
+        </Button>
 
         {isNotesOpen && (
           <div id="kitchen-notes-collapse" className="border-border/60 border-t p-3.5 pt-2">
@@ -213,7 +216,7 @@ export function CartView({
 
       {/* Order Breakdown Summary Card */}
       <section className="border-border bg-card space-y-2.5 rounded-xl border p-4 shadow-2xs">
-        <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground tracking-wider uppercase">
           {dict.orderSummary}
         </h2>
         <div className="flex justify-between text-xs sm:text-sm">
@@ -250,43 +253,42 @@ export function CartView({
       </section>
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
-      <div
+      <ActionBar
+        placement="floating"
+        contentClassName="flex items-center gap-3"
         data-testid="cart-action-bar"
-        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={clearCart}
-            className="h-12 rounded-xl px-4 text-xs font-semibold sm:text-sm"
-            data-testid="clear-cart-bottom-button"
-          >
-            {dict.clearCart}
-          </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={clearCart}
+          className="h-12 rounded-xl px-4 text-xs font-semibold sm:text-sm"
+          data-testid="clear-cart-bottom-button"
+        >
+          {dict.clearCart}
+        </Button>
 
-          <Button
-            asChild={canProceed}
-            disabled={!canProceed}
-            className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-xs sm:text-base"
-            data-testid="proceed-checkout-button"
-          >
-            {canProceed ? (
-              <Link href={`/${locale}/checkout`}>
-                <span>
-                  {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
-                </span>
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Link>
-            ) : (
-              <span className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
+        <Button
+          asChild={canProceed}
+          disabled={!canProceed}
+          className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-xs sm:text-base"
+          data-testid="proceed-checkout-button"
+        >
+          {canProceed ? (
+            <Link href={`/${locale}/checkout`}>
+              <span>
                 {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
               </span>
-            )}
-          </Button>
-        </div>
-      </div>
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
+            </span>
+          )}
+        </Button>
+      </ActionBar>
     </div>
   );
 }

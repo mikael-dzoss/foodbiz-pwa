@@ -1,20 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import {
-  ChevronLeft,
-  CreditCard,
-  Banknote,
-  Smartphone,
-  QrCode,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
+import { useActionState, useState } from "react";
+import { ChevronLeft, CreditCard, Banknote, Smartphone, QrCode, AlertCircle } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
-import { Switch, useToast } from "@/components/ui";
+import {
+  ActionBar,
+  Button,
+  Field,
+  Input,
+  Switch,
+  Textarea,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  useToast,
+} from "@/components/ui";
 import { updatePaymentSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
@@ -26,8 +30,9 @@ export interface PaymentSettingsFormProps {
 }
 
 export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentSettingsFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updatePaymentSettingsAction>> | null;
+  const [dismissed, setDismissed] = useState<SaveResult>(null);
 
   // 1. Direct transfer identifiers
   const [revolutRevtag, setRevolutRevtag] = useState(settings.revolutRevtag ?? "");
@@ -50,7 +55,6 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
   const [activeTab, setActiveTab] = useState<"en" | "fr">("en");
 
   // Errors
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const handleDiscard = () => {
     setRevolutRevtag(settings.revolutRevtag ?? "");
@@ -60,50 +64,47 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
     setWero(settings.paymentMethods?.wero ?? true);
     setPaymentInstructionsEn(settings.paymentInstructionsEn ?? "");
     setPaymentInstructionsFr(settings.paymentInstructionsFr ?? "");
-    setErrors({});
+    setDismissed(result);
     showToast("Changes discarded");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
+  const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     // Acceptance criterion: At least one payment option must be enabled
     if (!cash && !revolut && !wero) {
-      setErrors({
-        paymentMethods: [dict.payment.atLeastOneMethodError],
-      });
-      showToast(dict.payment.atLeastOneMethodError);
-      return;
+      showError(dict.payment.atLeastOneMethodError);
+      return {
+        ok: false,
+        code: "VALIDATION",
+        message: dict.payment.atLeastOneMethodError,
+        fieldErrors: { paymentMethods: [dict.payment.atLeastOneMethodError] },
+      };
     }
 
-    startTransition(async () => {
-      const res = await updatePaymentSettingsAction({
-        revolutRevtag: revolutRevtag.trim(),
-        weroIdentifier: weroIdentifier.trim(),
-        paymentMethods: {
-          cash,
-          revolut,
-          wero,
-        },
-        paymentInstructionsEn: paymentInstructionsEn.trim(),
-        paymentInstructionsFr: paymentInstructionsFr.trim(),
-      });
-
-      if (res.ok) {
-        showToast(dict.payment.saveSuccess);
-      } else {
-        if (res.fieldErrors) {
-          setErrors(res.fieldErrors);
-        }
-        showToast(actionErrorMessage(res));
-      }
+    const res = await updatePaymentSettingsAction({
+      revolutRevtag: revolutRevtag.trim(),
+      weroIdentifier: weroIdentifier.trim(),
+      paymentMethods: {
+        cash,
+        revolut,
+        wero,
+      },
+      paymentInstructionsEn: paymentInstructionsEn.trim(),
+      paymentInstructionsFr: paymentInstructionsFr.trim(),
     });
-  };
+
+    if (res.ok) {
+      showToast(dict.payment.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
+  const errors: Record<string, string[]> =
+    result && result !== dismissed && !result.ok ? (result.fieldErrors ?? {}) : {};
 
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="payment-settings-form"
     >
@@ -136,9 +137,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.payment.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.payment.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.payment.description}</p>
       </div>
 
@@ -154,55 +153,47 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
           </h2>
           <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
             {/* Revolut Revtag */}
-            <div>
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="revolut-revtag-input"
-                  className="text-foreground text-sm font-semibold"
-                >
-                  {dict.payment.revolutLabel}
-                </label>
-              </div>
-              <p className="text-body-sm text-muted-foreground mt-0.5">
-                {dict.payment.revolutHelper}
-              </p>
-              <div className="relative mt-2">
-                <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 font-mono text-sm">
-                  @
-                </span>
-                <input
-                  id="revolut-revtag-input"
-                  data-testid="input-revolut-revtag"
-                  type="text"
-                  value={revolutRevtag.replace(/^@/, "")}
-                  onChange={(e) => setRevolutRevtag(e.target.value)}
-                  placeholder={dict.payment.revolutPlaceholder.replace(/^@/, "")}
-                  className="border-input bg-background text-foreground focus-visible:ring-ring w-full rounded-xl border py-2 pr-3 pl-8 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                />
-              </div>
-            </div>
+            <Field
+              id="revolut-revtag-input"
+              label={dict.payment.revolutLabel}
+              hint={dict.payment.revolutHelper}
+              hintPosition="above"
+            >
+              {(control) => (
+                <div className="relative">
+                  <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 font-mono text-sm">
+                    @
+                  </span>
+                  <Input
+                    {...control}
+                    data-testid="input-revolut-revtag"
+                    type="text"
+                    value={revolutRevtag.replace(/^@/, "")}
+                    onChange={(e) => setRevolutRevtag(e.target.value)}
+                    placeholder={dict.payment.revolutPlaceholder.replace(/^@/, "")}
+                    className="h-11 rounded-xl py-2 pr-3 pl-8 text-sm"
+                  />
+                </div>
+              )}
+            </Field>
 
             {/* Wero Identifier */}
-            <div className="border-border border-t pt-3">
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="wero-identifier-input"
-                  className="text-foreground text-sm font-semibold"
-                >
-                  {dict.payment.weroLabel}
-                </label>
-              </div>
-              <p className="text-body-sm text-muted-foreground mt-0.5">{dict.payment.weroHelper}</p>
-              <input
-                id="wero-identifier-input"
+            <Field
+              id="wero-identifier-input"
+              label={dict.payment.weroLabel}
+              hint={dict.payment.weroHelper}
+              hintPosition="above"
+              className="border-border border-t pt-3"
+            >
+              <Input
                 data-testid="input-wero-identifier"
                 type="text"
                 value={weroIdentifier}
                 onChange={(e) => setWeroIdentifier(e.target.value)}
                 placeholder={dict.payment.weroPlaceholder}
-                className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="h-11 rounded-xl py-2 text-sm"
               />
-            </div>
+            </Field>
           </div>
         </div>
 
@@ -303,85 +294,69 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
           {dict.payment.instructionsSection}
         </h2>
         <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="bg-muted inline-flex rounded-lg p-1 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setActiveTab("en")}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "en" | "fr")}>
+            <TabsList
+              aria-label={dict.payment.instructionsSection}
+              className="bg-muted mb-3 h-auto rounded-lg p-1 text-xs"
+            >
+              <TabsTrigger
+                value="en"
                 data-testid="tab-instructions-en"
-                className={`rounded-md px-3 py-1 transition-colors ${
-                  activeTab === "en"
-                    ? "bg-card text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-2xs"
               >
                 English
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("fr")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="fr"
                 data-testid="tab-instructions-fr"
-                className={`rounded-md px-3 py-1 transition-colors ${
-                  activeTab === "fr"
-                    ? "bg-card text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="min-h-9 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-2xs"
               >
                 Français
-              </button>
-            </div>
-          </div>
+              </TabsTrigger>
+            </TabsList>
 
-          {/* The EN/FR tabs above stay usable when read-only; only the inputs are disabled. */}
-          <fieldset
-            disabled={Boolean(readOnlyReason)}
-            aria-describedby={readOnlyReason ? "payment-owner-only-notice" : undefined}
-            className="min-w-0 border-0 p-0"
-          >
-            {activeTab === "en" ? (
-              <div>
-                <label
-                  htmlFor="instructions-en"
-                  className="text-foreground block text-sm font-semibold"
-                >
-                  {dict.payment.instructionsEnLabel}
-                </label>
-                <p className="text-body-sm text-muted-foreground mt-0.5">
-                  {dict.payment.instructionsHelper}
-                </p>
-                <textarea
+            {/* The EN/FR tabs above stay usable when read-only; only the inputs are disabled. */}
+            <fieldset
+              disabled={Boolean(readOnlyReason)}
+              aria-describedby={readOnlyReason ? "payment-owner-only-notice" : undefined}
+              className="min-w-0 border-0 p-0"
+            >
+              <TabsContent value="en" className="mt-0">
+                <Field
                   id="instructions-en"
-                  data-testid="textarea-instructions-en"
-                  rows={3}
-                  value={paymentInstructionsEn}
-                  onChange={(e) => setPaymentInstructionsEn(e.target.value)}
-                  placeholder="e.g. Please show your order confirmation on pickup. Revolut or cash accepted."
-                  className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                />
-              </div>
-            ) : (
-              <div>
-                <label
-                  htmlFor="instructions-fr"
-                  className="text-foreground block text-sm font-semibold"
+                  label={dict.payment.instructionsEnLabel}
+                  hint={dict.payment.instructionsHelper}
+                  hintPosition="above"
                 >
-                  {dict.payment.instructionsFrLabel}
-                </label>
-                <p className="text-body-sm text-muted-foreground mt-0.5">
-                  {dict.payment.instructionsHelper}
-                </p>
-                <textarea
+                  <Textarea
+                    data-testid="textarea-instructions-en"
+                    rows={3}
+                    value={paymentInstructionsEn}
+                    onChange={(e) => setPaymentInstructionsEn(e.target.value)}
+                    placeholder="e.g. Please show your order confirmation on pickup. Revolut or cash accepted."
+                    className="rounded-xl py-2 text-sm"
+                  />
+                </Field>
+              </TabsContent>
+              <TabsContent value="fr" className="mt-0">
+                <Field
                   id="instructions-fr"
-                  data-testid="textarea-instructions-fr"
-                  rows={3}
-                  value={paymentInstructionsFr}
-                  onChange={(e) => setPaymentInstructionsFr(e.target.value)}
-                  placeholder="ex. Merci de présenter votre confirmation au comptoir. Espèces ou Revolut acceptés."
-                  className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                />
-              </div>
-            )}
-          </fieldset>
+                  label={dict.payment.instructionsFrLabel}
+                  hint={dict.payment.instructionsHelper}
+                  hintPosition="above"
+                >
+                  <Textarea
+                    data-testid="textarea-instructions-fr"
+                    rows={3}
+                    value={paymentInstructionsFr}
+                    onChange={(e) => setPaymentInstructionsFr(e.target.value)}
+                    placeholder="ex. Merci de présenter votre confirmation au comptoir. Espèces ou Revolut acceptés."
+                    className="rounded-xl py-2 text-sm"
+                  />
+                </Field>
+              </TabsContent>
+            </fieldset>
+          </Tabs>
         </div>
       </div>
 
@@ -411,35 +386,28 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
         </div>
       </div>
 
-      {/* Sticky Bottom Actions */}
-      <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-4 backdrop-blur-md">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <button
-            type="button"
-            onClick={handleDiscard}
-            disabled={isPending}
-            data-testid="discard-button"
-            className="border-border hover:bg-muted active:bg-muted/80 text-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          >
-            {dict.payment.discardButton}
-          </button>
-          <button
-            type="submit"
-            disabled={isPending || Boolean(readOnlyReason)}
-            data-testid="save-payment-button"
-            className="bg-primary hover:bg-primary/90 active:bg-primary/95 text-primary-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <span>{dict.payment.saveButton}</span>
-            )}
-          </button>
-        </div>
-      </div>
+      {/* Sticky Save/Discard bar: above the manager bottom nav, static on desktop */}
+      <ActionBar data-testid="settings-action-bar">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleDiscard}
+          disabled={isPending}
+          data-testid="discard-button"
+          className="flex-1 rounded-xl"
+        >
+          {dict.payment.discardButton}
+        </Button>
+        <Button
+          type="submit"
+          disabled={isPending || Boolean(readOnlyReason)}
+          loading={isPending}
+          data-testid="save-payment-button"
+          className="flex-1 rounded-xl"
+        >
+          {isPending ? dict.saving : dict.payment.saveButton}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

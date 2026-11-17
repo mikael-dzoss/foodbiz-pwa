@@ -22,6 +22,7 @@ import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import { buildOpenStreetMapEmbedUrl, type BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 import { SoonBadge } from "@/components/feedback";
+import { ActionBar } from "@/components/ui/action-bar";
 
 export interface ShopInfoViewProps {
   business: StorefrontBusiness;
@@ -104,10 +105,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                   {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
                 </span>
               </div>
-              <h1
-                id="overview-heading"
-                className="text-foreground mt-0.5 text-lg leading-snug font-bold tracking-tight"
-              >
+              <h1 id="overview-heading" className="text-title-lg text-foreground mt-0.5">
                 {business.name}
               </h1>
             </div>
@@ -181,7 +179,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
         >
           <h2
             id="contact-heading"
-            className="text-muted-foreground px-1 text-xs font-semibold tracking-wider uppercase"
+            className="text-label-sm text-muted-foreground px-1 tracking-wider uppercase"
           >
             {dict.contact}
           </h2>
@@ -271,7 +269,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
         >
           <div className="flex items-center gap-2">
             <Clock className="text-primary h-4 w-4" />
-            <h2 id="hours-heading" className="text-foreground text-sm font-semibold">
+            <h2 id="hours-heading" className="text-title-sm text-foreground">
               {dict.weeklyOpeningHours}
             </h2>
             <span className="sr-only">{dict.openHours}</span>
@@ -401,7 +399,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       >
         <div className="flex items-center gap-2">
           <Truck className="text-primary h-4 w-4" />
-          <h2 id="ordering-policy-heading" className="text-foreground text-sm font-semibold">
+          <h2 id="ordering-policy-heading" className="text-title-sm text-foreground">
             {dict.deliveryPolicy}
           </h2>
         </div>
@@ -462,20 +460,19 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       </section>
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#249) */}
-      <div
+      <ActionBar
+        placement="floating"
+        contentClassName="flex items-center"
         data-testid="shop-info-action-bar"
-        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
-        <div className="mx-auto flex max-w-4xl items-center">
-          <Link
-            href={`/${locale}`}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold shadow-xs transition-all active:scale-98"
-          >
-            <UtensilsCrossed className="h-4.5 w-4.5" />
-            <span>{dict.returnToCatalog}</span>
-          </Link>
-        </div>
-      </div>
+        <Link
+          href={`/${locale}`}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold shadow-xs transition-all active:scale-98"
+        >
+          <UtensilsCrossed className="h-4.5 w-4.5" />
+          <span>{dict.returnToCatalog}</span>
+        </Link>
+      </ActionBar>
     </div>
   );
 }

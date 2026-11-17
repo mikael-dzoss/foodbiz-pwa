@@ -20,7 +20,7 @@ export const SelectTrigger = React.forwardRef<
     className={cn(
       "border-input bg-card text-foreground flex h-12 min-h-11 w-full items-center justify-between rounded-md border px-3 py-2 text-base",
       "placeholder:text-muted-foreground focus:ring-ring focus:ring-2 focus:ring-offset-2 focus:outline-none",
-      "disabled:cursor-not-allowed disabled:opacity-50",
+      "aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50",
       className,
     )}
     data-testid={testId}

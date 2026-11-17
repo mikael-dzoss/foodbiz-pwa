@@ -5,15 +5,14 @@ import { AlertCircle, Loader2, Lock } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { INITIAL_ORDER_LOOKUP_STATE, type OrderLookupState } from "@/domain/order-lookup";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 export interface OrderLookupFormProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   action: (prev: OrderLookupState, formData: FormData) => Promise<OrderLookupState>;
 }
-
-const INPUT_CLASS =
-  "border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring min-h-12 w-full rounded-xl border py-2.5 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none";
 
 export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) {
   const [state, formAction, pending] = useActionState(action, INITIAL_ORDER_LOOKUP_STATE);
@@ -30,7 +29,7 @@ export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) 
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-4" data-testid="order-lookup">
       <header>
-        <h1 className="text-foreground text-title-lg">{dict.trackTitle}</h1>
+        <h1 className="text-title-lg text-foreground">{dict.trackTitle}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{dict.trackIntro}</p>
       </header>
 
@@ -53,15 +52,8 @@ export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) 
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="order-lookup-phone"
-            className="text-foreground mb-1.5 block text-sm font-semibold"
-          >
-            {dict.trackPhoneLabel}
-          </label>
-          <input
-            id="order-lookup-phone"
+        <Field id="order-lookup-phone" label={dict.trackPhoneLabel}>
+          <Input
             name="phone"
             type="tel"
             inputMode="tel"
@@ -71,40 +63,36 @@ export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) 
             placeholder="06 12 34 56 78"
             aria-invalid={state.status === "error" || undefined}
             data-testid="order-lookup-phone"
-            className={`${INPUT_CLASS} px-3.5`}
+            className="rounded-xl px-3.5 py-2.5"
           />
-        </div>
+        </Field>
 
-        <div>
-          <label
-            htmlFor="order-lookup-number"
-            className="text-foreground mb-1.5 block text-sm font-semibold"
-          >
-            {dict.trackOrderNumberLabel}
-          </label>
-          <div className="relative">
-            <span
-              className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-base"
-              aria-hidden="true"
-            >
-              #
-            </span>
-            <input
-              id="order-lookup-number"
-              name="orderNumber"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="off"
-              required
-              defaultValue={values?.orderNumber}
-              placeholder="1042"
-              aria-invalid={state.status === "error" || undefined}
-              data-testid="order-lookup-number"
-              className={`${INPUT_CLASS} pr-3.5 pl-8 tabular-nums`}
-            />
-          </div>
-        </div>
+        <Field id="order-lookup-number" label={dict.trackOrderNumberLabel}>
+          {(control) => (
+            <div className="relative">
+              <span
+                className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-base"
+                aria-hidden="true"
+              >
+                #
+              </span>
+              <Input
+                {...control}
+                name="orderNumber"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                required
+                defaultValue={values?.orderNumber}
+                placeholder="1042"
+                aria-invalid={state.status === "error" || undefined}
+                data-testid="order-lookup-number"
+                className="rounded-xl py-2.5 pr-3.5 pl-8 tabular-nums"
+              />
+            </div>
+          )}
+        </Field>
 
         {errorMessage && (
           <p

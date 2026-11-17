@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Plus, Receipt, ChevronRight, Utensils, Truck, Wrench, Package, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/feedback";
 import {
   formatCalendarDate,
@@ -164,7 +165,7 @@ export function ExpenseManager({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground text-2xl font-bold tracking-tight">Expenses</h1>
+            <h1 className="text-title-lg text-foreground">Expenses</h1>
             <span className="text-muted-foreground border-border rounded border px-1.5 py-0.5 font-mono text-xs">
               Screen M-50
             </span>
@@ -185,44 +186,19 @@ export function ExpenseManager({
       </div>
 
       {/* Period Segmented Control */}
-      <div className="bg-muted/50 border-border flex rounded-xl border p-1">
-        <button
-          type="button"
-          onClick={() => setPeriodFilter("this-month")}
-          className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-            periodFilter === "this-month"
-              ? "bg-card text-foreground font-semibold shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="period-filter-this-month"
-        >
-          This month
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriodFilter("last-month")}
-          className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-            periodFilter === "last-month"
-              ? "bg-card text-foreground font-semibold shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="period-filter-last-month"
-        >
-          Last month
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriodFilter("all")}
-          className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-            periodFilter === "all"
-              ? "bg-card text-foreground font-semibold shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="period-filter-all"
-        >
-          All time
-        </button>
-      </div>
+      <SegmentedControl
+        aria-label="Period"
+        value={periodFilter}
+        onValueChange={setPeriodFilter}
+        className="bg-muted/50 border-border rounded-xl border"
+        optionClassName="min-h-9 flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
+        selectedClassName="bg-card text-foreground font-semibold shadow-sm"
+        options={[
+          { value: "this-month", label: "This month", "data-testid": "period-filter-this-month" },
+          { value: "last-month", label: "Last month", "data-testid": "period-filter-last-month" },
+          { value: "all", label: "All time", "data-testid": "period-filter-all" },
+        ]}
+      />
 
       {/* Monthly Summary KPI Card */}
       <div
@@ -301,7 +277,9 @@ export function ExpenseManager({
 
       {/* Tag Filter Pills Row */}
       <div className="no-scrollbar flex items-center gap-2 overflow-x-auto py-1">
-        <button
+        <Button
+          variant="unstyled"
+          size="none"
           type="button"
           onClick={() => setSelectedTag("all")}
           className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
@@ -313,13 +291,15 @@ export function ExpenseManager({
         >
           <span>All</span>
           <span className="font-mono opacity-75">({tagCounts.all ?? 0})</span>
-        </button>
+        </Button>
 
         {STANDARD_EXPENSE_TAGS.map((tag) => {
           const isSelected = selectedTag === tag;
           const count = tagCounts[tag] ?? 0;
           return (
-            <button
+            <Button
+              variant="unstyled"
+              size="none"
               key={tag}
               type="button"
               onClick={() => setSelectedTag(tag)}
@@ -332,7 +312,7 @@ export function ExpenseManager({
             >
               <span>{tag}</span>
               <span className="font-mono opacity-75">({count})</span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -370,7 +350,9 @@ export function ExpenseManager({
                 {group.expenses.map((expense) => {
                   const mainTag = expense.tags[0] ?? "Expenses";
                   return (
-                    <button
+                    <Button
+                      variant="unstyled"
+                      size="none"
                       key={expense.id}
                       type="button"
                       onClick={() => openEditSheet(expense)}
@@ -407,7 +389,7 @@ export function ExpenseManager({
                         </span>
                         <ChevronRight className="text-muted-foreground/60 h-4 w-4 shrink-0" />
                       </div>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>

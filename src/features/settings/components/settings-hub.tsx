@@ -19,6 +19,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonItem } from "@/components/feedback";
 import { signOutAction } from "@/features/auth/actions";
 import { APP_METADATA } from "@/config/app";
+import { Button } from "@/components/ui/button";
 
 export interface SettingsHubProps {
   session: ManagerSession;
@@ -32,7 +33,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
     <div className="mx-auto w-full max-w-md px-4 py-6 pb-24" data-testid="settings-hub">
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">{dict.title}</h1>
+        <h1 className="text-title-lg text-foreground">{dict.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.subtitle}</p>
       </div>
 
@@ -250,13 +251,15 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
       {/* 4. Session Action */}
       <div className="border-border mt-8 border-t pt-6">
         <form action={signOutAction} data-testid="signout-form">
-          <button
+          <Button
+            variant="unstyled"
+            size="none"
             type="submit"
             className="border-destructive/30 text-destructive hover:bg-destructive/10 active:bg-destructive/20 focus-visible:ring-destructive flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <LogOut className="h-5 w-5" />
             <span>{dict.account.signOut}</span>
-          </button>
+          </Button>
         </form>
 
         {/* Footer Meta */}

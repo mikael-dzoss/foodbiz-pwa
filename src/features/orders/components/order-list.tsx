@@ -19,6 +19,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -259,7 +260,7 @@ export function OrderList({
       {/* Top Header: Matching Stitch M-20 */}
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-foreground text-xl font-bold tracking-tight">Orders</h1>
+          <h1 className="text-title-lg text-foreground">Orders</h1>
           {/* POS Live Status Beacon */}
           <div className="bg-primary-soft text-primary-soft-foreground text-caption flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium">
             <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
@@ -282,357 +283,349 @@ export function OrderList({
       </div>
 
       {/* Segmented Status Tabs (3 columns matching Stitch M-20) */}
-      <div
-        className="bg-muted/80 grid grid-cols-3 gap-1 rounded-xl p-1 text-center text-xs"
-        role="tablist"
-        aria-label="Order Status Tabs"
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+        className="flex flex-col gap-3.5"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "active"}
-          onClick={() => setActiveTab("active")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
-            activeTab === "active"
-              ? "bg-primary-soft text-primary-soft-foreground font-bold shadow-xs"
-              : "text-muted-foreground hover:text-foreground font-medium",
-          )}
-          data-testid="tab-active"
+        <TabsList
+          aria-label="Order Status Tabs"
+          className="bg-muted/80 grid h-auto w-full grid-cols-3 gap-1 rounded-xl p-1 text-center text-xs"
         >
-          <span>Active</span>
-          <span className="bg-card text-primary-soft-foreground text-micro inline-flex items-center justify-center rounded-full px-1.5 font-bold tabular-nums">
-            {liveCounts.active}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "completed"}
-          onClick={() => setActiveTab("completed")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
-            activeTab === "completed"
-              ? "bg-card text-foreground font-semibold shadow-xs"
-              : "text-muted-foreground hover:text-foreground font-medium",
-          )}
-          data-testid="tab-completed"
-        >
-          <span>Completed</span>
-          <span className="text-muted-foreground text-micro tabular-nums">
-            ({liveCounts.completed})
-          </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "cancelled"}
-          onClick={() => setActiveTab("cancelled")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
-            activeTab === "cancelled"
-              ? "bg-card text-foreground font-semibold shadow-xs"
-              : "text-muted-foreground hover:text-foreground font-medium",
-          )}
-          data-testid="tab-cancelled"
-        >
-          <span>Cancelled</span>
-          <span className="text-muted-foreground text-micro tabular-nums">
-            ({liveCounts.cancelled})
-          </span>
-        </button>
-      </div>
-
-      {/* Search & Filters Section */}
-      <div className="flex flex-col gap-2">
-        <div className="relative">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
-          <Input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search guest name, phone, or order #..."
-            className="border-input bg-card h-11 rounded-xl pr-9 pl-10 text-xs"
-            data-testid="order-search-input"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 p-1"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Filter Chips Horizontal Row (Only All, Unpaid, Pickup, Delivery) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedServiceType === "all" && !unpaidOnly ? "default" : "outline"}
-            onClick={() => {
-              setSelectedServiceType("all");
-              setUnpaidOnly(false);
-            }}
-            className="h-8 rounded-full px-3 text-xs font-semibold whitespace-nowrap"
-            data-testid="filter-service-all"
+          <TabsTrigger
+            value="active"
+            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-primary-soft data-[state=active]:text-primary-soft-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-bold data-[state=active]:shadow-xs"
+            data-testid="tab-active"
           >
-            All
-          </Button>
+            <span>Active</span>
+            <span className="bg-card text-primary-soft-foreground text-micro inline-flex items-center justify-center rounded-full px-1.5 font-bold tabular-nums">
+              {liveCounts.active}
+            </span>
+          </TabsTrigger>
 
-          <Button
-            type="button"
-            size="sm"
-            variant={unpaidOnly ? "default" : "outline"}
-            onClick={() => setUnpaidOnly(!unpaidOnly)}
-            className={cn(
-              "flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap",
-              unpaidOnly && "bg-destructive text-destructive-foreground",
-            )}
-            data-testid="filter-unpaid"
+          <TabsTrigger
+            value="completed"
+            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-xs"
+            data-testid="tab-completed"
           >
-            <span className="bg-destructive h-1.5 w-1.5 rounded-full" />
-            Unpaid only ({liveCounts.unpaid})
-          </Button>
+            <span>Completed</span>
+            <span className="text-muted-foreground text-micro tabular-nums">
+              ({liveCounts.completed})
+            </span>
+          </TabsTrigger>
 
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedServiceType === "pickup" ? "default" : "outline"}
-            onClick={() =>
-              setSelectedServiceType(selectedServiceType === "pickup" ? "all" : "pickup")
-            }
-            className="h-8 rounded-full px-3 text-xs font-medium whitespace-nowrap"
-            data-testid="filter-service-pickup"
+          <TabsTrigger
+            value="cancelled"
+            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-xs"
+            data-testid="tab-cancelled"
           >
-            Pickup ({liveCounts.pickup})
-          </Button>
+            <span>Cancelled</span>
+            <span className="text-muted-foreground text-micro tabular-nums">
+              ({liveCounts.cancelled})
+            </span>
+          </TabsTrigger>
+        </TabsList>
 
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedServiceType === "delivery" ? "default" : "outline"}
-            onClick={() =>
-              setSelectedServiceType(selectedServiceType === "delivery" ? "all" : "delivery")
-            }
-            className="h-8 rounded-full px-3 text-xs font-medium whitespace-nowrap"
-            data-testid="filter-service-delivery"
-          >
-            Delivery ({liveCounts.delivery})
-          </Button>
-        </div>
-      </div>
-
-      {/* Orders Triage Stream */}
-      {filteredOrders.length === 0 ? (
-        <EmptyState
-          icon={<ShoppingBag className="h-6 w-6" />}
-          title="No orders found"
-          description={
-            searchQuery || unpaidOnly || selectedServiceType !== "all"
-              ? "Try adjusting your filters or search terms."
-              : `No ${activeTab} orders at the moment.`
-          }
-          action={{
-            label: "Clear filters",
-            onClick: () => {
-              setSearchQuery("");
-              setUnpaidOnly(false);
-              setSelectedServiceType("all");
-            },
-          }}
-          data-testid="orders-empty-state"
-        />
-      ) : (
-        <section
-          aria-label="Order triage list"
-          className="flex flex-col gap-3"
-          data-testid="orders-list"
-        >
-          {filteredOrders.map((order) => {
-            const isNew = order.status === "NEW";
-            const itemCount = order.items.reduce((sum, it) => sum + it.quantity, 0);
-            const itemsSummary = order.items
-              .slice(0, 2)
-              .map((it) => `${it.quantity}× ${it.productName}`)
-              .join(", ");
-            const hasMoreItems = order.items.length > 2;
-            const nextAction = getNextAction(order);
-            const dueDiff =
-              activeTab === "active"
-                ? getDueTimeDiff(order.requestedDate, order.requestedTime, new Date(now), timeZone)
-                : null;
-
-            return (
-              <article
-                key={order.id}
-                className={cn(
-                  "bg-card border-border relative space-y-2.5 rounded-xl border p-3.5 shadow-none transition-all",
-                  isNew && "border-info border-2",
-                )}
-                data-testid={`order-card-${order.id}`}
+        {/* Search & Filters Section */}
+        <div className="flex flex-col gap-2">
+          <div className="relative">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2" />
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search guest name, phone, or order #..."
+              className="border-input bg-card h-11 rounded-xl pr-9 pl-10 text-xs"
+              data-testid="order-search-input"
+            />
+            {searchQuery && (
+              <Button
+                variant="unstyled"
+                size="none"
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 p-1"
+                aria-label="Clear search"
               >
-                {/* Top Row: ID, Status Badge, Timing pill */}
-                <div className="border-border/60 flex items-center justify-between gap-2 border-b pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-foreground text-sm font-bold tabular-nums">
-                      #{order.orderNumber ?? "—"}
-                    </span>
-                    <Badge variant={STATUS_BADGE_MAP[order.status] ?? "default"}>
-                      {order.status}
-                    </Badge>
-                  </div>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
 
-                  <div className="text-foreground flex items-center gap-1 text-xs font-semibold">
-                    <Clock className="text-muted-foreground h-3.5 w-3.5" />
-                    <span className="tabular-nums">
-                      {order.requestedTime
-                        ? `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} at ${order.requestedTime}`
-                        : `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} ASAP`}
-                    </span>
-                    {dueDiff && (
-                      <span
-                        className={cn(
-                          "ml-1 font-bold",
-                          dueDiff.isOverdue ? "text-destructive" : "text-muted-foreground",
-                        )}
-                      >
-                        {dueDiff.text}
-                      </span>
+          {/* Filter Chips Horizontal Row (Only All, Unpaid, Pickup, Delivery) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={selectedServiceType === "all" && !unpaidOnly ? "default" : "outline"}
+              onClick={() => {
+                setSelectedServiceType("all");
+                setUnpaidOnly(false);
+              }}
+              className="h-9 min-h-9 rounded-full px-3 text-xs font-semibold whitespace-nowrap"
+              data-testid="filter-service-all"
+            >
+              All
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={unpaidOnly ? "default" : "outline"}
+              onClick={() => setUnpaidOnly(!unpaidOnly)}
+              className={cn(
+                "flex h-9 min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium whitespace-nowrap",
+                unpaidOnly && "bg-destructive text-destructive-foreground",
+              )}
+              data-testid="filter-unpaid"
+            >
+              <span className="bg-destructive h-1.5 w-1.5 rounded-full" />
+              Unpaid only ({liveCounts.unpaid})
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={selectedServiceType === "pickup" ? "default" : "outline"}
+              onClick={() =>
+                setSelectedServiceType(selectedServiceType === "pickup" ? "all" : "pickup")
+              }
+              className="h-9 min-h-9 rounded-full px-3 text-xs font-medium whitespace-nowrap"
+              data-testid="filter-service-pickup"
+            >
+              Pickup ({liveCounts.pickup})
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={selectedServiceType === "delivery" ? "default" : "outline"}
+              onClick={() =>
+                setSelectedServiceType(selectedServiceType === "delivery" ? "all" : "delivery")
+              }
+              className="h-9 min-h-9 rounded-full px-3 text-xs font-medium whitespace-nowrap"
+              data-testid="filter-service-delivery"
+            >
+              Delivery ({liveCounts.delivery})
+            </Button>
+          </div>
+        </div>
+
+        {/* Orders Triage Stream */}
+        <TabsContent value={activeTab} className="mt-0">
+          {filteredOrders.length === 0 ? (
+            <EmptyState
+              icon={<ShoppingBag className="h-6 w-6" />}
+              title="No orders found"
+              description={
+                searchQuery || unpaidOnly || selectedServiceType !== "all"
+                  ? "Try adjusting your filters or search terms."
+                  : `No ${activeTab} orders at the moment.`
+              }
+              action={{
+                label: "Clear filters",
+                onClick: () => {
+                  setSearchQuery("");
+                  setUnpaidOnly(false);
+                  setSelectedServiceType("all");
+                },
+              }}
+              data-testid="orders-empty-state"
+            />
+          ) : (
+            <section
+              aria-label="Order triage list"
+              className="flex flex-col gap-3"
+              data-testid="orders-list"
+            >
+              {filteredOrders.map((order) => {
+                const isNew = order.status === "NEW";
+                const itemCount = order.items.reduce((sum, it) => sum + it.quantity, 0);
+                const itemsSummary = order.items
+                  .slice(0, 2)
+                  .map((it) => `${it.quantity}× ${it.productName}`)
+                  .join(", ");
+                const hasMoreItems = order.items.length > 2;
+                const nextAction = getNextAction(order);
+                const dueDiff =
+                  activeTab === "active"
+                    ? getDueTimeDiff(
+                        order.requestedDate,
+                        order.requestedTime,
+                        new Date(now),
+                        timeZone,
+                      )
+                    : null;
+
+                return (
+                  <article
+                    key={order.id}
+                    className={cn(
+                      "bg-card border-border relative space-y-2.5 rounded-xl border p-3.5 shadow-none transition-all",
+                      isNew && "border-info border-2",
                     )}
-                  </div>
-                </div>
-
-                {/* Guest & Contact row with dedicated Eye button */}
-                <div className="flex items-center justify-between gap-2 pt-0.5">
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="text-foreground shrink-0 text-sm font-semibold">
-                        {order.guestName}
-                      </span>
-                      {order.guestPhone && (
-                        <>
-                          <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
-                          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                            {order.guestPhone}
-                          </span>
-                        </>
-                      )}
-                      {order.submittedName && order.submittedName !== order.guestName && (
-                        <>
-                          <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
-                          <span
-                            data-testid="order-submitted-name-badge"
-                            title={`Ordered as ${order.submittedName}`}
-                            className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
-                          >
-                            Ordered as {order.submittedName}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
-                      {order.serviceType === "delivery" ? (
-                        <>
-                          <MapPin className="text-muted-foreground h-3 w-3 shrink-0" />
-                          <span className="truncate">
-                            {order.deliveryAddress ?? "Delivery address pending"}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Store className="text-muted-foreground h-3 w-3 shrink-0" />
-                          <span className="truncate">Store Pickup</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dedicated Eye button mapping to details view */}
-                  <Link
-                    href={`/manage/orders/${order.id}`}
-                    aria-label={`View order details for #${order.orderNumber}`}
-                    className="bg-muted hover:bg-border text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95"
-                    data-testid={`view-order-${order.id}`}
+                    data-testid={`order-card-${order.id}`}
                   >
-                    <Eye className="h-4 w-4" />
-                  </Link>
-                </div>
+                    {/* Top Row: ID, Status Badge, Timing pill */}
+                    <div className="border-border/60 flex items-center justify-between gap-2 border-b pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-foreground text-sm font-bold tabular-nums">
+                          #{order.orderNumber ?? "—"}
+                        </span>
+                        <Badge variant={STATUS_BADGE_MAP[order.status] ?? "default"}>
+                          {order.status}
+                        </Badge>
+                      </div>
 
-                {/* Items Ordered Preview Box */}
-                <div className="bg-muted text-foreground rounded-lg px-2.5 py-1.5 text-xs leading-relaxed">
-                  <span className="font-semibold">
-                    {itemCount} {itemCount === 1 ? "item" : "items"}:
-                  </span>{" "}
-                  <span className="text-muted-foreground">{itemsSummary}</span>
-                  {hasMoreItems ? "..." : ""}
-                </div>
+                      <div className="text-foreground flex items-center gap-1 text-xs font-semibold">
+                        <Clock className="text-muted-foreground h-3.5 w-3.5" />
+                        <span className="tabular-nums">
+                          {order.requestedTime
+                            ? `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} at ${order.requestedTime}`
+                            : `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} ASAP`}
+                        </span>
+                        {dueDiff && (
+                          <span
+                            className={cn(
+                              "ml-1 font-bold",
+                              dueDiff.isOverdue ? "text-destructive" : "text-muted-foreground",
+                            )}
+                          >
+                            {dueDiff.text}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                {/* Footer: Financials & Dynamic Next Status Action Button */}
-                <div className="border-border/60 flex items-center justify-between gap-2 border-t pt-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-foreground text-sm font-bold tabular-nums">
-                      {formatMoney(order.totalAmount)}
-                    </span>
-                    {order.status === "CANCELLED" && order.paid === "paid" ? (
-                      <Badge
-                        variant="warning"
-                        className="text-micro gap-0.5 px-1.5 py-0 font-bold"
-                        data-testid="refund-due-badge"
+                    {/* Guest & Contact row with dedicated Eye button */}
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span className="text-foreground shrink-0 text-sm font-semibold">
+                            {order.guestName}
+                          </span>
+                          {order.guestPhone && (
+                            <>
+                              <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
+                              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                                {order.guestPhone}
+                              </span>
+                            </>
+                          )}
+                          {order.submittedName && order.submittedName !== order.guestName && (
+                            <>
+                              <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
+                              <span
+                                data-testid="order-submitted-name-badge"
+                                title={`Ordered as ${order.submittedName}`}
+                                className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
+                              >
+                                Ordered as {order.submittedName}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
+                          {order.serviceType === "delivery" ? (
+                            <>
+                              <MapPin className="text-muted-foreground h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {order.deliveryAddress ?? "Delivery address pending"}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Store className="text-muted-foreground h-3 w-3 shrink-0" />
+                              <span className="truncate">Store Pickup</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Dedicated Eye button mapping to details view */}
+                      <Link
+                        href={`/manage/orders/${order.id}`}
+                        aria-label={`View order details for #${order.orderNumber}`}
+                        className="bg-muted hover:bg-border text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95"
+                        data-testid={`view-order-${order.id}`}
                       >
-                        <AlertCircle className="h-2.5 w-2.5" />
-                        Refund Due
-                      </Badge>
-                    ) : order.paid === "paid" ? (
-                      <Badge variant="paid" className="text-micro gap-0.5 px-1.5 py-0">
-                        <CheckCircle2 className="h-2.5 w-2.5" />
-                        Paid
-                      </Badge>
-                    ) : order.paid === "refunded" ? (
-                      <Badge
-                        variant="refunded"
-                        className="text-micro gap-0.5 px-1.5 py-0"
-                        data-testid="refunded-badge"
-                      >
-                        Refunded
-                      </Badge>
-                    ) : (
-                      <Badge variant="unpaid" className="text-micro gap-0.5 px-1.5 py-0">
-                        <AlertCircle className="h-2.5 w-2.5" />
-                        Unpaid
-                      </Badge>
-                    )}
-                  </div>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </div>
 
-                  {/* Right bottom button dynamically indicating next valid state */}
-                  {nextAction && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => handleQuickProgress(e, order)}
-                      disabled={transitioningId === order.id}
-                      className={cn(
-                        "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold shadow-none active:scale-95",
-                        nextAction.buttonClass,
+                    {/* Items Ordered Preview Box */}
+                    <div className="bg-muted text-foreground rounded-lg px-2.5 py-1.5 text-xs leading-relaxed">
+                      <span className="font-semibold">
+                        {itemCount} {itemCount === 1 ? "item" : "items"}:
+                      </span>{" "}
+                      <span className="text-muted-foreground">{itemsSummary}</span>
+                      {hasMoreItems ? "..." : ""}
+                    </div>
+
+                    {/* Footer: Financials & Dynamic Next Status Action Button */}
+                    <div className="border-border/60 flex items-center justify-between gap-2 border-t pt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-foreground text-sm font-bold tabular-nums">
+                          {formatMoney(order.totalAmount)}
+                        </span>
+                        {order.status === "CANCELLED" && order.paid === "paid" ? (
+                          <Badge
+                            variant="warning"
+                            className="text-micro gap-0.5 px-1.5 py-0 font-bold"
+                            data-testid="refund-due-badge"
+                          >
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Refund Due
+                          </Badge>
+                        ) : order.paid === "paid" ? (
+                          <Badge variant="paid" className="text-micro gap-0.5 px-1.5 py-0">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            Paid
+                          </Badge>
+                        ) : order.paid === "refunded" ? (
+                          <Badge
+                            variant="refunded"
+                            className="text-micro gap-0.5 px-1.5 py-0"
+                            data-testid="refunded-badge"
+                          >
+                            Refunded
+                          </Badge>
+                        ) : (
+                          <Badge variant="unpaid" className="text-micro gap-0.5 px-1.5 py-0">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Unpaid
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Right bottom button dynamically indicating next valid state */}
+                      {nextAction && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => handleQuickProgress(e, order)}
+                          disabled={transitioningId === order.id}
+                          className={cn(
+                            "inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-semibold shadow-none active:scale-95",
+                            nextAction.buttonClass,
+                          )}
+                          data-testid={`quick-progress-${order.id}`}
+                        >
+                          <nextAction.icon className="h-3.5 w-3.5" />
+                          <span>
+                            {transitioningId === order.id ? "Updating..." : nextAction.label}
+                          </span>
+                        </Button>
                       )}
-                      data-testid={`quick-progress-${order.id}`}
-                    >
-                      <nextAction.icon className="h-3.5 w-3.5" />
-                      <span>{transitioningId === order.id ? "Updating..." : nextAction.label}</span>
-                    </Button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
