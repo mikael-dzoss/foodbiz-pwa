@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(114);
+select plan(126);
 
 -- ----------------------------------------------------------------------------
 -- Seed (as the table owner)
@@ -278,6 +278,19 @@ select is((select status_history -> -1 ->> 'note' from public.orders where id = 
 select throws_ok(
   $$select public.mark_order_unpaid('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000005')$$,
   '22023', null, 'an already unpaid order cannot be marked unpaid');
+select lives_ok(
+  $$select public.record_order_payment('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000005', 'cash')$$,
+  'record payment again after undoing it');
+select throws_ok(
+  $$select public.record_order_payment('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000005', 'wero')$$,
+  '22023', null, 'an already paid order cannot be paid again (no overwrite)');
+select is((select payment_method::text from public.orders where id = '0a000000-0000-0000-0000-000000000005'), 'cash',
+  'the original payment method is kept');
+select is((select status_history -> -1 ->> 'note' from public.orders where id = '0a000000-0000-0000-0000-000000000005'), 'Paid via cash',
+  'recording a payment appends a history entry');
+select lives_ok(
+  $$select public.mark_order_unpaid('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000005')$$,
+  'undo the payment again');
 select throws_ok(
   $$select public.record_order_payment('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000007', 'cash')$$,
   '22023', null, 'payment cannot be recorded on a cancelled order');
@@ -301,6 +314,10 @@ select is((select status::text || '/' || paid::text from public.orders where id 
 select is((select status_history -> -1 ->> 'note' from public.orders where id = '0a000000-0000-0000-0000-000000000006'),
   'Paid via wero and completed', 'the combined step writes one history entry');
 select throws_ok(
+  $$select public.record_order_refund('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000006', 'x')$$,
+  '42501', null, 'a manager cannot record a refund (owner only)');
+set local "request.jwt.claims" = '{"sub": "a1000000-0000-4000-8000-000000000001", "role": "authenticated"}';
+select throws_ok(
   $$select public.record_order_refund('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000002', null)$$,
   '22023', null, 'an unpaid order cannot be refunded');
 select lives_ok(
@@ -313,6 +330,7 @@ select is((select status_history -> -1 ->> 'note' from public.orders where id = 
 select throws_ok(
   $$select public.record_order_refund('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000006', null)$$,
   '22023', null, 'a refunded order cannot be refunded again');
+set local "request.jwt.claims" = '{"sub": "a2000000-0000-4000-8000-000000000002", "role": "authenticated"}';
 select throws_ok(
   $$select public.record_order_payment('20000000-0000-0000-0000-000000000002', '0b000000-0000-0000-0000-000000000001', 'cash')$$,
   '42501', null, 'a member of A cannot record a payment on an order of B');
@@ -385,6 +403,41 @@ select throws_ok(
 select throws_ok(
   $$select public.replace_order_items('10000000-0000-0000-0000-000000000001', '99999999-9999-9999-9999-999999999999', '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
   'P0002', null, 'an unknown order is refused');
+
+-- M1: a line whose product was hard-deleted (product_id null) survives and counts in the total
+reset role;
+insert into public.order_items (order_id, business_id, product_id, product_name, quantity, unit_price, total_price)
+values ('0a000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', null, 'Deleted product', 1, 500, 500);
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub": "a3000000-0000-4000-8000-000000000003", "role": "authenticated"}';
+select lives_ok(
+  $$select public.replace_order_items('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000001', '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 3}]'::jsonb)$$,
+  'replace_order_items works on an order with an orphan line');
+select is((select count(*)::int from public.order_items where order_id = '0a000000-0000-0000-0000-000000000001' and product_id is null), 1,
+  'the orphan line is kept');
+select is((select total_amount from public.orders where id = '0a000000-0000-0000-0000-000000000001'), 2100,
+  'the total includes the orphan line: 3x450 + 500 + 250 delivery fee');
+
+-- M3: subtotal plus delivery fee is checked against the cap
+reset role;
+update public.business_settings set delivery_fee = 2000000000 where business_id = '10000000-0000-0000-0000-000000000001';
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub": "a3000000-0000-4000-8000-000000000003", "role": "authenticated"}';
+select throws_ok(
+  $$select public.replace_order_items('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000001', '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 3}]'::jsonb)$$,
+  '22023', null, 'subtotal + delivery fee over the cap raises the clear error, not an overflow');
+reset role;
+update public.business_settings set delivery_fee = 250 where business_id = '10000000-0000-0000-0000-000000000001';
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub": "a3000000-0000-4000-8000-000000000003", "role": "authenticated"}';
+
+-- D1: no content edits on a paid order
+select lives_ok(
+  $$select public.record_order_payment('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000001', 'cash')$$,
+  'pay the order');
+select throws_ok(
+  $$select public.replace_order_items('10000000-0000-0000-0000-000000000001', '0a000000-0000-0000-0000-000000000001', '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
+  'P0007', null, 'a paid order refuses item changes');
 
 -- Non-members and anon
 set local "request.jwt.claims" = '{"sub": "b1000000-0000-4000-8000-000000000004", "role": "authenticated"}';

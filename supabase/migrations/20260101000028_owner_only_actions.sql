@@ -25,6 +25,7 @@
 --   members, and the trigger is about members.
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
+--   drop index if exists public.uq_business_members_one_owner;
 --   drop trigger if exists businesses_owner_only_columns on public.businesses;
 --   drop trigger if exists business_settings_owner_only_columns on public.business_settings;
 --   drop function if exists public.enforce_owner_only_columns();
@@ -34,6 +35,20 @@
 
 -- Fail fast instead of queueing behind a long transaction while holding the lock request.
 set lock_timeout = '5s';
+
+-- ----------------------------------------------------------------------------
+-- 0. Exactly one owner per business
+-- ----------------------------------------------------------------------------
+do $$
+begin
+  if exists (select 1 from public.business_members where role = 'owner' group by business_id having count(*) > 1) then
+    raise exception 'MULTIPLE_OWNERS: some business has more than one owner; demote the extras before applying this migration';
+  end if;
+end;
+$$;
+
+create unique index if not exists uq_business_members_one_owner
+  on public.business_members (business_id) where role = 'owner';
 
 -- ----------------------------------------------------------------------------
 -- 1. Column-level rules

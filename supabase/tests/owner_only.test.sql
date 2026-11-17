@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(46);
+select plan(48);
 
 -- ----------------------------------------------------------------------------
 -- Seed (as the table owner)
@@ -227,6 +227,14 @@ reset role;
 select lives_ok(
   $$update public.business_settings set wero_identifier = 'direct' where business_id = '10000000-0000-0000-0000-000000000001'$$,
   'a direct database connection can change a protected column');
+
+-- D3: exactly one owner per business
+select throws_ok(
+  $$insert into public.business_members (business_id, user_id, role) values ('10000000-0000-0000-0000-000000000001', 'b1000000-0000-4000-8000-000000000004', 'owner')$$,
+  '23505', null, 'a second owner of the same business is refused');
+select lives_ok(
+  $$insert into public.business_members (business_id, user_id, role) values ('20000000-0000-0000-0000-000000000002', 'a3000000-0000-4000-8000-000000000003', 'staff')$$,
+  'extra non-owner members are still fine');
 
 select * from finish();
 

@@ -338,6 +338,10 @@ begin
     raise exception 'INVALID_PAYMENT_STATE: payment cannot be recorded for a refunded order' using errcode = '22023';
   end if;
 
+  if v_order.paid = 'paid' then
+    raise exception 'INVALID_PAYMENT_STATE: order is already paid' using errcode = '22023';
+  end if;
+
   if coalesce(p_and_complete, false) then
     if v_order.status <> 'READY' then
       raise exception 'ORDER_STATE_CONFLICT: order must be READY to mark paid and complete (it is %)', v_order.status using errcode = 'P0007';
@@ -356,7 +360,9 @@ begin
     update public.orders
     set paid = 'paid',
         payment_method = p_payment_method,
-        paid_at = now()
+        paid_at = now(),
+        status_history = coalesce(status_history, '[]'::jsonb)
+          || jsonb_build_array(public.order_history_entry(v_order.status, 'Paid via ' || p_payment_method::text))
     where id = p_order_id and business_id = p_business_id
     returning * into v_order;
   end if;
@@ -422,7 +428,7 @@ $$;
 revoke all on function public.mark_order_unpaid(uuid, uuid) from public, anon;
 grant execute on function public.mark_order_unpaid(uuid, uuid) to authenticated, service_role;
 
--- Refund: only a paid order (any status, e.g. a cancelled paid order or a post-delivery dispute).
+-- Refund: owner only (or service_role); only a paid order (any status, e.g. a cancelled paid order or a post-delivery dispute).
 create or replace function public.record_order_refund(
   p_business_id uuid,
   p_order_id uuid,
@@ -437,7 +443,7 @@ declare
   v_order public.orders%rowtype;
   v_reason text := nullif(btrim(p_reason), '');
 begin
-  if not (coalesce(auth.jwt() ->> 'role', '') = 'service_role' or public.is_business_member(p_business_id)) then
+  if not (coalesce(auth.jwt() ->> 'role', '') = 'service_role' or public.is_business_owner(p_business_id)) then
     raise exception 'permission denied for record_order_refund' using errcode = '42501';
   end if;
 

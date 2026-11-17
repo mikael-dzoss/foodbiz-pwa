@@ -5,5 +5,8 @@
 -- cannot fail on existing data. Built concurrently (no write lock) as a single statement so it
 -- can run outside a transaction block; 20260101000022 promotes it to a constraint.
 -- Rollback: drop index if exists public.uq_product_categories_business_id_id;
+-- Runbook: if this build fails or is cancelled it leaves an INVALID index that `if not exists` then skips.
+-- Check with: select indexrelid::regclass from pg_index where not indisvalid;
+-- then `drop index concurrently <name>;` and re-run this migration.
 create unique index concurrently if not exists uq_product_categories_business_id_id
   on public.product_categories (business_id, id);

@@ -15,7 +15,9 @@
 --     * orders.total_amount is recomputed through public.order_total_cents (same rule as
 --       place_order).
 --     * refused with ORDER_STATE_CONFLICT (P0007) once the order is COMPLETED or CANCELLED, or
---       is refunded: those states close the order's money and stock.
+--       is paid or refunded (no content edits on paid orders): those states close the order's money and stock.
+--     * lines whose product was hard-deleted (product_id null) are kept unchanged and counted in
+--       the total; subtotal plus delivery fee is checked against the 2,000,000,000 cap.
 --   The return type changes (void to jsonb), so the old function is dropped first.
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
@@ -46,6 +48,8 @@ declare
   v_unit_price integer;
   v_line_total bigint;
   v_new_items jsonb := '[]'::jsonb;
+  v_orphan_total bigint;
+  v_fee integer;
 begin
   if not (coalesce(auth.jwt() ->> 'role', '') = 'service_role' or public.is_business_member(p_business_id)) then
     raise exception 'permission denied for replace_order_items' using errcode = '42501';
@@ -86,7 +90,7 @@ begin
     raise exception 'ORDER_NOT_FOUND: order % not found for business %', p_order_id, p_business_id using errcode = 'P0002';
   end if;
 
-  if v_order.status in ('COMPLETED', 'CANCELLED') or v_order.paid = 'refunded' then
+  if v_order.status in ('COMPLETED', 'CANCELLED') or v_order.paid in ('paid', 'refunded') then
     raise exception 'ORDER_STATE_CONFLICT: order items cannot be changed once the order is % (paid: %)', v_order.status, v_order.paid using errcode = 'P0007';
   end if;
 
@@ -169,13 +173,27 @@ begin
     raise exception 'PRODUCT_NOT_FOUND: one or more products not found in business %', p_business_id using errcode = 'P0002';
   end if;
 
+  -- Lines whose product was hard-deleted (product_id is null) cannot be re-priced or edited:
+  -- keep them untouched and count them in the total.
+  select coalesce(sum(total_price), 0) into v_orphan_total
+  from public.order_items
+  where order_id = p_order_id and business_id = p_business_id and product_id is null;
+  v_subtotal := v_subtotal + v_orphan_total;
+
   if v_subtotal > 2000000000 then
+    raise exception 'INVALID_ORDER_ITEMS: order total is too large' using errcode = '22023';
+  end if;
+
+  -- The cap covers subtotal + delivery fee (the sum is what order_total_cents adds in int).
+  v_fee := public.order_total_cents(p_business_id, v_order.service_type, 0);
+  if v_subtotal + v_fee > 2000000000 then
     raise exception 'INVALID_ORDER_ITEMS: order total is too large' using errcode = '22023';
   end if;
 
   delete from public.order_items
   where business_id = p_business_id
-    and order_id = p_order_id;
+    and order_id = p_order_id
+    and product_id is not null;
 
   insert into public.order_items (
     order_id, business_id, product_id, product_name, quantity, unit_price, total_price
