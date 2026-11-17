@@ -4,11 +4,12 @@ import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n"
 import { getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { OrderConfirmationView } from "@/features/storefront/components/order-confirmation-view";
 
-export const instant = false;
-
 interface ConfirmationPageProps {
   params: Promise<{ locale: string; token: string }>;
 }
+
+// Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
+export const instant = false;
 
 export async function generateMetadata({ params }: ConfirmationPageProps): Promise<Metadata> {
   const { locale } = await params;

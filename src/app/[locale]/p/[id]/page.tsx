@@ -12,11 +12,12 @@ import {
   ProductDetailView,
 } from "@/features/storefront";
 
-export const instant = false;
-
 export interface ProductPageProps {
   params: Promise<{ locale: string; id: string }>;
 }
+
+// Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
+export const instant = false;
 
 export default async function ProductDetailPage({ params }: ProductPageProps) {
   const resolvedParams = await params;

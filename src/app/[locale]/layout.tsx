@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
+import { notFound } from "next/navigation";
 import {
   isSupportedLocale,
-  DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
   getDictionary,
   type SupportedLocale,
@@ -12,6 +12,9 @@ export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
 }
 
+// The locale param must resolve before the shell (dictionary, catalog) can render, so this layout blocks.
+export const instant = false;
+
 export interface LocaleLayoutProps {
   children: ReactNode;
   params: Promise<{ locale: string }>;
@@ -19,9 +22,9 @@ export interface LocaleLayoutProps {
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const resolvedParams = await params;
-  const locale: SupportedLocale = isSupportedLocale(resolvedParams.locale)
-    ? resolvedParams.locale
-    : DEFAULT_LOCALE;
+  // Unknown locales (/de, /xx/cart) are a real 404, not an English fallback.
+  if (!isSupportedLocale(resolvedParams.locale)) notFound();
+  const locale: SupportedLocale = resolvedParams.locale;
 
   const dict = getDictionary(locale);
   const { business, currentYear } = await getStorefrontCatalog();

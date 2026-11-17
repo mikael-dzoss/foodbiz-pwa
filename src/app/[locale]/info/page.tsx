@@ -12,8 +12,6 @@ export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
 }
 
-export const instant = false;
-
 export interface ShopInfoPageProps {
   params: Promise<{ locale: string }>;
 }

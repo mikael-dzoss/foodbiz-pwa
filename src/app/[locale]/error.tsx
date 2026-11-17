@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ErrorState } from "@/components/feedback";
+import { Button } from "@/components/ui/button";
 import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n";
 
 /** Storefront error boundary: a failed data read shows a retry state, never fallback data. */
@@ -24,6 +26,13 @@ export default function LocaleError({ error, retry }: { error: unknown; retry: (
         retryLabel={dict.pageErrorRetry}
         data-testid="storefront-error"
       />
+      <div className="mt-4 flex justify-center">
+        <Button asChild variant="outline">
+          <Link href={`/${locale}`} data-testid="storefront-error-home">
+            {dict.pageErrorHome}
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
