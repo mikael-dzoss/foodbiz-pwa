@@ -38,6 +38,15 @@ describe("buildCsp", () => {
     }
     expect(buildCsp({ ...base, supabaseUrl: undefined })).toContain("connect-src 'self';");
   });
+
+  it("fails closed in production builds when the Supabase URL is missing or invalid", () => {
+    for (const supabaseUrl of [undefined, "not a url"]) {
+      expect(() => buildCsp({ ...base, supabaseUrl, requireSupabase: true })).toThrow(
+        /NEXT_PUBLIC_SUPABASE_URL/,
+      );
+    }
+    expect(buildCsp({ ...base, requireSupabase: true })).toContain("https://abc.supabase.co");
+  });
 });
 
 describe("buildSecurityHeaders", () => {
@@ -50,7 +59,7 @@ describe("buildSecurityHeaders", () => {
     expect(h["X-Frame-Options"]).toBe("DENY");
     expect(h["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
     expect(h["Permissions-Policy"]).toContain("camera=()");
-    expect(h["Strict-Transport-Security"]).toContain("max-age=");
+    expect(h["Strict-Transport-Security"]).toBe("max-age=63072000");
   });
 
   it("omits HSTS without secure transport", () => {

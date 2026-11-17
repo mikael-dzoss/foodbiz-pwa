@@ -36,9 +36,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
+        // Raw process.env on purpose: next.config loads before the app, so src/config/env.ts
+        // (zod) isn't available here; requireSupabase makes production builds fail closed instead.
         headers: buildSecurityHeaders({
           supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
           isDev: process.env.NODE_ENV === "development",
+          requireSupabase: process.env.NODE_ENV === "production",
           // Local/test stacks run production builds over plain http.
           secureTransport:
             process.env.NODE_ENV === "production" && appEnv !== "development" && appEnv !== "test",

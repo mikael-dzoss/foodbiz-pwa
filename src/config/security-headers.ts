@@ -5,6 +5,8 @@ export interface SecurityHeaderOptions {
   isDev: boolean;
   /** Real HTTPS deployment: adds `upgrade-insecure-requests` and HSTS. */
   secureTransport: boolean;
+  /** Production builds: throw when the Supabase URL is missing or invalid (the CSP would block Supabase). */
+  requireSupabase?: boolean;
 }
 
 export interface HeaderEntry {
@@ -31,8 +33,18 @@ function supabaseOrigins(raw?: string): { http: string[]; ws: string[] } {
  * shells of `cacheComponents`. Next's inline bootstrap/flight scripts and the theme script
  * therefore need `'unsafe-inline'` for scripts; see docs/architecture.md#security-headers.
  */
-export function buildCsp({ supabaseUrl, isDev, secureTransport }: SecurityHeaderOptions): string {
+export function buildCsp({
+  supabaseUrl,
+  isDev,
+  secureTransport,
+  requireSupabase = false,
+}: SecurityHeaderOptions): string {
   const supabase = supabaseOrigins(supabaseUrl);
+  if (requireSupabase && supabase.http.length === 0) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL is missing or invalid: the CSP would block every Supabase request.",
+    );
+  }
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
     ["script-src", ["'self'", "'unsafe-inline'", ...(isDev ? ["'unsafe-eval'"] : [])]],
@@ -68,7 +80,8 @@ export function buildSecurityHeaders(options: SecurityHeaderOptions): HeaderEntr
   if (options.secureTransport) {
     headers.push({
       key: "Strict-Transport-Security",
-      value: "max-age=63072000; includeSubDomains",
+      // No includeSubDomains/preload until every subdomain of the production domain is HTTPS-only.
+      value: "max-age=63072000",
     });
   }
   return headers;
