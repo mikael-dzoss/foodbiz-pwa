@@ -5,32 +5,19 @@ import ErrorPage from "../error";
 import NotFound from "../not-found";
 
 describe("src/app ErrorPage", () => {
-  it("renders error message and triggers reset on retry click", () => {
-    const reset = vi.fn();
-    const testError = new Error("Failed to load storefront data");
+  it("shows generic copy, never the raw error message, and triggers retry", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const retry = vi.fn();
 
-    render(<ErrorPage error={testError} reset={reset} />);
+    render(<ErrorPage error={new Error("Failed to load storefront data")} retry={retry} />);
 
-    expect(screen.getByText("Application error")).toBeDefined();
-    expect(screen.getByText("Failed to load storefront data")).toBeDefined();
+    expect(screen.getByText("We could not load this page")).toBeDefined();
+    expect(screen.queryByText("Failed to load storefront data")).toBeNull();
 
-    const retryBtn = screen.getByRole("button", { name: "Retry" });
     act(() => {
-      retryBtn.click();
+      screen.getByRole("button", { name: "Try again" }).click();
     });
-
-    expect(reset).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders fallback message when error message is empty", () => {
-    const reset = vi.fn();
-    const testError = new Error("");
-
-    render(<ErrorPage error={testError} reset={reset} />);
-
-    expect(
-      screen.getByText("An unexpected error occurred while processing your request."),
-    ).toBeDefined();
+    expect(retry).toHaveBeenCalledTimes(1);
   });
 });
 
