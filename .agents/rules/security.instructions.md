@@ -37,7 +37,7 @@ Authentication & Sessions:
 
 Browser Hardening:
 
-- Content-Security-Policy via proxy with per-request nonce (requires dynamic rendering; see `node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md`). Avoid `unsafe-inline`/`unsafe-eval` in production.
+- Content-Security-Policy is static, from `next.config.ts` via `src/config/security-headers.ts` (no nonces: they force dynamic rendering, which conflicts with `cacheComponents`; `'unsafe-inline'` is kept, rationale in `docs/architecture.md#security-headers`). Never add `'unsafe-eval'` outside dev; add third-party hosts explicitly, no wildcards.
 - Add security headers: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`/`X-Frame-Options`.
 - Never use `dangerouslySetInnerHTML` with unsanitized content. Validate redirect targets (no open redirects).
 - HTTPS only.

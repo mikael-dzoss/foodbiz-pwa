@@ -10,7 +10,7 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 ## Routing & Structure
 
 - App Router only (`src/app`). Storefront routes live under `src/app/[locale]` (public, SEO, EN/FR); the manager app under `src/app/manage` (`login`, and `(authenticated)` for signed-in pages).
-- `src/proxy.ts` replaces `middleware.ts` (never add one). Keep it thin: session refresh and redirects (CSP headers are planned, not built).
+- `src/proxy.ts` replaces `middleware.ts` (never add one). Keep it thin: session refresh and redirects (security headers/CSP live in `next.config.ts`, not here).
 - `loading.tsx`, `error.tsx`, `not-found.tsx` per route segment; `next/link` and `next/image`.
 - New routes update the shared nav component.
 
