@@ -20,10 +20,7 @@
 --   hours status in the shop's zone (column grant extended, see public_surface tests).
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
---   -- Trigger-only function: nobody calls it directly (same as enforce_owner_only_columns in 028).
-revoke all on function public.validate_business_timezone() from public, anon, authenticated;
-
-drop trigger if exists business_settings_validate_timezone on public.business_settings;
+--   drop trigger if exists business_settings_validate_timezone on public.business_settings;
 --   drop function if exists public.validate_business_timezone();
 --   alter table public.business_settings drop column timezone;
 --   (and re-grant anon select without the timezone column).
@@ -52,6 +49,9 @@ begin
   return new;
 end;
 $$;
+
+-- Trigger-only function: nobody calls it directly (same as enforce_owner_only_columns in 028).
+revoke all on function public.validate_business_timezone() from public, anon, authenticated;
 
 drop trigger if exists business_settings_validate_timezone on public.business_settings;
 create trigger business_settings_validate_timezone
