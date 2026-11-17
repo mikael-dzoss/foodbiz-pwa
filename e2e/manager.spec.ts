@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/manage/login");
-  await page.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+  await page.getByTestId("btn-demo-sign-in").click();
   await expect(page).toHaveURL("/manage");
 });
 

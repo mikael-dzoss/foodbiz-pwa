@@ -117,12 +117,12 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
   const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     // Client check: at least one service type must be enabled
     if (!pickup && !delivery && !dineIn) {
-      showError("At least one fulfillment mode must be enabled");
+      showError(x.atLeastOneMode);
       return {
         ok: false,
         code: "VALIDATION",
-        message: "At least one fulfillment mode must be enabled",
-        fieldErrors: { serviceTypes: ["At least one fulfillment mode must be enabled"] },
+        message: x.atLeastOneMode,
+        fieldErrors: { serviceTypes: [x.atLeastOneMode] },
       };
     }
 

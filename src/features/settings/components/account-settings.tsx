@@ -99,7 +99,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-foreground text-base font-semibold">{session.user.name}</span>
               <span className="bg-primary-soft text-primary-soft-foreground rounded-full px-2 py-0.5 text-xs font-semibold uppercase">
-                {session.user.role === "owner" ? "Owner & Manager" : "Manager"}
+                {session.user.role === "owner" ? x.roleOwner : x.roleManager}
               </span>
             </div>
             <p className="text-body-sm text-muted-foreground truncate">{session.user.email}</p>

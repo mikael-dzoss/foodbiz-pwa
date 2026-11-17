@@ -49,7 +49,7 @@ test("storefront pages produce no CSP violations", async ({ page }) => {
 test("manager pages produce no CSP violations", async ({ page }) => {
   const violations = trackViolations(page);
   await page.goto("/manage/login");
-  await page.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+  await page.getByTestId("btn-demo-sign-in").click();
   await expect(page).toHaveURL("/manage");
   for (const path of ["/manage", "/manage/products", "/manage/orders", "/manage/settings"]) {
     await page.goto(path);

@@ -3,6 +3,9 @@ import type { SupportedLocale } from "../types";
 /** Manager settings copy not covered by `settings` (toasts, "coming soon" rows, about page, hints). */
 export interface SettingsExtraDictionary {
   discarded: string;
+  atLeastOneMode: string;
+  roleOwner: string;
+  roleManager: string;
   pwaInstalled: string;
   pwaAlreadyInstalled: string;
   pwaHowTo: string;
@@ -64,6 +67,9 @@ export interface SettingsExtraDictionary {
 
 const en: SettingsExtraDictionary = {
   discarded: "Changes discarded",
+  atLeastOneMode: "At least one fulfillment mode must be enabled",
+  roleOwner: "Owner & Manager",
+  roleManager: "Manager",
   pwaInstalled: "FoodBiz Manager PWA installed successfully",
   pwaAlreadyInstalled: "FoodBiz is already installed on this device",
   pwaHowTo: "To install, tap Share or Menu in your browser, then 'Add to Home Screen'",
@@ -127,6 +133,9 @@ const en: SettingsExtraDictionary = {
 
 const fr: SettingsExtraDictionary = {
   discarded: "Modifications annulées",
+  atLeastOneMode: "Activez au moins un mode de service",
+  roleOwner: "Propriétaire et gestionnaire",
+  roleManager: "Gestionnaire",
   pwaInstalled: "L'application FoodBiz Manager a bien été installée",
   pwaAlreadyInstalled: "FoodBiz est déjà installé sur cet appareil",
   pwaHowTo:

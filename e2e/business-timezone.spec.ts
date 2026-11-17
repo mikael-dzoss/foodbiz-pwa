@@ -22,7 +22,7 @@ test("order detail shows the business time zone and hydrates cleanly", async ({ 
 
   const suffix = randomUUID().replace(/\D/g, "").padEnd(8, "0").slice(0, 8);
   await page.goto("/manage/login");
-  await page.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+  await page.getByTestId("btn-demo-sign-in").click();
   await expect(page).toHaveURL("/manage");
 
   await page.goto("/manage/orders/new");

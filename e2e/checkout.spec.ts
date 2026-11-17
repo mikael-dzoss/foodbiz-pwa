@@ -64,7 +64,7 @@ test("storefront dish detail adds selected drink as a separate cart line", async
     try {
       const manager = await managerContext.newPage();
       await manager.goto("/manage/login");
-      await manager.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+      await manager.getByTestId("btn-demo-sign-in").click();
       await expect(manager).toHaveURL("/manage");
       await manager.goto("/manage/settings/ordering");
       await manager.getByTestId("input-opening-hours").fill("00:00 - 23:59");
@@ -187,7 +187,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   try {
     const manager = await managerContext.newPage();
     await manager.goto("/manage/login");
-    await manager.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+    await manager.getByTestId("btn-demo-sign-in").click();
     await expect(manager).toHaveURL("/manage");
     await manager.goto("/manage/orders");
     await manager
