@@ -5,6 +5,7 @@ import { isOwnerRole } from "@/domain/auth";
 import { listExpenses } from "@/features/expenses/expense-data";
 import { ExpenseManager } from "@/features/expenses/components";
 import { APP_METADATA } from "@/config/app";
+import { getRequestNow } from "@/lib/request-time";
 
 export const metadata: Metadata = {
   title: `Expenses | ${APP_METADATA.name}`,
@@ -22,11 +23,13 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   const dict = getDictionary(DEFAULT_LOCALE);
   const params = searchParams ? await searchParams : undefined;
   const expenses = await listExpenses();
+  const now = (await getRequestNow()).toISOString();
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
       <ExpenseManager
         initialExpenses={expenses}
+        now={now}
         initialAction={params?.action}
         deleteDisabledReason={
           isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice

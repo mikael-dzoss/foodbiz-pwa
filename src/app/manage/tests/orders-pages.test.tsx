@@ -34,6 +34,14 @@ const mockSession = {
   expiresAt: "2099-01-01T00:00:00.000Z",
 };
 
+vi.mock("@/lib/request-time", () => ({
+  getRequestNow: vi.fn(async () => new Date("2026-10-15T12:00:00Z")),
+}));
+
+vi.mock("@/features/settings/settings-data", () => ({
+  getBusinessToday: vi.fn(async () => "2026-10-15"),
+}));
+
 vi.mock("@/lib/auth", () => ({
   requireManagerSession: vi.fn(async () => mockSession),
 }));

@@ -50,6 +50,7 @@ const mockSettings: BusinessSettings = {
   paymentInstructionsFr: "",
   inAppAlerts: true,
   soundAlerts: true,
+  timezone: "Europe/Paris",
 };
 
 describe("ShopInfoView (#83)", () => {

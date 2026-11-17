@@ -1,5 +1,7 @@
+import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import {
   formatDate,
+  getZonedParts,
   formatMoney,
   formatTime,
   type CustomerSummary,
@@ -16,6 +18,7 @@ export function CustomerMetrics({
   dict: CustomersDictionary;
   locale: SupportedLocale;
 }) {
+  const timeZone = useBusinessTimeZone();
   return (
     <dl className="grid grid-cols-3 gap-2" data-testid="customer-metrics">
       <div className="border-border bg-card flex min-w-0 flex-col justify-between rounded-xl border p-3">
@@ -42,17 +45,18 @@ export function CustomerMetrics({
           {summary.lastOrderDate ? (
             <time
               dateTime={summary.lastOrderDate}
-              title={formatDate(summary.lastOrderDate, locale)}
+              title={formatDate(summary.lastOrderDate, timeZone, locale)}
             >
               <span className="text-sm font-semibold tabular-nums">
                 {new Intl.DateTimeFormat(locale === "en" ? "en-GB" : locale, {
                   day: "numeric",
                   month: "short",
+                  timeZone,
                 }).format(new Date(summary.lastOrderDate))}
               </span>
               <span className="text-muted-foreground mt-0.5 block text-xs tabular-nums">
-                {new Date(summary.lastOrderDate).getFullYear()} ·{" "}
-                {formatTime(summary.lastOrderDate, locale)}
+                {getZonedParts(summary.lastOrderDate, timeZone).year} ·{" "}
+                {formatTime(summary.lastOrderDate, timeZone, locale)}
               </span>
             </time>
           ) : (

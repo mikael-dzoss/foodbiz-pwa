@@ -57,6 +57,7 @@ const mockSettings: BusinessSettings = {
   paymentInstructionsFr: "Règlement au comptoir.",
   inAppAlerts: true,
   soundAlerts: true,
+  timezone: "Europe/Paris",
 };
 
 const mockCartItems = [

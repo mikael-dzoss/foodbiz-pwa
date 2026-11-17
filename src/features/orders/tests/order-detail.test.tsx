@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { OrderDetail } from "../components/order-detail";
 import type { EnrichedOrder } from "../order-data";
+import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
 import * as actions from "../order-actions";
 
 vi.mock("next/navigation", () => ({
@@ -471,5 +472,54 @@ describe("OrderDetail Component", () => {
       const badge = screen.getByTestId("order-submitted-name-badge");
       expect(badge.textContent).toBe("Ordered as Marc");
     });
+  });
+});
+
+describe("OrderDetail time zone (#168)", () => {
+  const paidOrder: EnrichedOrder = {
+    ...mockOrder,
+    paid: "paid",
+    paymentMethod: "cash",
+    paidAt: "2026-10-13T22:46:00.000Z",
+    createdAt: "2026-10-13T22:45:00.000Z",
+    statusHistory: [{ status: "NEW", timestamp: "2026-10-13T22:45:00.000Z", note: "Created" }],
+  };
+
+  function renderIn(timeZone: string) {
+    const { container, unmount } = render(
+      <BusinessTimeZoneProvider timeZone={timeZone}>
+        <OrderDetail order={paidOrder} />
+      </BusinessTimeZoneProvider>,
+    );
+    const text = container.textContent ?? "";
+    unmount();
+    return text;
+  }
+
+  it("renders every timestamp in the business time zone", () => {
+    // 22:45 UTC is 00:45 on the 14th in Paris and 18:45 on the 13th in New York
+    const paris = renderIn("Europe/Paris");
+    expect(paris).toContain("Created on 14 October 2026 at 00:45");
+    expect(paris).toContain("on 14/10/2026 at 00:46");
+    expect(paris).toContain("14/10/2026 • 00:45");
+
+    const newYork = renderIn("America/New_York");
+    expect(newYork).toContain("Created on 13 October 2026 at 18:45");
+    expect(newYork).toContain("on 13/10/2026 at 18:46");
+  });
+
+  it("renders the same text whatever the server or device time zone is", () => {
+    const previous = process.env.TZ;
+    try {
+      const outputs = ["Pacific/Auckland", "America/Los_Angeles", "UTC"].map((zone) => {
+        process.env.TZ = zone;
+        return renderIn("Europe/Paris");
+      });
+      expect(outputs[1]).toBe(outputs[0]);
+      expect(outputs[2]).toBe(outputs[0]);
+    } finally {
+      if (previous === undefined) delete process.env.TZ;
+      else process.env.TZ = previous;
+    }
   });
 });

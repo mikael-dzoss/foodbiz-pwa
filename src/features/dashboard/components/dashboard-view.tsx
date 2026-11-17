@@ -168,7 +168,11 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
       <OperationalWidgets triage={triage} labels={dict.dashboard.triage} />
 
       {/* Recent Activity Feed Section */}
-      <RecentActivityFeed items={activity} labels={dict.dashboard.activity} />
+      <RecentActivityFeed
+        items={activity}
+        now={initialData.generatedAt}
+        labels={dict.dashboard.activity}
+      />
     </div>
   );
 }

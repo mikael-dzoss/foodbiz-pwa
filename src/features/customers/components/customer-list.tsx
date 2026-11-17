@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowDownUp, ChevronRight, Search, Store, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import {
   formatPhoneNumber,
   formatDate,
@@ -23,6 +24,7 @@ export function CustomerList({
   dict: CustomersDictionary;
   locale: SupportedLocale;
 }) {
+  const timeZone = useBusinessTimeZone();
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(20);
   const query = search.trim().toLocaleLowerCase(locale);
@@ -137,7 +139,7 @@ export function CustomerList({
                     <dt>{dict.last}:</dt>
                     <dd className="tabular-nums">
                       {summary.lastOrderDate
-                        ? formatDate(summary.lastOrderDate, locale)
+                        ? formatDate(summary.lastOrderDate, timeZone, locale)
                         : dict.neverOrdered}
                     </dd>
                   </div>

@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 export interface RecentActivityFeedProps {
   items: readonly ActivityFeedItem[];
+  /** Instant (ISO) the feed was built at; relative times are measured against it. */
+  now: string;
   className?: string;
   labels?: {
     sectionTitle?: string;
@@ -18,7 +20,7 @@ export interface RecentActivityFeedProps {
   };
 }
 
-export function RecentActivityFeed({ items, className, labels }: RecentActivityFeedProps) {
+export function RecentActivityFeed({ items, now, className, labels }: RecentActivityFeedProps) {
   return (
     <section className={cn("space-y-3.5", className)} data-testid="recent-activity-section">
       <div className="flex items-center justify-between">
@@ -35,7 +37,7 @@ export function RecentActivityFeed({ items, className, labels }: RecentActivityF
           <div className="divide-border/40 divide-y" data-testid="activity-feed-list">
             {items.map((item) => {
               const isExpense = item.type === "expense";
-              const relativeTime = formatRelativeTime(item.timestamp);
+              const relativeTime = formatRelativeTime(item.timestamp, now);
 
               return (
                 <Link

@@ -22,7 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { formatMoney, type OrderStatus } from "@/domain";
+import { formatMoney, getZonedDay, getZonedMinutesOfDay, type OrderStatus } from "@/domain";
+import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import { progressOrderStatusAction } from "../order-actions";
 import type { EnrichedOrder, ListOrdersResult } from "../order-data";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,8 @@ export interface OrderListProps {
   initialData: ListOrdersResult;
   initialTab?: "active" | "completed" | "cancelled";
   initialUnpaidOnly?: boolean;
+  /** The server's current instant (ISO), so render and hydration agree on "now". */
+  now: string;
   onFilterChange?: (filter: {
     tab: "active" | "completed" | "cancelled";
     serviceType?: string;
@@ -93,25 +96,26 @@ function getNextAction(order: EnrichedOrder): NextActionStep | null {
   }
 }
 
-function getDueTimeDiff(requestedDate?: string | null, requestedTime?: string | null) {
+/** How far a requested date/time is from `now`, read on the business calendar in `timeZone`. */
+function getDueTimeDiff(
+  requestedDate: string | null | undefined,
+  requestedTime: string | null | undefined,
+  now: Date,
+  timeZone: string,
+) {
   if (!requestedDate) return null;
-  const now = new Date();
   const [y, m, d] = requestedDate.split("-").map(Number);
   if (!y || !m || !d) return null;
+  const [ty, tm, td] = getZonedDay(now, timeZone).split("-").map(Number);
 
-  const dueDate = new Date(y, m - 1, d);
-  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const diffDays = Math.round((dueDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
 
   if (diffDays > 0) {
     return { text: `(+${diffDays}d)`, isOverdue: false };
   } else if (diffDays === 0) {
     if (requestedTime) {
       const [dueH, dueM] = requestedTime.split(":").map(Number);
-      const currentH = now.getHours();
-      const currentM = now.getMinutes();
-      if (dueH < currentH || (dueH === currentH && dueM < currentM)) {
+      if (dueH * 60 + dueM < getZonedMinutesOfDay(now, timeZone)) {
         return { text: "(-overdue)", isOverdue: true };
       }
     }
@@ -125,7 +129,9 @@ export function OrderList({
   initialData,
   initialTab = "active",
   initialUnpaidOnly = false,
+  now,
 }: OrderListProps) {
+  const timeZone = useBusinessTimeZone();
   const router = useRouter();
   const [localStatusUpdates, setLocalStatusUpdates] = React.useState<Record<string, OrderStatus>>(
     {},
@@ -459,7 +465,7 @@ export function OrderList({
             const nextAction = getNextAction(order);
             const dueDiff =
               activeTab === "active"
-                ? getDueTimeDiff(order.requestedDate, order.requestedTime)
+                ? getDueTimeDiff(order.requestedDate, order.requestedTime, new Date(now), timeZone)
                 : null;
 
             return (

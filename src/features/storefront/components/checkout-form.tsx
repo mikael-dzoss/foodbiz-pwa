@@ -37,6 +37,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
+import { useZonedToday } from "@/components/time/business-timezone";
 import { useCart, resolveServiceMode } from "../context/cart-context";
 import type { ActionCode, ActionFailure } from "@/lib/actions/types";
 import { placeOrderAction } from "../storefront-actions";
@@ -162,6 +164,8 @@ export function CheckoutForm({
 
   // Fulfillment State
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
+  // Earliest schedulable day: today in the business zone (null until hydrated)
+  const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
   const pickupAllowed = settings?.serviceTypes.pickup ?? true;
   const deliveryAllowed = settings?.serviceTypes.delivery ?? true;
   const preselectedService = resolveServiceMode(serviceMode, {
@@ -672,7 +676,7 @@ export function CheckoutForm({
                     <Input
                       id={dateId}
                       type="date"
-                      min={new Date().toISOString().split("T")[0]}
+                      min={today ?? undefined}
                       value={requestedDate}
                       onChange={(e) => setRequestedDate(e.target.value)}
                       data-testid="checkout-date-input"

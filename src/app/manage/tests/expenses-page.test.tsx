@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("@/lib/request-time", () => ({
+  getRequestNow: vi.fn(async () => new Date()),
+}));
+
 vi.mock("@/lib/auth", () => ({
   requireManagerSession: vi.fn(async () => ({
     user: {

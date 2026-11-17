@@ -83,6 +83,7 @@ const mockCatalog: StorefrontCatalogData = {
     paymentInstructionsFr: "",
     inAppAlerts: true,
     soundAlerts: true,
+    timezone: "Europe/Paris",
   },
   categories: [
     {

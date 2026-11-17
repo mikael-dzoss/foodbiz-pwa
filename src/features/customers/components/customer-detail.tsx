@@ -28,6 +28,7 @@ import {
 } from "@/domain";
 import type { ActionCode } from "@/lib/actions/types";
 import { updateCustomerAction } from "../customer-actions";
+import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import { CustomerMetrics } from "./customer-metrics";
 
 const CUSTOMER_ERROR_KEYS: Partial<Record<ActionCode, "invalid" | "notFound">> = {
@@ -54,6 +55,7 @@ export function CustomerDetail({
   dict: Dictionary;
 }) {
   const text = dict.customers;
+  const timeZone = useBusinessTimeZone();
   const [limit, setLimit] = useState(20);
   const [guest, setGuest] = useState(summary.guest);
   const [name, setName] = useState(summary.guest.name);
@@ -272,8 +274,8 @@ export function CustomerDetail({
                         </div>
                         <p className="text-muted-foreground text-xs leading-relaxed">
                           <time dateTime={order.createdAt}>
-                            {formatDate(order.createdAt, dict.locale)} ·{" "}
-                            {formatTime(order.createdAt, dict.locale)}
+                            {formatDate(order.createdAt, timeZone, dict.locale)} ·{" "}
+                            {formatTime(order.createdAt, timeZone, dict.locale)}
                           </time>{" "}
                           (
                           {order.serviceType === "pickup"

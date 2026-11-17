@@ -5,6 +5,8 @@ import { Plus, Receipt, ChevronRight, Utensils, Truck, Wrench, Package, Zap } fr
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback";
 import {
+  formatCalendarDate,
+  getZonedDay,
   formatMoney,
   groupExpensesByMonth,
   filterExpenses,
@@ -13,10 +15,13 @@ import {
   type Expense,
   type ExpensePeriodFilter,
 } from "@/domain";
+import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import { ExpenseSheet } from "./expense-sheet";
 
 export interface ExpenseManagerProps {
   initialExpenses: Expense[];
+  /** The server's current instant (ISO): "this month" and the default date follow it. */
+  now: string;
   initialAction?: string;
   /** Set for members who may not delete (owner-only): explains why the delete control is disabled. */
   deleteDisabledReason?: string;
@@ -24,9 +29,11 @@ export interface ExpenseManagerProps {
 
 export function ExpenseManager({
   initialExpenses,
+  now,
   initialAction,
   deleteDisabledReason,
 }: ExpenseManagerProps) {
+  const timeZone = useBusinessTimeZone();
   const [expenses, setExpenses] = React.useState<Expense[]>(initialExpenses);
   const [periodFilter, setPeriodFilter] = React.useState<ExpensePeriodFilter>("this-month");
   const [selectedTag, setSelectedTag] = React.useState<string>("all");
@@ -47,8 +54,10 @@ export function ExpenseManager({
     return filterExpenses(expenses, {
       period: periodFilter,
       tag: selectedTag,
+      referenceDate: now,
+      timeZone,
     });
-  }, [expenses, periodFilter, selectedTag]);
+  }, [expenses, periodFilter, selectedTag, now, timeZone]);
 
   // Group filtered expenses by month
   const monthGroups = React.useMemo(() => {
@@ -62,7 +71,11 @@ export function ExpenseManager({
 
   // Counts for each tag within the selected period (for filter pill badges)
   const tagCounts = React.useMemo(() => {
-    const periodFiltered = filterExpenses(expenses, { period: periodFilter });
+    const periodFiltered = filterExpenses(expenses, {
+      period: periodFilter,
+      referenceDate: now,
+      timeZone,
+    });
     const counts: Record<string, number> = {
       all: periodFiltered.length,
     };
@@ -70,7 +83,7 @@ export function ExpenseManager({
       counts[tag] = periodFiltered.filter((e) => e.tags.includes(tag)).length;
     }
     return counts;
-  }, [expenses, periodFilter]);
+  }, [expenses, periodFilter, now, timeZone]);
 
   // Category breakdown percentages for monthly KPI mini-bar
   const categoryBreakdown = React.useMemo(() => {
@@ -143,23 +156,7 @@ export function ExpenseManager({
     }
   };
 
-  const formatDateDisplay = (dateStr: string) => {
-    try {
-      const parts = dateStr.split("-");
-      if (parts.length === 3) {
-        const d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
-        return d.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          timeZone: "UTC",
-        });
-      }
-      return dateStr;
-    } catch {
-      return dateStr;
-    }
-  };
+  const formatDateDisplay = (dateStr: string) => formatCalendarDate(dateStr, "en");
 
   return (
     <div className="space-y-4 pb-20" data-testid="expenses-manager">
@@ -421,6 +418,7 @@ export function ExpenseManager({
 
       {/* Expense Form & Modal Sheet (Screen M-51) */}
       <ExpenseSheet
+        today={getZonedDay(now, timeZone)}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         expense={editingExpense}

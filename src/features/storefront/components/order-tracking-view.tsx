@@ -29,6 +29,8 @@ export interface OrderTrackingViewProps {
   order: PublicOrder;
   business: StorefrontBusiness;
   locale: SupportedLocale;
+  /** Business time zone (IANA): timestamps read the same on server and device. */
+  timeZone: string;
   dict: OrderTrackingDictionary;
   storefrontDict?: StorefrontDictionary;
 }
@@ -40,7 +42,13 @@ interface TimelineStepConfig {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export function OrderTrackingView({ order, business, locale, dict }: OrderTrackingViewProps) {
+export function OrderTrackingView({
+  order,
+  business,
+  locale,
+  timeZone,
+  dict,
+}: OrderTrackingViewProps) {
   const isCancelled = order.status === "CANCELLED";
   const isCompleted = order.status === "COMPLETED";
 
@@ -151,7 +159,7 @@ export function OrderTrackingView({ order, business, locale, dict }: OrderTracki
                   </h2>
                 </div>
                 <p className="text-muted-foreground mt-1 text-xs tabular-nums">
-                  {dict.placedAt} {formatTime(order.createdAt, locale)}
+                  {dict.placedAt} {formatTime(order.createdAt, timeZone, locale)}
                 </p>
               </div>
 

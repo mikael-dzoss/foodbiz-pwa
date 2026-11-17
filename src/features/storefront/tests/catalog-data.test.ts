@@ -45,61 +45,75 @@ const baseSettings: BusinessSettings = {
   paymentInstructionsFr: "",
   inAppAlerts: true,
   soundAlerts: true,
+  timezone: "Europe/Paris",
 };
 
 describe("catalog-data (#80, #81, #82, #83)", () => {
   describe("evaluateStoreOperatingStatus", () => {
     it("handles null settings gracefully", () => {
-      const res = evaluateStoreOperatingStatus(null);
+      const res = evaluateStoreOperatingStatus(null, new Date("2026-10-16T10:00:00Z"));
       expect(res.isOpen).toBe(true);
       expect(res.isAcceptingOrders).toBe(true);
       expect(res.scheduleText).toBeNull();
     });
 
     it("respects acceptingOrders: false regardless of hours", () => {
-      const res = evaluateStoreOperatingStatus({
-        ...baseSettings,
-        acceptingOrders: false,
-        openingHours: "08:00 - 18:00",
-      });
+      const res = evaluateStoreOperatingStatus(
+        {
+          ...baseSettings,
+          acceptingOrders: false,
+          openingHours: "08:00 - 18:00",
+        },
+        new Date("2026-10-16T10:00:00Z"),
+      );
       expect(res.isOpen).toBe(false);
       expect(res.isAcceptingOrders).toBe(false);
       expect(res.scheduleText).toBe("08:00 - 18:00");
     });
 
     it("returns open when current time is within hours", () => {
-      const insideHours = new Date(2026, 9, 16, 12, 0, 0); // 12:00
+      const insideHours = new Date("2026-10-16T10:00:00Z"); // 12:00 in Paris (CEST)
       const res = evaluateStoreOperatingStatus(baseSettings, insideHours);
       expect(res.isOpen).toBe(true);
       expect(res.isAcceptingOrders).toBe(true);
     });
 
     it("returns closed when current time is before opening time", () => {
-      const beforeHours = new Date(2026, 9, 16, 6, 30, 0); // 06:30
+      const beforeHours = new Date("2026-10-16T04:30:00Z"); // 06:30 in Paris
       const res = evaluateStoreOperatingStatus(baseSettings, beforeHours);
       expect(res.isOpen).toBe(false);
       expect(res.isAcceptingOrders).toBe(true);
     });
 
     it("returns closed when current time is after closing time", () => {
-      const afterHours = new Date(2026, 9, 16, 19, 0, 0); // 19:00
+      const afterHours = new Date("2026-10-16T17:00:00Z"); // 19:00 in Paris
       const res = evaluateStoreOperatingStatus(baseSettings, afterHours);
       expect(res.isOpen).toBe(false);
       expect(res.isAcceptingOrders).toBe(true);
     });
 
+    it("reads the opening hours on the business clock, not the server's", () => {
+      const instant = new Date("2026-10-16T10:00:00Z"); // 12:00 Paris, 06:00 New York
+      expect(evaluateStoreOperatingStatus(baseSettings, instant).isOpen).toBe(true);
+      expect(
+        evaluateStoreOperatingStatus({ ...baseSettings, timezone: "America/New_York" }, instant)
+          .isOpen,
+      ).toBe(false);
+    });
+
     it("handles empty or non-matching opening hours text", () => {
-      const noRegex = evaluateStoreOperatingStatus({
-        ...baseSettings,
-        openingHours: "By appointment only",
-      });
+      const noon = new Date("2026-10-16T10:00:00Z");
+      const noRegex = evaluateStoreOperatingStatus(
+        { ...baseSettings, openingHours: "By appointment only" },
+        noon,
+      );
       expect(noRegex.isOpen).toBe(true);
       expect(noRegex.scheduleText).toBe("By appointment only");
 
-      const emptyHours = evaluateStoreOperatingStatus({
-        ...baseSettings,
-        openingHours: "   ",
-      });
+      const emptyHours = evaluateStoreOperatingStatus(
+        { ...baseSettings, openingHours: "   " },
+        noon,
+      );
       expect(emptyHours.scheduleText).toBeNull();
     });
   });

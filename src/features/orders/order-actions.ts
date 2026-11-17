@@ -7,6 +7,8 @@ import { defineAction } from "@/lib/actions/define-action";
 import { ActionError } from "@/lib/actions/types";
 import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import {
+  DEFAULT_TIMEZONE,
+  getZonedDay,
   type Guest,
   type PlacedOrderSummary,
   type Product,
@@ -68,7 +70,8 @@ export const createManualOrderAction = defineAction(
       if (!check.ok) throw refuse(check.error.message);
     }
 
-    const todayDate = new Date().toISOString().slice(0, 10);
+    const settings = await repos.business.getSettings(businessId);
+    const todayDate = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
     const summary: PlacedOrderSummary = await repos.orders.place(businessId, {
       guestName: data.guestName,
       guestPhone: data.guestPhone,
