@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   description: "Manually enter customer orders taken by phone, WhatsApp, or in person.",
 };
 
+// Needs the visible product list and the business date before the form can render, so it blocks.
 export const instant = false;
 
 export default async function NewOrderPage() {

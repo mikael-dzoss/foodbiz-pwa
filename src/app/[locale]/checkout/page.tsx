@@ -8,11 +8,12 @@ import {
 } from "@/domain/i18n";
 import { getStorefrontCatalog, CheckoutView } from "@/features/storefront";
 
+// Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
+export const instant = false;
+
 export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
 }
-
-export const instant = false;
 
 export interface CheckoutPageProps {
   params: Promise<{ locale: string }>;

@@ -114,7 +114,9 @@ export function OrderAlertsProvider({
             seenOrderIdsRef.current.add(o.id);
           }
           if (initialNewCount === 0) {
-            setNewOrdersCount(newOrders.length);
+            // A transition, so a page boundary still streaming in is hydrated first instead of
+            // being client-rendered because the context above it changed.
+            React.startTransition(() => setNewOrdersCount(newOrders.length));
           }
           isInitialLoadRef.current = false;
           return;
@@ -303,20 +305,21 @@ export function OrderAlertsProvider({
     [businessId, handleNewOrderArrival],
   );
 
-  return (
-    <OrderAlertsContext.Provider
-      value={{
-        newOrdersCount,
-        soundAlerts,
-        setSoundAlerts,
-        clearNewOrdersBadge,
-        checkForNewOrders,
-        triggerMockNewOrder,
-      }}
-    >
-      {children}
-    </OrderAlertsContext.Provider>
+  // Stable unless a field changes: connection-state re-renders must not change the context value
+  // above page Suspense boundaries.
+  const value = React.useMemo(
+    () => ({
+      newOrdersCount,
+      soundAlerts,
+      setSoundAlerts,
+      clearNewOrdersBadge,
+      checkForNewOrders,
+      triggerMockNewOrder,
+    }),
+    [newOrdersCount, soundAlerts, clearNewOrdersBadge, checkForNewOrders, triggerMockNewOrder],
   );
+
+  return <OrderAlertsContext.Provider value={value}>{children}</OrderAlertsContext.Provider>;
 }
 
 export function useOrderAlerts(): OrderAlertsContextValue {

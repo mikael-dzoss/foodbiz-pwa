@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: "One-screen overview of business health, KPIs and operational triage.",
 };
 
-export const instant = false;
-
 interface ManageDashboardPageProps {
   searchParams?: Promise<{ period?: string }>;
 }

@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: "Configure order acceptance, fulfillment modes, and delivery rules.",
 };
 
-export const instant = false;
-
 export default async function OrderingSettingsPage() {
   await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

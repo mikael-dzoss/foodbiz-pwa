@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: "Configure order alerts, sound chime, and PWA installation options.",
 };
 
-export const instant = false;
-
 export default async function NotificationsPage() {
   await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

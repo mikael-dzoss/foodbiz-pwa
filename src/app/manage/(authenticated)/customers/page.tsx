@@ -5,7 +5,6 @@ import { listCustomers } from "@/features/customers/customer-data";
 import { CustomerList } from "@/features/customers/components/customer-list";
 
 export const metadata: Metadata = { title: "Customers | FoodBiz" };
-export const instant = false;
 
 export default async function CustomersPage() {
   const customers = await listCustomers();

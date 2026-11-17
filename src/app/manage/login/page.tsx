@@ -14,14 +14,15 @@ export const metadata: Metadata = {
   description: "Sign in to access your FoodBiz manager dashboard and operations.",
 };
 
-export const instant = false;
-
 export interface ManagerLoginPageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
   error?: string;
   locale?: SupportedLocale;
   next?: string;
 }
+
+// The page renders from searchParams (error/locale) and redirects signed-in managers, so it blocks.
+export const instant = false;
 
 export default async function ManagerLoginPage(props: ManagerLoginPageProps = {}) {
   const resolvedParams = props.searchParams ? await props.searchParams : {};

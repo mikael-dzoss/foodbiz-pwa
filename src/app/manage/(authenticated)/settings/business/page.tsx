@@ -11,8 +11,6 @@ export const metadata: Metadata = {
   description: "Configure your public store details, contact channels and web address.",
 };
 
-export const instant = false;
-
 export default async function BusinessProfilePage() {
   const session = await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

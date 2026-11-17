@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: "Version, legal and support information.",
 };
 
-export const instant = false;
-
 export default async function AboutPage() {
   await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);

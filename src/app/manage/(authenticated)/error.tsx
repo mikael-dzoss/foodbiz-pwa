@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { ErrorState } from "@/components/feedback";
+import { Button } from "@/components/ui/button";
 import { getDictionary } from "@/domain/i18n";
 
 /**
@@ -20,7 +22,7 @@ export default function ManageError({ error, retry }: { error: unknown; retry: (
   }, [error]);
 
   return (
-    <div className="mx-auto max-w-xl" data-testid="manage-error">
+    <div className="mx-auto max-w-xl space-y-3" data-testid="manage-error">
       <ErrorState
         title={pageError.title}
         message={pageError.message}
@@ -29,13 +31,17 @@ export default function ManageError({ error, retry }: { error: unknown; retry: (
         data-testid="manage-error-state"
       />
       {digest && (
-        <p
-          className="text-muted-foreground mt-2 text-center text-xs"
-          data-testid="manage-error-ref"
-        >
+        <p className="text-muted-foreground text-center text-xs" data-testid="manage-error-ref">
           {pageError.reference}: {digest}
         </p>
       )}
+      <div className="flex justify-center">
+        <Button asChild variant="outline">
+          <Link href="/manage" data-testid="manage-error-dashboard">
+            {pageError.backToDashboard}
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

@@ -11,11 +11,12 @@ import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { toStorefrontBusiness } from "@/domain/storefront-business";
 import { OrderTrackingView } from "@/features/storefront";
 
-export const instant = false;
-
 export interface OrderTrackingPageProps {
   params: Promise<{ locale: string; token: string }>;
 }
+
+// Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
+export const instant = false;
 
 export async function generateMetadata({ params }: OrderTrackingPageProps): Promise<Metadata> {
   const resolved = await params;

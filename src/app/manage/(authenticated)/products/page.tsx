@@ -9,8 +9,6 @@ export const metadata: Metadata = {
   description: "Manage menu items, pricing, stock levels and categories.",
 };
 
-export const instant = false;
-
 export default async function ProductsPage() {
   await requireManagerSession();
   const { products, categories, lowStockThreshold } = await listProducts();

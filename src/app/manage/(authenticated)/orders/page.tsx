@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: "Triage and manage incoming orders by status and requested time.",
 };
 
-export const instant = false;
-
 interface OrdersPageProps {
   searchParams?: Promise<{ tab?: string; unpaid?: string; payment?: string }>;
 }

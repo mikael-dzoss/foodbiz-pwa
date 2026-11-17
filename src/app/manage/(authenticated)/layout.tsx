@@ -6,6 +6,7 @@ import { ManagerShell } from "@/features/manager";
 import { requireManagerSession } from "@/lib/auth";
 import { getRepositories } from "@/lib/repositories";
 
+// The session check must resolve before the shell (and its business settings) can render.
 export const instant = false;
 
 export interface AuthenticatedManageLayoutProps {
