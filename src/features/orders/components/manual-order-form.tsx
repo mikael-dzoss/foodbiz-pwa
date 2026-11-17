@@ -301,9 +301,9 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Step 1: Guest Information Card (Matching Stitch M-30) */}
       <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
-        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+        <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
-            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               1
             </span>
             <h2 className="text-title-sm text-foreground">Step 1: Guest Information</h2>
@@ -415,10 +415,17 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
         {/* Channel Selector Chips (Phone, WhatsApp, In-person with icons) */}
         <div>
-          <label className="text-muted-foreground text-caption mb-1.5 block font-medium">
+          <p
+            id="intake-channel-label"
+            className="text-muted-foreground text-caption mb-1.5 block font-medium"
+          >
             Intake channel
-          </label>
-          <div className="grid grid-cols-3 gap-1.5">
+          </p>
+          <div
+            role="group"
+            aria-labelledby="intake-channel-label"
+            className="grid grid-cols-3 gap-1.5"
+          >
             {(
               [
                 { id: "phone", label: "Phone", icon: Phone },
@@ -432,15 +439,16 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 key={ch.id}
                 type="button"
                 onClick={() => setChannel(ch.id)}
+                aria-pressed={channel === ch.id}
                 className={cn(
-                  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-all active:scale-95",
+                  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold whitespace-nowrap transition-all active:scale-95",
                   channel === ch.id
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",
                 )}
                 data-testid={`channel-${ch.id}`}
               >
-                <ch.icon className="h-3.5 w-3.5" />
+                <ch.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span>{ch.label}</span>
               </Button>
             ))}
@@ -450,14 +458,14 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Step 2: Service & Timing Card (Matching Stitch M-30) */}
       <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
-        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+        <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
-            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               2
             </span>
             <h2 className="text-title-sm text-foreground">Step 2: Service &amp; Timing</h2>
           </div>
-          <span className="text-muted-foreground text-xs capitalize">
+          <span className="text-muted-foreground shrink-0 text-xs capitalize">
             {serviceType} fulfillment
           </span>
         </div>
@@ -638,14 +646,14 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Step 3: Product Selection & Quantities Card (Matching Stitch M-30) */}
       <section className="bg-card border-border space-y-3 rounded-xl border p-3.5 shadow-none">
-        <div className="border-border/60 flex items-center justify-between border-b pb-2">
+        <div className="border-border/60 flex items-center justify-between gap-3 border-b pb-2">
           <div className="flex items-center gap-2">
-            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+            <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               3
             </span>
             <h2 className="text-title-sm text-foreground">Step 3: Product Selection</h2>
           </div>
-          <span className="text-muted-foreground text-xs font-medium tabular-nums">
+          <span className="text-muted-foreground shrink-0 text-xs font-medium tabular-nums">
             {totalItemCount} {totalItemCount === 1 ? "item" : "items"} selected
           </span>
         </div>
