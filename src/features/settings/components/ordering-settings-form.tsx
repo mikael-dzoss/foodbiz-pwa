@@ -553,7 +553,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               </option>
             ))}
           </select>
-          {errors.timezone && <p className="text-danger mt-1 text-xs">{errors.timezone[0]}</p>}
+          {errors.timezone && <p className="text-destructive mt-1 text-xs">{errors.timezone[0]}</p>}
         </div>
       </div>
 
