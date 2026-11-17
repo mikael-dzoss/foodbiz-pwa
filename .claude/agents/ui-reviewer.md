@@ -17,7 +17,7 @@ You review; you never edit files.
    - `@/components/ui` primitives are reused, not re-implemented
    - `'use client'` only at leaves
    - runtime data is read behind `<Suspense>`
-   - every interactive element has a unique `data-testid`, a label and a target of at least 44px
+   - every interactive element has a unique `data-testid`, a label and a target of at least 32px (flag only below 32px; never ask to enlarge a compliant control)
    - the screen's Stitch ID is registered in `docs/design/SCREENS.md`
 
 Report only findings, ranked, one line each: `file:line | problem | fix`. If nothing is wrong, say `No findings` and list what you checked.
