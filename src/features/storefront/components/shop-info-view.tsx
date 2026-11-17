@@ -105,10 +105,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                   {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
                 </span>
               </div>
-              <h1
-                id="overview-heading"
-                className="text-foreground mt-0.5 text-lg leading-snug font-bold tracking-tight"
-              >
+              <h1 id="overview-heading" className="text-title-lg text-foreground mt-0.5">
                 {business.name}
               </h1>
             </div>
@@ -182,7 +179,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
         >
           <h2
             id="contact-heading"
-            className="text-muted-foreground px-1 text-xs font-semibold tracking-wider uppercase"
+            className="text-label-sm text-muted-foreground px-1 tracking-wider uppercase"
           >
             {dict.contact}
           </h2>
@@ -272,7 +269,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
         >
           <div className="flex items-center gap-2">
             <Clock className="text-primary h-4 w-4" />
-            <h2 id="hours-heading" className="text-foreground text-sm font-semibold">
+            <h2 id="hours-heading" className="text-title-sm text-foreground">
               {dict.weeklyOpeningHours}
             </h2>
             <span className="sr-only">{dict.openHours}</span>
@@ -402,7 +399,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       >
         <div className="flex items-center gap-2">
           <Truck className="text-primary h-4 w-4" />
-          <h2 id="ordering-policy-heading" className="text-foreground text-sm font-semibold">
+          <h2 id="ordering-policy-heading" className="text-title-sm text-foreground">
             {dict.deliveryPolicy}
           </h2>
         </div>

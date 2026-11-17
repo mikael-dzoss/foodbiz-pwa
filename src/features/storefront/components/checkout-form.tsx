@@ -344,9 +344,7 @@ export function CheckoutForm({
         <div className="bg-primary/10 text-primary mb-4 flex h-16 w-16 items-center justify-center rounded-full">
           <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.orderPlacedTitle}
-        </h2>
+        <h2 className="text-title-sm text-foreground">{dict.orderPlacedTitle}</h2>
         {confirmedOrder?.orderNumber && (
           <p className="text-primary mt-1 text-sm font-semibold">#{confirmedOrder.orderNumber}</p>
         )}
@@ -404,7 +402,7 @@ export function CheckoutForm({
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+          <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
             <span className="text-primary font-bold">1.</span>
             {dict.customerContact}
           </h2>
@@ -498,7 +496,7 @@ export function CheckoutForm({
 
       {/* 2. Fulfillment Mode */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+        <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
           <span className="text-primary font-bold">2.</span>
           {dict.fulfillmentMode}
         </h2>
@@ -592,7 +590,7 @@ export function CheckoutForm({
 
       {/* 3. Order Timing */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+        <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
           <span className="text-primary font-bold">3.</span>
           {dict.orderTiming}
         </h2>
@@ -709,7 +707,7 @@ export function CheckoutForm({
       {/* 4. Payment Preference */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-foreground flex items-center gap-1.5 text-sm font-semibold">
+          <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
             <span className="text-primary font-bold">4.</span>
             {dict.paymentMethod}
           </h2>
@@ -891,7 +889,7 @@ export function CheckoutForm({
       {/* 6. Order Summary Card */}
       <section className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-2xs sm:p-5">
         <div className="border-border flex items-center justify-between border-b pb-2">
-          <h2 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+          <h2 className="text-label-sm text-muted-foreground tracking-wider uppercase">
             {dict.orderSummary}
           </h2>
           <span className="border-border bg-muted text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums">

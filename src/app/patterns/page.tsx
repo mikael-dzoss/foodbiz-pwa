@@ -60,7 +60,7 @@ export default function PatternsPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-primary h-2.5 w-2.5 rounded-full" />
-              <h1 className="text-title-md tracking-tight">P-01 Patterns</h1>
+              <h1 className="text-title-md">P-01 Patterns</h1>
             </div>
             <p className="text-muted-foreground text-xs">FoodBiz Component Inventory</p>
           </div>

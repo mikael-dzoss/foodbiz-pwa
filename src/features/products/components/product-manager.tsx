@@ -221,7 +221,7 @@ export function ProductManager({
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-foreground text-xl font-bold tracking-tight">Products</h1>
+              <h1 className="text-title-lg text-foreground">Products</h1>
               <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
                 {totalCount}
               </span>
@@ -369,7 +369,7 @@ export function ProductManager({
                   <h2
                     id={`category-heading-${group.id}`}
                     tabIndex={-1}
-                    className="text-muted-foreground scroll-mt-20 text-xs font-bold tracking-wider uppercase focus:outline-hidden"
+                    className="text-label-sm text-muted-foreground scroll-mt-20 tracking-wider uppercase focus:outline-hidden"
                   >
                     {group.name}
                   </h2>
@@ -413,9 +413,7 @@ export function ProductManager({
                         {/* Main Product Details */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-foreground truncate text-sm font-semibold">
-                              {p.name}
-                            </h3>
+                            <h3 className="text-label-md text-foreground truncate">{p.name}</h3>
                             <span className="text-foreground text-sm font-bold tabular-nums">
                               {formatMoney(p.price)}
                             </span>
@@ -564,7 +562,7 @@ export function ProductManager({
           <div className="bg-primary-soft text-primary mx-auto flex h-14 w-14 items-center justify-center rounded-full">
             <Package className="h-7 w-7" />
           </div>
-          <h2 className="text-foreground mt-3 text-base font-bold">No products yet</h2>
+          <h2 className="text-title-sm text-foreground mt-3">No products yet</h2>
           <p className="text-muted-foreground mx-auto mt-1 max-w-xs text-xs">
             Start building your menu by adding your first product with prices and stock.
           </p>
@@ -585,7 +583,7 @@ export function ProductManager({
           <div className="bg-muted text-muted-foreground mx-auto flex h-12 w-12 items-center justify-center rounded-full">
             <Search className="h-6 w-6" />
           </div>
-          <h2 className="text-foreground mt-3 text-sm font-bold">No matching products</h2>
+          <h2 className="text-title-sm text-foreground mt-3">No matching products</h2>
           <p className="text-muted-foreground mt-1 text-xs">
             No products match &ldquo;{searchQuery}&rdquo; in the selected filter.
           </p>

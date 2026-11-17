@@ -30,7 +30,7 @@ export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) 
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-4" data-testid="order-lookup">
       <header>
-        <h1 className="text-foreground text-title-lg">{dict.trackTitle}</h1>
+        <h1 className="text-title-lg text-foreground">{dict.trackTitle}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{dict.trackIntro}</p>
       </header>
 

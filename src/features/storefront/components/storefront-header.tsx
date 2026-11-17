@@ -80,9 +80,7 @@ export function StorefrontHeader({
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-foreground text-base leading-normal font-semibold">
-                {dict.storeInfo}
-              </h1>
+              <h1 className="text-title-md text-foreground">{dict.storeInfo}</h1>
               <span className="border-border bg-muted text-muted-foreground text-caption rounded border px-1.5 py-0.5 font-medium">
                 {dict.aboutBadge}
               </span>

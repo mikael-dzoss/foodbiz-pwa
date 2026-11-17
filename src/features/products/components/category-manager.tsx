@@ -106,7 +106,7 @@ export function CategoryManager({
       {/* 1. Add Category Section (Stitch M-42 Form Card) */}
       <section className="bg-card border-border rounded-lg border p-4 shadow-none sm:p-5">
         <form onSubmit={handleCreate} className="space-y-3">
-          <h2 className="text-foreground text-sm font-semibold">Add New Category</h2>
+          <h2 className="text-title-sm text-foreground">Add New Category</h2>
 
           <div>
             <label
@@ -203,7 +203,7 @@ export function CategoryManager({
         {/* Section Header */}
         <div className="border-border flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-foreground text-sm font-semibold">
+            <h2 className="text-title-sm text-foreground">
               All Categories <span className="sr-only">Categories ({categories.length})</span>
             </h2>
             <span className="bg-muted text-foreground border-border rounded-full border px-2 py-0.5 text-xs font-semibold">

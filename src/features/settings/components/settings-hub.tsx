@@ -32,7 +32,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
     <div className="mx-auto w-full max-w-md px-4 py-6 pb-24" data-testid="settings-hub">
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">{dict.title}</h1>
+        <h1 className="text-title-lg text-foreground">{dict.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.subtitle}</p>
       </div>
 

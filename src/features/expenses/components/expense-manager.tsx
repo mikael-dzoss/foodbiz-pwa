@@ -164,7 +164,7 @@ export function ExpenseManager({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground text-2xl font-bold tracking-tight">Expenses</h1>
+            <h1 className="text-title-lg text-foreground">Expenses</h1>
             <span className="text-muted-foreground border-border rounded border px-1.5 py-0.5 font-mono text-xs">
               Screen M-50
             </span>

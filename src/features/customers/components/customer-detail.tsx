@@ -106,7 +106,7 @@ export function CustomerDetail({
               .toLocaleUpperCase(dict.locale)}
           </div>
           <div className="min-w-0">
-            <h1 className="text-title-md break-words">{guest.name}</h1>
+            <h1 className="text-title-lg break-words">{guest.name}</h1>
             <p className="text-muted-foreground mt-1 text-xs tabular-nums">
               {guest.phone ? formatPhoneNumber(guest.phone) : text.noPhone}
             </p>
@@ -141,7 +141,7 @@ export function CustomerDetail({
         data-testid="customer-edit-form"
       >
         <div className="border-border/60 flex items-start justify-between gap-3 border-b pb-1.5">
-          <h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold uppercase">
+          <h2 className="text-label-sm text-muted-foreground flex items-center gap-1.5 tracking-wider uppercase">
             <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0" />
             {text.edit}
           </h2>
@@ -230,7 +230,7 @@ export function CustomerDetail({
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <h2 id="customer-history-title" className="text-sm font-semibold">
+            <h2 id="customer-history-title" className="text-title-sm">
               {text.history}
             </h2>
             <span className="bg-muted text-muted-foreground rounded-full px-2 text-xs font-semibold tabular-nums">

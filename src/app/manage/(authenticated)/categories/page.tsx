@@ -31,7 +31,7 @@ export default async function CategoriesPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-foreground text-xl font-bold tracking-tight">Categories</h1>
+            <h1 className="text-title-lg text-foreground">Categories</h1>
             <p className="text-muted-foreground text-xs">Organise your menu and products</p>
           </div>
         </div>

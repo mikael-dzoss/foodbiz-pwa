@@ -36,7 +36,7 @@ export function ProductCatalogCard({
     >
       {/* Left column: Name, Price, 2-line Clamped Description, Stock state */}
       <div className="min-w-0 flex-1 pr-2">
-        <h3 className="text-foreground text-sm leading-snug font-bold">
+        <h3 className="text-label-md text-foreground">
           <Link
             href={`/${locale}/p/${product.id}`}
             data-testid={`product-link-${product.id}`}

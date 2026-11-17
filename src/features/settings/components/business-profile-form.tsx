@@ -167,9 +167,7 @@ export function BusinessProfileForm({
       </div>
 
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.business.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.business.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.business.description}</p>
       </div>
 

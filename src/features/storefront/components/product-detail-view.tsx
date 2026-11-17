@@ -133,7 +133,7 @@ export function ProductDetailView({
       <section className="border-border/80 bg-card rounded-2xl border p-4">
         <div className="mb-2 flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="text-foreground text-xl leading-snug font-bold">{product.name}</h1>
+            <h1 className="text-title-lg text-foreground">{product.name}</h1>
           </div>
           <div className="shrink-0 text-right">
             <span className="text-primary block text-2xl font-bold tracking-tight tabular-nums">

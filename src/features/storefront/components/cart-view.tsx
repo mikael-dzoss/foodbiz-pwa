@@ -62,9 +62,7 @@ export function CartView({
         <div className="bg-muted text-muted-foreground mb-4 flex h-20 w-20 items-center justify-center rounded-full">
           <ShoppingBag className="h-10 w-10 opacity-50" />
         </div>
-        <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.emptyCartTitle}
-        </h2>
+        <h2 className="text-title-sm text-foreground">{dict.emptyCartTitle}</h2>
         <p className="text-muted-foreground mt-2 max-w-sm text-sm">{dict.emptyCartMessage}</p>
         <div className="mt-6">
           <Button asChild size="lg" className="rounded-xl px-6">
@@ -91,9 +89,7 @@ export function CartView({
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground text-base font-semibold tracking-tight">
-              {dict.yourCart}
-            </h1>
+            <h1 className="text-title-md text-foreground">{dict.yourCart}</h1>
             <span
               data-testid="cart-count-badge"
               className="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
@@ -214,7 +210,7 @@ export function CartView({
 
       {/* Order Breakdown Summary Card */}
       <section className="border-border bg-card space-y-2.5 rounded-xl border p-4 shadow-2xs">
-        <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground tracking-wider uppercase">
           {dict.orderSummary}
         </h2>
         <div className="flex justify-between text-xs sm:text-sm">

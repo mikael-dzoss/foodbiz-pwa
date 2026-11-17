@@ -36,7 +36,7 @@ export function OperationalWidgets({ triage, className, labels }: OperationalWid
   return (
     <section className={cn("space-y-3.5", className)} data-testid="operational-widgets-section">
       <div className="flex items-center justify-between">
-        <h2 className="text-foreground text-base font-bold tracking-tight">
+        <h2 className="text-title-sm text-foreground">
           {labels?.sectionTitle ?? "Kitchen & Operations"}
         </h2>
         <span className="text-muted-foreground flex items-center gap-1.5 text-xs">

@@ -170,9 +170,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.ordering.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.ordering.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.ordering.description}</p>
       </div>
 
@@ -530,7 +528,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
 
       {/* Section 5c: Business time zone (#168) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.ordering.timezoneSection}
         </h2>
         <div className="border-border bg-card space-y-2 rounded-2xl border p-4 shadow-2xs">

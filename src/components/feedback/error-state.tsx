@@ -32,7 +32,7 @@ export function ErrorState({
       <div className="bg-destructive/15 text-destructive mb-3 flex h-12 w-12 items-center justify-center rounded-full">
         <AlertCircle className="h-6 w-6" />
       </div>
-      <h3 className="text-title-md text-foreground font-semibold">{title}</h3>
+      <h3 className="text-title-sm text-foreground">{title}</h3>
       <p className="text-body-sm text-muted-foreground mt-1 max-w-sm">{message}</p>
       {onRetry && (
         <Button

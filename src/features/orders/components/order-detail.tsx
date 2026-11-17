@@ -460,9 +460,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
       {/* Title & Metadata */}
       <div>
-        <h1 className="text-foreground text-xl font-bold tracking-tight">
-          Order #{currentOrder.orderNumber ?? "—"}
-        </h1>
+        <h1 className="text-title-lg text-foreground">Order #{currentOrder.orderNumber ?? "—"}</h1>
         <p className="text-muted-foreground mt-0.5 text-xs">
           Created on {formatDate(currentOrder.createdAt, timeZone, "en", "long")} at{" "}
           {formatTime(currentOrder.createdAt, timeZone, "en")} • via {currentOrder.channel}
@@ -500,7 +498,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         </div>
 
         <div className="pt-2.5">
-          <h2 className="text-foreground mb-0.5 text-base font-bold">{currentOrder.guestName}</h2>
+          <h2 className="text-title-sm text-foreground mb-0.5">{currentOrder.guestName}</h2>
           <div className="mb-3 flex min-w-0 items-center gap-1.5 text-xs font-medium">
             <span className="text-muted-foreground shrink-0 tabular-nums">
               {currentOrder.guestPhone ?? "No phone recorded"}
@@ -591,7 +589,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
           <div className="flex items-center gap-2">
-            <h2 className="text-foreground text-sm font-bold">Order Items</h2>
+            <h2 className="text-title-sm text-foreground">Order Items</h2>
             <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
               {currentOrder.items.reduce((s, it) => s + it.quantity, 0)} items
             </span>
@@ -836,7 +834,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         data-testid="order-timeline-card"
       >
         <div className="border-border/60 mb-2.5 flex items-center justify-between border-b pb-2.5">
-          <h2 className="text-foreground text-sm font-bold">Order Timeline</h2>
+          <h2 className="text-title-sm text-foreground">Order Timeline</h2>
           <span className="text-muted-foreground text-xs font-medium tabular-nums">
             Status: {currentOrder.status}
           </span>

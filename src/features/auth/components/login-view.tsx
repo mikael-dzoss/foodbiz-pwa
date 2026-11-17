@@ -48,7 +48,7 @@ export function LoginView({
               <span className="text-primary text-2xl font-bold tracking-tighter">F</span>
             </div>
             {/* Brand Title & Subtitle Badge */}
-            <h2 className="text-foreground text-title-lg font-bold tracking-tight">FoodBiz</h2>
+            <h2 className="text-title-lg text-foreground">FoodBiz</h2>
             <div className="mt-1.5">
               <span className="text-primary-soft-foreground bg-primary-soft inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-normal">
                 Manager Portal
@@ -63,7 +63,7 @@ export function LoginView({
 
             {/* Heading & Body */}
             <div className="mb-6">
-              <h3 className="text-foreground text-xl font-bold tracking-tight">Welcome back</h3>
+              <h3 className="text-title-sm text-foreground">Welcome back</h3>
               <p className="text-muted-foreground mt-1 text-sm leading-snug">
                 Sign in to manage your menu, orders, and daily operations.
               </p>

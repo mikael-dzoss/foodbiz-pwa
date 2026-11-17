@@ -38,9 +38,7 @@ export function CheckoutView({
         <div className="bg-muted text-muted-foreground mb-4 flex h-20 w-20 items-center justify-center rounded-full">
           <ShoppingBag className="h-10 w-10 opacity-50" />
         </div>
-        <h2 className="text-foreground text-xl font-bold tracking-tight sm:text-2xl">
-          {dict.emptyCartTitle}
-        </h2>
+        <h2 className="text-title-sm text-foreground">{dict.emptyCartTitle}</h2>
         <p className="text-muted-foreground mt-2 max-w-sm text-sm">{dict.emptyCartMessage}</p>
         <div className="mt-6 flex gap-3">
           <Button asChild size="lg" className="rounded-xl px-6">
@@ -66,9 +64,7 @@ export function CheckoutView({
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-foreground text-lg font-semibold tracking-tight">
-            {dict.checkoutTitle}
-          </h1>
+          <h1 className="text-title-md text-foreground">{dict.checkoutTitle}</h1>
         </div>
 
         <span className="border-border bg-muted text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium">

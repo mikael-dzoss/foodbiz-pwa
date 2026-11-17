@@ -28,11 +28,7 @@ export const CardTitle = React.forwardRef<
   HTMLHeadingElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <h3
-    ref={ref}
-    className={cn("text-title-md font-semibold tracking-tight", className)}
-    {...props}
-  />
+  <h3 ref={ref} className={cn("text-label-md", className)} {...props} />
 ));
 CardTitle.displayName = "CardTitle";
 

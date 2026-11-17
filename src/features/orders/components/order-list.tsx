@@ -259,7 +259,7 @@ export function OrderList({
       {/* Top Header: Matching Stitch M-20 */}
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-foreground text-xl font-bold tracking-tight">Orders</h1>
+          <h1 className="text-title-lg text-foreground">Orders</h1>
           {/* POS Live Status Beacon */}
           <div className="bg-primary-soft text-primary-soft-foreground text-caption flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium">
             <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />

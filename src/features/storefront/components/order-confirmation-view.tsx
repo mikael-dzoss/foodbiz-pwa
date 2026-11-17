@@ -47,7 +47,7 @@ export function OrderConfirmationView({
       <header className="border-border bg-card space-y-3 rounded-lg border p-4 text-center">
         <p className="text-muted-foreground text-sm">{businessName}</p>
         <CheckCircle2 className="text-primary mx-auto h-12 w-12" aria-hidden="true" />
-        <h1 className="text-xl font-bold">{copy.title}</h1>
+        <h1 className="text-title-lg">{copy.title}</h1>
         <Badge variant={order.status === "CANCELLED" ? "cancelled" : "outline"}>
           {order.status === "NEW" ? copy.awaiting : tracking.statuses[order.status]}
         </Badge>
@@ -63,7 +63,7 @@ export function OrderConfirmationView({
         className="border-border bg-card space-y-3 rounded-lg border p-4"
         aria-labelledby="confirmation-summary"
       >
-        <h2 id="confirmation-summary" className="font-semibold">
+        <h2 id="confirmation-summary" className="text-title-sm">
           {tracking.orderSummary}
         </h2>
         <ul className="divide-border divide-y">
@@ -90,7 +90,7 @@ export function OrderConfirmationView({
         data-testid="confirmation-payment"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="confirmation-payment-title" className="font-semibold">
+          <h2 id="confirmation-payment-title" className="text-title-sm">
             {copy.paymentTitle}
           </h2>
           <Badge variant={order.paid === "paid" ? "paid" : "unpaid"}>{paymentStatus}</Badge>

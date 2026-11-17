@@ -46,9 +46,7 @@ export function CartItemCard({
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
-              <h3 className="text-foreground truncate text-sm leading-snug font-semibold">
-                {item.name}
-              </h3>
+              <h3 className="text-label-md text-foreground truncate">{item.name}</h3>
               {isAtMaxStock && (
                 <span className="border-border bg-muted text-muted-foreground text-micro inline-flex items-center rounded border px-1.5 py-0.5 font-medium">
                   {dict.maxStockReached} ({item.maxStock})

@@ -268,7 +268,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         </Link>
 
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-foreground text-base leading-tight font-bold">New Order</h1>
+          <h1 className="text-title-md text-foreground">New Order</h1>
           <span className="text-muted-foreground text-caption font-medium tracking-wider uppercase">
             Screen M-30 • Manual
           </span>
@@ -305,7 +305,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
               1
             </span>
-            <h2 className="text-foreground text-sm font-semibold">Step 1: Guest Information</h2>
+            <h2 className="text-title-sm text-foreground">Step 1: Guest Information</h2>
           </div>
           {matchedGuest && (
             <span className="text-primary flex items-center gap-1 text-xs font-medium">
@@ -450,7 +450,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
               2
             </span>
-            <h2 className="text-foreground text-sm font-semibold">Step 2: Service &amp; Timing</h2>
+            <h2 className="text-title-sm text-foreground">Step 2: Service &amp; Timing</h2>
           </div>
           <span className="text-muted-foreground text-xs capitalize">
             {serviceType} fulfillment
@@ -634,7 +634,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <span className="bg-primary-soft text-primary-soft-foreground flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
               3
             </span>
-            <h2 className="text-foreground text-sm font-semibold">Step 3: Product Selection</h2>
+            <h2 className="text-title-sm text-foreground">Step 3: Product Selection</h2>
           </div>
           <span className="text-muted-foreground text-xs font-medium tabular-nums">
             {totalItemCount} {totalItemCount === 1 ? "item" : "items"} selected

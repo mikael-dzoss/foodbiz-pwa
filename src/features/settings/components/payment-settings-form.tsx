@@ -128,9 +128,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.payment.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.payment.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.payment.description}</p>
       </div>
 

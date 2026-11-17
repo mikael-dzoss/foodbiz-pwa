@@ -98,9 +98,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
-          {dict.inventoryFinance.title}
-        </h1>
+        <h1 className="text-title-lg text-foreground">{dict.inventoryFinance.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">
           {dict.inventoryFinance.description}
         </p>
