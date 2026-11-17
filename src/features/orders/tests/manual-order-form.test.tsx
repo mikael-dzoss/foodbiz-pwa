@@ -89,7 +89,7 @@ describe("ManualOrderForm Component", () => {
 
   it("looks up existing guest on phone blur, locks name input, and unlocks with pencil button and toast", async () => {
     vi.spyOn(actions, "lookupGuestByPhoneAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         id: "g-1",
         name: "Jean Dupont",
@@ -184,7 +184,7 @@ describe("ManualOrderForm Component", () => {
 
   it("submits manual order through preview confirmation and redirects on success", async () => {
     const createSpy = vi.spyOn(actions, "createManualOrderAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         id: "ord-new-1",
         businessId: "biz-1",

@@ -125,13 +125,13 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
         leadTimeUnit,
       });
 
-      if (res.success) {
+      if (res.ok) {
         showToast(dict.ordering.saveSuccess);
       } else {
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.error || "Failed to save ordering settings");
+        showToast(res.message || "Failed to save ordering settings");
       }
     });
   };

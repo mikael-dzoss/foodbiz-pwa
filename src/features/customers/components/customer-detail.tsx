@@ -26,8 +26,14 @@ import {
   type Dictionary,
   type Order,
 } from "@/domain";
-import { updateCustomerAction, type CustomerActionResult } from "../customer-actions";
+import type { ActionCode } from "@/lib/actions/types";
+import { updateCustomerAction } from "../customer-actions";
 import { CustomerMetrics } from "./customer-metrics";
+
+const CUSTOMER_ERROR_KEYS: Partial<Record<ActionCode, "invalid" | "notFound">> = {
+  VALIDATION: "invalid",
+  NOT_FOUND: "notFound",
+};
 
 const statusVariants = {
   NEW: "new",
@@ -53,13 +59,16 @@ export function CustomerDetail({
   const [name, setName] = useState(summary.guest.name);
   const [notes, setNotes] = useState(summary.guest.notes ?? "");
   const [result, action, pending] = useActionState(
-    async (_previous: CustomerActionResult | null, formData: FormData) => {
+    async (
+      _previous: Awaited<ReturnType<typeof updateCustomerAction>> | null,
+      formData: FormData,
+    ) => {
       const saved = await updateCustomerAction({
         id: summary.guest.id,
         name: formData.get("name"),
         notes: formData.get("notes"),
       });
-      if (saved.success) {
+      if (saved.ok) {
         setGuest(saved.data);
         setName(saved.data.name);
         setNotes(saved.data.notes ?? "");
@@ -68,7 +77,7 @@ export function CustomerDetail({
     },
     null,
   );
-  const errors = result && !result.success ? result.fieldErrors : undefined;
+  const errors = result && !result.ok ? result.fieldErrors : undefined;
 
   return (
     <section className="space-y-4" data-testid="customer-detail-screen">
@@ -184,16 +193,16 @@ export function CustomerDetail({
             {text.notesHint}
           </p>
         </div>
-        {result && !result.success && (
+        {result && !result.ok && (
           <p
             id="customer-save-error"
             role="alert"
             className="border-destructive/30 bg-destructive/10 text-destructive rounded-lg border p-3 text-sm"
           >
-            {text[result.error]}
+            {text[CUSTOMER_ERROR_KEYS[result.code] ?? "saveFailed"]}
           </p>
         )}
-        {result?.success && (
+        {result?.ok && (
           <p
             role="status"
             className="border-primary/20 bg-primary-soft text-primary-soft-foreground flex items-center gap-2 rounded-lg border p-3 text-sm"

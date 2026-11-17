@@ -54,7 +54,7 @@ vi.mock("@/components/ui", async (importOriginal) => {
 
 vi.mock("../actions", () => ({
   updateNotificationSettingsAction: vi.fn(async () => ({
-    success: true,
+    ok: true,
     data: mockSettings,
   })),
 }));
@@ -123,8 +123,9 @@ describe("NotificationsAppForm component (M-67)", () => {
 
   it("displays server error when action returns error", async () => {
     vi.mocked(actions.updateNotificationSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Failed to update notification preferences",
+      ok: false,
+      code: "INTERNAL",
+      message: "Failed to update notification preferences",
     });
 
     render(<NotificationsAppForm settings={mockSettings} dict={dict} />);

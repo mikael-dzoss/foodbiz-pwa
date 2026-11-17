@@ -132,13 +132,13 @@ export function BusinessProfileForm({
         logoUrl,
       });
 
-      if (res.success) {
+      if (res.ok) {
         showToast(dict.business.saveSuccess);
       } else {
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.error || "Failed to save profile");
+        showToast(res.message || "Failed to save profile");
       }
     });
   };

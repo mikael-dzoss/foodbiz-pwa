@@ -54,7 +54,7 @@ vi.mock("@/components/ui", async (importOriginal) => {
 
 vi.mock("../actions", () => ({
   updateOrderingSettingsAction: vi.fn(async () => ({
-    success: true,
+    ok: true,
     data: mockSettings,
   })),
 }));
@@ -158,8 +158,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
 
   it("displays server error when action returns an error", async () => {
     vi.mocked(actions.updateOrderingSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Failed to update ordering settings",
+      ok: false,
+      code: "INTERNAL",
+      message: "Failed to update ordering settings",
       fieldErrors: {
         deliveryFee: ["Delivery fee cannot exceed 100 EUR"],
       },
@@ -233,8 +234,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
 
   it("displays minOrderAmount field error", async () => {
     vi.mocked(actions.updateOrderingSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Validation failed",
+      ok: false,
+      code: "INTERNAL",
+      message: "Validation failed",
       fieldErrors: {
         minOrderAmount: ["Minimum order must be positive"],
       },
@@ -251,8 +253,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
 
   it("handles clearing numeric inputs and fallback action failure toast", async () => {
     vi.mocked(actions.updateOrderingSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "",
+      ok: false,
+      code: "INTERNAL",
+      message: "",
     });
 
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
@@ -324,8 +327,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
 
   it("shows a lead time field error returned by the action (#225)", async () => {
     vi.mocked(actions.updateOrderingSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Validation failed",
+      ok: false,
+      code: "INTERNAL",
+      message: "Validation failed",
       fieldErrors: { leadTimeValue: ["Lead time must be at least 1"] },
     });
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);

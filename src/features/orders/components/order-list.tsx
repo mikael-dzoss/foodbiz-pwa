@@ -23,11 +23,8 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { formatMoney, type OrderStatus } from "@/domain";
-import {
-  type ListOrdersResult,
-  type EnrichedOrder,
-  progressOrderStatusAction,
-} from "../order-actions";
+import { progressOrderStatusAction } from "../order-actions";
+import type { EnrichedOrder, ListOrdersResult } from "../order-data";
 import { cn } from "@/lib/utils";
 
 export interface OrderListProps {
@@ -240,7 +237,7 @@ export function OrderList({
         nextStatus: next.status,
       });
 
-      if (res.success) {
+      if (res.ok) {
         setLocalStatusUpdates((prev) => ({
           ...prev,
           [order.id]: next.status,

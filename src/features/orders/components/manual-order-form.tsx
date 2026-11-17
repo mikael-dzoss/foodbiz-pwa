@@ -94,7 +94,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     const res = await lookupGuestByPhoneAction(guestPhone);
     setIsLookingUpGuest(false);
 
-    if (res.success && res.data) {
+    if (res.ok && res.data) {
       setMatchedGuest(res.data);
       setGuestName(res.data.name);
       setIsNameLocked(true);
@@ -228,11 +228,11 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
     const res = await createManualOrderAction(payload);
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setPreviewOpen(false);
       router.push(`/manage/orders/${res.data.id}`);
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(res.message);
     }
   };
 

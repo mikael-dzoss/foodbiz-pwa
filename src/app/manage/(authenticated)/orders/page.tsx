@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
-import { listOrdersAction } from "@/features/orders";
+import { listOrders } from "@/features/orders/order-data";
 import { OrderList } from "@/features/orders/components/order-list";
 import { APP_METADATA } from "@/config/app";
 
@@ -25,22 +25,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps = {})
       ? (params.tab as (typeof validTabs)[number])
       : "active";
 
-  const res = await listOrdersAction({ statusTab: "all" });
-
-  const initialData = res.success
-    ? res.data
-    : {
-        orders: [],
-        counts: {
-          active: 0,
-          completed: 0,
-          cancelled: 0,
-          total: 0,
-          unpaid: 0,
-          pickup: 0,
-          delivery: 0,
-        },
-      };
+  const initialData = await listOrders({ statusTab: "all" });
 
   return (
     <div className="mx-auto max-w-xl">

@@ -418,7 +418,7 @@ describe("CheckoutView & CheckoutForm", () => {
     const actionSpy = vi
       .spyOn(await import("../storefront-actions"), "placeOrderAction")
       .mockResolvedValue({
-        success: true,
+        ok: true,
         data: mockOrderData,
       });
 
@@ -465,9 +465,10 @@ describe("CheckoutView & CheckoutForm", () => {
 
   it("displays server error feedback when placeOrderAction rejects (#87, #90)", async () => {
     vi.spyOn(await import("../storefront-actions"), "placeOrderAction").mockResolvedValue({
-      success: false,
-      error: "Too many order attempts. Please wait a few minutes before trying again.",
-      code: "ANTI_ABUSE_REJECTION",
+      ok: false,
+      code: "RATE_LIMITED",
+      reason: "ANTI_ABUSE_REJECTION",
+      message: "Too many order attempts. Please wait a few minutes before trying again.",
     });
 
     render(
@@ -501,32 +502,33 @@ describe("CheckoutView & CheckoutForm", () => {
   });
 
   it.each([
-    ["en", "VALIDATION_ERROR"],
-    ["en", "ANTI_ABUSE_REJECTION"],
-    ["en", "STORE_CLOSED"],
-    ["en", "SERVICE_TYPE_DISABLED"],
-    ["en", "MINIMUM_ORDER_UNMET"],
-    ["en", "STOCK_ERROR"],
-    ["en", "INTERNAL_ERROR"],
-    ["fr", "STORE_CLOSED"],
-    ["fr", "INTERNAL_ERROR"],
+    ["en", "VALIDATION", undefined],
+    ["en", "RATE_LIMITED", "ANTI_ABUSE_REJECTION"],
+    ["en", "CONFLICT", "STORE_CLOSED"],
+    ["en", "CONFLICT", "SERVICE_TYPE_DISABLED"],
+    ["en", "CONFLICT", "MINIMUM_ORDER_UNMET"],
+    ["en", "CONFLICT", "STOCK_ERROR"],
+    ["en", "INTERNAL", undefined],
+    ["fr", "CONFLICT", "STORE_CLOSED"],
+    ["fr", "INTERNAL", undefined],
   ] as const)(
     "announces a localized %s message for %s without showing raw server text",
-    async (locale, code) => {
+    async (locale, code, reason) => {
       vi.spyOn(await import("../storefront-actions"), "placeOrderAction").mockResolvedValue({
-        success: false,
-        error: "RAW SERVER TEXT permission denied 42501",
+        ok: false,
         code,
+        reason,
+        message: "RAW SERVER TEXT permission denied 42501",
       });
       const localDict = getDictionary(locale).storefront;
       const messages: Record<string, string> = {
-        VALIDATION_ERROR: localDict.orderErrorValidation,
+        VALIDATION: localDict.orderErrorValidation,
         ANTI_ABUSE_REJECTION: localDict.orderErrorAntiAbuse,
         STORE_CLOSED: localDict.orderErrorStoreClosed,
         SERVICE_TYPE_DISABLED: localDict.orderErrorServiceDisabled,
         MINIMUM_ORDER_UNMET: localDict.orderErrorMinimum,
         STOCK_ERROR: localDict.orderErrorStock,
-        INTERNAL_ERROR: localDict.orderErrorInternal,
+        INTERNAL: localDict.orderErrorInternal,
       };
 
       render(
@@ -549,7 +551,7 @@ describe("CheckoutView & CheckoutForm", () => {
       fireEvent.submit(screen.getByTestId("checkout-form"));
 
       const alert = await screen.findByRole("alert");
-      expect(alert.textContent).toBe(messages[code]);
+      expect(alert.textContent).toBe(messages[reason ?? code]);
       expect(alert.textContent).not.toContain("RAW SERVER TEXT");
     },
   );

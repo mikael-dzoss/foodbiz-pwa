@@ -26,7 +26,7 @@ import { formatMoney } from "@/domain/formatting";
 import {
   checkoutFormSchema,
   type CheckoutFormData,
-  type PlaceOrderErrorCode,
+  type PlaceOrderReason,
   type PlaceOrderSuccessData,
   GUEST_CONTACT_STORAGE_KEY,
   guestContactStorageSchema,
@@ -38,18 +38,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { useCart, resolveServiceMode } from "../context/cart-context";
+import type { ActionCode, ActionFailure } from "@/lib/actions/types";
 import { placeOrderAction } from "../storefront-actions";
 
-/** Dictionary key holding the localized message for each place-order failure code. */
+/** Dictionary key for a place-order failure: its domain `reason` first, then its action code. */
 const PLACE_ORDER_ERROR_KEYS = {
-  VALIDATION_ERROR: "orderErrorValidation",
   ANTI_ABUSE_REJECTION: "orderErrorAntiAbuse",
   STORE_CLOSED: "orderErrorStoreClosed",
   SERVICE_TYPE_DISABLED: "orderErrorServiceDisabled",
   MINIMUM_ORDER_UNMET: "orderErrorMinimum",
   STOCK_ERROR: "orderErrorStock",
-  INTERNAL_ERROR: "orderErrorInternal",
-} as const satisfies Record<PlaceOrderErrorCode, keyof StorefrontDictionary>;
+  VALIDATION: "orderErrorValidation",
+  RATE_LIMITED: "orderErrorAntiAbuse",
+  FORBIDDEN: "orderErrorAntiAbuse",
+} as const satisfies Partial<Record<PlaceOrderReason | ActionCode, keyof StorefrontDictionary>>;
+
+function placeOrderErrorKey(failure: ActionFailure): keyof StorefrontDictionary {
+  const keys: Partial<Record<string, keyof StorefrontDictionary>> = PLACE_ORDER_ERROR_KEYS;
+  return (
+    (failure.reason ? keys[failure.reason] : undefined) ??
+    keys[failure.code] ??
+    "orderErrorInternal"
+  );
+}
 
 const guestContactListeners = new Set<() => void>();
 let cachedRawGuestContact: string | null = "__UNSET__";
@@ -286,8 +297,8 @@ export function CheckoutForm({
           honeypot,
         });
 
-        if (!orderResult.success) {
-          setErrorFeedback(dict[PLACE_ORDER_ERROR_KEYS[orderResult.code ?? "INTERNAL_ERROR"]]);
+        if (!orderResult.ok) {
+          setErrorFeedback(dict[placeOrderErrorKey(orderResult)]);
           setIsSubmitting(false);
           return;
         }

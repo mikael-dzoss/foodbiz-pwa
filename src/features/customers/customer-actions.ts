@@ -1,40 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAuthenticatedAction } from "@/features/auth";
 import { getRepositories } from "@/lib/repositories";
-import { updateCustomerInputSchema, type Guest } from "@/domain";
+import { defineAction } from "@/lib/actions/define-action";
+import { ActionError } from "@/lib/actions/types";
+import { updateCustomerInputSchema } from "@/domain";
 
-export type CustomerActionResult =
-  | { success: true; data: Guest }
-  | {
-      success: false;
-      error: "invalid" | "notFound" | "saveFailed";
-      fieldErrors?: Record<string, string[]>;
-    };
-
-export async function updateCustomerAction(input: unknown): Promise<CustomerActionResult> {
-  const { businessId } = await requireAuthenticatedAction();
-  const parsed = updateCustomerInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: "invalid",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-  const { id, name, notes } = parsed.data;
-  const repos = getRepositories();
-  let updated: Guest;
-  try {
-    if (!(await repos.guests.findById(businessId, id))) {
-      return { success: false, error: "notFound" };
-    }
-    updated = await repos.guests.update(businessId, id, { name, notes: notes || null });
-  } catch {
-    console.error("Customer update failed");
-    return { success: false, error: "saveFailed" };
-  }
-  revalidatePath("/manage", "layout");
-  return { success: true, data: updated };
-}
+export const updateCustomerAction = defineAction(
+  "updateCustomer",
+  { input: updateCustomerInputSchema },
+  async ({ input: { id, name, notes }, businessId }) => {
+    const repos = getRepositories();
+    if (!(await repos.guests.findById(businessId, id))) throw new ActionError("NOT_FOUND");
+    const updated = await repos.guests.update(businessId, id, { name, notes: notes || null });
+    revalidatePath("/manage", "layout");
+    return updated;
+  },
+);

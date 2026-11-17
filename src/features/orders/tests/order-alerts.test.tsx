@@ -5,7 +5,7 @@ import type { RealtimeOrderClient } from "@/lib/supabase/realtime";
 import { OrderAlertsProvider, useOrderAlerts } from "../alerts/order-alerts-context";
 import * as chimeModule from "../alerts/sound-chime";
 import * as actions from "../order-actions";
-import type { EnrichedOrder } from "../order-actions";
+import type { EnrichedOrder } from "../order-data";
 import { ManagerBottomNav } from "@/features/manager/components/manager-bottom-nav";
 import { ManagerSidebar } from "@/features/manager/components/manager-sidebar";
 import { getDictionary } from "@/domain/i18n";
@@ -141,7 +141,7 @@ describe("Order Alerts & Notifications (Story #56 & #124)", () => {
     playChimeSpy = vi.spyOn(chimeModule, "playOrderChime").mockImplementation(() => {});
 
     vi.spyOn(actions, "listOrdersAction").mockImplementation(async () => ({
-      success: true,
+      ok: true,
       data: {
         orders: [...currentOrders],
         counts: {

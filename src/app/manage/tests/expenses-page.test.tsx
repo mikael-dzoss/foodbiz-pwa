@@ -36,21 +36,21 @@ vi.mock("@/lib/auth", () => ({
   })),
 }));
 
+vi.mock("@/features/expenses/expense-data", () => ({
+  listExpenses: vi.fn(async () => [
+    {
+      id: "55555555-5555-4555-8555-555555555501",
+      businessId: "11111111-1111-4111-8111-111111111111",
+      amount: 14550,
+      date: new Date().toISOString().slice(0, 10),
+      description: "Organic stoneground flour",
+      tags: ["Ingredients"],
+      createdAt: new Date().toISOString(),
+    },
+  ]),
+}));
+
 vi.mock("@/features/expenses/expense-actions", () => ({
-  listExpensesAction: vi.fn(async () => ({
-    success: true,
-    data: [
-      {
-        id: "55555555-5555-4555-8555-555555555501",
-        businessId: "11111111-1111-4111-8111-111111111111",
-        amount: 14550,
-        date: new Date().toISOString().slice(0, 10),
-        description: "Organic stoneground flour",
-        tags: ["Ingredients"],
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  })),
   createExpenseAction: vi.fn(),
   updateExpenseAction: vi.fn(),
   deleteExpenseAction: vi.fn(),

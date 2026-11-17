@@ -54,7 +54,7 @@ vi.mock("@/components/ui", async (importOriginal) => {
 
 vi.mock("../actions", () => ({
   updateInventoryFinanceSettingsAction: vi.fn(async () => ({
-    success: true,
+    ok: true,
     data: mockSettings,
   })),
 }));
@@ -120,8 +120,9 @@ describe("InventoryFinanceForm component (M-65)", () => {
 
   it("displays server error when action returns an error", async () => {
     vi.mocked(actions.updateInventoryFinanceSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Failed to update settings",
+      ok: false,
+      code: "INTERNAL",
+      message: "Failed to update settings",
       fieldErrors: {
         lowStockThreshold: ["Threshold must be positive"],
       },
@@ -150,8 +151,9 @@ describe("InventoryFinanceForm component (M-65)", () => {
 
   it("displays toast error when action fails without fieldErrors", async () => {
     vi.mocked(actions.updateInventoryFinanceSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "General database failure",
+      ok: false,
+      code: "INTERNAL",
+      message: "General database failure",
     });
 
     render(<InventoryFinanceForm settings={mockSettings} dict={dict} />);
@@ -165,8 +167,9 @@ describe("InventoryFinanceForm component (M-65)", () => {
 
   it("handles clearing input fields with fallback 0 and displays taxPercentage field error", async () => {
     vi.mocked(actions.updateInventoryFinanceSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Invalid tax value",
+      ok: false,
+      code: "INTERNAL",
+      message: "Invalid tax value",
       fieldErrors: {
         taxPercentage: ["Tax rate cannot exceed 100%"],
       },

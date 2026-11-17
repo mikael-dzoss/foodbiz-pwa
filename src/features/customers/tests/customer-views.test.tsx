@@ -113,7 +113,7 @@ describe("customer detail", () => {
 
   it("saves name and notes and updates the canonical name in history", async () => {
     vi.mocked(updateCustomerAction).mockResolvedValue({
-      success: true,
+      ok: true,
       data: { ...guest, name: "Alex Martin", notes: "New note" },
     });
     renderDetail();
@@ -132,8 +132,9 @@ describe("customer detail", () => {
 
   it("announces server validation errors and keeps unsaved input", async () => {
     vi.mocked(updateCustomerAction).mockResolvedValue({
-      success: false,
-      error: "invalid",
+      ok: false,
+      code: "VALIDATION",
+      message: "invalid",
       fieldErrors: { name: ["Invalid name"] },
     });
     renderDetail();

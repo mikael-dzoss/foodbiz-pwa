@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { StockAdjustmentSheet } from "../components/stock-adjustment-sheet";
-import type { EnrichedProduct } from "../product-actions";
+import type { EnrichedProduct } from "../product-data";
 
 const mockAdjustProductStockAction = vi.fn();
 
@@ -34,7 +34,7 @@ const sampleProduct: EnrichedProduct = {
 describe("StockAdjustmentSheet Component (Screen M-43)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAdjustProductStockAction.mockResolvedValue({ success: true });
+    mockAdjustProductStockAction.mockResolvedValue({ ok: true });
   });
 
   it("renders stock summary and controls when open", () => {
@@ -107,7 +107,11 @@ describe("StockAdjustmentSheet Component (Screen M-43)", () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(mockAdjustProductStockAction).toHaveBeenCalledWith("prod-1", 19, "Restock / Delivery");
+      expect(mockAdjustProductStockAction).toHaveBeenCalledWith({
+        productId: "prod-1",
+        stock: 19,
+        reason: "Restock / Delivery",
+      });
       expect(handleStockAdjusted).toHaveBeenCalledWith("prod-1", 19);
       expect(handleOpenChange).toHaveBeenCalledWith(false);
     });

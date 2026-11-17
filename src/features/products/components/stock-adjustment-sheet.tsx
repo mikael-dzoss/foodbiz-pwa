@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { formatMoney, getStockStatus } from "@/domain";
-import { adjustProductStockAction, type EnrichedProduct } from "../product-actions";
+import { adjustProductStockAction } from "../product-actions";
+import type { EnrichedProduct } from "../product-data";
 
 export interface StockAdjustmentSheetProps {
   product: EnrichedProduct | null;
@@ -75,12 +76,16 @@ export function StockAdjustmentSheet({
 
     setError(null);
     startTransition(async () => {
-      const res = await adjustProductStockAction(product.id, targetStock, selectedReason);
-      if (res.success) {
+      const res = await adjustProductStockAction({
+        productId: product.id,
+        stock: targetStock,
+        reason: selectedReason,
+      });
+      if (res.ok) {
         onStockAdjusted?.(product.id, targetStock);
         onOpenChange(false);
       } else {
-        setError(res.error || "Failed to adjust stock");
+        setError(res.message || "Failed to adjust stock");
       }
     });
   };

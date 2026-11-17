@@ -89,13 +89,13 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
         paymentInstructionsFr: paymentInstructionsFr.trim(),
       });
 
-      if (res.success) {
+      if (res.ok) {
         showToast(dict.payment.saveSuccess);
       } else {
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.error || "Failed to save payment settings");
+        showToast(res.message || "Failed to save payment settings");
       }
     });
   };

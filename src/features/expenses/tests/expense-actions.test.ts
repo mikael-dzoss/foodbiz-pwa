@@ -1,11 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Expense } from "@/domain";
-import {
-  listExpensesAction,
-  createExpenseAction,
-  updateExpenseAction,
-  deleteExpenseAction,
-} from "../expense-actions";
+import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "../expense-actions";
+import { listExpenses } from "../expense-data";
 
 const mockRevalidatePath = vi.fn();
 vi.mock("next/cache", () => ({
@@ -88,12 +84,6 @@ vi.mock("@/features/auth", async () => {
       if (authState.role !== "owner") throw new domainAuth.OwnerRequiredError();
       return context;
     },
-    forbiddenResult: () => ({
-      success: false as const,
-      error: "Only an owner can do this.",
-      code: domainAuth.ACTION_FORBIDDEN_CODE,
-    }),
-    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
   };
 });
 
@@ -124,32 +114,24 @@ describe("Expense Server Actions", () => {
     ];
   });
 
-  describe("listExpensesAction", () => {
-    it("returns list of expenses successfully", async () => {
-      const res = await listExpensesAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data).toHaveLength(2);
-        expect(res.data[0].id).toBe(validExpenseId);
-      }
+  describe("listExpenses (data module)", () => {
+    it("returns the expenses", async () => {
+      const res = await listExpenses();
+      expect(res).toHaveLength(2);
+      expect(res[0].id).toBe(validExpenseId);
     });
 
-    it("passes tag filter to repository", async () => {
-      const res = await listExpensesAction({ tag: "Transport" });
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data).toHaveLength(1);
-        expect(res.data[0].description).toBe("Van petrol");
-      }
+    it("passes the tag filter to the repository", async () => {
+      const res = await listExpenses({ tag: "Transport" });
+      expect(res).toHaveLength(1);
+      expect(res[0].description).toBe("Van petrol");
     });
 
-    it("returns error if auth fails", async () => {
+    it("throws when auth or the repository fails instead of returning an empty list", async () => {
       mockRequireAuthenticatedAction.mockRejectedValueOnce(new Error("Unauthorized"));
-      const res = await listExpensesAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Unauthorized");
-      }
+      await expect(listExpenses()).rejects.toThrow("Unauthorized");
+      mockExpenseRepo.list.mockRejectedValueOnce(new Error("Offline"));
+      await expect(listExpenses()).rejects.toThrow("Offline");
     });
   });
 
@@ -163,8 +145,8 @@ describe("Expense Server Actions", () => {
       };
 
       const res = await createExpenseAction(input);
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.amount).toBe(25000);
         expect(res.data.description).toBe("High-grade espresso beans");
         expect(res.data.tags).toEqual(["Ingredients"]);
@@ -183,9 +165,9 @@ describe("Expense Server Actions", () => {
       };
 
       const res = await createExpenseAction(invalid);
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid expense data");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
         expect(res.fieldErrors).toBeDefined();
         expect(res.fieldErrors?.amount).toBeDefined();
         expect(res.fieldErrors?.description).toBeDefined();
@@ -204,22 +186,24 @@ describe("Expense Server Actions", () => {
         tags: ["Supplies"],
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Database write error");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
+        expect(res.message).not.toContain("Database write error");
       }
     });
   });
 
   describe("updateExpenseAction", () => {
     it("updates an existing expense successfully", async () => {
-      const res = await updateExpenseAction(validExpenseId, {
+      const res = await updateExpenseAction({
+        id: validExpenseId,
         description: "Organic stoneground flour",
         amount: 15500,
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.description).toBe("Organic stoneground flour");
         expect(res.data.amount).toBe(15500);
       }
@@ -228,38 +212,41 @@ describe("Expense Server Actions", () => {
     });
 
     it("rejects invalid UUID id", async () => {
-      const res = await updateExpenseAction("invalid-id", {
+      const res = await updateExpenseAction({
+        id: "invalid-id",
         description: "Updated description",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid expense ID");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
       }
       expect(mockExpenseRepo.update).not.toHaveBeenCalled();
     });
 
     it("rejects non-positive amount on update", async () => {
-      const res = await updateExpenseAction(validExpenseId, {
+      const res = await updateExpenseAction({
+        id: validExpenseId,
         amount: 0,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid expense update data");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
         expect(res.fieldErrors?.amount).toBeDefined();
       }
     });
 
     it("handles not found error from repository", async () => {
       const missingId = "00000000-0000-4000-8000-000000000000";
-      const res = await updateExpenseAction(missingId, {
+      const res = await updateExpenseAction({
+        id: missingId,
         description: "New title",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Expense not found");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });
@@ -267,7 +254,7 @@ describe("Expense Server Actions", () => {
   describe("deleteExpenseAction", () => {
     it("deletes an existing expense and revalidates paths", async () => {
       const res = await deleteExpenseAction(validExpenseId);
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
       expect(mockExpenses).toHaveLength(1);
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/expenses");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
@@ -275,9 +262,9 @@ describe("Expense Server Actions", () => {
 
     it("rejects invalid UUID id on delete", async () => {
       const res = await deleteExpenseAction("not-a-uuid");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid expense ID");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
       }
       expect(mockExpenseRepo.delete).not.toHaveBeenCalled();
     });
@@ -285,33 +272,25 @@ describe("Expense Server Actions", () => {
     it("does not leak the raw error message when delete fails", async () => {
       mockExpenseRepo.delete.mockRejectedValueOnce(new Error('violates foreign key "x"'));
       const res = await deleteExpenseAction(validExpenseId);
-      expect(res).toEqual({ success: false, error: "Failed to delete expense" });
+      expect(res).toMatchObject({ ok: false, code: "INTERNAL" });
+      expect(JSON.stringify(res)).not.toContain("foreign key");
     });
 
     it("handles non-Error thrown during delete", async () => {
       mockExpenseRepo.delete.mockRejectedValueOnce("Unknown error string");
       const res = await deleteExpenseAction(validExpenseId);
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to delete expense");
-      }
-    });
-
-    it("handles non-Error thrown during list", async () => {
-      mockExpenseRepo.list.mockRejectedValueOnce("Unknown list error");
-      const res = await listExpensesAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to load expenses");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
     it("handles non-Error thrown during update", async () => {
       mockExpenseRepo.update.mockRejectedValueOnce("Unknown update error");
-      const res = await updateExpenseAction(validExpenseId, { amount: 1000 });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update expense");
+      const res = await updateExpenseAction({ id: validExpenseId, amount: 1000 });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });
@@ -320,10 +299,10 @@ describe("Expense Server Actions", () => {
     for (const role of ["manager", "staff"] as const) {
       it(`refuses a ${role} with the FORBIDDEN code and deletes nothing`, async () => {
         authState.role = role;
-        expect(await deleteExpenseAction(validExpenseId)).toEqual({
-          success: false,
-          error: "Only an owner can do this.",
+        expect(await deleteExpenseAction(validExpenseId)).toMatchObject({
+          ok: false,
           code: "FORBIDDEN",
+          message: "Only an owner can do this.",
         });
         expect(mockExpenseRepo.delete).not.toHaveBeenCalled();
       });
@@ -333,7 +312,7 @@ describe("Expense Server Actions", () => {
       const { OwnerRequiredError } = await import("@/domain/auth");
       mockExpenseRepo.delete.mockRejectedValueOnce(new OwnerRequiredError());
       expect(await deleteExpenseAction(validExpenseId)).toMatchObject({
-        success: false,
+        ok: false,
         code: "FORBIDDEN",
       });
     });

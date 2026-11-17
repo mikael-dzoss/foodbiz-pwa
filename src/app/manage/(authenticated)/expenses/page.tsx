@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
 import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
 import { isOwnerRole } from "@/domain/auth";
-import { listExpensesAction } from "@/features/expenses";
+import { listExpenses } from "@/features/expenses/expense-data";
 import { ExpenseManager } from "@/features/expenses/components";
 import { APP_METADATA } from "@/config/app";
 
@@ -21,9 +21,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   const session = await requireManagerSession();
   const dict = getDictionary(DEFAULT_LOCALE);
   const params = searchParams ? await searchParams : undefined;
-  const res = await listExpensesAction();
-
-  const expenses = res.success ? res.data : [];
+  const expenses = await listExpenses();
 
   return (
     <div className="mx-auto max-w-xl space-y-5">

@@ -47,7 +47,7 @@ vi.mock("@/components/ui", () => ({
 
 vi.mock("../actions", () => ({
   switchLanguageAction: vi.fn(async (locale: string) => ({
-    success: true,
+    ok: true,
     data: locale,
   })),
 }));

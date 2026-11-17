@@ -6,11 +6,11 @@ import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { OrderRepoError } from "@/domain/order";
 import { placeOrderAction } from "../storefront-actions";
 
-const mockRevalidateTag = vi.fn();
+const mockUpdateTag = vi.fn();
 const mockRevalidatePath = vi.fn();
 vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => mockRevalidatePath(...args),
-  revalidateTag: (...args: unknown[]) => mockRevalidateTag(...args),
+  updateTag: (...args: unknown[]) => mockUpdateTag(...args),
 }));
 
 let mockClientIp: string | null = "192.168.1.100";
@@ -58,6 +58,16 @@ describe("placeOrderAction", () => {
     idempotencyKey: idem("test-idem-key-1000"),
   };
 
+  it("refreshes the storefront catalog and manager pages only for a new order", async () => {
+    await placeOrderAction(validOrderPayload);
+    expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/orders");
+
+    mockUpdateTag.mockClear();
+    await placeOrderAction(validOrderPayload); // same idempotency key: replay
+    expect(mockUpdateTag).not.toHaveBeenCalled();
+  });
+
   it("places an order successfully and reserves stock atomically", async () => {
     const repos = getRepositories("mock");
     const initialBaguette = await repos.products.findById(bId, baguetteId);
@@ -65,8 +75,8 @@ describe("placeOrderAction", () => {
 
     const result = await placeOrderAction(validOrderPayload);
 
-    expect(result.success).toBe(true);
-    if (result.success) {
+    expect(result.ok).toBe(true);
+    if (result.ok) {
       expect(result.data.status).toBe("NEW");
       expect(result.data.orderNumber).toBeGreaterThan(0);
       expect(result.data.trackingToken).toBeDefined();
@@ -98,8 +108,8 @@ describe("placeOrderAction", () => {
       idempotencyKey: idem("test-idem-tampered-price"),
     });
 
-    expect(result.success).toBe(true);
-    if (result.success) {
+    expect(result.ok).toBe(true);
+    if (result.ok) {
       // Must be DB price 1800 cents, not 4 cents
       expect(result.data.totalAmount).toBe(1800);
     }
@@ -133,11 +143,11 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-mismatch-guest"),
       });
 
-      expect(resNew.success).toBe(true);
-      expect(resReturning.success).toBe(true);
-      expect(resMismatch.success).toBe(true);
+      expect(resNew.ok).toBe(true);
+      expect(resReturning.ok).toBe(true);
+      expect(resMismatch.ok).toBe(true);
 
-      if (resNew.success && resReturning.success && resMismatch.success) {
+      if (resNew.ok && resReturning.ok && resMismatch.ok) {
         // Assert identical keys in client response data
         const newKeys = Object.keys(resNew.data).sort();
         const returningKeys = Object.keys(resReturning.data).sort();
@@ -173,16 +183,16 @@ describe("placeOrderAction", () => {
       const initialBaguette = await repos.products.findById(bId, baguetteId);
 
       const firstCall = await placeOrderAction(validOrderPayload);
-      expect(firstCall.success).toBe(true);
+      expect(firstCall.ok).toBe(true);
 
       const stockAfterFirst = (await repos.products.findById(bId, baguetteId))?.stock;
       expect(stockAfterFirst).toBe((initialBaguette?.stock ?? 45) - 2);
 
       // Replay with identical idempotencyKey
       const secondCall = await placeOrderAction(validOrderPayload);
-      expect(secondCall.success).toBe(true);
+      expect(secondCall.ok).toBe(true);
 
-      if (firstCall.success && secondCall.success) {
+      if (firstCall.ok && secondCall.ok) {
         expect(secondCall.data.orderId).toBe(firstCall.data.orderId);
         expect(secondCall.data.orderNumber).toBe(firstCall.data.orderNumber);
         expect(secondCall.data.trackingToken).toBe(firstCall.data.trackingToken);
@@ -207,9 +217,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-honeypot"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("ANTI_ABUSE_REJECTION");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("ANTI_ABUSE_REJECTION");
       }
     });
 
@@ -220,9 +230,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-max-line"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("ANTI_ABUSE_REJECTION");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("ANTI_ABUSE_REJECTION");
         expect(result.lineErrors?.[baguetteId]).toBeDefined();
       }
     });
@@ -238,9 +248,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-max-order"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("ANTI_ABUSE_REJECTION");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("ANTI_ABUSE_REJECTION");
       }
     });
 
@@ -253,7 +263,7 @@ describe("placeOrderAction", () => {
           phone: `+3360000000${i}`, // Distinct phones to isolate IP rate limit
           idempotencyKey: idem(`idem-ip-limit-${i}`),
         });
-        expect(res.success).toBe(true);
+        expect(res.ok).toBe(true);
       }
 
       // 6th attempt from same IP must be rate limited
@@ -263,10 +273,10 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-ip-limit-blocked"),
       });
 
-      expect(blocked.success).toBe(false);
-      if (!blocked.success) {
-        expect(blocked.code).toBe("ANTI_ABUSE_REJECTION");
-        expect(blocked.error).toContain("Too many order attempts");
+      expect(blocked.ok).toBe(false);
+      if (!blocked.ok) {
+        expect(blocked.reason).toBe("ANTI_ABUSE_REJECTION");
+        expect(blocked.message).toContain("Too many order attempts");
       }
     });
 
@@ -280,7 +290,7 @@ describe("placeOrderAction", () => {
           phone: targetPhone,
           idempotencyKey: idem(`idem-phone-limit-${i}`),
         });
-        expect(res.success).toBe(true);
+        expect(res.ok).toBe(true);
       }
 
       // 4th attempt for same phone must be rate limited
@@ -291,10 +301,10 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-phone-limit-blocked"),
       });
 
-      expect(blocked.success).toBe(false);
-      if (!blocked.success) {
-        expect(blocked.code).toBe("ANTI_ABUSE_REJECTION");
-        expect(blocked.error).toContain("Too many order attempts");
+      expect(blocked.ok).toBe(false);
+      if (!blocked.ok) {
+        expect(blocked.reason).toBe("ANTI_ABUSE_REJECTION");
+        expect(blocked.message).toContain("Too many order attempts");
       }
     });
   });
@@ -307,9 +317,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-insufficient-stock"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("STOCK_ERROR");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("STOCK_ERROR");
         expect(result.lineErrors?.[sourdoughId]).toContain("Insufficient stock");
       }
     });
@@ -325,9 +335,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-under-min-order"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("MINIMUM_ORDER_UNMET");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("MINIMUM_ORDER_UNMET");
       }
     });
 
@@ -340,9 +350,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-store-closed"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("STORE_CLOSED");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("STORE_CLOSED");
       }
     });
 
@@ -358,9 +368,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-disabled-pickup"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("SERVICE_TYPE_DISABLED");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("SERVICE_TYPE_DISABLED");
       }
     });
   });
@@ -379,9 +389,9 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-duplicate-lines-oversell"),
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.code).toBe("STOCK_ERROR");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("STOCK_ERROR");
         expect(result.lineErrors?.[sourdoughId]).toContain("Insufficient stock");
       }
       expect((await repos.products.findById(bId, sourdoughId))?.stock).toBe(before);
@@ -400,8 +410,8 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-duplicate-lines-ok"),
       });
 
-      expect(result.success).toBe(true);
-      if (result.success) {
+      expect(result.ok).toBe(true);
+      if (result.ok) {
         expect(result.data.totalAmount).toBe(4 * 450);
         const order = await repos.orders.findById(bId, result.data.orderId);
         expect(order?.items).toHaveLength(1);
@@ -420,10 +430,10 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-create-failure"),
       });
 
-      expect(failed.success).toBe(false);
-      if (!failed.success) {
-        expect(failed.code).toBe("INTERNAL_ERROR");
-        expect(failed.error).not.toContain("db down");
+      expect(failed.ok).toBe(false);
+      if (!failed.ok) {
+        expect(failed.code).toBe("INTERNAL");
+        expect(failed.message).not.toContain("db down");
       }
       expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before);
 
@@ -431,7 +441,7 @@ describe("placeOrderAction", () => {
         ...validOrderPayload,
         idempotencyKey: idem("idem-create-failure"),
       });
-      expect(retry.success).toBe(true);
+      expect(retry.ok).toBe(true);
       expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before - 2);
     });
 
@@ -442,10 +452,10 @@ describe("placeOrderAction", () => {
         new OrderRepoError("Insufficient stock", "STOCK_ERROR"),
       );
       const res = await placeOrderAction(validOrderPayload);
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.code).toBe("STOCK_ERROR");
-        expect(res.error).toBe("Insufficient stock");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.reason).toBe("STOCK_ERROR");
+        expect(res.message).toBe("Insufficient stock");
       }
     });
 
@@ -456,14 +466,14 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-last-units"),
       };
       const first = await placeOrderAction(payload);
-      expect(first.success).toBe(true);
+      expect(first.ok).toBe(true);
 
       const retry = await placeOrderAction(payload);
       expect(retry).toEqual(first);
 
       // A different key for the same (now unavailable) items still fails as out of stock.
       const other = await placeOrderAction({ ...payload, idempotencyKey: idem("idem-other-key") });
-      expect(other).toMatchObject({ success: false, code: "STOCK_ERROR" });
+      expect(other).toMatchObject({ ok: false, reason: "STOCK_ERROR" });
     });
 
     it("does not consume rate-limit budget on idempotent replays", async () => {
@@ -472,7 +482,7 @@ describe("placeOrderAction", () => {
         ...validOrderPayload,
         idempotencyKey: idem("idem-replay"),
       });
-      expect(first.success).toBe(true);
+      expect(first.ok).toBe(true);
 
       for (let i = 0; i < 10; i++) {
         const replay = await placeOrderAction({
@@ -496,7 +506,7 @@ describe("placeOrderAction", () => {
           phone: `+3360000010${i}`,
           idempotencyKey: idem(`idem-no-ip-${i}`),
         });
-        expect(res.success).toBe(true);
+        expect(res.ok).toBe(true);
       }
     });
   });
@@ -528,9 +538,9 @@ describe("placeOrderAction failure handling", () => {
     const result = await placeOrderAction(payload);
 
     expect(result).toEqual({
-      success: false,
-      error: "We could not place your order. Please try again.",
-      code: "INTERNAL_ERROR",
+      ok: false,
+      code: "INTERNAL",
+      message: "Something went wrong. Please try again.",
     });
     expect(JSON.stringify(result)).not.toContain("42501");
     expect(errorSpy).toHaveBeenCalled();
@@ -548,7 +558,7 @@ describe("placeOrderAction failure handling", () => {
       idempotencyKey: idem("test-idem-key-fail-2"),
     });
 
-    expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
+    expect(result).toMatchObject({ ok: false, code: "INTERNAL" });
     errorSpy.mockRestore();
     vi.restoreAllMocks();
   });
@@ -559,14 +569,14 @@ describe("placeOrderAction failure handling", () => {
     vi.spyOn(orders, "place").mockRejectedValueOnce(new OrderRepoError("bad", "INVALID_INPUT"));
     expect(
       await placeOrderAction({ ...payload, idempotencyKey: idem("test-idem-key-input") }),
-    ).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
 
     vi.spyOn(orders, "place").mockRejectedValueOnce(new Error("relation x exploded"));
     const result = await placeOrderAction({
       ...payload,
       idempotencyKey: idem("test-idem-key-boom"),
     });
-    expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
+    expect(result).toMatchObject({ ok: false, code: "INTERNAL" });
     expect(JSON.stringify(result)).not.toContain("exploded");
     errorSpy.mockRestore();
     vi.restoreAllMocks();
@@ -588,7 +598,7 @@ describe("placeOrderAction business resolution", () => {
       paymentPreference: "on_handover",
       idempotencyKey: idem("test-idem-key-forged-biz"),
     });
-    expect(result.success).toBe(true);
+    expect(result.ok).toBe(true);
     expect(placeSpy).toHaveBeenCalledWith(DEMO_BUSINESS_ID, expect.anything());
     placeSpy.mockRestore();
   });

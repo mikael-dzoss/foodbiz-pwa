@@ -243,7 +243,7 @@ export interface StorefrontDictionary {
   pickupPolicyNotice: string;
   orderPlacedTitle: string;
   redirectingToTracking: string;
-  /** Customer-facing place-order failure messages, one per PlaceOrderErrorCode (never raw server text). */
+  /** Customer-facing place-order failure messages, one per PlaceOrderReason / action code (never raw server text). */
   orderErrorValidation: string;
   orderErrorAntiAbuse: string;
   orderErrorStoreClosed: string;

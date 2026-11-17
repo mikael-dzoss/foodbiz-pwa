@@ -2,8 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { requireAuthenticatedAction } from "@/features/auth";
 import type { Business, BusinessSettings } from "@/domain";
 import {
-  getBusinessProfileAction,
-  getBusinessSettingsAction,
   updateBusinessProfileAction,
   updateOrderingSettingsAction,
   updatePaymentSettingsAction,
@@ -13,10 +11,11 @@ import {
 } from "../actions";
 
 const mockRevalidatePath = vi.fn();
-const mockRevalidateTag = vi.fn();
+const mockUpdateTag = vi.fn();
 vi.mock("next/cache", () => ({
-  revalidatePath: (path: string) => mockRevalidatePath(path),
-  revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
+  revalidatePath: (path: string, type?: string) =>
+    type ? mockRevalidatePath(path, type) : mockRevalidatePath(path),
+  updateTag: (tag: string) => mockUpdateTag(tag),
 }));
 
 const mockSetCookie = vi.fn();
@@ -145,12 +144,6 @@ vi.mock("@/features/auth", async () => {
       if (context.session.user.role !== "owner") throw new domainAuth.OwnerRequiredError();
       return context;
     }),
-    forbiddenResult: () => ({
-      success: false as const,
-      error: "Only an owner can do this.",
-      code: domainAuth.ACTION_FORBIDDEN_CODE,
-    }),
-    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
   };
 });
 
@@ -160,83 +153,16 @@ describe("Settings Server Actions", () => {
     vi.clearAllMocks();
   });
 
-  describe("getBusinessProfileAction", () => {
-    it("returns business profile on success", async () => {
-      const res = await getBusinessProfileAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.id).toBe(testBusinessId);
-        expect(res.data.name).toBe("La Petite Boulangerie");
-      }
-    });
-
-    it("returns error when business is not found", async () => {
-      mockBusinessRepo.findById.mockResolvedValueOnce(null);
-      const res = await getBusinessProfileAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Business not found");
-      }
-    });
-
-    it("handles repository Error exceptions in getBusinessProfileAction", async () => {
-      mockBusinessRepo.findById.mockRejectedValueOnce(new Error("Database fetch error"));
-      const res = await getBusinessProfileAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Database fetch error");
-      }
-    });
-
-    it("handles non-Error exceptions in getBusinessProfileAction", async () => {
-      mockBusinessRepo.findById.mockRejectedValueOnce("Unknown fetch error");
-      const res = await getBusinessProfileAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to load business profile");
-      }
-    });
-  });
-
-  describe("getBusinessSettingsAction", () => {
-    it("returns business settings on success", async () => {
-      const res = await getBusinessSettingsAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data?.businessId).toBe(testBusinessId);
-        expect(res.data?.currency).toBe("EUR");
-      }
-    });
-
-    it("handles repository Error exceptions in getBusinessSettingsAction", async () => {
-      mockBusinessRepo.getSettings.mockRejectedValueOnce(new Error("Settings fetch error"));
-      const res = await getBusinessSettingsAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Settings fetch error");
-      }
-    });
-
-    it("handles non-Error exceptions in getBusinessSettingsAction", async () => {
-      mockBusinessRepo.getSettings.mockRejectedValueOnce("Unknown settings error");
-      const res = await getBusinessSettingsAction();
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to load business settings");
-      }
-    });
-  });
-
   describe("updateBusinessProfileAction", () => {
     it("rejects unauthenticated social link updates", async () => {
       vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
-      expect(
-        await updateBusinessProfileAction({
+      await expect(
+        updateBusinessProfileAction({
           name: "Bakery",
           slug: "bakery",
           instagramUrl: "https://instagram.com/bakery",
         }),
-      ).toEqual({ success: false, error: "Failed to update business profile" });
+      ).rejects.toThrow("Unauthorized");
       expect(mockBusinessRepo.update).not.toHaveBeenCalled();
     });
     it("validates and persists all social links, including clearing them", async () => {
@@ -247,7 +173,7 @@ describe("Settings Server Actions", () => {
       };
       expect(
         await updateBusinessProfileAction({ name: "Bakery", slug: "bakery", ...links }),
-      ).toMatchObject({ success: true, data: links });
+      ).toMatchObject({ ok: true, data: links });
       expect(
         await updateBusinessProfileAction({
           name: "Bakery",
@@ -257,7 +183,7 @@ describe("Settings Server Actions", () => {
           tiktokUrl: "",
         }),
       ).toMatchObject({
-        success: true,
+        ok: true,
         data: { instagramUrl: "", facebookUrl: "", tiktokUrl: "" },
       });
       mockBusinessRepo.update.mockClear();
@@ -267,7 +193,7 @@ describe("Settings Server Actions", () => {
           slug: "bakery",
           instagramUrl: "http://example.com",
         }),
-      ).toMatchObject({ success: false, fieldErrors: { instagramUrl: expect.any(Array) } });
+      ).toMatchObject({ ok: false, fieldErrors: { instagramUrl: expect.any(Array) } });
       expect(mockBusinessRepo.update).not.toHaveBeenCalled();
     });
     it("successfully updates business profile and revalidates paths", async () => {
@@ -283,14 +209,16 @@ describe("Settings Server Actions", () => {
       };
 
       const res = await updateBusinessProfileAction(updateData);
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.name).toBe("La Grande Boulangerie");
         expect(res.data.slug).toBe("la-grande-boulangerie");
         expect(res.data.description).toBe("New updated description");
       }
 
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/business");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/[locale]", "layout");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
     });
@@ -302,8 +230,8 @@ describe("Settings Server Actions", () => {
         email: "bad-email",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors).toBeDefined();
         expect(res.fieldErrors?.name).toBeDefined();
         expect(res.fieldErrors?.slug).toBeDefined();
@@ -317,9 +245,9 @@ describe("Settings Server Actions", () => {
         slug: "taken-slug",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toContain("already taken");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toContain("already taken");
         expect(res.fieldErrors?.slug).toBeDefined();
       }
     });
@@ -330,9 +258,9 @@ describe("Settings Server Actions", () => {
         name: "Test Name",
         slug: "test-name",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update business profile");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -342,9 +270,9 @@ describe("Settings Server Actions", () => {
         name: "Test Name",
         slug: "test-name",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update business profile");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });
@@ -352,7 +280,7 @@ describe("Settings Server Actions", () => {
   describe("switchLanguageAction", () => {
     it("sets cookie for supported locale", async () => {
       const res = await switchLanguageAction("fr");
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
       expect(mockSetCookie).toHaveBeenCalledWith(
         "foodbiz_locale",
         "fr",
@@ -363,9 +291,9 @@ describe("Settings Server Actions", () => {
 
     it("rejects unsupported locale", async () => {
       const res = await switchLanguageAction("de");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toContain("Unsupported locale");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toContain("Unsupported locale");
       }
     });
 
@@ -374,9 +302,9 @@ describe("Settings Server Actions", () => {
         throw new Error("Cookie failed");
       });
       const res = await switchLanguageAction("fr");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Cookie failed");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -385,9 +313,9 @@ describe("Settings Server Actions", () => {
         throw "Cookie error string";
       });
       const res = await switchLanguageAction("fr");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update language");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });
@@ -411,14 +339,15 @@ describe("Settings Server Actions", () => {
         leadTimeUnit: "business_days",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.acceptingOrders).toBe(false);
         expect(res.data.serviceTypes?.delivery).toBe(false);
         expect(res.data.deliveryFee).toBe(500);
       }
 
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/ordering");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
     });
@@ -434,8 +363,8 @@ describe("Settings Server Actions", () => {
         deliveryFee: -100,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors).toBeDefined();
         expect(res.fieldErrors?.serviceTypes).toBeDefined();
       }
@@ -456,8 +385,8 @@ describe("Settings Server Actions", () => {
         leadTimeValue: 3,
         leadTimeUnit: "hours",
       });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.leadTimeValue).toBe(3);
         expect(res.data.leadTimeUnit).toBe("hours");
       }
@@ -469,8 +398,8 @@ describe("Settings Server Actions", () => {
         leadTimeValue: 0,
         leadTimeUnit: "weeks",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors?.leadTimeValue).toBeDefined();
         expect(res.fieldErrors?.leadTimeUnit).toBeDefined();
       }
@@ -491,13 +420,14 @@ describe("Settings Server Actions", () => {
         paymentInstructionsFr: "Instructions francaises",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.revolutRevtag).toBe("@parisboulangerie");
         expect(res.data.paymentMethods?.wero).toBe(false);
       }
 
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/payment");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
     });
@@ -512,8 +442,8 @@ describe("Settings Server Actions", () => {
         },
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors?.paymentMethods).toBeDefined();
       }
     });
@@ -528,14 +458,15 @@ describe("Settings Server Actions", () => {
         dateFormat: "YYYY-MM-DD",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.lowStockThreshold).toBe(10);
         expect(res.data.taxPercentage).toBe(20);
         expect(res.data.dateFormat).toBe("YYYY-MM-DD");
       }
 
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/inventory-finance");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
     });
 
@@ -545,8 +476,8 @@ describe("Settings Server Actions", () => {
         taxPercentage: 150,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors?.lowStockThreshold).toBeDefined();
         expect(res.fieldErrors?.taxPercentage).toBeDefined();
       }
@@ -561,13 +492,14 @@ describe("Settings Server Actions", () => {
         soundAlerts: false,
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.notifications).toBe(false);
         expect(res.data.soundAlerts).toBe(false);
       }
 
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/notifications");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
     });
 
@@ -577,8 +509,8 @@ describe("Settings Server Actions", () => {
         inAppAlerts: 123,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors).toBeDefined();
       }
     });
@@ -590,9 +522,9 @@ describe("Settings Server Actions", () => {
         inAppAlerts: true,
         soundAlerts: true,
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Alert save failed");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -603,9 +535,9 @@ describe("Settings Server Actions", () => {
         inAppAlerts: true,
         soundAlerts: true,
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update notification settings");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });
@@ -617,9 +549,9 @@ describe("Settings Server Actions", () => {
         acceptingOrders: true,
         serviceTypes: { pickup: true, delivery: true, dineIn: true },
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Ordering write failed");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -629,9 +561,9 @@ describe("Settings Server Actions", () => {
         acceptingOrders: true,
         serviceTypes: { pickup: true, delivery: true, dineIn: true },
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update ordering settings");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -640,9 +572,9 @@ describe("Settings Server Actions", () => {
       const res = await updatePaymentSettingsAction({
         paymentMethods: { cash: true, revolut: true, wero: true },
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update payment settings");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -651,9 +583,9 @@ describe("Settings Server Actions", () => {
       const res = await updatePaymentSettingsAction({
         paymentMethods: { cash: true, revolut: true, wero: true },
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update payment settings");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -663,9 +595,9 @@ describe("Settings Server Actions", () => {
         lowStockThreshold: 10,
         taxPercentage: 20,
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Inventory save error");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
 
@@ -675,9 +607,9 @@ describe("Settings Server Actions", () => {
         lowStockThreshold: 10,
         taxPercentage: 20,
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Failed to update inventory and finance settings");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });
@@ -694,10 +626,10 @@ describe("Settings Server Actions", () => {
     for (const role of ["manager", "staff"] as const) {
       it(`refuses payment settings to a ${role} with the FORBIDDEN code and writes nothing`, async () => {
         authState.role = role;
-        expect(await updatePaymentSettingsAction(paymentInput)).toEqual({
-          success: false,
-          error: "Only an owner can do this.",
+        expect(await updatePaymentSettingsAction(paymentInput)).toMatchObject({
+          ok: false,
           code: "FORBIDDEN",
+          message: "Only an owner can do this.",
         });
         expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
       });
@@ -708,14 +640,14 @@ describe("Settings Server Actions", () => {
           name: "La Petite Boulangerie",
           slug: "another-address",
         });
-        expect(changed).toMatchObject({ success: false, code: "FORBIDDEN" });
+        expect(changed).toMatchObject({ ok: false, code: "FORBIDDEN" });
         expect(mockBusinessRepo.update).not.toHaveBeenCalled();
 
         const unchanged = await updateBusinessProfileAction({
           name: "Renamed Bakery",
           slug: mockBusiness.slug,
         });
-        expect(unchanged.success).toBe(true);
+        expect(unchanged.ok).toBe(true);
         expect(mockBusinessRepo.update).toHaveBeenCalled();
       });
     }
@@ -724,7 +656,7 @@ describe("Settings Server Actions", () => {
       const { OwnerRequiredError } = await import("@/domain/auth");
       mockBusinessRepo.updateSettings.mockRejectedValueOnce(new OwnerRequiredError());
       expect(await updatePaymentSettingsAction(paymentInput)).toMatchObject({
-        success: false,
+        ok: false,
         code: "FORBIDDEN",
       });
     });

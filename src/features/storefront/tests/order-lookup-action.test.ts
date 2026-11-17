@@ -9,6 +9,10 @@ const mockRedirect = vi.fn((url: string) => {
 });
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => mockRedirect(url),
+  // The real one rethrows Next control-flow errors; this stub's redirect throws a REDIRECT: error.
+  unstable_rethrow: (err: unknown) => {
+    if (err instanceof Error && err.message.startsWith("REDIRECT:")) throw err;
+  },
 }));
 
 let mockClientIp: string | null = "203.0.113.7";
@@ -96,5 +100,18 @@ describe("lookupOrderAction (#230)", () => {
     for (let i = 0; i < 10; i++)
       await expect(attempt(i)).resolves.toMatchObject({ code: "NOT_FOUND" });
     await expect(attempt(20)).resolves.toMatchObject({ code: "RATE_LIMITED" });
+  });
+
+  it("throws to the error boundary on an unexpected failure instead of showing a miss", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(
+      getMockRepositories().orders,
+      "findTrackingTokenByTicketAndPhone",
+    ).mockRejectedValueOnce(new Error("db down"));
+    await expect(lookupOrderAction(INITIAL_ORDER_LOOKUP_STATE, form(VALID))).rejects.toThrow(
+      "Order lookup failed",
+    );
+    errorSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 });

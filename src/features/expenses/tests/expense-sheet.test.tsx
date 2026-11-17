@@ -110,8 +110,9 @@ describe("ExpenseSheet Component", () => {
 
   it("handles create action API failure and field errors", async () => {
     vi.spyOn(actions, "createExpenseAction").mockResolvedValue({
-      success: false,
-      error: "Validation failed on server",
+      ok: false,
+      code: "INTERNAL",
+      message: "Validation failed on server",
       fieldErrors: {
         description: ["Server rejected description"],
       },
@@ -134,8 +135,9 @@ describe("ExpenseSheet Component", () => {
 
   it("handles update action API failure", async () => {
     vi.spyOn(actions, "updateExpenseAction").mockResolvedValue({
-      success: false,
-      error: "Update rejected by database",
+      ok: false,
+      code: "INTERNAL",
+      message: "Update rejected by database",
     });
 
     render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
@@ -166,8 +168,9 @@ describe("ExpenseSheet Component", () => {
 
   it("handles delete confirmation and delete errors", async () => {
     vi.spyOn(actions, "deleteExpenseAction").mockResolvedValue({
-      success: false,
-      error: "Cannot delete expense",
+      ok: false,
+      code: "INTERNAL",
+      message: "Cannot delete expense",
     });
 
     render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);

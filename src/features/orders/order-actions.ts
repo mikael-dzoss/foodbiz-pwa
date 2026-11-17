@@ -1,613 +1,197 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { getRepositories } from "@/lib/repositories";
+import { defineAction } from "@/lib/actions/define-action";
+import { ActionError } from "@/lib/actions/types";
+import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data";
 import {
-  forbiddenResult,
-  isForbiddenError,
-  requireAuthenticatedAction,
-  requireOwnerAction,
-} from "@/features/auth";
-import {
-  type NamedOrder,
-  type Order,
-  type OrderStatus,
   type Guest,
-  type Product,
   type PlacedOrderSummary,
-  OrderRepoError,
-  serviceTypeSchema,
-  uuidSchema,
+  type Product,
   manualOrderInputSchema,
+  paymentMethodSchema,
   updateOrderStatusInputSchema,
   recordRefundInputSchema,
   validateOrderTransition,
   validateOrderLineStock,
   normalizePhoneNumber,
-  UNKNOWN_GUEST_NAME,
+  uuidSchema,
 } from "@/domain";
-import { z } from "zod";
-import type { ActionErrorCode } from "@/domain/auth";
+import { listOrders, listOrdersFilterSchema } from "./order-data";
 
-export type OrderActionResult<T = void> =
-  | { success: true; data: T }
-  | {
-      success: false;
-      error: string;
-      fieldErrors?: Record<string, string[]>;
-      /** Typed code for refusals the UI can act on (reload after a conflict). */
-      code?: "ORDER_STATE_CONFLICT" | ActionErrorCode;
-    };
+export type GuestPrefill = Pick<Guest, "id" | "name" | "address">;
 
-/** Failure result for a caught error; a stale-state conflict from the database carries its code. */
-function failure(
-  err: unknown,
-  fallback: string,
-): { success: false; error: string; code?: "ORDER_STATE_CONFLICT" } {
-  // Only repository errors carry vetted text; anything else gets the fixed fallback.
-  const message = err instanceof OrderRepoError ? err.message : fallback;
-  if (err instanceof OrderRepoError && err.code === "ORDER_STATE_CONFLICT") {
-    return { success: false, error: message, code: "ORDER_STATE_CONFLICT" };
-  }
-  return { success: false, error: message };
+const orderIdSchema = z.object({ orderId: uuidSchema });
+const orderPaymentSchema = orderIdSchema.extend({ paymentMethod: paymentMethodSchema });
+
+/** Refuses with a vetted message when current state does not allow the change. */
+const refuse = (message: string) => new ActionError("CONFLICT", message);
+
+function revalidateOrder(orderId: string) {
+  revalidatePath("/manage/orders");
+  revalidatePath(`/manage/orders/${orderId}`);
 }
 
-export interface EnrichedOrder extends NamedOrder {
-  guestPhone?: string | null;
-  guestEmail?: string | null;
-}
-
-export interface ListOrdersResult {
-  orders: EnrichedOrder[];
-  counts: {
-    active: number;
-    completed: number;
-    cancelled: number;
-    total: number;
-    unpaid: number;
-    pickup: number;
-    delivery: number;
-  };
-}
-
-const listOrdersFilterSchema = z
-  .object({
-    statusTab: z.enum(["active", "completed", "cancelled", "all"]).optional(),
-    serviceType: serviceTypeSchema.optional(),
-    unpaidOnly: z.boolean().optional(),
-    search: z.string().optional(),
-  })
-  .optional();
-
-export type ListOrdersFilter = z.infer<typeof listOrdersFilterSchema>;
-
-const ACTIVE_STATUSES: readonly OrderStatus[] = ["NEW", "CONFIRMED", "PREPARING", "READY"];
-
-/**
- * Retrieves orders for the manager's business with search, filtering, and priority sorting.
- */
-export async function listOrdersAction(
-  filter?: unknown,
-): Promise<OrderActionResult<ListOrdersResult>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsed = listOrdersFilterSchema.safeParse(filter);
-    if (!parsed.success) {
-      return { success: false, error: "Invalid order filter." };
-    }
-    const validFilter = parsed.data;
-    const repos = getRepositories();
-
-    const [allOrders, allGuests] = await Promise.all([
-      repos.orders.list(businessId),
-      repos.guests.list(businessId),
-    ]);
-
-    const guestMap = new Map<string, Guest>();
-    for (const g of allGuests) {
-      guestMap.set(g.id, g);
-    }
-
-    // Enrich orders with guest name/phone/email (name is resolved via guestId, never stored)
-    const enrichedOrders: EnrichedOrder[] = allOrders.map((o) => {
-      const g = guestMap.get(o.guestId);
-      return {
-        ...o,
-        guestName: g?.name ?? UNKNOWN_GUEST_NAME,
-        guestPhone: g?.phone ?? null,
-        guestEmail: g?.email ?? null,
-        deliveryAddress: o.deliveryAddress ?? g?.address ?? null,
-      };
-    });
-
-    // Compute global counts before tab filtering
-    const activeCount = enrichedOrders.filter((o) => ACTIVE_STATUSES.includes(o.status)).length;
-    const completedCount = enrichedOrders.filter((o) => o.status === "COMPLETED").length;
-    const cancelledCount = enrichedOrders.filter((o) => o.status === "CANCELLED").length;
-    const unpaidCount = enrichedOrders.filter((o) => o.paid === "unpaid").length;
-    const pickupCount = enrichedOrders.filter((o) => o.serviceType === "pickup").length;
-    const deliveryCount = enrichedOrders.filter((o) => o.serviceType === "delivery").length;
-
-    let filtered = enrichedOrders;
-
-    // Filter by tab: active (default) | completed | cancelled | all
-    const tab = validFilter?.statusTab ?? "active";
-    if (tab !== "all") {
-      if (tab === "active") {
-        filtered = filtered.filter((o) => ACTIVE_STATUSES.includes(o.status));
-      } else if (tab === "completed") {
-        filtered = filtered.filter((o) => o.status === "COMPLETED");
-      } else if (tab === "cancelled") {
-        filtered = filtered.filter((o) => o.status === "CANCELLED");
-      }
-    }
-
-    // Filter by unpaid only
-    if (validFilter?.unpaidOnly) {
-      filtered = filtered.filter((o) => o.paid === "unpaid");
-    }
-
-    // Filter by service type
-    if (validFilter?.serviceType) {
-      filtered = filtered.filter((o) => o.serviceType === validFilter.serviceType);
-    }
-
-    // Filter by search query (name, phone, order reference)
-    if (validFilter?.search && validFilter.search.trim().length > 0) {
-      const query = validFilter.search.trim().toLowerCase();
-      const queryDigits = query.replace(/\D/g, "");
-
-      filtered = filtered.filter((o) => {
-        // Order reference e.g. #42 or 42
-        const numStr = o.orderNumber ? String(o.orderNumber) : "";
-        if (numStr === query || `#${numStr}` === query) return true;
-        if (numStr.includes(query)) return true;
-
-        // Guest name or submittedName mismatch
-        if (o.guestName.toLowerCase().includes(query)) return true;
-        if (o.submittedName && o.submittedName.toLowerCase().includes(query)) return true;
-
-        // Guest phone
-        if (o.guestPhone && o.guestPhone.toLowerCase().includes(query)) return true;
-        if (queryDigits.length >= 3 && o.guestPhone && o.guestPhone.includes(queryDigits)) {
-          return true;
-        }
-
-        // Tracking token
-        if (o.trackingToken && o.trackingToken.toLowerCase().includes(query)) return true;
-
-        return false;
-      });
-    }
-
-    // Sort: ASAP first, then requested date/time chronologically
-    // If an order has no requestedTime, it is treated as ASAP for that date.
-    filtered.sort((a, b) => {
-      // 1. Prioritize NEW status within active triage
-      if (a.status === "NEW" && b.status !== "NEW") return -1;
-      if (b.status === "NEW" && a.status !== "NEW") return 1;
-
-      // 2. Sort by requestedDate
-      if (a.requestedDate !== b.requestedDate) {
-        return a.requestedDate.localeCompare(b.requestedDate);
-      }
-
-      // 3. For the same date, ASAP (no requestedTime or null) comes before scheduled times
-      if (!a.requestedTime && b.requestedTime) return -1;
-      if (a.requestedTime && !b.requestedTime) return 1;
-      if (a.requestedTime && b.requestedTime) {
-        return a.requestedTime.localeCompare(b.requestedTime);
-      }
-
-      // 4. Default to newest creation first
-      return b.createdAt.localeCompare(a.createdAt);
-    });
-
-    return {
-      success: true,
-      data: {
-        orders: filtered,
-        counts: {
-          active: activeCount,
-          completed: completedCount,
-          cancelled: cancelledCount,
-          total: enrichedOrders.length,
-          unpaid: unpaidCount,
-          pickup: pickupCount,
-          delivery: deliveryCount,
-        },
-      },
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to list orders";
-    return { success: false, error: message };
-  }
+async function requireOrder(businessId: string, orderId: string) {
+  const order = await getRepositories().orders.findById(businessId, orderId);
+  if (!order) throw new ActionError("NOT_FOUND", "Order not found");
+  return order;
 }
 
 /**
- * Retrieves a single order with its guest details and items.
+ * Orders for the polling alert badge; pages read through `listOrders` in `order-data.ts` instead.
  */
-export async function getOrderAction(
-  orderId: unknown,
-): Promise<OrderActionResult<{ order: EnrichedOrder; guest: Guest | null }>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsedId = uuidSchema.safeParse(orderId);
-    if (!parsedId.success) {
-      return { success: false, error: "Invalid order ID." };
-    }
+export const listOrdersAction = defineAction(
+  "listOrders",
+  { input: listOrdersFilterSchema },
+  async ({ input }) => listOrders(input),
+);
+
+/** Creates a manual order, decrements stock and links or creates a guest by phone. */
+export const createManualOrderAction = defineAction(
+  "createManualOrder",
+  { input: manualOrderInputSchema },
+  async ({ input: data, businessId }) => {
     const repos = getRepositories();
 
-    const order = await repos.orders.findById(businessId, parsedId.data);
-    if (!order) {
-      return { success: false, error: "Order not found" };
-    }
-
-    const guest = await repos.guests.findById(businessId, order.guestId);
-
-    const enriched: EnrichedOrder = {
-      ...order,
-      guestName: guest?.name ?? UNKNOWN_GUEST_NAME,
-      guestPhone: guest?.phone ?? null,
-      guestEmail: guest?.email ?? null,
-      deliveryAddress: order.deliveryAddress ?? guest?.address ?? null,
-    };
-
-    return {
-      success: true,
-      data: {
-        order: enriched,
-        guest,
-      },
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load order";
-    return { success: false, error: message };
-  }
-}
-
-/**
- * Creates a manual order, decrements stock for ordered items, and links or creates a guest by phone.
- */
-export async function createManualOrderAction(input: unknown): Promise<OrderActionResult<Order>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsed = manualOrderInputSchema.safeParse(input);
-
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string[]> = {};
-      for (const issue of parsed.error.issues) {
-        const path = issue.path.join(".");
-        fieldErrors[path] = fieldErrors[path] || [];
-        fieldErrors[path].push(issue.message);
-      }
-      return {
-        success: false,
-        error: "Validation failed: please check order details.",
-        fieldErrors,
-      };
-    }
-
-    const data = parsed.data;
-    const repos = getRepositories();
-
-    // 2. Validate product availability and stock
-    const allProducts = await repos.products.list(businessId);
-    const productMap = new Map<string, Product>();
-    for (const p of allProducts) {
-      productMap.set(p.id, p);
-    }
-
+    const productMap = new Map<string, Product>(
+      (await repos.products.list(businessId)).map((p) => [p.id, p]),
+    );
     for (const item of data.items) {
       const product = productMap.get(item.productId);
       if (!product) {
-        return {
-          success: false,
-          error: `Product with ID "${item.productId}" was not found.`,
-        };
+        throw new ActionError("NOT_FOUND", `Product with ID "${item.productId}" was not found.`);
       }
       const check = validateOrderLineStock(product, item.quantity);
-      if (!check.ok) {
-        return { success: false, error: check.error.message };
-      }
+      if (!check.ok) throw refuse(check.error.message);
     }
 
-    // 3. Atomically place order via repository
-    const now = new Date().toISOString();
-    const todayDate = now.slice(0, 10);
-    const requestedDate = data.isAsap ? todayDate : (data.requestedDate ?? todayDate);
-    const requestedTime = data.isAsap ? null : (data.requestedTime ?? null);
+    const todayDate = new Date().toISOString().slice(0, 10);
+    const summary: PlacedOrderSummary = await repos.orders.place(businessId, {
+      guestName: data.guestName,
+      guestPhone: data.guestPhone,
+      serviceType: data.serviceType,
+      channel: data.channel,
+      requestedDate: data.isAsap ? todayDate : (data.requestedDate ?? todayDate),
+      requestedTime: data.isAsap ? null : (data.requestedTime ?? null),
+      items: data.items.map((it) => ({ productId: it.productId, quantity: it.quantity })),
+      paymentPreference: data.paymentPreference,
+      deliveryAddress: data.deliveryAddress ?? null,
+      notes: data.notes ?? null,
+      allowRename: data.updateGuestName,
+    });
 
-    let summary: PlacedOrderSummary;
-    try {
-      summary = await repos.orders.place(businessId, {
-        guestName: data.guestName,
-        guestPhone: data.guestPhone,
-        serviceType: data.serviceType,
-        channel: data.channel,
-        requestedDate,
-        requestedTime,
-        items: data.items.map((it) => ({
-          productId: it.productId,
-          quantity: it.quantity,
-        })),
-        paymentPreference: data.paymentPreference,
-        deliveryAddress: data.deliveryAddress ?? null,
-        notes: data.notes ?? null,
-        allowRename: data.updateGuestName,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create manual order";
-      return { success: false, error: message };
-    }
-
-    // 4. Manual orders transition directly to CONFIRMED (appends to the history place_order started)
-    let order: Order;
-    try {
-      order = await repos.orders.transition(businessId, summary.orderId, {
-        expectedStatus: "NEW",
-        nextStatus: "CONFIRMED",
-        reason: `Manual order created via ${data.channel}`,
-      });
-    } catch (err) {
-      return failure(err, "Failed to confirm manual order");
-    }
+    // Manual orders go straight to CONFIRMED (appends to the history place_order started).
+    const order = await repos.orders.transition(businessId, summary.orderId, {
+      expectedStatus: "NEW",
+      nextStatus: "CONFIRMED",
+      reason: `Manual order created via ${data.channel}`,
+    });
 
     revalidatePath("/manage/orders");
     revalidatePath("/manage/products");
+    revalidateStorefrontCatalog(businessId);
+    return order;
+  },
+);
 
-    return { success: true, data: order };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create manual order";
-    return { success: false, error: message };
-  }
-}
-
-/**
- * Transitions an order to its next valid status with server-side validation and timestamp logging.
- */
-export async function progressOrderStatusAction(input: unknown): Promise<OrderActionResult<Order>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsed = updateOrderStatusInputSchema.safeParse(input);
-
-    if (!parsed.success) {
-      return {
-        success: false,
-        error: "Invalid status transition request.",
-      };
-    }
-
-    const { orderId, nextStatus, reason } = parsed.data;
-    const repos = getRepositories();
-
-    const order = await repos.orders.findById(businessId, orderId);
-    if (!order) {
-      return { success: false, error: "Order not found" };
-    }
-
-    // Validate state machine rules
+/** Moves an order to a valid next status (server-side state machine and timestamp logging). */
+export const progressOrderStatusAction = defineAction(
+  "progressOrderStatus",
+  { input: updateOrderStatusInputSchema },
+  async ({ input: { orderId, nextStatus, reason }, businessId }) => {
+    const order = await requireOrder(businessId, orderId);
     const validation = validateOrderTransition({
       currentStatus: order.status,
       nextStatus,
       paid: order.paid,
       reason,
     });
-
-    if (!validation.ok) {
-      return { success: false, error: validation.error };
-    }
+    if (!validation.ok) throw refuse(validation.error);
 
     // One atomic database step: expected-status check, transition table, stock restore on
     // cancellation and the history entry. A concurrent change surfaces as ORDER_STATE_CONFLICT.
-    const updated = await repos.orders.transition(businessId, orderId, {
+    const updated = await getRepositories().orders.transition(businessId, orderId, {
       expectedStatus: order.status,
       nextStatus,
       reason: reason ?? null,
     });
 
-    revalidatePath("/manage/orders");
-    revalidatePath(`/manage/orders/${orderId}`);
+    revalidateOrder(orderId);
     if (nextStatus === "CANCELLED") {
       revalidatePath("/manage/products");
+      revalidateStorefrontCatalog(businessId);
     }
+    return updated;
+  },
+);
 
-    return { success: true, data: updated };
-  } catch (err) {
-    return failure(err, "Failed to update order status");
-  }
-}
-
-/**
- * Accepts a new web order, transitioning its status to CONFIRMED.
- */
-export async function acceptOrderAction(orderId: unknown): Promise<OrderActionResult<Order>> {
-  const parsedId = uuidSchema.safeParse(orderId);
-  if (!parsedId.success) {
-    return { success: false, error: "Invalid order ID." };
-  }
-  return progressOrderStatusAction({ orderId: parsedId.data, nextStatus: "CONFIRMED" });
-}
-
-/**
- * Rejects a new web order with a required reason, cancelling it and restoring reserved stock.
- */
-export async function rejectOrderAction(input: {
-  orderId: string;
-  reason: string;
-}): Promise<OrderActionResult<Order>> {
-  return progressOrderStatusAction({
-    orderId: input.orderId,
-    nextStatus: "CANCELLED",
-    reason: input.reason,
-  });
-}
-
-const recordPaymentInputSchema = z.object({
-  orderId: z.string().uuid(),
-  paymentMethod: z.enum(["cash", "revolut", "wero"]),
-});
-
-const markOrderUnpaidInputSchema = z.object({
-  orderId: z.string().uuid(),
-});
-
-const markPaidAndCompleteInputSchema = z.object({
-  orderId: z.string().uuid(),
-  paymentMethod: z.enum(["cash", "revolut", "wero"]),
-});
-
-/**
- * Records payment for an order and sets paid status to 'paid'.
- * Fails if order is CANCELLED per AC: Payment can be recorded at any status except CANCELLED.
- */
-export async function recordPaymentAction(input: unknown): Promise<OrderActionResult<Order>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsed = recordPaymentInputSchema.safeParse(input);
-
-    if (!parsed.success) {
-      return { success: false, error: "Invalid payment parameters." };
-    }
-
-    const { orderId, paymentMethod } = parsed.data;
-    const repos = getRepositories();
-
-    const order = await repos.orders.findById(businessId, orderId);
-    if (!order) {
-      return { success: false, error: "Order not found" };
-    }
-
+/** Records payment (any status except CANCELLED or refunded) and sets paid status to 'paid'. */
+export const recordPaymentAction = defineAction(
+  "recordPayment",
+  { input: orderPaymentSchema },
+  async ({ input: { orderId, paymentMethod }, businessId }) => {
+    const order = await requireOrder(businessId, orderId);
     if (order.status === "CANCELLED") {
-      return {
-        success: false,
-        error: "Payment cannot be recorded for a cancelled order.",
-      };
+      throw refuse("Payment cannot be recorded for a cancelled order.");
     }
+    if (order.paid === "refunded") throw refuse("Payment cannot be recorded for a refunded order.");
 
-    if (order.paid === "refunded") {
-      return {
-        success: false,
-        error: "Payment cannot be recorded for a refunded order.",
-      };
-    }
+    const updated = await getRepositories().orders.recordPayment(businessId, orderId, {
+      paymentMethod,
+    });
+    revalidateOrder(orderId);
+    return updated;
+  },
+);
 
-    const updated = await repos.orders.recordPayment(businessId, orderId, { paymentMethod });
+/** Undoes a payment, clearing paymentMethod and paidAt. Blocked if completed, refunded or unpaid. */
+export const markOrderUnpaidAction = defineAction(
+  "markOrderUnpaid",
+  { input: orderIdSchema },
+  async ({ input: { orderId }, businessId }) => {
+    const order = await requireOrder(businessId, orderId);
+    if (order.status === "COMPLETED") throw refuse("Cannot mark a completed order as unpaid.");
+    if (order.paid === "refunded") throw refuse("Cannot mark a refunded order as unpaid.");
+    if (order.paid === "unpaid") throw refuse("Order is already marked as unpaid.");
 
-    revalidatePath("/manage/orders");
-    revalidatePath(`/manage/orders/${orderId}`);
+    const updated = await getRepositories().orders.markUnpaid(businessId, orderId);
+    revalidateOrder(orderId);
+    return updated;
+  },
+);
 
-    return { success: true, data: updated };
-  } catch (err) {
-    return failure(err, "Failed to record payment");
-  }
-}
-
-/**
- * Marks a paid order as unpaid (undo), clearing paymentMethod and paidAt.
- * Blocks if order is COMPLETED, refunded, or already unpaid.
- */
-export async function markOrderUnpaidAction(input: unknown): Promise<OrderActionResult<Order>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsed = markOrderUnpaidInputSchema.safeParse(input);
-
-    if (!parsed.success) {
-      return { success: false, error: "Invalid order parameters." };
-    }
-
-    const { orderId } = parsed.data;
-    const repos = getRepositories();
-
-    const order = await repos.orders.findById(businessId, orderId);
-    if (!order) {
-      return { success: false, error: "Order not found" };
-    }
-
-    if (order.status === "COMPLETED") {
-      return { success: false, error: "Cannot mark a completed order as unpaid." };
-    }
-
-    if (order.paid === "refunded") {
-      return { success: false, error: "Cannot mark a refunded order as unpaid." };
-    }
-
-    if (order.paid === "unpaid") {
-      return { success: false, error: "Order is already marked as unpaid." };
-    }
-
-    const updated = await repos.orders.markUnpaid(businessId, orderId);
-
-    revalidatePath("/manage/orders");
-    revalidatePath(`/manage/orders/${orderId}`);
-
-    return { success: true, data: updated };
-  } catch (err) {
-    return failure(err, "Failed to mark order as unpaid");
-  }
-}
-
-/**
- * Shortcut when order is in READY status: records payment and immediately transitions status to COMPLETED.
- */
-export async function markPaidAndCompleteAction(input: unknown): Promise<OrderActionResult<Order>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const parsed = markPaidAndCompleteInputSchema.safeParse(input);
-
-    if (!parsed.success) {
-      return { success: false, error: "Invalid parameters for mark paid and complete." };
-    }
-
-    const { orderId, paymentMethod } = parsed.data;
-    const repos = getRepositories();
-
-    const order = await repos.orders.findById(businessId, orderId);
-    if (!order) {
-      return { success: false, error: "Order not found" };
-    }
-
+/** Shortcut for a READY order: records payment and completes it in one step. */
+export const markPaidAndCompleteAction = defineAction(
+  "markPaidAndComplete",
+  { input: orderPaymentSchema },
+  async ({ input: { orderId, paymentMethod }, businessId }) => {
+    const order = await requireOrder(businessId, orderId);
     if (order.status !== "READY") {
-      return {
-        success: false,
-        error: "Order must be in READY status to use Mark Paid & Complete.",
-      };
+      throw refuse("Order must be in READY status to use Mark Paid & Complete.");
     }
+    if (order.paid === "refunded") throw refuse("Cannot complete a refunded order.");
 
-    if (order.paid === "refunded") {
-      return { success: false, error: "Cannot complete a refunded order." };
-    }
-
-    const updated = await repos.orders.recordPayment(businessId, orderId, {
+    const updated = await getRepositories().orders.recordPayment(businessId, orderId, {
       paymentMethod,
       markCompleted: true,
     });
-
-    revalidatePath("/manage/orders");
-    revalidatePath(`/manage/orders/${orderId}`);
-
-    return { success: true, data: updated };
-  } catch (err) {
-    return failure(err, "Failed to mark paid and complete order");
-  }
-}
-
-export type GuestPrefill = Pick<Guest, "id" | "name" | "address">;
+    revalidateOrder(orderId);
+    return updated;
+  },
+);
 
 /**
- * Looks up an existing guest by phone number for instant form prefill (managers only).
- * Returns the minimum needed to prefill the form, not the full guest record.
+ * Finds an existing guest by phone for instant form prefill (managers only). Returns the minimum
+ * needed to prefill the form, not the full guest record.
  */
-export async function lookupGuestByPhoneAction(
-  phone: string,
-): Promise<OrderActionResult<GuestPrefill | null>> {
-  try {
-    const { businessId } = await requireAuthenticatedAction();
-    const repos = getRepositories();
-
-    if (!phone || phone.trim().length < 3) {
-      return { success: true, data: null };
-    }
+export const lookupGuestByPhoneAction = defineAction(
+  "lookupGuestByPhone",
+  { input: z.string() },
+  async ({ input: phone, businessId }): Promise<GuestPrefill | null> => {
+    if (phone.trim().length < 3) return null;
 
     let normalized: string;
     try {
@@ -615,54 +199,26 @@ export async function lookupGuestByPhoneAction(
     } catch {
       normalized = phone.trim();
     }
+    const guest = await getRepositories().guests.findByPhone(businessId, normalized);
+    return guest ? { id: guest.id, name: guest.name, address: guest.address ?? null } : null;
+  },
+);
 
-    const guest = await repos.guests.findByPhone(businessId, normalized);
-    return {
-      success: true,
-      data: guest ? { id: guest.id, name: guest.name, address: guest.address ?? null } : null,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Guest lookup failed";
-    return { success: false, error: message };
-  }
-}
+/** Refunds a paid order (owner only): paid status becomes 'refunded' and refundedAt is set. */
+export const recordRefundAction = defineAction(
+  "recordRefund",
+  { auth: "owner", input: recordRefundInputSchema },
+  async ({ input: { orderId, reason }, businessId }) => {
+    const order = await requireOrder(businessId, orderId);
+    if (order.paid === "refunded") throw refuse("Order is already marked as refunded.");
+    if (order.paid === "unpaid") throw refuse("Cannot refund an unpaid order.");
 
-/**
- * Records a refund for an order, transitioning paid status to 'refunded' and capturing refundedAt.
- */
-export async function recordRefundAction(input: unknown): Promise<OrderActionResult<Order>> {
-  try {
-    const { businessId } = await requireOwnerAction();
-    const parsed = recordRefundInputSchema.safeParse(input);
-
-    if (!parsed.success) {
-      return { success: false, error: "Invalid refund parameters." };
-    }
-
-    const { orderId, reason } = parsed.data;
-    const repos = getRepositories();
-
-    const order = await repos.orders.findById(businessId, orderId);
-    if (!order) {
-      return { success: false, error: "Order not found" };
-    }
-
-    if (order.paid === "refunded") {
-      return { success: false, error: "Order is already marked as refunded." };
-    }
-
-    if (order.paid === "unpaid") {
-      return { success: false, error: "Cannot refund an unpaid order." };
-    }
-
-    const updated = await repos.orders.recordRefund(businessId, orderId, reason ?? null);
-
-    revalidatePath("/manage/orders");
-    revalidatePath(`/manage/orders/${orderId}`);
-
-    return { success: true, data: updated };
-  } catch (err) {
-    if (isForbiddenError(err)) return forbiddenResult();
-    return failure(err, "Failed to record refund");
-  }
-}
+    const updated = await getRepositories().orders.recordRefund(
+      businessId,
+      orderId,
+      reason ?? null,
+    );
+    revalidateOrder(orderId);
+    return updated;
+  },
+);

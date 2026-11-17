@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { OrderDetail } from "../components/order-detail";
-import type { EnrichedOrder } from "../order-actions";
+import type { EnrichedOrder } from "../order-data";
 import * as actions from "../order-actions";
 
 vi.mock("next/navigation", () => ({
@@ -94,7 +94,7 @@ describe("OrderDetail Component", () => {
 
   it("displays next valid status action and triggers progression", async () => {
     const progressSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         status: "READY",
@@ -131,7 +131,7 @@ describe("OrderDetail Component", () => {
 
   it("displays enabled 'Complete order' action when order is READY and paid", async () => {
     const completeSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         status: "COMPLETED",
@@ -184,7 +184,7 @@ describe("OrderDetail Component", () => {
 
   it("opens cancel dialog and cancels order with reason", async () => {
     const cancelSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         status: "CANCELLED",
@@ -213,7 +213,7 @@ describe("OrderDetail Component", () => {
 
   it("records payment via payment dialog", async () => {
     const paySpy = vi.spyOn(actions, "recordPaymentAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         paid: "paid",
@@ -240,7 +240,7 @@ describe("OrderDetail Component", () => {
 
   it("shows Refund Due badge and records refund when cancelled paid order is viewed", async () => {
     const refundSpy = vi.spyOn(actions, "recordRefundAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         status: "CANCELLED",
@@ -325,7 +325,7 @@ describe("OrderDetail Component", () => {
 
   it("allows manager to mark paid order as unpaid to undo a mistake (AC 1 of #53)", async () => {
     const unpaidSpy = vi.spyOn(actions, "markOrderUnpaidAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         paid: "unpaid",
@@ -357,7 +357,7 @@ describe("OrderDetail Component", () => {
 
   it("renders 'Mark paid & complete' shortcut when READY and unpaid (AC 3 of #53)", async () => {
     const shortcutSpy = vi.spyOn(actions, "markPaidAndCompleteAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         ...mockOrder,
         status: "COMPLETED",
@@ -413,7 +413,7 @@ describe("OrderDetail Component", () => {
 
     it("clicking Accept order calls progressOrderStatusAction with CONFIRMED status", async () => {
       const progressSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
-        success: true,
+        ok: true,
         data: {
           ...newOrder,
           status: "CONFIRMED",
@@ -434,7 +434,7 @@ describe("OrderDetail Component", () => {
 
     it("clicking Reject order opens dialog and requires a non-empty reason", async () => {
       const progressSpy = vi.spyOn(actions, "progressOrderStatusAction").mockResolvedValueOnce({
-        success: true,
+        ok: true,
         data: {
           ...newOrder,
           status: "CANCELLED",

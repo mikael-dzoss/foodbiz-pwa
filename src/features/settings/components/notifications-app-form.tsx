@@ -67,10 +67,10 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
         soundAlerts,
       });
 
-      if (res.success) {
+      if (res.ok) {
         showToast(dict.notifications.saveSuccess);
       } else {
-        showToast(res.error || "Failed to save preferences");
+        showToast(res.message || "Failed to save preferences");
       }
     });
   };

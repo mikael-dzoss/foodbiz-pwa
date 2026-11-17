@@ -64,13 +64,13 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
         dateFormat,
       });
 
-      if (res.success) {
+      if (res.ok) {
         showToast(dict.inventoryFinance.saveSuccess);
       } else {
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.error || "Failed to save inventory & finance preferences");
+        showToast(res.message || "Failed to save inventory & finance preferences");
       }
     });
   };

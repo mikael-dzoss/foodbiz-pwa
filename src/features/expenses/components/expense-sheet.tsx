@@ -144,18 +144,19 @@ function ExpenseForm({
 
     try {
       if (isEdit && expense) {
-        const res = await updateExpenseAction(expense.id, {
+        const res = await updateExpenseAction({
+          id: expense.id,
           amount: amountInCents,
           description: description.trim(),
           date: date.trim(),
           tags: selectedTags,
         });
 
-        if (res.success) {
+        if (res.ok) {
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(res.error);
+          setErrorMessage(res.message);
           if (res.fieldErrors) {
             setFieldErrors(res.fieldErrors);
           }
@@ -168,11 +169,11 @@ function ExpenseForm({
           tags: selectedTags,
         });
 
-        if (res.success) {
+        if (res.ok) {
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(res.error);
+          setErrorMessage(res.message);
           if (res.fieldErrors) {
             setFieldErrors(res.fieldErrors);
           }
@@ -192,12 +193,12 @@ function ExpenseForm({
 
     try {
       const res = await deleteExpenseAction(expense.id);
-      if (res.success) {
+      if (res.ok) {
         onDeleted?.(expense.id);
         setShowDeleteConfirm(false);
         onClose();
       } else {
-        setErrorMessage(res.error);
+        setErrorMessage(res.message);
         setShowDeleteConfirm(false);
       }
     } catch {
