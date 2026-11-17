@@ -37,6 +37,7 @@ import { ActionBar } from "@/components/ui/action-bar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { useZonedToday } from "@/components/time/business-timezone";
@@ -502,53 +503,51 @@ export function CheckoutForm({
         </h2>
 
         {/* Segmented Mode Pills */}
-        <div
-          className="bg-muted grid grid-cols-2 gap-1.5 rounded-xl p-1"
-          role="radiogroup"
+        <SegmentedControl
           aria-label={dict.fulfillmentMode}
-        >
-          {pickupAllowed && (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={serviceType === "pickup"}
-              onClick={() => handleSelectServiceType("pickup")}
-              data-testid="service-pickup-button"
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
-                serviceType === "pickup"
-                  ? "border-primary bg-primary/10 text-primary border shadow-xs"
-                  : "text-muted-foreground hover:text-foreground font-medium"
-              }`}
-            >
-              <Store className="h-4 w-4" />
-              <span>{dict.pickupFree}</span>
-            </button>
-          )}
-
-          {deliveryAllowed && (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={serviceType === "delivery"}
-              onClick={() => handleSelectServiceType("delivery")}
-              data-testid="service-delivery-button"
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold transition-all ${
-                serviceType === "delivery"
-                  ? "border-primary bg-primary/10 text-primary border shadow-xs"
-                  : "text-muted-foreground hover:text-foreground font-medium"
-              }`}
-            >
-              <Truck className="h-4 w-4" />
-              <span>
-                {dict.deliveryPaid} (
-                {settings?.deliveryFee
-                  ? formatMoney(settings.deliveryFee, locale)
-                  : dict.serviceFree}
-                )
-              </span>
-            </button>
-          )}
-        </div>
+          value={serviceType}
+          onValueChange={handleSelectServiceType}
+          className="grid grid-cols-2 gap-1.5"
+          optionClassName="min-h-9 py-2.5 text-xs font-semibold transition-all"
+          selectedClassName="border-primary bg-primary/10 text-primary border shadow-xs"
+          idleClassName="text-muted-foreground hover:text-foreground font-medium"
+          options={[
+            ...(pickupAllowed
+              ? [
+                  {
+                    value: "pickup" as const,
+                    "data-testid": "service-pickup-button",
+                    label: (
+                      <>
+                        <Store className="h-4 w-4" />
+                        <span>{dict.pickupFree}</span>
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+            ...(deliveryAllowed
+              ? [
+                  {
+                    value: "delivery" as const,
+                    "data-testid": "service-delivery-button",
+                    label: (
+                      <>
+                        <Truck className="h-4 w-4" />
+                        <span>
+                          {dict.deliveryPaid} (
+                          {settings?.deliveryFee
+                            ? formatMoney(settings.deliveryFee, locale)
+                            : dict.serviceFree}
+                          )
+                        </span>
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         {/* Conditional Address or Pickup Location */}
         {serviceType === "pickup" ? (

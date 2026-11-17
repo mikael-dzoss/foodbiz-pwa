@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
-  variant?: "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
-  size?: "default" | "sm" | "lg" | "icon";
+  variant?: "default" | "outline" | "secondary" | "ghost" | "destructive" | "link" | "unstyled";
+  size?: "default" | "sm" | "lg" | "icon" | "none";
   loading?: boolean;
   "data-testid"?: string;
 }
@@ -17,6 +17,9 @@ const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
   outline: "border border-border bg-card text-foreground hover:bg-muted active:scale-99",
   ghost: "text-foreground hover:bg-muted active:scale-99",
   destructive: "bg-destructive text-destructive-foreground hover:opacity-90 active:scale-99",
+  // Bespoke chips, tiles and icon buttons: the caller supplies colours; Button keeps the shared
+  // focus ring, disabled handling and test id passthrough.
+  unstyled: "",
   link: "text-info underline-offset-4 hover:underline p-0 h-auto min-h-0 min-w-0",
 };
 
@@ -25,6 +28,8 @@ const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
   sm: "h-11 px-3 text-xs min-h-11 min-w-11",
   lg: "h-14 px-8 text-base min-h-11 min-w-11",
   icon: "h-12 w-12 p-0 min-h-11 min-w-11 justify-center",
+  // Geometry comes from the caller (bespoke chips, tiles, rows); pair with variant="unstyled".
+  none: "",
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(

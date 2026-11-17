@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CategoryNav, prefersReducedMotion, useScrollSpy } from "@/components/navigation";
 import { formatMoney, getStockStatus } from "@/domain";
 import { adjustProductStockAction, toggleProductVisibilityAction } from "../product-actions";
@@ -285,57 +286,40 @@ export function ProductManager({
         </div>
 
         {/* Scrollable Filter Chips */}
-        <div
-          role="tablist"
-          aria-label="Filter products"
-          className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 py-1"
+        <Tabs
+          value={selectedFilter}
+          onValueChange={(value) => setSelectedFilter(value as typeof selectedFilter)}
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={selectedFilter === "all"}
-            onClick={() => setSelectedFilter("all")}
-            className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-              selectedFilter === "all"
-                ? "bg-primary text-primary-foreground"
-                : "border-border bg-card text-foreground hover:bg-muted border"
-            }`}
+          <TabsList
+            aria-label="Filter products"
+            className="no-scrollbar -mx-4 h-auto w-auto min-w-0 justify-start gap-1.5 overflow-x-auto rounded-none bg-transparent px-4 py-1"
           >
-            All ({totalCount})
-          </button>
-
-          {lowStockCount > 0 && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedFilter === "low_stock"}
-              onClick={() => setSelectedFilter("low_stock")}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                selectedFilter === "low_stock"
-                  ? "bg-warning-soft text-warning-soft-foreground border-warning-soft border font-bold"
-                  : "border-warning/30 bg-warning-soft/40 text-warning-soft-foreground hover:bg-warning-soft/70 border"
-              }`}
+            <TabsTrigger
+              value="all"
+              className="border-border bg-card text-foreground hover:bg-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary min-h-9 shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-none transition-colors"
             >
-              Low Stock ({lowStockCount})
-            </button>
-          )}
+              All ({totalCount})
+            </TabsTrigger>
 
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedFilter === "hidden"}
-              onClick={() => setSelectedFilter("hidden")}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                selectedFilter === "hidden"
-                  ? "bg-muted text-foreground border-border border font-bold"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted border"
-              }`}
-            >
-              Hidden ({hiddenCount})
-            </button>
-          )}
-        </div>
+            {lowStockCount > 0 && (
+              <TabsTrigger
+                value="low_stock"
+                className="border-warning/30 bg-warning-soft/40 text-warning-soft-foreground hover:bg-warning-soft/70 data-[state=active]:bg-warning-soft data-[state=active]:text-warning-soft-foreground data-[state=active]:border-warning-soft min-h-9 shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-none transition-colors data-[state=active]:font-bold"
+              >
+                Low Stock ({lowStockCount})
+              </TabsTrigger>
+            )}
+
+            {hiddenCount > 0 && (
+              <TabsTrigger
+                value="hidden"
+                className="border-border bg-card text-muted-foreground hover:bg-muted data-[state=active]:bg-muted data-[state=active]:text-foreground min-h-9 shrink-0 rounded-full border px-3 py-1 text-xs font-semibold shadow-none transition-colors data-[state=active]:font-bold"
+              >
+                Hidden ({hiddenCount})
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Sticky Category Navigation Ribbon (Stitch M-40, #205) */}

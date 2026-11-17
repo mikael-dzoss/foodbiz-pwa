@@ -19,6 +19,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -282,68 +283,45 @@ export function OrderList({
       </div>
 
       {/* Segmented Status Tabs (3 columns matching Stitch M-20) */}
-      <div
-        className="bg-muted/80 grid grid-cols-3 gap-1 rounded-xl p-1 text-center text-xs"
-        role="tablist"
-        aria-label="Order Status Tabs"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "active"}
-          onClick={() => setActiveTab("active")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
-            activeTab === "active"
-              ? "bg-primary-soft text-primary-soft-foreground font-bold shadow-xs"
-              : "text-muted-foreground hover:text-foreground font-medium",
-          )}
-          data-testid="tab-active"
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
+        <TabsList
+          aria-label="Order Status Tabs"
+          className="bg-muted/80 grid h-auto w-full grid-cols-3 gap-1 rounded-xl p-1 text-center text-xs"
         >
-          <span>Active</span>
-          <span className="bg-card text-primary-soft-foreground text-micro inline-flex items-center justify-center rounded-full px-1.5 font-bold tabular-nums">
-            {liveCounts.active}
-          </span>
-        </button>
+          <TabsTrigger
+            value="active"
+            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-primary-soft data-[state=active]:text-primary-soft-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-bold data-[state=active]:shadow-xs"
+            data-testid="tab-active"
+          >
+            <span>Active</span>
+            <span className="bg-card text-primary-soft-foreground text-micro inline-flex items-center justify-center rounded-full px-1.5 font-bold tabular-nums">
+              {liveCounts.active}
+            </span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "completed"}
-          onClick={() => setActiveTab("completed")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
-            activeTab === "completed"
-              ? "bg-card text-foreground font-semibold shadow-xs"
-              : "text-muted-foreground hover:text-foreground font-medium",
-          )}
-          data-testid="tab-completed"
-        >
-          <span>Completed</span>
-          <span className="text-muted-foreground text-micro tabular-nums">
-            ({liveCounts.completed})
-          </span>
-        </button>
+          <TabsTrigger
+            value="completed"
+            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-xs"
+            data-testid="tab-completed"
+          >
+            <span>Completed</span>
+            <span className="text-muted-foreground text-micro tabular-nums">
+              ({liveCounts.completed})
+            </span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "cancelled"}
-          onClick={() => setActiveTab("cancelled")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-lg py-2 transition-all",
-            activeTab === "cancelled"
-              ? "bg-card text-foreground font-semibold shadow-xs"
-              : "text-muted-foreground hover:text-foreground font-medium",
-          )}
-          data-testid="tab-cancelled"
-        >
-          <span>Cancelled</span>
-          <span className="text-muted-foreground text-micro tabular-nums">
-            ({liveCounts.cancelled})
-          </span>
-        </button>
-      </div>
+          <TabsTrigger
+            value="cancelled"
+            className="text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-xs"
+            data-testid="tab-cancelled"
+          >
+            <span>Cancelled</span>
+            <span className="text-muted-foreground text-micro tabular-nums">
+              ({liveCounts.cancelled})
+            </span>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Search & Filters Section */}
       <div className="flex flex-col gap-2">

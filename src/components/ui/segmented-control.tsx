@@ -7,6 +7,11 @@ export interface SegmentedOption<T extends string> {
   value: T;
   label: React.ReactNode;
   disabled?: boolean;
+  /**
+   * Announced as unavailable (`aria-disabled`) but still focusable and reachable with the arrow
+   * keys; selecting it calls `onValueChange` so the caller can explain why (for example a toast).
+   */
+  unavailable?: boolean;
   "data-testid"?: string;
 }
 
@@ -81,13 +86,14 @@ export function SegmentedControl<T extends string>({
             aria-checked={selected}
             tabIndex={tabStop?.value === option.value ? 0 : -1}
             disabled={isDisabled}
+            aria-disabled={option.unavailable || undefined}
             data-testid={option["data-testid"]}
             onClick={() => onValueChange(option.value)}
             onKeyDown={(event) => {
               if (move(option.value, event.key)) event.preventDefault();
             }}
             className={cn(
-              "focus-visible:ring-ring inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none",
+              "focus-visible:ring-ring inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed motion-reduce:transition-none",
               selected ? selectedClassName : idleClassName,
               optionClassName,
             )}

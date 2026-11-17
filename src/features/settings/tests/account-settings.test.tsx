@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AccountSettings } from "../components/account-settings";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import type { ManagerSession } from "@/domain/auth";
@@ -39,11 +39,10 @@ vi.mock("@/components/theme", () => ({
 }));
 
 const mockShowToast = vi.fn();
-vi.mock("@/components/ui", () => ({
-  useToast: () => ({
-    showToast: mockShowToast,
-  }),
-}));
+vi.mock("@/components/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/ui")>();
+  return { ...actual, useToast: () => ({ showToast: mockShowToast }) };
+});
 
 vi.mock("../actions", () => ({
   switchLanguageAction: vi.fn(async (locale: string) => ({
@@ -105,5 +104,20 @@ describe("AccountSettings component", () => {
     render(<AccountSettings session={mockSession} dict={dict} currentLocale="en" />);
 
     expect(screen.getByRole("button", { name: dict.account.signOut })).toBeDefined();
+  });
+
+  it("moves the language and theme selection with the arrow keys (radiogroup)", async () => {
+    render(<AccountSettings session={mockSession} dict={dict} currentLocale="en" />);
+    const en = screen.getByTestId("lang-en");
+    expect(en.getAttribute("aria-checked")).toBe("true");
+    expect(en.tabIndex).toBe(0);
+    expect(screen.getByTestId("lang-fr").tabIndex).toBe(-1);
+    fireEvent.keyDown(en, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(screen.getByTestId("lang-fr").getAttribute("aria-checked")).toBe("true"),
+    );
+    const system = screen.getByTestId("theme-system");
+    fireEvent.keyDown(system, { key: "ArrowRight" });
+    expect(mockSetTheme).toHaveBeenCalledWith("light");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { OrderList } from "../components/order-list";
 import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
 import type { ListOrdersResult } from "../order-data";
@@ -236,7 +236,7 @@ describe("OrderList Component", () => {
 
   it("switches to completed tab and displays completed orders", () => {
     render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
-    fireEvent.click(screen.getByTestId("tab-completed"));
+    fireEvent.mouseDown(screen.getByTestId("tab-completed"));
 
     expect(screen.getByTestId("order-card-ord-3")).toBeDefined();
     expect(screen.queryByTestId("order-card-ord-1")).toBeNull();
@@ -244,7 +244,7 @@ describe("OrderList Component", () => {
 
   it("switches to cancelled tab and displays cancelled orders with refund due and refunded badges", () => {
     render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
-    fireEvent.click(screen.getByTestId("tab-cancelled"));
+    fireEvent.mouseDown(screen.getByTestId("tab-cancelled"));
 
     expect(screen.getByTestId("order-card-ord-4")).toBeDefined();
     expect(screen.getByTestId("order-card-ord-5")).toBeDefined();
@@ -260,6 +260,16 @@ describe("OrderList Component", () => {
     expect(screen.getByTestId("order-card-ord-4").textContent).toContain("Unpaid");
 
     expect(screen.queryByTestId("order-card-ord-1")).toBeNull();
+  });
+
+  it("moves between status tabs with the arrow keys", async () => {
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
+    const active = screen.getByTestId("tab-active");
+    active.focus();
+    fireEvent.keyDown(active, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(screen.getByTestId("tab-completed").getAttribute("aria-selected")).toBe("true"),
+    );
   });
 
   it("filters active orders by unpaidOnly", () => {

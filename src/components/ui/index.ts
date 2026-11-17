@@ -11,6 +11,8 @@ export { Skeleton } from "./skeleton";
 export { Switch } from "./switch";
 export { Checkbox } from "./checkbox";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export { NativeSelect } from "./native-select";
+export type { NativeSelectProps } from "./native-select";
 export {
   Select,
   SelectGroup,

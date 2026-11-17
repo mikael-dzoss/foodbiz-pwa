@@ -6,7 +6,16 @@ import { ChevronLeft, CreditCard, Banknote, Smartphone, QrCode, AlertCircle } fr
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
-import { ActionBar, Button, Switch, useToast } from "@/components/ui";
+import {
+  ActionBar,
+  Button,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  useToast,
+} from "@/components/ui";
 import { updatePaymentSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
@@ -293,85 +302,79 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
           {dict.payment.instructionsSection}
         </h2>
         <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="bg-muted inline-flex rounded-lg p-1 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setActiveTab("en")}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "en" | "fr")}>
+            <TabsList
+              aria-label={dict.payment.instructionsSection}
+              className="bg-muted mb-3 h-auto rounded-lg p-1 text-xs"
+            >
+              <TabsTrigger
+                value="en"
                 data-testid="tab-instructions-en"
-                className={`rounded-md px-3 py-1 transition-colors ${
-                  activeTab === "en"
-                    ? "bg-card text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-2xs"
               >
                 English
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("fr")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="fr"
                 data-testid="tab-instructions-fr"
-                className={`rounded-md px-3 py-1 transition-colors ${
-                  activeTab === "fr"
-                    ? "bg-card text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="min-h-9 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-2xs"
               >
                 Français
-              </button>
-            </div>
-          </div>
+              </TabsTrigger>
+            </TabsList>
 
-          {/* The EN/FR tabs above stay usable when read-only; only the inputs are disabled. */}
-          <fieldset
-            disabled={Boolean(readOnlyReason)}
-            aria-describedby={readOnlyReason ? "payment-owner-only-notice" : undefined}
-            className="min-w-0 border-0 p-0"
-          >
-            {activeTab === "en" ? (
-              <div>
-                <label
-                  htmlFor="instructions-en"
-                  className="text-foreground block text-sm font-semibold"
-                >
-                  {dict.payment.instructionsEnLabel}
-                </label>
-                <p className="text-body-sm text-muted-foreground mt-0.5">
-                  {dict.payment.instructionsHelper}
-                </p>
-                <textarea
-                  id="instructions-en"
-                  data-testid="textarea-instructions-en"
-                  rows={3}
-                  value={paymentInstructionsEn}
-                  onChange={(e) => setPaymentInstructionsEn(e.target.value)}
-                  placeholder="e.g. Please show your order confirmation on pickup. Revolut or cash accepted."
-                  className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                />
-              </div>
-            ) : (
-              <div>
-                <label
-                  htmlFor="instructions-fr"
-                  className="text-foreground block text-sm font-semibold"
-                >
-                  {dict.payment.instructionsFrLabel}
-                </label>
-                <p className="text-body-sm text-muted-foreground mt-0.5">
-                  {dict.payment.instructionsHelper}
-                </p>
-                <textarea
-                  id="instructions-fr"
-                  data-testid="textarea-instructions-fr"
-                  rows={3}
-                  value={paymentInstructionsFr}
-                  onChange={(e) => setPaymentInstructionsFr(e.target.value)}
-                  placeholder="ex. Merci de présenter votre confirmation au comptoir. Espèces ou Revolut acceptés."
-                  className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                />
-              </div>
-            )}
-          </fieldset>
+            {/* The EN/FR tabs above stay usable when read-only; only the inputs are disabled. */}
+            <fieldset
+              disabled={Boolean(readOnlyReason)}
+              aria-describedby={readOnlyReason ? "payment-owner-only-notice" : undefined}
+              className="min-w-0 border-0 p-0"
+            >
+              <TabsContent value="en" className="mt-0">
+                <div>
+                  <label
+                    htmlFor="instructions-en"
+                    className="text-foreground block text-sm font-semibold"
+                  >
+                    {dict.payment.instructionsEnLabel}
+                  </label>
+                  <p className="text-body-sm text-muted-foreground mt-0.5">
+                    {dict.payment.instructionsHelper}
+                  </p>
+                  <textarea
+                    id="instructions-en"
+                    data-testid="textarea-instructions-en"
+                    rows={3}
+                    value={paymentInstructionsEn}
+                    onChange={(e) => setPaymentInstructionsEn(e.target.value)}
+                    placeholder="e.g. Please show your order confirmation on pickup. Revolut or cash accepted."
+                    className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="fr" className="mt-0">
+                <div>
+                  <label
+                    htmlFor="instructions-fr"
+                    className="text-foreground block text-sm font-semibold"
+                  >
+                    {dict.payment.instructionsFrLabel}
+                  </label>
+                  <p className="text-body-sm text-muted-foreground mt-0.5">
+                    {dict.payment.instructionsHelper}
+                  </p>
+                  <textarea
+                    id="instructions-fr"
+                    data-testid="textarea-instructions-fr"
+                    rows={3}
+                    value={paymentInstructionsFr}
+                    onChange={(e) => setPaymentInstructionsFr(e.target.value)}
+                    placeholder="ex. Merci de présenter votre confirmation au comptoir. Espèces ou Revolut acceptés."
+                    className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  />
+                </div>
+              </TabsContent>
+            </fieldset>
+          </Tabs>
         </div>
       </div>
 

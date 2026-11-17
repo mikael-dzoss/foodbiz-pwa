@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   Dialog,
   DialogContent,
@@ -458,36 +459,36 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         </div>
 
         {/* Service Segmented Control: Strictly Pickup vs Delivery */}
-        <div className="bg-muted flex items-center rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setServiceType("pickup")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-all",
-              serviceType === "pickup"
-                ? "bg-card text-primary font-bold shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            data-testid="service-type-pickup"
-          >
-            <ShoppingBag className="h-3.5 w-3.5" />
-            <span>Pickup</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setServiceType("delivery")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-all",
-              serviceType === "delivery"
-                ? "bg-card text-primary font-bold shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            data-testid="service-type-delivery"
-          >
-            <Truck className="h-3.5 w-3.5" />
-            <span>Delivery</span>
-          </button>
-        </div>
+        <SegmentedControl
+          aria-label="Service type"
+          value={serviceType}
+          onValueChange={setServiceType}
+          className="items-center rounded-lg p-0.5"
+          optionClassName="min-h-9 gap-1 rounded-md py-1.5 text-xs font-semibold"
+          selectedClassName="bg-card text-primary font-bold shadow-xs"
+          options={[
+            {
+              value: "pickup",
+              "data-testid": "service-type-pickup",
+              label: (
+                <>
+                  <ShoppingBag className="h-3.5 w-3.5" />
+                  <span>Pickup</span>
+                </>
+              ),
+            },
+            {
+              value: "delivery",
+              "data-testid": "service-type-delivery",
+              label: (
+                <>
+                  <Truck className="h-3.5 w-3.5" />
+                  <span>Delivery</span>
+                </>
+              ),
+            },
+          ]}
+        />
 
         {/* Timing Options: ASAP vs Scheduled (2-card selector matching Stitch M-30) */}
         <div className="grid grid-cols-2 gap-2">

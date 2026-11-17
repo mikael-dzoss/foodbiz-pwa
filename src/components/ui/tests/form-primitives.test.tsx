@@ -198,4 +198,25 @@ describe("SegmentedControl", () => {
     fireEvent.click(screen.getByTestId("opt-c"));
     expect(screen.getByTestId("opt-c").getAttribute("aria-checked")).toBe("true");
   });
+
+  it("keeps unavailable options focusable and reports the selection attempt", () => {
+    const onValueChange = vi.fn();
+    render(
+      <SegmentedControl
+        aria-label="Mode"
+        value="a"
+        onValueChange={onValueChange}
+        options={[
+          { value: "a", label: "A", "data-testid": "m-a" },
+          { value: "b", label: "B", unavailable: true, "data-testid": "m-b" },
+        ]}
+      />,
+    );
+    const unavailable = screen.getByTestId("m-b");
+    expect(unavailable.getAttribute("aria-disabled")).toBe("true");
+    expect((unavailable as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.keyDown(screen.getByTestId("m-a"), { key: "ArrowRight" });
+    expect(onValueChange).toHaveBeenCalledWith("b");
+    expect(document.activeElement).toBe(unavailable);
+  });
 });

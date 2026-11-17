@@ -92,16 +92,27 @@ describe("PaymentSettingsForm component (M-64)", () => {
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
 
     const frTab = screen.getByTestId("tab-instructions-fr");
-    fireEvent.click(frTab);
+    fireEvent.mouseDown(frTab);
 
     const frTextarea = screen.getByTestId("textarea-instructions-fr") as HTMLTextAreaElement;
     expect(frTextarea.value).toBe("Veuillez présenter votre référence de commande.");
 
     const enTab = screen.getByTestId("tab-instructions-en");
-    fireEvent.click(enTab);
+    fireEvent.mouseDown(enTab);
 
     const enTextarea = screen.getByTestId("textarea-instructions-en") as HTMLTextAreaElement;
     expect(enTextarea.value).toBe("Please present your order reference upon arrival.");
+  });
+
+  it("switches instruction tabs with the arrow keys (roving tabindex)", async () => {
+    render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
+    const enTab = screen.getByTestId("tab-instructions-en");
+    const frTab = screen.getByTestId("tab-instructions-fr");
+    expect(enTab.getAttribute("role")).toBe("tab");
+    enTab.focus();
+    fireEvent.keyDown(enTab, { key: "ArrowRight" });
+    await waitFor(() => expect(frTab.getAttribute("aria-selected")).toBe("true"));
+    expect(screen.getByTestId("textarea-instructions-fr")).toBeDefined();
   });
 
   it("handles discard button to reset changes", () => {
@@ -198,7 +209,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     fireEvent.change(enTextarea, { target: { value: "Updated EN instructions" } });
 
     const frTab = screen.getByTestId("tab-instructions-fr");
-    fireEvent.click(frTab);
+    fireEvent.mouseDown(frTab);
 
     const frTextarea = screen.getByTestId("textarea-instructions-fr");
     fireEvent.change(frTextarea, { target: { value: "Updated FR instructions" } });
@@ -258,7 +269,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
 
     const frTab = screen.getByTestId("tab-instructions-fr");
     expect(frTab.matches(":disabled")).toBe(false);
-    fireEvent.click(frTab);
+    fireEvent.mouseDown(frTab);
     const fr = screen.getByTestId("textarea-instructions-fr");
     expect(fr.matches(":disabled")).toBe(true);
     expect(
