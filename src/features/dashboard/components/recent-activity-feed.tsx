@@ -90,7 +90,7 @@ export function RecentActivityFeed({ items, now, className, labels }: RecentActi
                                 ? "cancelled"
                                 : "outline"
                         }
-                        className="mt-0.5 px-1.5 py-0 text-[10px]"
+                        className="text-micro mt-0.5 px-1.5 py-0"
                       >
                         {item.statusLabel}
                       </Badge>

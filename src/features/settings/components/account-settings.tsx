@@ -72,7 +72,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
       </div>
 
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.account.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.account.description}</p>
@@ -118,7 +118,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
 
       {/* Section 2: Preferences */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.account.preferencesTitle}
         </h2>
         <div className="border-border bg-card divide-border space-y-4 rounded-2xl border p-4 shadow-2xs">
@@ -234,7 +234,7 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
 
       {/* Section 3: Security & Data (Upcoming) */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.account.securityTitle}
         </h2>
         <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-2xl border shadow-2xs">

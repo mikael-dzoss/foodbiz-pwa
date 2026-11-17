@@ -15,13 +15,14 @@ describe("Typography with Inter (#27)", () => {
   it("configures font-sans and type scale classes in globals.css", () => {
     const cssContent = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf-8");
     expect(cssContent).toContain("--font-sans: var(--font-sans), sans-serif");
-    expect(cssContent).toContain(".text-display");
-    expect(cssContent).toContain(".text-title-lg");
-    expect(cssContent).toContain(".text-title-md");
-    expect(cssContent).toContain(".text-body-md");
-    expect(cssContent).toContain(".text-body-sm");
-    expect(cssContent).toContain(".text-label-md");
-    expect(cssContent).toContain(".text-label-sm");
+    expect(cssContent).toContain("@utility text-display ");
+    expect(cssContent).toContain("@utility text-title-lg ");
+    expect(cssContent).toContain("@utility text-title-md ");
+    expect(cssContent).toContain("@utility text-body-md ");
+    expect(cssContent).toContain("@utility text-body-sm ");
+    expect(cssContent).toContain("@utility text-label-md ");
+    expect(cssContent).toContain("@utility text-label-sm ");
+    expect(cssContent).toContain("@utility text-label-strong ");
     expect(cssContent).toContain(".tabular-nums");
     expect(cssContent).toContain('font-feature-settings: "tnum" 1');
   });

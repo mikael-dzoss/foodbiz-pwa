@@ -160,7 +160,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
               <Sparkles className="text-primary h-4 w-4 shrink-0" />
               <span>100% Organic Flours &amp; Artisanal Baking</span>
             </div>
-            <span className="text-primary flex shrink-0 items-center gap-1 text-[11px] font-semibold">
+            <span className="text-primary text-caption flex shrink-0 items-center gap-1 font-semibold">
               {dict.bakeryInfo ?? "Bakery Info"} →
             </span>
           </Link>

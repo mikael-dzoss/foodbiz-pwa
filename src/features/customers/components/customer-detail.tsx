@@ -83,7 +83,7 @@ export function CustomerDetail({
 
   return (
     <section className="space-y-4" data-testid="customer-detail-screen">
-      <div className="border-border bg-background sticky top-0 z-20 -mx-4 -mt-4 flex min-h-14 items-center border-b px-3 py-1 pt-[max(0.25rem,env(safe-area-inset-top))] md:static md:mx-0 md:mt-0 md:px-0">
+      <div className="border-border bg-background pt-safe-min-1 sticky top-0 z-20 -mx-4 -mt-4 flex min-h-14 items-center border-b px-3 py-1 md:static md:mx-0 md:mt-0 md:px-0">
         <Button asChild variant="ghost" className="h-11 gap-2 px-1 text-sm">
           <Link href="/manage/customers" aria-label={text.back} data-testid="back-to-customers">
             <ArrowLeft aria-hidden="true" className="h-5 w-5" />

@@ -268,7 +268,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
         <div className="flex flex-col items-center text-center">
           <h1 className="text-foreground text-base leading-tight font-bold">New Order</h1>
-          <span className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+          <span className="text-muted-foreground text-caption font-medium tracking-wider uppercase">
             Screen M-30 • Manual
           </span>
         </div>
@@ -337,7 +337,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             )}
           </div>
           {isLookingUpGuest && (
-            <span className="text-muted-foreground text-[11px]">Checking database...</span>
+            <span className="text-muted-foreground text-caption">Checking database...</span>
           )}
         </div>
 
@@ -350,12 +350,12 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               </div>
               <div>
                 <div className="text-foreground text-xs font-bold">{matchedGuest.name}</div>
-                <div className="text-muted-foreground text-[11px]">Returning guest</div>
+                <div className="text-muted-foreground text-caption">Returning guest</div>
               </div>
             </div>
             <span
               data-testid="guest-matched-badge"
-              className="bg-primary-soft text-primary-soft-foreground border-primary/20 inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-medium"
+              className="bg-primary-soft text-primary-soft-foreground border-primary/20 text-caption inline-flex items-center rounded border px-2 py-0.5 font-medium"
             >
               Returning guest
             </span>
@@ -402,7 +402,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <div
               role="status"
               data-testid="guest-name-update-toast"
-              className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-md border px-2.5 py-1.5 text-[11px] font-medium"
+              className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-caption rounded-md border px-2.5 py-1.5 font-medium"
             >
               {nameEditNotice}
             </div>
@@ -411,7 +411,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
         {/* Channel Selector Chips (Phone, WhatsApp, In-person with icons) */}
         <div>
-          <label className="text-muted-foreground mb-1.5 block text-[11px] font-medium">
+          <label className="text-muted-foreground text-caption mb-1.5 block font-medium">
             Intake channel
           </label>
           <div className="grid grid-cols-3 gap-1.5">
@@ -514,7 +514,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 )}
               />
             </div>
-            <span className="text-muted-foreground text-[11px] font-medium">Est. 20-25 min</span>
+            <span className="text-muted-foreground text-caption font-medium">Est. 20-25 min</span>
           </button>
 
           <button
@@ -541,7 +541,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 )}
               />
             </div>
-            <span className="text-muted-foreground text-[11px] font-medium">
+            <span className="text-muted-foreground text-caption font-medium">
               Select date &amp; time
             </span>
           </button>
@@ -553,7 +553,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <div className="space-y-1">
               <label
                 htmlFor="reqDate"
-                className="text-muted-foreground block text-[11px] font-medium"
+                className="text-muted-foreground text-caption block font-medium"
               >
                 Date
               </label>
@@ -569,7 +569,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             <div className="space-y-1">
               <label
                 htmlFor="reqTime"
-                className="text-muted-foreground block text-[11px] font-medium"
+                className="text-muted-foreground text-caption block font-medium"
               >
                 Time
               </label>
@@ -676,15 +676,15 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                     </span>
                     <span>•</span>
                     {isOutOfStock ? (
-                      <span className="bg-destructive/15 text-destructive border-destructive/25 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold">
+                      <span className="bg-destructive/15 text-destructive border-destructive/25 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-bold">
                         Out of stock
                       </span>
                     ) : product.stock <= 5 ? (
-                      <span className="bg-warning-soft text-warning-soft-foreground border-warning/30 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums">
+                      <span className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-bold tabular-nums">
                         {product.stock} in stock (low)
                       </span>
                     ) : (
-                      <span className="bg-primary-soft text-primary-soft-foreground border-primary/20 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums">
+                      <span className="bg-primary-soft text-primary-soft-foreground border-primary/20 text-micro inline-flex items-center rounded-full border px-2 py-0.5 font-semibold tabular-nums">
                         {product.stock} in stock
                       </span>
                     )}
@@ -707,12 +707,12 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
       {/* Sticky Bottom Order Summary Bar (Z-50) */}
       <div
-        className="bg-card/95 border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border-t p-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur"
+        className="bg-card/95 border-border pb-safe-3.5 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border-t p-3.5 shadow-lg backdrop-blur"
         data-testid="manual-order-bottom-bar"
       >
         <span className="sr-only">Step 4: Order Summary</span>
         <div className="flex flex-col">
-          <span className="text-muted-foreground text-[11px] font-medium">
+          <span className="text-muted-foreground text-caption font-medium">
             {totalItemCount} {totalItemCount === 1 ? "item" : "items"}
           </span>
           <span className="text-foreground text-base font-bold tabular-nums">
@@ -749,7 +749,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           <div className="space-y-3.5 text-xs">
             {/* Guest Details */}
             <div className="bg-muted/60 space-y-1 rounded-lg p-3">
-              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+              <span className="text-muted-foreground text-micro font-bold tracking-wider uppercase">
                 Guest &amp; Channel
               </span>
               <p className="text-foreground text-sm font-semibold">
@@ -762,7 +762,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
             {/* Service & Timing */}
             <div className="bg-muted/60 space-y-1 rounded-lg p-3">
-              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+              <span className="text-muted-foreground text-micro font-bold tracking-wider uppercase">
                 Fulfillment
               </span>
               <p className="text-foreground font-semibold capitalize">
@@ -780,14 +780,14 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
             {/* Notes */}
             {notes.trim() && (
-              <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-lg border p-2.5">
+              <div className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 rounded-lg border p-2.5">
                 <span className="font-bold">Kitchen note:</span> {notes}
               </div>
             )}
 
             {/* Itemized summary */}
             <div className="border-border space-y-1.5 border-t pt-2">
-              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+              <span className="text-muted-foreground text-micro font-bold tracking-wider uppercase">
                 Selected Products ({totalItemCount})
               </span>
               {selectedItems.length === 0 ? (

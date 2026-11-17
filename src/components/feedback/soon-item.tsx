@@ -60,9 +60,7 @@ export function SoonItem({
         {leading && <div className="text-muted-foreground shrink-0">{leading}</div>}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-body-md text-muted-foreground truncate font-medium">
-              {displayTitle}
-            </span>
+            <span className="text-body-md text-muted-foreground truncate">{displayTitle}</span>
             <SoonBadge />
           </div>
           {displayDesc && (

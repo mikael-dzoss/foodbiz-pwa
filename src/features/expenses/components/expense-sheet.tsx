@@ -411,7 +411,7 @@ function ExpenseForm({
             </div>
             <div className="flex flex-col">
               <span className="text-foreground text-xs font-medium">Attach receipt / invoice</span>
-              <span className="text-muted-foreground text-[11px]">
+              <span className="text-muted-foreground text-caption">
                 Automatic OCR receipt extraction
               </span>
             </div>

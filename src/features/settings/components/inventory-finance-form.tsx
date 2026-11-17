@@ -99,7 +99,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.inventoryFinance.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">
@@ -109,7 +109,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
 
       {/* Section 1: Inventory Controls */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.inventoryFinance.inventorySection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
@@ -173,7 +173,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
 
       {/* Section 2: Financial Settings */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.inventoryFinance.financeSection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
@@ -245,7 +245,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
 
       {/* Section 3: Upcoming Capabilities */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.inventoryFinance.soonSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border opacity-75 shadow-2xs">

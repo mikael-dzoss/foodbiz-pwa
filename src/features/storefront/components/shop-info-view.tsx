@@ -97,10 +97,10 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                <span className="bg-primary/10 text-primary text-micro rounded px-2 py-0.5 font-semibold tracking-wider uppercase">
                   Bio &amp; Artisanal
                 </span>
-                <span className="text-muted-foreground text-[10px] font-medium">
+                <span className="text-muted-foreground text-micro font-medium">
                   {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
                 </span>
               </div>
@@ -138,14 +138,14 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             {pickupEnabled && (
               <div className="border-border/40 bg-muted/40 flex flex-col justify-between rounded-lg border p-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-foreground text-[11px] font-semibold">
+                  <span className="text-foreground text-caption font-semibold">
                     {dict.servicePickup}
                   </span>
-                  <span className="bg-primary/15 text-primary py-0.2 rounded px-1.5 text-[10px] font-bold">
+                  <span className="bg-primary/15 text-primary text-micro rounded px-1.5 font-bold">
                     {dict.serviceFree ?? "FREE"}
                   </span>
                 </div>
-                <p className="text-muted-foreground mt-1 text-[11px] tabular-nums">
+                <p className="text-muted-foreground text-caption mt-1 tabular-nums">
                   {dict.pickupReadyTime.replace("{leadTime}", leadTimeText)}
                 </p>
               </div>
@@ -154,14 +154,14 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             {deliveryEnabled && (
               <div className="border-border/40 bg-muted/40 flex flex-col justify-between rounded-lg border p-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-foreground text-[11px] font-semibold">
+                  <span className="text-foreground text-caption font-semibold">
                     {dict.serviceDelivery}
                   </span>
-                  <span className="bg-muted text-muted-foreground py-0.2 rounded px-1.5 text-[10px] font-bold">
+                  <span className="bg-muted text-muted-foreground text-micro rounded px-1.5 font-bold">
                     {dict.servicePaid ?? "PAID"}
                   </span>
                 </div>
-                <p className="text-muted-foreground mt-1 text-[11px] tabular-nums">
+                <p className="text-muted-foreground text-caption mt-1 tabular-nums">
                   {settings?.deliveryFee !== undefined
                     ? `${dict.deliveryFee}: ${formatMoney(settings.deliveryFee, locale)}`
                     : dict.serviceAvailable}
@@ -193,10 +193,10 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${dict.chatOnWhatsApp}: ${business.whatsappNumber}`}
-              className="group text-foreground flex items-center justify-between rounded-lg border border-[#25D366]/30 bg-[#25D366]/10 p-3.5 transition-all duration-150 hover:bg-[#25D366]/15 active:scale-99"
+              className="group text-foreground border-whatsapp/30 bg-whatsapp/10 hover:bg-whatsapp/15 flex items-center justify-between rounded-lg border p-3.5 transition-all duration-150 active:scale-99"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white">
+                <div className="bg-whatsapp flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white">
                   <MessageCircle className="h-5 w-5 fill-current" />
                 </div>
                 <div className="text-left">
@@ -204,7 +204,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                     <span className="text-foreground text-sm font-semibold">
                       {dict.chatOnWhatsApp}
                     </span>
-                    <span className="py-0.2 rounded bg-[#25D366] px-1.5 text-[10px] font-bold text-white">
+                    <span className="bg-whatsapp text-micro rounded px-1.5 font-bold text-white">
                       {dict.fastReply}
                     </span>
                   </div>
@@ -228,11 +228,11 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                 >
                   <div className="flex items-center justify-between">
                     <Phone className="text-primary h-4 w-4" />
-                    <span className="text-primary text-[10px] font-semibold">{dict.callShop}</span>
+                    <span className="text-primary text-micro font-semibold">{dict.callShop}</span>
                   </div>
                   <div className="mt-2.5">
                     <p className="text-foreground text-xs font-semibold">Bakery Counter</p>
-                    <p className="text-muted-foreground mt-0.5 text-[11px] tabular-nums">
+                    <p className="text-muted-foreground text-caption mt-0.5 tabular-nums">
                       {business.phone}
                     </p>
                   </div>
@@ -247,11 +247,11 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                 >
                   <div className="flex items-center justify-between">
                     <Mail className="text-primary h-4 w-4" />
-                    <span className="text-primary text-[10px] font-semibold">{dict.emailShop}</span>
+                    <span className="text-primary text-micro font-semibold">{dict.emailShop}</span>
                   </div>
                   <div className="mt-2.5 truncate">
                     <p className="text-foreground text-xs font-semibold">Custom Orders</p>
-                    <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
+                    <p className="text-muted-foreground text-caption mt-0.5 truncate">
                       {business.email}
                     </p>
                   </div>
@@ -271,7 +271,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
         >
           <div className="flex items-center gap-2">
             <Clock className="text-primary h-4 w-4" />
-            <h2 id="hours-heading" className="text-foreground font-headline text-sm font-semibold">
+            <h2 id="hours-heading" className="text-foreground text-sm font-semibold">
               {dict.weeklyOpeningHours}
             </h2>
             <span className="sr-only">{dict.openHours}</span>
@@ -291,7 +291,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                   <div className="flex items-center gap-2">
                     <span>{locale === "fr" ? day.fr : day.label}</span>
                     {isToday && (
-                      <span className="bg-primary text-primary-foreground py-0.2 rounded px-1.5 text-[10px] font-semibold">
+                      <span className="bg-primary text-primary-foreground text-micro rounded px-1.5 font-semibold">
                         {dict.today}
                       </span>
                     )}
@@ -305,7 +305,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           </div>
 
           {/* TODO(business): Dynamic holiday closures & seasonal calendar exceptions (#83) */}
-          <div className="border-border/50 bg-muted/60 text-muted-foreground flex items-start justify-between gap-2 rounded-lg border p-2.5 text-[11px]">
+          <div className="border-border/50 bg-muted/60 text-muted-foreground text-caption flex items-start justify-between gap-2 rounded-lg border p-2.5">
             <div className="flex items-start gap-2">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>{dict.holidayScheduleNotice}</span>
@@ -350,9 +350,9 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               data-testid="shop-info-map-placeholder"
               className="bg-muted/80 border-border relative flex h-32 w-full items-center justify-center overflow-hidden border-b"
             >
-              <div className="absolute inset-0 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:16px_16px] opacity-30" />
+              <div className="bg-dot-grid absolute inset-0 opacity-30" />
               <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 via-transparent to-transparent p-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-white">
+                <span className="text-caption flex items-center gap-1.5 font-semibold text-white">
                   <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
                   {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
                 </span>
@@ -365,13 +365,13 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               <h2 id="address-heading" className="sr-only">
                 {dict.address}
               </h2>
-              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+              <span className="text-muted-foreground text-micro font-semibold tracking-wider uppercase">
                 Bakery &amp; Flour Lab
               </span>
               <p className="text-foreground mt-0.5 text-xs leading-snug font-semibold">
                 {business.address}
               </p>
-              <p className="text-muted-foreground mt-0.5 text-[11px]">
+              <p className="text-muted-foreground text-caption mt-0.5">
                 Métro: Bastille (Lines 1, 5, 8) or Voltaire (Line 9)
               </p>
             </div>
@@ -401,39 +401,36 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       >
         <div className="flex items-center gap-2">
           <Truck className="text-primary h-4 w-4" />
-          <h2
-            id="ordering-policy-heading"
-            className="text-foreground font-headline text-sm font-semibold"
-          >
+          <h2 id="ordering-policy-heading" className="text-foreground text-sm font-semibold">
             {dict.deliveryPolicy}
           </h2>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground block text-[10px] uppercase">Min. Order</span>
+            <span className="text-muted-foreground text-micro block uppercase">Min. Order</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
               {formatMoney(settings?.minOrderAmount ?? 1500, locale)}
             </span>
           </div>
 
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground block text-[10px] uppercase">Delivery Fee</span>
+            <span className="text-muted-foreground text-micro block uppercase">Delivery Fee</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
               {formatMoney(settings?.deliveryFee ?? 250, locale)}{" "}
-              <span className="text-muted-foreground text-[10px] font-normal">(Free &gt; €40)</span>
+              <span className="text-muted-foreground text-micro font-normal">(Free &gt; €40)</span>
             </span>
           </div>
 
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground block text-[10px] uppercase">Est. Time</span>
+            <span className="text-muted-foreground text-micro block uppercase">Est. Time</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
               {leadTimeText}
             </span>
           </div>
 
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground block text-[10px] uppercase">Coverage</span>
+            <span className="text-muted-foreground text-micro block uppercase">Coverage</span>
             <span className="text-foreground mt-0.5 block truncate text-xs font-bold">
               Paris 11e, 10e, 12e
             </span>
@@ -442,21 +439,21 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
 
         {/* Accepted Payment Methods */}
         <div className="border-border/50 border-t pt-2">
-          <span className="text-muted-foreground mb-2 block text-[11px] font-semibold">
+          <span className="text-muted-foreground text-caption mb-2 block font-semibold">
             {dict.acceptedPayments}
           </span>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="border-border/40 bg-muted/60 text-foreground rounded border px-2 py-1 text-[11px] font-medium">
+            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
               {dict.cashOnPickup}
             </span>
-            <span className="border-border/40 bg-muted/60 text-foreground rounded border px-2 py-1 text-[11px] font-medium">
+            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
               Revolut Pay
             </span>
-            <span className="border-border/40 bg-muted/60 text-foreground rounded border px-2 py-1 text-[11px] font-medium">
+            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
               Wero / Paylib
             </span>
             {/* TODO(payments): Tap to pay with Apple Pay & Google Wallet (#72) */}
-            <span className="border-border/60 bg-muted text-muted-foreground flex items-center gap-1 rounded border px-2 py-1 text-[11px]">
+            <span className="border-border/60 bg-muted text-muted-foreground text-caption flex items-center gap-1 rounded border px-2 py-1">
               <span>Card Tap</span>
               <SoonBadge />
             </span>
@@ -467,7 +464,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#249) */}
       <div
         data-testid="shop-info-action-bar"
-        className="border-border bg-card/95 sticky bottom-[max(1rem,calc(env(safe-area-inset-bottom,0px)+0.5rem))] z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
+        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
         <div className="mx-auto flex max-w-4xl items-center">
           <Link

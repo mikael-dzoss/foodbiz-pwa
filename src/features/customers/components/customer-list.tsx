@@ -43,7 +43,7 @@ export function CustomerList({
 
   return (
     <section className="space-y-4" data-testid="customer-list-screen">
-      <header className="border-border bg-background sticky top-0 z-20 -mx-4 -mt-4 flex min-h-14 items-center gap-5 border-b px-4 py-1 pt-[max(0.25rem,env(safe-area-inset-top))] md:static md:mx-0 md:mt-0 md:px-0">
+      <header className="border-border bg-background pt-safe-min-1 sticky top-0 z-20 -mx-4 -mt-4 flex min-h-14 items-center gap-5 border-b px-4 py-1 md:static md:mx-0 md:mt-0 md:px-0">
         <Store aria-hidden="true" className="text-muted-foreground h-5 w-5 shrink-0" />
         <div className="min-w-0 flex-1">
           <h1 className="text-title-md">{dict.title}</h1>

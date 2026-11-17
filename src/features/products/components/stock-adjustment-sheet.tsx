@@ -148,7 +148,7 @@ export function StockAdjustmentSheet({
                   {currentStock} in stock
                 </Badge>
               )}
-              <p className="text-muted-foreground mt-1 text-[11px]">
+              <p className="text-muted-foreground text-caption mt-1">
                 Alert below {lowStockThreshold}
               </p>
             </div>
@@ -226,7 +226,7 @@ export function StockAdjustmentSheet({
             <span>
               New stock: {targetStock}
               {projectedStatus === "low_stock" && (
-                <span className="text-warning ml-1.5 inline-flex items-center gap-1 font-medium">
+                <span className="text-warning-soft-foreground ml-1.5 inline-flex items-center gap-1 font-medium">
                   <AlertTriangle className="inline h-3 w-3" /> Low
                 </span>
               )}
@@ -263,14 +263,14 @@ export function StockAdjustmentSheet({
             </p>
           )}
 
-          <p className="text-muted-foreground text-[11px]">
+          <p className="text-muted-foreground text-caption">
             Stock cannot be set below 0 units. Past order history is strictly preserved.
           </p>
         </div>
 
         {/* Action Footer */}
         {/* TODO(design): scale down action buttons from h-12 to min-h-11 to align with Stitch mobile tokens */}
-        <div className="border-border bg-card flex items-center gap-3 border-t px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="border-border bg-card pb-safe-4 flex items-center gap-3 border-t px-5 py-4">
           <Button
             type="button"
             variant="outline"

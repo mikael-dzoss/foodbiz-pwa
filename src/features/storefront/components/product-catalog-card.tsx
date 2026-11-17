@@ -59,7 +59,7 @@ export function ProductCatalogCard({
         {isOutOfStock && (
           <span
             data-testid={`product-out-of-stock-${product.id}`}
-            className="bg-muted text-muted-foreground mt-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            className="bg-muted text-muted-foreground text-caption mt-1.5 inline-block rounded-full px-2 py-0.5 font-semibold"
           >
             {dict.outOfStock}
           </span>
@@ -68,7 +68,7 @@ export function ProductCatalogCard({
         {isLowStock && (
           <span
             data-testid={`product-low-stock-${product.id}`}
-            className="bg-warning-soft text-warning-soft-foreground mt-1.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            className="bg-warning-soft text-warning-soft-foreground text-caption mt-1.5 inline-block rounded-full px-2 py-0.5 font-semibold"
           >
             {product.stock} {dict.unitsLeft}
           </span>

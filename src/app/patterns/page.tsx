@@ -60,7 +60,7 @@ export default function PatternsPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="bg-primary h-2.5 w-2.5 rounded-full" />
-              <h1 className="text-title-md font-bold tracking-tight">P-01 Patterns</h1>
+              <h1 className="text-title-md tracking-tight">P-01 Patterns</h1>
             </div>
             <p className="text-muted-foreground text-xs">FoodBiz Component Inventory</p>
           </div>
@@ -228,9 +228,7 @@ export default function PatternsPage() {
 
             <div className="flex items-center justify-between pt-1">
               <div>
-                <span className="text-body-md text-foreground block font-medium">
-                  Available in storefront
-                </span>
+                <span className="text-body-md text-foreground block">Available in storefront</span>
                 <span className="text-body-sm text-muted-foreground block">
                   Allow online orders for this item
                 </span>
@@ -360,7 +358,7 @@ export default function PatternsPage() {
           </div>
           <Card className="flex items-center justify-between p-4">
             <div>
-              <span className="text-body-md block font-medium">Croissants</span>
+              <span className="text-body-md block">Croissants</span>
               <span className="text-body-sm text-muted-foreground block">€2.20 each</span>
             </div>
             <QuantityStepper value={stepperVal} min={1} max={20} onChange={setStepperVal} />

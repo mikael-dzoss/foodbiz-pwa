@@ -69,7 +69,7 @@ export function StorefrontFooter({
             <div className="min-w-0">
               <p
                 data-testid="footer-business-name"
-                className="font-headline text-foreground text-base font-bold tracking-tight"
+                className="text-foreground text-base font-bold tracking-tight"
               >
                 {displayName}
               </p>

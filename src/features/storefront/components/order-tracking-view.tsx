@@ -130,9 +130,7 @@ export function OrderTrackingView({
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex flex-col items-center text-center">
-            <h1 className="font-headline text-foreground text-sm leading-tight font-semibold">
-              {dict.title}
-            </h1>
+            <h1 className="text-foreground text-sm leading-tight font-semibold">{dict.title}</h1>
             <span className="text-muted-foreground text-xs font-medium">{business.name}</span>
           </div>
           <span className="w-11" aria-hidden="true" />
@@ -147,12 +145,12 @@ export function OrderTrackingView({
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <span className="text-muted-foreground text-[11px] font-bold tracking-wider uppercase">
+                <span className="text-muted-foreground text-caption font-bold tracking-wider uppercase">
                   {dict.orderReference}
                 </span>
                 <div className="mt-0.5 flex items-center gap-2">
                   <h2
-                    className="font-headline text-foreground text-xl font-bold tracking-tight tabular-nums"
+                    className="text-foreground text-xl font-bold tracking-tight tabular-nums"
                     data-testid="tracking-order-title"
                   >
                     {dict.orderLabel} #{order.orderNumber ?? "—"}
@@ -213,7 +211,9 @@ export function OrderTrackingView({
                         <span>&ldquo;{order.cancellationReason}&rdquo;</span>
                       </p>
                     )}
-                    <p className="text-muted-foreground text-[11px]">{dict.cancelledPaymentHelp}</p>
+                    <p className="text-muted-foreground text-caption">
+                      {dict.cancelledPaymentHelp}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -247,34 +247,34 @@ export function OrderTrackingView({
             </div>
 
             {isCancelled ? (
-              <div className="before:bg-border relative space-y-4 pl-6 before:absolute before:top-2 before:bottom-2 before:left-2 before:w-[2px]">
+              <div className="before:bg-border relative space-y-4 pl-6 before:absolute before:top-2 before:bottom-2 before:left-2 before:w-0.5">
                 <div className="relative">
-                  <span className="bg-primary text-primary-foreground absolute top-0 -left-6 flex h-4 w-4 items-center justify-center rounded-full text-[10px]">
+                  <span className="bg-primary text-primary-foreground text-micro absolute top-0 -left-6 flex h-4 w-4 items-center justify-center rounded-full">
                     <Check className="h-2.5 w-2.5" />
                   </span>
                   <p className="text-foreground text-xs font-bold">{dict.statuses.NEW}</p>
-                  <p className="text-muted-foreground text-[11px]">{dict.stepNotes.placed}</p>
+                  <p className="text-muted-foreground text-caption">{dict.stepNotes.placed}</p>
                 </div>
 
                 <div className="relative">
-                  <span className="bg-destructive text-destructive-foreground absolute top-0 -left-6 flex h-4 w-4 items-center justify-center rounded-full text-[10px]">
+                  <span className="bg-destructive text-destructive-foreground text-micro absolute top-0 -left-6 flex h-4 w-4 items-center justify-center rounded-full">
                     <RotateCcw className="h-2.5 w-2.5" />
                   </span>
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-destructive text-xs font-bold">{dict.statuses.CANCELLED}</p>
-                    <span className="bg-destructive/10 text-destructive py-0.2 rounded px-1.5 text-[10px] font-semibold">
+                    <span className="bg-destructive/10 text-destructive text-micro rounded px-1.5 font-semibold">
                       {dict.currentStatus}
                     </span>
                   </div>
                   {order.cancellationReason && (
-                    <p className="text-muted-foreground mt-0.5 text-[11px]">
+                    <p className="text-muted-foreground text-caption mt-0.5">
                       {order.cancellationReason}
                     </p>
                   )}
                 </div>
               </div>
             ) : (
-              <ol className="before:bg-border relative space-y-5 pl-6 before:absolute before:top-2.5 before:bottom-2.5 before:left-2 before:w-[2px]">
+              <ol className="before:bg-border relative space-y-5 pl-6 before:absolute before:top-2.5 before:bottom-2.5 before:left-2 before:w-0.5">
                 {steps.map((step) => {
                   const state = getStepState(step.status);
                   const isCurrent = state === "active";
@@ -294,7 +294,7 @@ export function OrderTrackingView({
                         )}
                       >
                         {isDone ? (
-                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+                          <Check className="h-2.5 w-2.5 stroke-3" />
                         ) : isCurrent ? (
                           <span className="bg-primary-foreground h-1.5 w-1.5 rounded-full" />
                         ) : (
@@ -314,14 +314,14 @@ export function OrderTrackingView({
                           {step.title}
                         </h4>
                         {isCurrent && (
-                          <span className="bg-primary-soft text-primary-soft-foreground py-0.2 rounded px-1.5 text-[10px] font-semibold">
+                          <span className="bg-primary-soft text-primary-soft-foreground text-micro rounded px-1.5 font-semibold">
                             {dict.currentStatus}
                           </span>
                         )}
                       </div>
                       <p
                         className={cn(
-                          "text-[11px]",
+                          "text-caption",
                           isCurrent ? "text-foreground" : "text-muted-foreground",
                         )}
                       >
@@ -346,7 +346,7 @@ export function OrderTrackingView({
                   {dict.fulfillmentDetails}
                 </h3>
               </div>
-              <Badge variant="outline" className="text-[10px] font-semibold">
+              <Badge variant="outline" className="text-micro font-semibold">
                 {order.serviceType === "pickup" ? dict.pickup : dict.delivery}
               </Badge>
             </div>
@@ -393,7 +393,7 @@ export function OrderTrackingView({
               </h3>
               <Badge
                 variant={order.paid === "paid" ? "paid" : "unpaid"}
-                className="text-[10px] font-semibold"
+                className="text-micro font-semibold"
               >
                 {order.paid === "paid"
                   ? dict.paidBadge
@@ -408,12 +408,12 @@ export function OrderTrackingView({
               {order.items.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="bg-muted text-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold tabular-nums">
+                    <span className="bg-muted text-foreground text-caption flex h-5 w-5 shrink-0 items-center justify-center rounded font-bold tabular-nums">
                       {item.quantity}×
                     </span>
                     <div>
                       <p className="text-foreground text-xs font-semibold">{item.productName}</p>
-                      <p className="text-muted-foreground text-[10px] tabular-nums">
+                      <p className="text-muted-foreground text-micro tabular-nums">
                         {formatMoney(item.unitPrice, locale)}
                       </p>
                     </div>
@@ -441,7 +441,7 @@ export function OrderTrackingView({
             {cleanPhone && (
               <a
                 href={`tel:${cleanPhone}`}
-                className="border-border bg-card text-foreground hover:bg-muted flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border text-xs font-semibold transition-colors active:scale-95"
+                className="border-border bg-card text-foreground hover:bg-muted flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border text-xs font-semibold transition-colors active:scale-95"
                 data-testid="tracking-contact-button"
               >
                 <Phone className="text-primary h-4 w-4" />

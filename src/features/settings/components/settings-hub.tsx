@@ -32,7 +32,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
     <div className="mx-auto w-full max-w-md px-4 py-6 pb-24" data-testid="settings-hub">
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">{dict.title}</h1>
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">{dict.title}</h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.subtitle}</p>
       </div>
 
@@ -61,7 +61,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
 
       {/* 1. Core Settings */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.coreSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
@@ -113,7 +113,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
 
       {/* 2. Operations */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.operationsSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
@@ -187,7 +187,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
 
       {/* 3. System & App */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.systemSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-2xl border shadow-2xs">

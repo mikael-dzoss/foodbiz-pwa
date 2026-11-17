@@ -54,7 +54,7 @@ export function DashboardView({ initialData, locale = "en", className }: Dashboa
             </h1>
             <p className="text-muted-foreground text-xs font-normal">{dict.dashboard.subtitle}</p>
           </div>
-          <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium">
+          <span className="bg-primary-soft text-primary-soft-foreground text-caption inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium">
             <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
             {dict.dashboard.activeStatus}
           </span>

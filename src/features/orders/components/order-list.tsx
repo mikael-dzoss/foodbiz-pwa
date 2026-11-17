@@ -261,7 +261,7 @@ export function OrderList({
         <div className="flex items-center gap-2">
           <h1 className="text-foreground text-xl font-bold tracking-tight">Orders</h1>
           {/* POS Live Status Beacon */}
-          <div className="bg-primary-soft text-primary-soft-foreground flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium">
+          <div className="bg-primary-soft text-primary-soft-foreground text-caption flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium">
             <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
             POS Live
           </div>
@@ -301,7 +301,7 @@ export function OrderList({
           data-testid="tab-active"
         >
           <span>Active</span>
-          <span className="py-0.2 bg-card text-primary-soft-foreground inline-flex items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums">
+          <span className="bg-card text-primary-soft-foreground text-micro inline-flex items-center justify-center rounded-full px-1.5 font-bold tabular-nums">
             {liveCounts.active}
           </span>
         </button>
@@ -320,7 +320,7 @@ export function OrderList({
           data-testid="tab-completed"
         >
           <span>Completed</span>
-          <span className="text-muted-foreground text-[10px] tabular-nums">
+          <span className="text-muted-foreground text-micro tabular-nums">
             ({liveCounts.completed})
           </span>
         </button>
@@ -339,7 +339,7 @@ export function OrderList({
           data-testid="tab-cancelled"
         >
           <span>Cancelled</span>
-          <span className="text-muted-foreground text-[10px] tabular-nums">
+          <span className="text-muted-foreground text-micro tabular-nums">
             ({liveCounts.cancelled})
           </span>
         </button>
@@ -472,7 +472,7 @@ export function OrderList({
               <article
                 key={order.id}
                 className={cn(
-                  "bg-card border-divider relative space-y-2.5 rounded-xl border p-3.5 shadow-none transition-all",
+                  "bg-card border-border relative space-y-2.5 rounded-xl border p-3.5 shadow-none transition-all",
                   isNew && "border-info border-2",
                 )}
                 data-testid={`order-card-${order.id}`}
@@ -529,7 +529,7 @@ export function OrderList({
                           <span
                             data-testid="order-submitted-name-badge"
                             title={`Ordered as ${order.submittedName}`}
-                            className="bg-warning-soft text-warning-soft-foreground border-warning/30 min-w-0 truncate rounded border px-1.5 py-0.5 text-[11px] font-medium"
+                            className="bg-warning-soft text-warning-soft-foreground border-warning-soft-foreground/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
                           >
                             Ordered as {order.submittedName}
                           </span>
@@ -582,27 +582,27 @@ export function OrderList({
                     {order.status === "CANCELLED" && order.paid === "paid" ? (
                       <Badge
                         variant="warning"
-                        className="gap-0.5 px-1.5 py-0 text-[10px] font-bold"
+                        className="text-micro gap-0.5 px-1.5 py-0 font-bold"
                         data-testid="refund-due-badge"
                       >
                         <AlertCircle className="h-2.5 w-2.5" />
                         Refund Due
                       </Badge>
                     ) : order.paid === "paid" ? (
-                      <Badge variant="paid" className="gap-0.5 px-1.5 py-0 text-[10px]">
+                      <Badge variant="paid" className="text-micro gap-0.5 px-1.5 py-0">
                         <CheckCircle2 className="h-2.5 w-2.5" />
                         Paid
                       </Badge>
                     ) : order.paid === "refunded" ? (
                       <Badge
                         variant="refunded"
-                        className="gap-0.5 px-1.5 py-0 text-[10px]"
+                        className="text-micro gap-0.5 px-1.5 py-0"
                         data-testid="refunded-badge"
                       >
                         Refunded
                       </Badge>
                     ) : (
-                      <Badge variant="unpaid" className="gap-0.5 px-1.5 py-0 text-[10px]">
+                      <Badge variant="unpaid" className="text-micro gap-0.5 px-1.5 py-0">
                         <AlertCircle className="h-2.5 w-2.5" />
                         Unpaid
                       </Badge>

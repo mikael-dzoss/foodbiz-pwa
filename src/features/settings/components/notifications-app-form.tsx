@@ -99,7 +99,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-display-sm text-foreground font-bold tracking-tight">
+        <h1 className="text-title-lg text-foreground font-bold tracking-tight">
           {dict.notifications.title}
         </h1>
         <p className="text-body-sm text-muted-foreground mt-1">{dict.notifications.description}</p>
@@ -107,7 +107,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
 
       {/* Section 1: In-App Alerts & Sounds */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.notifications.alertsSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
@@ -161,7 +161,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
 
       {/* Section 2: Application & PWA Installation */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.notifications.appSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
@@ -233,7 +233,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
 
       {/* Section 3: Upcoming Capabilities */}
       <div className="mb-6">
-        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.notifications.soonSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border opacity-75 shadow-2xs">

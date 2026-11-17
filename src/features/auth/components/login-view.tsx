@@ -48,9 +48,7 @@ export function LoginView({
               <span className="text-primary text-2xl font-bold tracking-tighter">F</span>
             </div>
             {/* Brand Title & Subtitle Badge */}
-            <h2 className="text-foreground text-[22px] leading-7 font-bold tracking-tight">
-              FoodBiz
-            </h2>
+            <h2 className="text-foreground text-title-lg font-bold tracking-tight">FoodBiz</h2>
             <div className="mt-1.5">
               <span className="text-primary-soft-foreground bg-primary-soft inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-normal">
                 Manager Portal
@@ -110,7 +108,7 @@ export function LoginView({
                   <div className="absolute inset-0 flex items-center">
                     <div className="border-border w-full border-t" />
                   </div>
-                  <span className="bg-card text-muted-foreground relative px-3 text-[11px] font-semibold tracking-wider uppercase">
+                  <span className="bg-card text-muted-foreground text-caption relative px-3 font-semibold tracking-wider uppercase">
                     or for development
                   </span>
                 </div>
@@ -152,7 +150,7 @@ export function LoginView({
 
         {/* Bottom Metadata & Legal from Stitch Spec */}
         <footer className="pt-2 pb-2 text-center">
-          <p className="text-muted-foreground text-[11px] tracking-normal tabular-nums">
+          <p className="text-muted-foreground text-caption tracking-normal tabular-nums">
             FoodBiz Operations v1.2 · Encrypted Connection
           </p>
         </footer>
