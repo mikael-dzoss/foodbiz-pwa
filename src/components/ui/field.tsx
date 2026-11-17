@@ -18,6 +18,8 @@ export interface FieldProps {
    */
   children: React.ReactElement<FieldControlProps> | ((props: FieldControlProps) => React.ReactNode);
   hint?: React.ReactNode;
+  /** Where the hint sits: below the control (default) or between the label and the control. */
+  hintPosition?: "above" | "below";
   /** Localized, user-safe error text. Empty or missing means no error. */
   error?: string | null;
   required?: boolean;
@@ -36,6 +38,7 @@ export function Field({
   label,
   children,
   hint,
+  hintPosition = "below",
   error,
   required,
   id,
@@ -59,17 +62,26 @@ export function Field({
     ? React.cloneElement(child, wiring)
     : (children as (props: FieldControlProps) => React.ReactNode)(wiring);
 
+  const hintNode = (
+    <p id={hintId} className="text-body-sm text-muted-foreground">
+      {hint}
+    </p>
+  );
+
   return (
     <div className={cn("flex flex-col gap-1.5", className)} data-testid={testId}>
       <label htmlFor={controlId} className="text-label-md text-foreground">
         {label}
+        {required ? (
+          <span aria-hidden="true" className="text-destructive">
+            {" "}
+            *
+          </span>
+        ) : null}
       </label>
+      {hint && hintPosition === "above" ? hintNode : null}
       {control}
-      {hint ? (
-        <p id={hintId} className="text-body-sm text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
+      {hint && hintPosition === "below" ? hintNode : null}
       {error ? (
         <p
           id={errorId}

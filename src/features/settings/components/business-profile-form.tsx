@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   ChevronLeft,
   Camera,
@@ -34,8 +34,9 @@ export function BusinessProfileForm({
   dict,
   slugLockedReason,
 }: BusinessProfileFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updateBusinessProfileAction>> | null;
+  const [dismissed, setDismissed] = useState<SaveResult>(null);
 
   // Form states
   const [name, setName] = useState(business.name || "");
@@ -62,7 +63,6 @@ export function BusinessProfileForm({
   });
 
   // Field errors
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [copied, setCopied] = useState(false);
 
   // Reset to original values
@@ -90,7 +90,7 @@ export function BusinessProfileForm({
       facebookUrl: business.facebookUrl || "",
       tiktokUrl: business.tiktokUrl || "",
     });
-    setErrors({});
+    setDismissed(result);
     showToast("Changes discarded");
   };
 
@@ -111,43 +111,38 @@ export function BusinessProfileForm({
     showToast("Logo upload ready — select an image to preview");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
-    startTransition(async () => {
-      const parsedLatitude = latitude.trim() === "" ? null : Number(latitude);
-      const parsedLongitude = longitude.trim() === "" ? null : Number(longitude);
-      const res = await updateBusinessProfileAction({
-        name,
-        slug: slug.toLowerCase().trim(),
-        description,
-        phone,
-        email: email || undefined,
-        whatsappNumber,
-        ...socialLinks,
-        address,
-        latitude: parsedLatitude,
-        longitude: parsedLongitude,
-        logoUrl,
-      });
-
-      if (res.ok) {
-        showToast(dict.business.saveSuccess);
-      } else {
-        if (res.fieldErrors) {
-          setErrors(res.fieldErrors);
-        }
-        showToast(actionErrorMessage(res));
-      }
+  const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
+    const parsedLatitude = latitude.trim() === "" ? null : Number(latitude);
+    const parsedLongitude = longitude.trim() === "" ? null : Number(longitude);
+    const res = await updateBusinessProfileAction({
+      name,
+      slug: slug.toLowerCase().trim(),
+      description,
+      phone,
+      email: email || undefined,
+      whatsappNumber,
+      ...socialLinks,
+      address,
+      latitude: parsedLatitude,
+      longitude: parsedLongitude,
+      logoUrl,
     });
-  };
+
+    if (res.ok) {
+      showToast(dict.business.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
+  const errors: Record<string, string[]> =
+    result && result !== dismissed && !result.ok ? (result.fieldErrors ?? {}) : {};
 
   const storeInitial = name ? name[0].toUpperCase() : "B";
 
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="business-profile-form"
     >

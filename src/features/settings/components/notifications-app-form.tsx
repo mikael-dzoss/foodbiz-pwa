@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,8 +29,8 @@ export interface NotificationsAppFormProps {
 }
 
 export function NotificationsAppForm({ settings, dict }: NotificationsAppFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updateNotificationSettingsAction>> | null;
 
   // 1. Alert toggles
   const [inAppAlerts, setInAppAlerts] = useState(settings.inAppAlerts ?? true);
@@ -57,27 +57,23 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
     showToast("Changes discarded");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    startTransition(async () => {
-      const res = await updateNotificationSettingsAction({
-        notifications: inAppAlerts,
-        inAppAlerts,
-        soundAlerts,
-      });
-
-      if (res.ok) {
-        showToast(dict.notifications.saveSuccess);
-      } else {
-        showToast(actionErrorMessage(res));
-      }
+  const [, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
+    const res = await updateNotificationSettingsAction({
+      notifications: inAppAlerts,
+      inAppAlerts,
+      soundAlerts,
     });
-  };
 
+    if (res.ok) {
+      showToast(dict.notifications.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="notifications-app-form"
     >

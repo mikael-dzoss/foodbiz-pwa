@@ -39,9 +39,10 @@ vi.mock("@/components/theme", () => ({
 }));
 
 const mockShowToast = vi.fn();
+const mockShowError = vi.fn();
 vi.mock("@/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/ui")>();
-  return { ...actual, useToast: () => ({ showToast: mockShowToast }) };
+  return { ...actual, useToast: () => ({ showToast: mockShowToast, showError: mockShowError }) };
 });
 
 vi.mock("../actions", () => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,8 +29,9 @@ export interface InventoryFinanceFormProps {
 }
 
 export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updateInventoryFinanceSettingsAction>> | null;
+  const [dismissed, setDismissed] = useState<SaveResult>(null);
 
   // 1. Inventory controls
   const [lowStockThreshold, setLowStockThreshold] = useState<number>(
@@ -42,42 +43,36 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
   const [dateFormat, setDateFormat] = useState(settings.dateFormat ?? "DD/MM/YYYY");
 
   // Errors
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const handleDiscard = () => {
     setLowStockThreshold(settings.lowStockThreshold ?? 5);
     setTaxPercentage(settings.taxPercentage ?? 0);
     setDateFormat(settings.dateFormat ?? "DD/MM/YYYY");
-    setErrors({});
+    setDismissed(result);
     showToast("Changes discarded");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
-    startTransition(async () => {
-      const res = await updateInventoryFinanceSettingsAction({
-        lowStockThreshold: Number(lowStockThreshold),
-        taxPercentage: Number(taxPercentage),
-        currency: "EUR" as const,
-        dateFormat,
-      });
-
-      if (res.ok) {
-        showToast(dict.inventoryFinance.saveSuccess);
-      } else {
-        if (res.fieldErrors) {
-          setErrors(res.fieldErrors);
-        }
-        showToast(actionErrorMessage(res));
-      }
+  const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
+    const res = await updateInventoryFinanceSettingsAction({
+      lowStockThreshold: Number(lowStockThreshold),
+      taxPercentage: Number(taxPercentage),
+      currency: "EUR" as const,
+      dateFormat,
     });
-  };
+
+    if (res.ok) {
+      showToast(dict.inventoryFinance.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
+  const errors: Record<string, string[]> =
+    result && result !== dismissed && !result.ok ? (result.fieldErrors ?? {}) : {};
 
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="inventory-finance-form"
     >

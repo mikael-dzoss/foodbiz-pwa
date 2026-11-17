@@ -43,12 +43,14 @@ const mockSettings: BusinessSettings = {
 const dict = getDictionary(DEFAULT_LOCALE).settings;
 
 const mockShowToast = vi.fn();
+const mockShowError = vi.fn();
 vi.mock("@/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/ui")>();
   return {
     ...actual,
     useToast: () => ({
       showToast: mockShowToast,
+      showError: mockShowError,
     }),
   };
 });
@@ -112,7 +114,7 @@ describe("OrderingSettingsForm component (M-63)", () => {
     expect(mockShowToast).toHaveBeenCalledWith("Changes discarded");
   });
 
-  it("blocks submit and shows error if all fulfillment modes are disabled", () => {
+  it("blocks submit and shows error if all fulfillment modes are disabled", async () => {
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
 
     const pickupSwitch = screen.getByTestId("switch-service-pickup");
@@ -126,9 +128,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
+    expect(await screen.findByText("At least one fulfillment mode must be enabled")).toBeDefined();
     expect(actions.updateOrderingSettingsAction).not.toHaveBeenCalled();
-    expect(screen.getByText("At least one fulfillment mode must be enabled")).toBeDefined();
-    expect(mockShowToast).toHaveBeenCalledWith("At least one fulfillment mode must be enabled");
+    expect(mockShowError).toHaveBeenCalledWith("At least one fulfillment mode must be enabled");
   });
 
   it("submits updated ordering settings and converts euros to cents", async () => {
@@ -280,7 +282,7 @@ describe("OrderingSettingsForm component (M-63)", () => {
           leadTimeUnit: "business_days" as const,
         }),
       );
-      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
+      expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 

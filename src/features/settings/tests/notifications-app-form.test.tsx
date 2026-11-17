@@ -43,12 +43,14 @@ const mockSettings: BusinessSettings = {
 const dict = getDictionary(DEFAULT_LOCALE).settings;
 
 const mockShowToast = vi.fn();
+const mockShowError = vi.fn();
 vi.mock("@/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/ui")>();
   return {
     ...actual,
     useToast: () => ({
       showToast: mockShowToast,
+      showError: mockShowError,
     }),
   };
 });
@@ -135,7 +137,7 @@ describe("NotificationsAppForm component (M-67)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
+      expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 

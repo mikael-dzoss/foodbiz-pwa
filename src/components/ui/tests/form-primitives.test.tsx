@@ -19,7 +19,7 @@ describe("Field", () => {
         <Input data-testid="inp" />
       </Field>,
     );
-    const input = screen.getByLabelText("Name");
+    const input = screen.getByLabelText(/^Name/);
     expect(input).toBe(screen.getByTestId("inp"));
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-required")).toBe("true");
@@ -42,6 +42,17 @@ describe("Field", () => {
     expect(input.hasAttribute("aria-invalid")).toBe(false);
     expect(input.hasAttribute("aria-describedby")).toBe(false);
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("renders the hint above the control on request", () => {
+    render(
+      <Field label="Fee" hint="In euros" hintPosition="above">
+        <Input data-testid="fee" />
+      </Field>,
+    );
+    const hint = screen.getByText("In euros");
+    const input = screen.getByTestId("fee");
+    expect(hint.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("keeps an explicit id and any existing aria-describedby", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import { ChevronLeft, CreditCard, Banknote, Smartphone, QrCode, AlertCircle } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
@@ -27,8 +27,9 @@ export interface PaymentSettingsFormProps {
 }
 
 export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentSettingsFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updatePaymentSettingsAction>> | null;
+  const [dismissed, setDismissed] = useState<SaveResult>(null);
 
   // 1. Direct transfer identifiers
   const [revolutRevtag, setRevolutRevtag] = useState(settings.revolutRevtag ?? "");
@@ -51,7 +52,6 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
   const [activeTab, setActiveTab] = useState<"en" | "fr">("en");
 
   // Errors
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const handleDiscard = () => {
     setRevolutRevtag(settings.revolutRevtag ?? "");
@@ -61,50 +61,47 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
     setWero(settings.paymentMethods?.wero ?? true);
     setPaymentInstructionsEn(settings.paymentInstructionsEn ?? "");
     setPaymentInstructionsFr(settings.paymentInstructionsFr ?? "");
-    setErrors({});
+    setDismissed(result);
     showToast("Changes discarded");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
+  const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     // Acceptance criterion: At least one payment option must be enabled
     if (!cash && !revolut && !wero) {
-      setErrors({
-        paymentMethods: [dict.payment.atLeastOneMethodError],
-      });
-      showToast(dict.payment.atLeastOneMethodError);
-      return;
+      showError(dict.payment.atLeastOneMethodError);
+      return {
+        ok: false,
+        code: "VALIDATION",
+        message: dict.payment.atLeastOneMethodError,
+        fieldErrors: { paymentMethods: [dict.payment.atLeastOneMethodError] },
+      };
     }
 
-    startTransition(async () => {
-      const res = await updatePaymentSettingsAction({
-        revolutRevtag: revolutRevtag.trim(),
-        weroIdentifier: weroIdentifier.trim(),
-        paymentMethods: {
-          cash,
-          revolut,
-          wero,
-        },
-        paymentInstructionsEn: paymentInstructionsEn.trim(),
-        paymentInstructionsFr: paymentInstructionsFr.trim(),
-      });
-
-      if (res.ok) {
-        showToast(dict.payment.saveSuccess);
-      } else {
-        if (res.fieldErrors) {
-          setErrors(res.fieldErrors);
-        }
-        showToast(actionErrorMessage(res));
-      }
+    const res = await updatePaymentSettingsAction({
+      revolutRevtag: revolutRevtag.trim(),
+      weroIdentifier: weroIdentifier.trim(),
+      paymentMethods: {
+        cash,
+        revolut,
+        wero,
+      },
+      paymentInstructionsEn: paymentInstructionsEn.trim(),
+      paymentInstructionsFr: paymentInstructionsFr.trim(),
     });
-  };
+
+    if (res.ok) {
+      showToast(dict.payment.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
+  const errors: Record<string, string[]> =
+    result && result !== dismissed && !result.ok ? (result.fieldErrors ?? {}) : {};
 
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="payment-settings-form"
     >

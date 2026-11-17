@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   ChevronLeft,
   Clock,
@@ -28,8 +28,9 @@ export interface OrderingSettingsFormProps {
 }
 
 export function OrderingSettingsForm({ settings, dict, locale = "en" }: OrderingSettingsFormProps) {
-  const { showToast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { showToast, showError } = useToast();
+  type SaveResult = Awaited<ReturnType<typeof updateOrderingSettingsAction>> | null;
+  const [dismissed, setDismissed] = useState<SaveResult>(null);
 
   // 1. Store acceptance status
   const [acceptingOrders, setAcceptingOrders] = useState(settings.acceptingOrders ?? true);
@@ -79,7 +80,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     : [timezone, ...SELECTABLE_TIMEZONES];
 
   // Errors
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const handleDiscard = () => {
     setAcceptingOrders(settings.acceptingOrders ?? true);
@@ -95,61 +95,58 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     setLeadTimeValue(String(settings.leadTimeValue ?? 1));
     setLeadTimeUnit(settings.leadTimeUnit ?? "business_days");
     setTimezone(settings.timezone);
-    setErrors({});
+    setDismissed(result);
     showToast("Changes discarded");
   };
 
   const activeServiceCount = [pickup, delivery, dineIn].filter(Boolean).length;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
+  const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     // Client check: at least one service type must be enabled
     if (!pickup && !delivery && !dineIn) {
-      setErrors({
-        serviceTypes: ["At least one fulfillment mode must be enabled"],
-      });
-      showToast("At least one fulfillment mode must be enabled");
-      return;
+      showError("At least one fulfillment mode must be enabled");
+      return {
+        ok: false,
+        code: "VALIDATION",
+        message: "At least one fulfillment mode must be enabled",
+        fieldErrors: { serviceTypes: ["At least one fulfillment mode must be enabled"] },
+      };
     }
 
     const deliveryFeeCents = Math.round((parseFloat(deliveryFeeEuros) || 0) * 100);
     const minOrderCents = Math.round((parseFloat(minOrderEuros) || 0) * 100);
 
-    startTransition(async () => {
-      const res = await updateOrderingSettingsAction({
-        acceptingOrders,
-        serviceTypes: {
-          pickup,
-          delivery,
-          dineIn,
-        },
-        openingHours,
-        orderTimingAsap,
-        orderTimingScheduled,
-        orderTimingTimeOptional,
-        deliveryFee: deliveryFeeCents,
-        minOrderAmount: minOrderCents,
-        leadTimeValue: parsedLeadTimeValue,
-        leadTimeUnit,
-        timezone,
-      });
-
-      if (res.ok) {
-        showToast(dict.ordering.saveSuccess);
-      } else {
-        if (res.fieldErrors) {
-          setErrors(res.fieldErrors);
-        }
-        showToast(actionErrorMessage(res));
-      }
+    const res = await updateOrderingSettingsAction({
+      acceptingOrders,
+      serviceTypes: {
+        pickup,
+        delivery,
+        dineIn,
+      },
+      openingHours,
+      orderTimingAsap,
+      orderTimingScheduled,
+      orderTimingTimeOptional,
+      deliveryFee: deliveryFeeCents,
+      minOrderAmount: minOrderCents,
+      leadTimeValue: parsedLeadTimeValue,
+      leadTimeUnit,
+      timezone,
     });
-  };
+
+    if (res.ok) {
+      showToast(dict.ordering.saveSuccess);
+    } else {
+      showError(actionErrorMessage(res));
+    }
+    return res;
+  }, null);
+  const errors: Record<string, string[]> =
+    result && result !== dismissed && !result.ok ? (result.fieldErrors ?? {}) : {};
 
   return (
     <form
-      onSubmit={handleSubmit}
+      action={formAction}
       className="mx-auto w-full max-w-md px-4 py-6 pb-32"
       data-testid="ordering-settings-form"
     >

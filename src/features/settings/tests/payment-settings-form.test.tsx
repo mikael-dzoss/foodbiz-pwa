@@ -43,12 +43,14 @@ const mockSettings: BusinessSettings = {
 const dict = getDictionary(DEFAULT_LOCALE).settings;
 
 const mockShowToast = vi.fn();
+const mockShowError = vi.fn();
 vi.mock("@/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/ui")>();
   return {
     ...actual,
     useToast: () => ({
       showToast: mockShowToast,
+      showError: mockShowError,
     }),
   };
 });
@@ -129,7 +131,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     expect(mockShowToast).toHaveBeenCalledWith("Changes discarded");
   });
 
-  it("blocks submit and shows error if all payment methods are disabled", () => {
+  it("blocks submit and shows error if all payment methods are disabled", async () => {
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
 
     const cashSwitch = screen.getByTestId("switch-payment-cash");
@@ -143,9 +145,9 @@ describe("PaymentSettingsForm component (M-64)", () => {
     const submitBtn = screen.getByTestId("save-payment-button");
     fireEvent.click(submitBtn);
 
+    expect(await screen.findByTestId("error-payment-methods")).toBeDefined();
     expect(actions.updatePaymentSettingsAction).not.toHaveBeenCalled();
-    expect(screen.getByTestId("error-payment-methods")).toBeDefined();
-    expect(mockShowToast).toHaveBeenCalledWith(dict.payment.atLeastOneMethodError);
+    expect(mockShowError).toHaveBeenCalledWith(dict.payment.atLeastOneMethodError);
   });
 
   it("submits updated payment settings successfully", async () => {
@@ -185,7 +187,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
+      expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 
