@@ -220,6 +220,19 @@ describe("lib: auth dev-provisioning", () => {
       );
     });
 
+    it("falls back to manager when a concurrent provision took the owner slot (23505)", async () => {
+      mockUpsert
+        .mockResolvedValueOnce({ error: { code: "23505", message: "duplicate key" } })
+        .mockResolvedValueOnce({ error: null });
+
+      const result = await maybeAutoProvisionDevManager(validGoogleUser);
+      expect(result).toBe(true);
+      expect(mockUpsert).toHaveBeenLastCalledWith(
+        expect.objectContaining({ role: "manager" }),
+        expect.anything(),
+      );
+    });
+
     it("keeps an existing owner as owner", async () => {
       mockOwnersQuery.mockResolvedValue({ data: [{ user_id: validGoogleUser.id }], error: null });
 

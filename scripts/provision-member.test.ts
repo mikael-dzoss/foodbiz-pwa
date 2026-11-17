@@ -359,6 +359,58 @@ describe("scripts: provision-member", () => {
       consoleSpy.mockRestore();
     });
 
+    it("falls back to manager when a concurrent run took the owner slot (23505)", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: [{ id: "22222222-2222-4222-8222-222222222222", email: "a@example.com" }] },
+        error: null,
+      });
+      mockSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: "23505", message: "duplicate key" },
+      });
+      mockSingle.mockResolvedValueOnce({ data: { id: "m" }, error: null });
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const res = await provisionBusinessMember(client as unknown as SupabaseClient, {
+        businessSlug: "b",
+        email: "a@example.com",
+      });
+
+      expect(res.role).toBe("manager");
+      consoleSpy.mockRestore();
+    });
+
+    it("fails with a clear message when an explicit owner role hits the owner slot (23505)", async () => {
+      const { client, mockBusinessMaybeSingle, mockListUsers, mockSingle } = createMockClient();
+      mockBusinessMaybeSingle.mockResolvedValueOnce({
+        data: { id: "11111111-1111-4111-8111-111111111111", name: "B", slug: "b", currency: "EUR" },
+        error: null,
+      });
+      mockListUsers.mockResolvedValueOnce({
+        data: { users: [{ id: "22222222-2222-4222-8222-222222222222", email: "a@example.com" }] },
+        error: null,
+      });
+      mockSingle.mockResolvedValueOnce({
+        data: null,
+        error: { code: "23505", message: "duplicate key" },
+      });
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      await expect(
+        provisionBusinessMember(client as unknown as SupabaseClient, {
+          businessSlug: "b",
+          email: "a@example.com",
+          role: "owner",
+        }),
+      ).rejects.toThrow(/already has an owner/i);
+      consoleSpy.mockRestore();
+    });
+
     it("makes a later member a manager when the business already has an owner", async () => {
       const { client, ownersResult, mockBusinessMaybeSingle, mockListUsers, mockSingle } =
         createMockClient();

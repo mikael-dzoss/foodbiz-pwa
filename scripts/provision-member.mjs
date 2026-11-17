@@ -296,19 +296,29 @@ export async function provisionBusinessMember(client, options = {}) {
     `Provisioning member: host=${targetHost}, business=${business.slug} (${business.id}), user=${userIdentifier} (${userId}), role=${role}`,
   );
 
-  // 3. Upsert into public.business_members idempotently
-  const { data: member, error: upsertError } = await client
-    .from("business_members")
-    .upsert(
-      {
-        business_id: business.id,
-        user_id: userId,
-        role,
-      },
-      { onConflict: "business_id,user_id" },
-    )
-    .select()
-    .single();
+  // 3. Upsert into public.business_members idempotently. A business has exactly one owner (unique
+  // index): if a concurrent run took the owner slot (23505), an implicit role falls back to
+  // manager; an explicit --role owner fails with a clear message.
+  const upsertMember = (memberRole) =>
+    client
+      .from("business_members")
+      .upsert(
+        { business_id: business.id, user_id: userId, role: memberRole },
+        { onConflict: "business_id,user_id" },
+      )
+      .select()
+      .single();
+
+  let { data: member, error: upsertError } = await upsertMember(role);
+  if (upsertError?.code === "23505" && role === "owner") {
+    if (options.role !== undefined) {
+      throw new Error(
+        `Business "${business.slug}" already has an owner; cannot provision a second one.`,
+      );
+    }
+    role = "manager";
+    ({ data: member, error: upsertError } = await upsertMember(role));
+  }
 
   if (upsertError) {
     throw new Error(`Failed to provision business member: ${upsertError.message}`);

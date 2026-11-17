@@ -80,17 +80,20 @@ export async function maybeAutoProvisionDevManager(user: User): Promise<boolean>
     const isOwner = (owners ?? []).some((o) => o.user_id === user.id);
     const role = !hasOwner || isOwner ? "owner" : "manager";
 
-    // Upsert business_members row
-    const { error: upsertError } = await admin.from("business_members").upsert(
-      {
-        business_id: business.id,
-        user_id: user.id,
-        role,
-      },
-      {
-        onConflict: "business_id,user_id",
-      },
-    );
+    // Upsert business_members row. One owner per business (unique index): if a concurrent
+    // provision took the owner slot (23505), become a manager instead.
+    const upsertMember = (memberRole: "owner" | "manager") =>
+      admin
+        .from("business_members")
+        .upsert(
+          { business_id: business.id, user_id: user.id, role: memberRole },
+          { onConflict: "business_id,user_id" },
+        );
+
+    let { error: upsertError } = await upsertMember(role);
+    if (upsertError?.code === "23505" && role === "owner") {
+      ({ error: upsertError } = await upsertMember("manager"));
+    }
 
     if (upsertError) {
       return false;
