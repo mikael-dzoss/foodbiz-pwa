@@ -22,6 +22,7 @@ import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import { buildOpenStreetMapEmbedUrl, type BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 import { SoonBadge } from "@/components/feedback";
+import { ActionBar } from "@/components/ui/action-bar";
 
 export interface ShopInfoViewProps {
   business: StorefrontBusiness;
@@ -462,20 +463,19 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
       </section>
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#249) */}
-      <div
+      <ActionBar
+        placement="floating"
+        contentClassName="flex items-center"
         data-testid="shop-info-action-bar"
-        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
-        <div className="mx-auto flex max-w-4xl items-center">
-          <Link
-            href={`/${locale}`}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold shadow-xs transition-all active:scale-98"
-          >
-            <UtensilsCrossed className="h-4.5 w-4.5" />
-            <span>{dict.returnToCatalog}</span>
-          </Link>
-        </div>
-      </div>
+        <Link
+          href={`/${locale}`}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold shadow-xs transition-all active:scale-98"
+        >
+          <UtensilsCrossed className="h-4.5 w-4.5" />
+          <span>{dict.returnToCatalog}</span>
+        </Link>
+      </ActionBar>
     </div>
   );
 }

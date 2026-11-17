@@ -375,6 +375,7 @@ export const enDictionary: Dictionary = {
   settings: {
     title: "Settings",
     subtitle: "Account, store preferences and system configuration",
+    saving: "Saving…",
     coreSection: "Core Settings",
     operationsSection: "Operations",
     systemSection: "System & App",

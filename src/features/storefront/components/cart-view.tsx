@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -250,43 +251,42 @@ export function CartView({
       </section>
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
-      <div
+      <ActionBar
+        placement="floating"
+        contentClassName="flex items-center gap-3"
         data-testid="cart-action-bar"
-        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
-        <div className="mx-auto flex max-w-4xl items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={clearCart}
-            className="h-12 rounded-xl px-4 text-xs font-semibold sm:text-sm"
-            data-testid="clear-cart-bottom-button"
-          >
-            {dict.clearCart}
-          </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={clearCart}
+          className="h-12 rounded-xl px-4 text-xs font-semibold sm:text-sm"
+          data-testid="clear-cart-bottom-button"
+        >
+          {dict.clearCart}
+        </Button>
 
-          <Button
-            asChild={canProceed}
-            disabled={!canProceed}
-            className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-xs sm:text-base"
-            data-testid="proceed-checkout-button"
-          >
-            {canProceed ? (
-              <Link href={`/${locale}/checkout`}>
-                <span>
-                  {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
-                </span>
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Link>
-            ) : (
-              <span className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
+        <Button
+          asChild={canProceed}
+          disabled={!canProceed}
+          className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-xs sm:text-base"
+          data-testid="proceed-checkout-button"
+        >
+          {canProceed ? (
+            <Link href={`/${locale}/checkout`}>
+              <span>
                 {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
               </span>
-            )}
-          </Button>
-        </div>
-      </div>
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
+            </span>
+          )}
+        </Button>
+      </ActionBar>
     </div>
   );
 }

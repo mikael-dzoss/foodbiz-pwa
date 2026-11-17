@@ -33,6 +33,7 @@ import {
   type GuestContactStorage,
 } from "@/domain/checkout";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -949,31 +950,30 @@ export function CheckoutForm({
       )}
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}
-      <div
+      <ActionBar
+        placement="floating"
+        contentClassName="space-y-2"
         data-testid="checkout-action-bar"
-        className="border-border bg-card/95 bottom-sticky-safe sticky z-30 -mt-3 rounded-xl border p-3 shadow-lg backdrop-blur-md dark:shadow-black/40"
       >
-        <div className="mx-auto max-w-4xl space-y-2">
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            loading={isSubmitting}
-            className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
-            data-testid="place-order-button"
-          >
-            <span>
-              {isSubmitting
-                ? dict.placingOrder
-                : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
-            </span>
-            <ArrowRight className="ml-1.5 h-4 w-4" />
-          </Button>
+        <Button
+          type="submit"
+          disabled={!canSubmit}
+          loading={isSubmitting}
+          className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
+          data-testid="place-order-button"
+        >
+          <span>
+            {isSubmitting
+              ? dict.placingOrder
+              : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
+          </span>
+          <ArrowRight className="ml-1.5 h-4 w-4" />
+        </Button>
 
-          <p className="text-muted-foreground text-caption text-center">
-            🔒 {dict.pickupPolicyNotice}
-          </p>
-        </div>
-      </div>
+        <p className="text-muted-foreground text-caption text-center">
+          🔒 {dict.pickupPolicyNotice}
+        </p>
+      </ActionBar>
     </form>
   );
 }

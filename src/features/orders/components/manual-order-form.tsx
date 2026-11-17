@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -706,8 +707,10 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       </section>
 
       {/* Sticky Bottom Order Summary Bar (Z-50) */}
-      <div
-        className="bg-card/95 border-border pb-safe-3.5 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl items-center justify-between gap-3 border-t p-3.5 shadow-lg backdrop-blur"
+      <ActionBar
+        placement="bottom"
+        className="pb-safe-3.5 z-50 mx-auto max-w-xl px-3.5 pt-3.5"
+        contentClassName="max-w-none justify-between"
         data-testid="manual-order-bottom-bar"
       >
         <span className="sr-only">Step 4: Order Summary</span>
@@ -731,7 +734,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             ? `Preview & Create order (${formatMoney(totalAmount)})`
             : "Preview & Create order"}
         </Button>
-      </div>
+      </ActionBar>
 
       {/* Read-Only Order Preview Modal Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

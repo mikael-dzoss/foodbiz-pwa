@@ -383,6 +383,7 @@ export const frDictionary: Dictionary = {
   settings: {
     title: "Paramètres",
     subtitle: "Compte, préférences du commerce et configuration système",
+    saving: "Enregistrement…",
     coreSection: "Paramètres principaux",
     operationsSection: "Opérations",
     systemSection: "Système et application",

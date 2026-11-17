@@ -14,12 +14,11 @@ import {
   Check,
   Copy,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
 import type { Business } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonItem } from "@/components/feedback";
-import { useToast } from "@/components/ui";
+import { ActionBar, Button, useToast } from "@/components/ui";
 import { updateBusinessProfileAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
@@ -553,35 +552,28 @@ export function BusinessProfileForm({
         </div>
       </div>
 
-      {/* Sticky Action Bar */}
-      <div className="border-border bg-card/95 pb-safe-4 fixed inset-x-0 bottom-0 z-30 border-t p-4 shadow-lg backdrop-blur-md md:static md:bg-transparent md:p-0 md:shadow-none">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={handleDiscard}
-            className="border-border bg-card hover:bg-muted text-foreground focus-visible:ring-ring flex min-h-12 flex-1 items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            data-testid="button-discard"
-          >
-            {dict.business.discardButton}
-          </button>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="bg-primary text-primary-foreground hover:bg-primary/95 focus-visible:ring-primary flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
-            data-testid="button-save-profile"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <span>{dict.business.saveButton}</span>
-            )}
-          </button>
-        </div>
-      </div>
+      {/* Sticky Save/Discard bar: above the manager bottom nav, static on desktop */}
+      <ActionBar data-testid="settings-action-bar">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleDiscard}
+          disabled={isPending}
+          data-testid="button-discard"
+          className="flex-1 rounded-xl"
+        >
+          {dict.business.discardButton}
+        </Button>
+        <Button
+          type="submit"
+          disabled={isPending}
+          loading={isPending}
+          data-testid="button-save-profile"
+          className="flex-1 rounded-xl"
+        >
+          {isPending ? dict.saving : dict.business.saveButton}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

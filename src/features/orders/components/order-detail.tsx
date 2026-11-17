@@ -24,6 +24,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -924,8 +925,10 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
       {/* 5. Sticky Bottom Action Bar (Z-50, Full-width clearance) */}
       {currentOrder.status !== "COMPLETED" && currentOrder.status !== "CANCELLED" && (
-        <div
-          className="bg-card/95 border-border pb-safe-3.5 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-col gap-2 border-t p-3.5 shadow-lg backdrop-blur"
+        <ActionBar
+          placement="bottom"
+          className="pb-safe-3.5 z-50 mx-auto max-w-xl px-3.5 pt-3.5"
+          contentClassName="max-w-none flex-col items-stretch gap-2"
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
@@ -1005,7 +1008,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               </Button>
             )}
           </div>
-        </div>
+        </ActionBar>
       )}
 
       {/* Reject Order Dialog (NEW orders) */}

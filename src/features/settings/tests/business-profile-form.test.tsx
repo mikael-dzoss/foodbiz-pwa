@@ -23,11 +23,10 @@ const mockBusiness: Business = {
 const dict = getDictionary(DEFAULT_LOCALE).settings;
 
 const mockShowToast = vi.fn();
-vi.mock("@/components/ui", () => ({
-  useToast: () => ({
-    showToast: mockShowToast,
-  }),
-}));
+vi.mock("@/components/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/ui")>();
+  return { ...actual, useToast: () => ({ showToast: mockShowToast }) };
+});
 
 vi.mock("../actions", () => ({
   updateBusinessProfileAction: vi.fn(async () => ({
