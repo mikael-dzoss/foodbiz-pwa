@@ -4,8 +4,12 @@ import * as React from "react";
 import { Sun, Moon, Laptop, Plus, ShoppingBag, Clock, Sparkles, Info } from "lucide-react";
 import { useTheme } from "@/components/theme";
 import {
+  ActionBar,
   Button,
+  ConfirmDialog,
+  Field,
   Input,
+  SegmentedControl,
   Textarea,
   Badge,
   Card,
@@ -44,13 +48,16 @@ import { SoonItem, EmptyState, ErrorState } from "@/components/feedback";
 
 export default function PatternsPage() {
   const { theme, resolvedTheme, setTheme, mounted } = useTheme();
-  const { showToast } = useToast();
+  const { showToast, showError } = useToast();
 
   const [stepperVal, setStepperVal] = React.useState(2);
   const [switchVal, setSwitchVal] = React.useState(true);
   const [checkVal, setCheckVal] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
+  const [segment, setSegment] = React.useState<"pickup" | "delivery">("pickup");
+  const [fieldValue, setFieldValue] = React.useState("");
 
   return (
     <div className="bg-background text-foreground min-h-screen pb-20 transition-colors duration-150">
@@ -430,6 +437,13 @@ export default function PatternsPage() {
             >
               Show Toast
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => showError("Could not save. Please try again.")}
+              data-testid="trigger-error-toast"
+            >
+              Show Error
+            </Button>
           </Card>
         </section>
 
@@ -525,6 +539,89 @@ export default function PatternsPage() {
               </SheetContent>
             </Sheet>
           </div>
+        </section>
+
+        {/* 13. FIELD */}
+        <section className="space-y-3" data-testid="section-field">
+          <div className="text-label-sm text-muted-foreground tracking-wider uppercase">
+            13. Field (label, hint, error)
+          </div>
+          <Card className="space-y-4 p-4">
+            <Field label="Product name" hint="Shown to customers" required>
+              <Input
+                value={fieldValue}
+                onChange={(e) => setFieldValue(e.target.value)}
+                placeholder="e.g. Country Sourdough"
+                data-testid="pattern-field-input"
+              />
+            </Field>
+            <Field label="Selling price" error="Enter a price above 0">
+              <Input defaultValue="0" data-testid="pattern-field-error-input" />
+            </Field>
+          </Card>
+        </section>
+
+        {/* 14. SEGMENTED CONTROL */}
+        <section className="space-y-3" data-testid="section-segmented">
+          <div className="text-label-sm text-muted-foreground tracking-wider uppercase">
+            14. Segmented Control (radio group, arrow keys)
+          </div>
+          <SegmentedControl
+            aria-label="Service type"
+            value={segment}
+            onValueChange={setSegment}
+            className="grid grid-cols-2"
+            data-testid="pattern-segmented"
+            options={[
+              { value: "pickup", label: "Pickup", "data-testid": "pattern-segment-pickup" },
+              { value: "delivery", label: "Delivery", "data-testid": "pattern-segment-delivery" },
+            ]}
+          />
+        </section>
+
+        {/* 15. CONFIRM DIALOG */}
+        <section className="space-y-3" data-testid="section-confirm">
+          <div className="text-label-sm text-muted-foreground tracking-wider uppercase">
+            15. Confirm Dialog (destructive)
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setIsConfirmOpen(true)}
+            data-testid="trigger-confirm-dialog"
+          >
+            Delete expense
+          </Button>
+          <ConfirmDialog
+            open={isConfirmOpen}
+            onOpenChange={setIsConfirmOpen}
+            destructive
+            title="Delete expense?"
+            description="This action cannot be undone."
+            cancelLabel="Keep"
+            confirmLabel="Delete"
+            onConfirm={() => {
+              setIsConfirmOpen(false);
+              showToast("Expense deleted");
+            }}
+            data-testid="pattern-confirm-dialog"
+          />
+        </section>
+
+        {/* 16. ACTION BAR */}
+        <section className="space-y-3" data-testid="section-action-bar">
+          <div className="text-label-sm text-muted-foreground tracking-wider uppercase">
+            16. Action Bar (sticky, above the bottom nav)
+          </div>
+          <p className="text-body-sm text-muted-foreground">
+            Fixed to the bottom on phones, above the manager nav and the safe-area inset; static
+            from the md breakpoint. Shown here in its static form.
+          </p>
+          <ActionBar placement="floating" className="static mt-0" data-testid="pattern-action-bar">
+            <Button variant="outline" className="flex-1">
+              Discard
+            </Button>
+            <Button className="flex-1">Save changes</Button>
+          </ActionBar>
         </section>
       </main>
     </div>

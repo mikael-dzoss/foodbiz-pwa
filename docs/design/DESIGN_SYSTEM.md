@@ -125,7 +125,7 @@ Titles look the same on every screen: each role has one utility that carries siz
 | Sheet and dialog title               | `SheetTitle`, `DialogTitle`    | component default (`text-title-md`)                            |
 | Card and list-item title             | `h3` or the row's primary text | `text-label-md`                                                |
 
-Exceptions only where common practice calls for them, each noted next to the code: storefront marketing headings (hero, product name on its detail page) may use `text-display`, and visually hidden headings (`sr-only`). Existing screens move to these roles in slice 12.
+Exceptions only where common practice calls for them, each noted next to the code: storefront marketing headings (hero, product name on its detail page) may use `text-display`, and visually hidden headings (`sr-only`). Every screen uses these roles.
 
 Other tokens in `globals.css`:
 
@@ -147,6 +147,7 @@ Letter spacing 0 except `display` (−0.01em). Max two weights per screen beside
 
 - Mobile first, 360–430 px design width (Stitch frames: mobile). Single column, 16 px gutters.
 - `sm` ≥ 640: wider gutters; `lg` ≥ 1024: manager sidebar replaces bottom nav, content max-width 72 rem; storefront grid 2–4 columns, content max-width 64 rem.
+- The root `viewport` export sets `viewportFit: "cover"`; without it every `env(safe-area-inset-*)` resolves to 0. `ActionBar` (`bottom-above-nav`) keeps sticky bars above the manager bottom nav.
 - Fixed top bars add `env(safe-area-inset-top)`; bottom nav, sticky action bars and toasts add `env(safe-area-inset-bottom)`.
 - Viewport `interactive-widget=resizes-content`; forms scroll, submit buttons are never covered by the keyboard.
 - Touch targets ≥ 36 × 36 px (`min-h-9 min-w-9`), ≥ 8 px apart.
@@ -161,27 +162,30 @@ lucide-react, 24 px in navigation and list leading positions, 20 px inline with 
 
 Every component exposes `data-testid` and supports light/dark. States to design and implement: **default, pressed (`active:`), focus-visible, disabled, loading, error**, plus **empty** for collections.
 
-| Component                                               | Source       | Notes                                                            |
-| ------------------------------------------------------- | ------------ | ---------------------------------------------------------------- |
-| Button (primary, secondary/outline, ghost, destructive) | shadcn       | 48 px height; loading shows spinner + keeps label width          |
-| Icon button                                             | shadcn       | 48 × 48 hit area, 24 px icon                                     |
-| Input, Textarea, Select, Checkbox, Switch               | shadcn       | Label above, helper/error below, error = icon + text             |
-| Money input                                             | custom       | EUR, `inputmode="decimal"`, tabular, locale separator            |
-| Card                                                    | shadcn       | Border, `md` radius, 16 px padding                               |
-| KPI card                                                | custom       | `label-sm` label, `display` value, delta with icon + sign        |
-| List row                                                | custom       | Leading icon/thumb, title, meta, trailing value/chevron; ≥ 56 px |
-| Badge / status pill                                     | shadcn       | Uses status mapping, always text                                 |
-| Tabs / segmented filter                                 | shadcn       | Horizontal scroll on mobile, count in label                      |
-| Sheet (bottom)                                          | shadcn       | Drag handle, title, sticky footer actions                        |
-| Dialog                                                  | shadcn       | Confirmations only (cancel order, delete)                        |
-| Toast                                                   | shadcn       | Bottom, above nav; auto-dismiss 4 s; action optional             |
-| Skeleton                                                | shadcn       | Matches final layout; no shimmer under reduced motion            |
-| Empty state                                             | custom (#34) | Icon, one-line title, one-line hint, one action                  |
-| Error state                                             | custom (#34) | Icon, message, retry action                                      |
-| Bottom nav                                              | custom (#29) | 5 items, center Add; active = soft fill + bold label + icon fill |
-| Sticky action bar                                       | custom       | Storefront cart/checkout, manager form save                      |
-| Quantity stepper                                        | custom       | − / value / +, 48 px buttons                                     |
-| Soon badge + soon item                                  | custom (#33) | See §8                                                           |
+| Component                                               | Source       | Notes                                                                             |
+| ------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| Button (primary, secondary/outline, ghost, destructive) | shadcn       | 48 px height; loading shows spinner + keeps label width                           |
+| Icon button                                             | shadcn       | 48 × 48 hit area, 24 px icon                                                      |
+| Input, Textarea, Select, NativeSelect, Checkbox, Switch | shadcn       | Wrapped in `Field`: label above, hint/error wired, error = icon + text            |
+| Field                                                   | custom       | Label + control + hint + error; wires `id`, `aria-describedby`, `aria-invalid`    |
+| Segmented control                                       | custom       | Radio group as segments; roving tabindex, arrow keys                              |
+| Money input                                             | custom       | EUR, `inputmode="decimal"`, tabular, locale separator                             |
+| Card                                                    | shadcn       | Border, `md` radius, 16 px padding                                                |
+| KPI card                                                | custom       | `label-sm` label, `display` value, delta with icon + sign                         |
+| List row                                                | custom       | Leading icon/thumb, title, meta, trailing value/chevron; ≥ 56 px                  |
+| Badge / status pill                                     | shadcn       | Uses status mapping, always text                                                  |
+| Tabs / segmented filter                                 | shadcn       | Horizontal scroll on mobile, count in label                                       |
+| Sheet (bottom)                                          | shadcn       | Drag handle, title, sticky footer actions                                         |
+| Dialog                                                  | shadcn       | Custom content; use `ConfirmDialog` for plain confirmations                       |
+| Confirm dialog                                          | custom       | Destructive variant: alertdialog, focus starts on Cancel                          |
+| Toast                                                   | shadcn       | Bottom, above nav; auto-dismiss 4 s; action optional; error variant (`showError`) |
+| Skeleton                                                | shadcn       | Matches final layout; no shimmer under reduced motion                             |
+| Empty state                                             | custom (#34) | Icon, one-line title, one-line hint, one action                                   |
+| Error state                                             | custom (#34) | Icon, message, retry action                                                       |
+| Bottom nav                                              | custom (#29) | 5 items, center Add; active = soft fill + bold label + icon fill                  |
+| Action bar (`ActionBar`)                                | custom       | The one sticky bar: manager form save (above nav), storefront cart/checkout       |
+| Quantity stepper                                        | custom       | − / value / +, 48 px buttons                                                      |
+| Soon badge + soon item                                  | custom (#33) | See §8                                                                            |
 
 ## 8. "Coming soon" pattern
 
