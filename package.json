@@ -7,7 +7,7 @@
     "build": "DATA_SOURCE=${DATA_SOURCE:-supabase} next build",
     "build:local": "node scripts/build-local.mjs",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint && node scripts/check-tailwind-classes.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -63,6 +63,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.0",
+    "@tailwindcss/node": "^4.3.5",
     "@tailwindcss/turbopack": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
