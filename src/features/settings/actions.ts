@@ -131,8 +131,7 @@ export async function updateBusinessProfileAction(
     return { success: true, data: updated };
   } catch (err) {
     if (isForbiddenError(err)) return forbiddenResult();
-    const message = err instanceof Error ? err.message : "Failed to update business profile";
-    return { success: false, error: message };
+    return { success: false, error: "Failed to update business profile" };
   }
 }
 
@@ -223,8 +222,7 @@ export async function updatePaymentSettingsAction(
     return { success: true, data: updated };
   } catch (err) {
     if (isForbiddenError(err)) return forbiddenResult();
-    const message = err instanceof Error ? err.message : "Failed to update payment settings";
-    return { success: false, error: message };
+    return { success: false, error: "Failed to update payment settings" };
   }
 }
 

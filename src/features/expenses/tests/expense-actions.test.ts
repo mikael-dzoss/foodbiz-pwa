@@ -282,6 +282,12 @@ describe("Expense Server Actions", () => {
       expect(mockExpenseRepo.delete).not.toHaveBeenCalled();
     });
 
+    it("does not leak the raw error message when delete fails", async () => {
+      mockExpenseRepo.delete.mockRejectedValueOnce(new Error('violates foreign key "x"'));
+      const res = await deleteExpenseAction(validExpenseId);
+      expect(res).toEqual({ success: false, error: "Failed to delete expense" });
+    });
+
     it("handles non-Error thrown during delete", async () => {
       mockExpenseRepo.delete.mockRejectedValueOnce("Unknown error string");
       const res = await deleteExpenseAction(validExpenseId);

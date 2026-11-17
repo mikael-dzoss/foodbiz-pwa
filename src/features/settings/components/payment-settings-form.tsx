@@ -125,6 +125,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
       {readOnlyReason && (
         <p
           role="note"
+          id="payment-owner-only-notice"
           className="border-border bg-muted text-muted-foreground mb-6 rounded-xl border px-4 py-3 text-sm"
           data-testid="payment-owner-only-notice"
         >
@@ -140,7 +141,11 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
         <p className="text-body-sm text-muted-foreground mt-1">{dict.payment.description}</p>
       </div>
 
-      <fieldset disabled={Boolean(readOnlyReason)} className="min-w-0 border-0 p-0">
+      <fieldset
+        disabled={Boolean(readOnlyReason)}
+        aria-describedby={readOnlyReason ? "payment-owner-only-notice" : undefined}
+        className="min-w-0 border-0 p-0"
+      >
         {/* Section 1: Direct Transfer Identifiers */}
         <div className="mb-6">
           <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
@@ -289,42 +294,49 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
             </p>
           )}
         </div>
+      </fieldset>
 
-        {/* Section 3: Payment Instructions (Multilingual) */}
-        <div className="mb-6">
-          <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
-            {dict.payment.instructionsSection}
-          </h2>
-          <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="bg-muted inline-flex rounded-lg p-1 text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("en")}
-                  data-testid="tab-instructions-en"
-                  className={`rounded-md px-3 py-1 transition-colors ${
-                    activeTab === "en"
-                      ? "bg-card text-foreground font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  English
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("fr")}
-                  data-testid="tab-instructions-fr"
-                  className={`rounded-md px-3 py-1 transition-colors ${
-                    activeTab === "fr"
-                      ? "bg-card text-foreground font-semibold shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Français
-                </button>
-              </div>
+      {/* Section 3: Payment Instructions (Multilingual) */}
+      <div className="mb-6">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+          {dict.payment.instructionsSection}
+        </h2>
+        <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="bg-muted inline-flex rounded-lg p-1 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setActiveTab("en")}
+                data-testid="tab-instructions-en"
+                className={`rounded-md px-3 py-1 transition-colors ${
+                  activeTab === "en"
+                    ? "bg-card text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                English
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("fr")}
+                data-testid="tab-instructions-fr"
+                className={`rounded-md px-3 py-1 transition-colors ${
+                  activeTab === "fr"
+                    ? "bg-card text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Français
+              </button>
             </div>
+          </div>
 
+          {/* The EN/FR tabs above stay usable when read-only; only the inputs are disabled. */}
+          <fieldset
+            disabled={Boolean(readOnlyReason)}
+            aria-describedby={readOnlyReason ? "payment-owner-only-notice" : undefined}
+            className="min-w-0 border-0 p-0"
+          >
             {activeTab === "en" ? (
               <div>
                 <label
@@ -368,35 +380,35 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                 />
               </div>
             )}
-          </div>
+          </fieldset>
         </div>
+      </div>
 
-        {/* Section 4: Upcoming Capabilities */}
-        <div className="mb-6">
-          <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
-            {dict.payment.soonSection}
-          </h2>
-          <div className="border-border bg-card rounded-2xl border p-4 opacity-75 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">
-                  <CreditCard className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="text-foreground block text-sm font-medium">
-                    Online Card Payments (Stripe & Apple Pay)
-                  </span>
-                  <span className="text-muted-foreground block text-xs">
-                    Automated card authorization directly on web storefront
-                  </span>
-                </div>
+      {/* Section 4: Upcoming Capabilities */}
+      <div className="mb-6">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+          {dict.payment.soonSection}
+        </h2>
+        <div className="border-border bg-card rounded-2xl border p-4 opacity-75 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">
+                <CreditCard className="h-4 w-4" />
               </div>
-              {/* TODO(payment): wire Stripe Connect onboarding (#72) */}
-              <SoonBadge />
+              <div>
+                <span className="text-foreground block text-sm font-medium">
+                  Online Card Payments (Stripe & Apple Pay)
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  Automated card authorization directly on web storefront
+                </span>
+              </div>
             </div>
+            {/* TODO(payment): wire Stripe Connect onboarding (#72) */}
+            <SoonBadge />
           </div>
         </div>
-      </fieldset>
+      </div>
 
       {/* Sticky Bottom Actions */}
       <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-4 backdrop-blur-md">

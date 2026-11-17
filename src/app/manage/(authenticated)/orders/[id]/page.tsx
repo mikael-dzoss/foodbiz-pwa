@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireManagerSession } from "@/lib/auth";
 import { getOrderAction } from "@/features/orders";
 import { OrderDetail } from "@/features/orders/components/order-detail";
+import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
+import { isOwnerRole } from "@/domain/auth";
 import { APP_METADATA } from "@/config/app";
 
 interface OrderDetailPageProps {
@@ -20,7 +22,8 @@ export async function generateMetadata({ params }: OrderDetailPageProps): Promis
 export const instant = false;
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
-  await requireManagerSession();
+  const session = await requireManagerSession();
+  const dict = getDictionary(DEFAULT_LOCALE);
   const { id } = await params;
 
   const res = await getOrderAction(id);
@@ -30,7 +33,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   return (
     <div className="mx-auto max-w-xl">
-      <OrderDetail order={res.data.order} />
+      <OrderDetail
+        order={res.data.order}
+        refundDisabledReason={
+          isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice
+        }
+      />
     </div>
   );
 }

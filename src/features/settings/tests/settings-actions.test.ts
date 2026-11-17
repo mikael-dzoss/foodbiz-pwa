@@ -236,7 +236,7 @@ describe("Settings Server Actions", () => {
           slug: "bakery",
           instagramUrl: "https://instagram.com/bakery",
         }),
-      ).toEqual({ success: false, error: "Unauthorized" });
+      ).toEqual({ success: false, error: "Failed to update business profile" });
       expect(mockBusinessRepo.update).not.toHaveBeenCalled();
     });
     it("validates and persists all social links, including clearing them", async () => {
@@ -332,7 +332,7 @@ describe("Settings Server Actions", () => {
       });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error).toBe("Profile update failed");
+        expect(res.error).toBe("Failed to update business profile");
       }
     });
 
@@ -642,7 +642,7 @@ describe("Settings Server Actions", () => {
       });
       expect(res.success).toBe(false);
       if (!res.success) {
-        expect(res.error).toBe("Payment write failed");
+        expect(res.error).toBe("Failed to update payment settings");
       }
     });
 

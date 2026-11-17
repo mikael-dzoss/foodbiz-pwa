@@ -445,7 +445,7 @@ function ExpenseForm({
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={Boolean(deleteDisabledReason)}
                 aria-describedby={deleteDisabledReason ? "expense-delete-reason" : undefined}
-                className="text-destructive inline-flex items-center gap-1.5 py-2 text-xs font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+                className="text-destructive inline-flex min-h-9 items-center gap-1.5 py-2 text-xs font-medium hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
                 data-testid="expense-delete-trigger"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -454,7 +454,7 @@ function ExpenseForm({
               {deleteDisabledReason && (
                 <p
                   id="expense-delete-reason"
-                  className="text-muted-foreground text-xs"
+                  className="text-muted-foreground text-body-sm"
                   data-testid="expense-delete-owner-only"
                 >
                   {deleteDisabledReason}

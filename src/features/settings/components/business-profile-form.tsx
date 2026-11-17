@@ -284,7 +284,7 @@ export function BusinessProfileForm({
                 disabled={Boolean(slugLockedReason)}
                 aria-describedby={slugLockedReason ? "biz-slug-locked" : undefined}
                 placeholder="la-petite-boulangerie"
-                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 px-3 py-2.5 font-mono text-base focus:outline-none"
+                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 px-3 py-2.5 font-mono text-base focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 data-testid="input-business-slug"
               />
               <button

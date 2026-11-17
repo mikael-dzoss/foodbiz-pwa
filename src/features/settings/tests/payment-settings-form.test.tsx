@@ -246,6 +246,24 @@ describe("PaymentSettingsForm component (M-64)", () => {
     ]) {
       expect(screen.getByTestId(id).matches(":disabled"), id).toBe(true);
     }
+    expect(screen.getByTestId("textarea-instructions-en").matches(":disabled")).toBe(true);
+  });
+
+  it("keeps the EN/FR instruction tabs usable when read-only", () => {
+    const reason = getDictionary(DEFAULT_LOCALE).common.ownerOnlyNotice;
+    render(<PaymentSettingsForm settings={mockSettings} dict={dict} readOnlyReason={reason} />);
+
+    const frTab = screen.getByTestId("tab-instructions-fr");
+    expect(frTab.matches(":disabled")).toBe(false);
+    fireEvent.click(frTab);
+    const fr = screen.getByTestId("textarea-instructions-fr");
+    expect(fr.matches(":disabled")).toBe(true);
+    expect(
+      screen
+        .getByTestId("payment-settings-form")
+        .querySelector("fieldset")
+        ?.getAttribute("aria-describedby"),
+    ).toBe("payment-owner-only-notice");
   });
 
   it("is editable for the owner (no explanation shown)", () => {

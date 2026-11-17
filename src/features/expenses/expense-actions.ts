@@ -137,7 +137,6 @@ export async function deleteExpenseAction(id: string): Promise<ExpenseActionResu
     return { success: true, data: undefined };
   } catch (err) {
     if (isForbiddenError(err)) return forbiddenResult();
-    const message = err instanceof Error ? err.message : "Failed to delete expense";
-    return { success: false, error: message };
+    return { success: false, error: "Failed to delete expense" };
   }
 }
