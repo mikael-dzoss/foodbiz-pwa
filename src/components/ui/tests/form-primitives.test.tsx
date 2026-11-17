@@ -44,6 +44,15 @@ describe("Field", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("keeps the control's own aria-invalid when the field has no error", () => {
+    render(
+      <Field label="Code">
+        <Input aria-invalid />
+      </Field>,
+    );
+    expect(screen.getByLabelText("Code").getAttribute("aria-invalid")).toBe("true");
+  });
+
   it("renders the hint above the control on request", () => {
     render(
       <Field label="Fee" hint="In euros" hintPosition="above">

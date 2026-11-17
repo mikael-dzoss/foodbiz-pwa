@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useMemo, useSyncExternalStore } from "react";
+import { useActionState, useState, useId, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -34,6 +34,7 @@ import {
 } from "@/domain/checkout";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
 import { ActionBar } from "@/components/ui/action-bar";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -258,12 +259,11 @@ export function CheckoutForm({
 
   const canSubmit = validationResult.success && items.length > 0 && !isSubmitting;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [, formAction] = useActionState(async (): Promise<null> => {
     if (!validationResult.success) {
       const firstIssue = validationResult.error.issues[0];
       setErrorFeedback(firstIssue?.message || "Please check the form fields.");
-      return;
+      return null;
     }
 
     setErrorFeedback(null);
@@ -306,7 +306,7 @@ export function CheckoutForm({
         if (!orderResult.ok) {
           setErrorFeedback(dict[placeOrderErrorKey(orderResult)]);
           setIsSubmitting(false);
-          return;
+          return null;
         }
 
         // Display brief confirmation screen first, keeping order state visible
@@ -326,14 +326,15 @@ export function CheckoutForm({
           }
         }, delay);
 
-        return;
+        return null;
       }
     } catch {
       setErrorFeedback(dict.orderErrorInternal);
     } finally {
       setIsSubmitting(false);
     }
-  };
+    return null;
+  }, null);
 
   // Confirmation view displayed upon order submission announcing redirection
   if (submittedSuccess || confirmedOrder) {
@@ -380,7 +381,7 @@ export function CheckoutForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" data-testid="checkout-form" noValidate>
+    <form action={formAction} className="space-y-6" data-testid="checkout-form" noValidate>
       {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
       <div
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
@@ -414,11 +415,8 @@ export function CheckoutForm({
 
         {/* Full Name field with Lock / Unlock affordance */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor={nameId} className="text-foreground text-xs font-medium">
-              {dict.fullName} <span className="text-destructive">*</span>
-            </label>
-            {isNameLocked && (
+          {isNameLocked && (
+            <div className="flex justify-end">
               <Button
                 variant="unstyled"
                 size="none"
@@ -433,27 +431,31 @@ export function CheckoutForm({
                 <Pencil className="h-3.5 w-3.5" />
                 <span>{dict.editName}</span>
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="relative">
-            {isNameLocked && (
-              <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <Lock className="h-4 w-4" />
+          <Field id={nameId} label={dict.fullName} required>
+            {(control) => (
+              <div className="relative">
+                {isNameLocked && (
+                  <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                )}
+                <Input
+                  {...control}
+                  type="text"
+                  value={name}
+                  disabled={isNameLocked}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder={dict.fullNamePlaceholder}
+                  className={isNameLocked ? "pl-9 font-medium" : ""}
+                  data-testid="checkout-name-input"
+                  required
+                />
               </div>
             )}
-            <Input
-              id={nameId}
-              type="text"
-              value={name}
-              disabled={isNameLocked}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder={dict.fullNamePlaceholder}
-              className={isNameLocked ? "pl-9 font-medium" : ""}
-              data-testid="checkout-name-input"
-              required
-            />
-          </div>
+          </Field>
 
           {/* Toast / Callout when prefilled from device memory */}
           {hasLoadedFromStorage && isNameLocked && (
@@ -468,33 +470,36 @@ export function CheckoutForm({
         </div>
 
         {/* Mobile Phone field with E.164 validation */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor={phoneId} className="text-foreground text-xs font-medium">
-              {dict.phone} <span className="text-destructive">*</span>
-            </label>
-          </div>
-          <div className="relative flex items-center">
-            <span className="text-muted-foreground border-border absolute left-3 border-r pr-2 text-xs font-semibold tabular-nums select-none">
-              FR +33
+        <Field
+          id={phoneId}
+          label={dict.phone}
+          required
+          hint={
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <span>{dict.phoneHelper}</span>
             </span>
-            <Input
-              id={phoneId}
-              type="tel"
-              value={phone}
-              onChange={(e) => setCustomPhone(e.target.value)}
-              placeholder={dict.phonePlaceholder}
-              data-testid="checkout-phone-input"
-              error={phone.length > 0 && !isPhoneValid}
-              className="pl-20 tabular-nums"
-              required
-            />
-          </div>
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
-            <span>{dict.phoneHelper}</span>
-          </p>
-        </div>
+          }
+        >
+          {(control) => (
+            <div className="relative flex items-center">
+              <span className="text-muted-foreground border-border absolute left-3 border-r pr-2 text-xs font-semibold tabular-nums select-none">
+                FR +33
+              </span>
+              <Input
+                {...control}
+                type="tel"
+                value={phone}
+                onChange={(e) => setCustomPhone(e.target.value)}
+                placeholder={dict.phonePlaceholder}
+                data-testid="checkout-phone-input"
+                error={phone.length > 0 && !isPhoneValid}
+                className="pl-20 tabular-nums"
+                required
+              />
+            </div>
+          )}
+        </Field>
       </section>
 
       {/* 2. Fulfillment Mode */}

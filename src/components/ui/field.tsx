@@ -55,8 +55,8 @@ export function Field({
   const wiring: FieldControlProps = {
     id: controlId,
     "aria-describedby": describedBy || undefined,
-    "aria-invalid": error ? true : undefined,
-    "aria-required": required ? true : undefined,
+    "aria-invalid": error ? true : child?.props["aria-invalid"],
+    "aria-required": required ? true : child?.props["aria-required"],
   };
   const control = child
     ? React.cloneElement(child, wiring)
