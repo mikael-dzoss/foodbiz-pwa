@@ -19,6 +19,7 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
 import { Switch, useToast } from "@/components/ui";
 import { updateOrderingSettingsAction } from "../actions";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface OrderingSettingsFormProps {
   settings: BusinessSettings;
@@ -125,13 +126,13 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
         leadTimeUnit,
       });
 
-      if (res.success) {
+      if (res.ok) {
         showToast(dict.ordering.saveSuccess);
       } else {
         if (res.fieldErrors) {
           setErrors(res.fieldErrors);
         }
-        showToast(res.error || "Failed to save ordering settings");
+        showToast(actionErrorMessage(res));
       }
     });
   };

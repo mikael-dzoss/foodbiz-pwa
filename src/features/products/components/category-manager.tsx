@@ -13,7 +13,8 @@ import { Plus, Edit2, Trash2, Check, X, Folder, GripVertical, Info, Lightbulb } 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import type { CategoryWithProductCount } from "../category-actions";
+import type { CategoryWithProductCount } from "../category-data";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface CategoryManagerProps {
   initialCategories: CategoryWithProductCount[];
@@ -48,12 +49,12 @@ export function CategoryManager({
     const res = await createCategoryAction({ name: newName, role: newRole });
     setIsCreating(false);
 
-    if (res.success) {
+    if (res.ok) {
       setCategories((prev) => [...prev, { ...res.data, productCount: 0 }]);
       setNewName("");
       setNewRole("regular");
     } else {
-      setCreateError(res.error);
+      setCreateError(actionErrorMessage(res));
     }
   };
 
@@ -75,14 +76,14 @@ export function CategoryManager({
     setRenameError(null);
 
     const res = await renameCategoryAction({ id, name: editName, role: editRole });
-    if (res.success) {
+    if (res.ok) {
       setCategories((prev) =>
         prev.map((c) => (c.id === id ? { ...c, name: res.data.name, role: res.data.role } : c)),
       );
       setEditingId(null);
       setEditName("");
     } else {
-      setRenameError(res.error);
+      setRenameError(actionErrorMessage(res));
     }
   };
 
@@ -93,10 +94,10 @@ export function CategoryManager({
     const res = await deleteCategoryAction({ id });
     setDeletingId(null);
 
-    if (res.success) {
+    if (res.ok) {
       setCategories((prev) => prev.filter((c) => c.id !== id));
     } else {
-      setDeleteError(res.error);
+      setDeleteError(actionErrorMessage(res));
     }
   };
 

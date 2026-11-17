@@ -36,14 +36,15 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, formatDate, formatTime, type OrderStatus } from "@/domain";
 import {
-  type EnrichedOrder,
   progressOrderStatusAction,
   recordPaymentAction,
   recordRefundAction,
   markOrderUnpaidAction,
   markPaidAndCompleteAction,
 } from "../order-actions";
+import type { EnrichedOrder } from "../order-data";
 import { cn } from "@/lib/utils";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface OrderDetailProps {
   order: EnrichedOrder;
@@ -142,14 +143,14 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setCurrentOrder({
         ...currentOrder,
         ...res.data,
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -165,14 +166,14 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setCurrentOrder({
         ...currentOrder,
         ...res.data,
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -195,7 +196,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setRejectDialogOpen(false);
       setCurrentOrder({
         ...currentOrder,
@@ -203,7 +204,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -220,7 +221,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setCancelDialogOpen(false);
       setCurrentOrder({
         ...currentOrder,
@@ -228,7 +229,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -250,7 +251,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setPaymentDialogOpen(false);
       setPaymentDialogMode("record");
       setCurrentOrder({
@@ -259,7 +260,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -274,14 +275,14 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setCurrentOrder({
         ...currentOrder,
         ...res.data,
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 
@@ -297,7 +298,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
     setIsSubmitting(false);
 
-    if (res.success) {
+    if (res.ok) {
       setRefundDialogOpen(false);
       setCurrentOrder({
         ...currentOrder,
@@ -305,7 +306,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(res.error);
+      setErrorMessage(actionErrorMessage(res));
     }
   };
 

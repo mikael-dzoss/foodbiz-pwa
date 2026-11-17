@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ProductFormSheet } from "../components/product-form-sheet";
 import { getDictionary } from "@/domain/i18n";
 import type { ProductCategory } from "@/domain";
-import type { EnrichedProduct } from "../product-actions";
+import type { EnrichedProduct } from "../product-data";
 
 const mockCreateProductAction = vi.fn();
 const mockUpdateProductAction = vi.fn();
@@ -61,15 +61,15 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateProductAction.mockResolvedValue({
-      success: true,
+      ok: true,
       data: { ...sampleProduct, id: "new-prod-id", name: "New Product" },
     });
     mockUpdateProductAction.mockResolvedValue({
-      success: true,
+      ok: true,
       data: { ...sampleProduct, name: "Burger Gourmet Updated" },
     });
     mockUploadProductImageAction.mockResolvedValue({
-      success: true,
+      ok: true,
       data: { imageUrl: "data:image/jpeg;base64,mockedcompressedpayload" },
     });
   });
@@ -92,8 +92,7 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
     fireEvent.click(screen.getByTestId("save-product-button"));
     await waitFor(() =>
       expect(mockUpdateProductAction).toHaveBeenCalledWith(
-        product.id,
-        expect.objectContaining({ allergens: ["milk"] }),
+        expect.objectContaining({ id: product.id, allergens: ["milk"] }),
       ),
     );
     expect(product.allergens).toEqual(["gluten"]);
@@ -111,8 +110,9 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
 
   it("announces allergen errors returned by the action", async () => {
     mockUpdateProductAction.mockResolvedValueOnce({
-      success: false,
-      error: "Invalid allergens",
+      ok: false,
+      code: "INTERNAL",
+      message: "Invalid allergens",
       fieldErrors: { allergens: ["Choose valid allergens"] },
     });
     render(
@@ -164,8 +164,7 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
     fireEvent.click(screen.getByTestId("save-product-button"));
     await waitFor(() =>
       expect(mockUpdateProductAction).toHaveBeenCalledWith(
-        sampleProduct.id,
-        expect.objectContaining({ suggestAddOns: true }),
+        expect.objectContaining({ id: sampleProduct.id, suggestAddOns: true }),
       ),
     );
     rerender(
@@ -282,10 +281,7 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
 
     await waitFor(() => {
       expect(mockUpdateProductAction).toHaveBeenCalledWith(
-        sampleProduct.id,
-        expect.objectContaining({
-          name: "Burger Gourmet Deluxe",
-        }),
+        expect.objectContaining({ id: sampleProduct.id, name: "Burger Gourmet Deluxe" }),
       );
       expect(handleSaved).toHaveBeenCalled();
       expect(handleOpenChange).toHaveBeenCalledWith(false);

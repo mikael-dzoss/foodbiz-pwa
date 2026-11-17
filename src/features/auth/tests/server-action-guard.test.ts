@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ACTION_FORBIDDEN_CODE, OwnerRequiredError, type ManagerSession } from "@/domain/auth";
-import {
-  forbiddenResult,
-  isForbiddenError,
-  requireAuthenticatedAction,
-  requireOwnerAction,
-} from "../server-action-guard";
+import { OwnerRequiredError, type ManagerSession } from "@/domain/auth";
+import { requireAuthenticatedAction, requireOwnerAction } from "../server-action-guard";
 
 const mockRequireManagerSession = vi.fn();
 vi.mock("@/lib/auth", () => ({
@@ -60,20 +55,5 @@ describe("server action guards", () => {
   it("requireOwnerAction propagates an unauthenticated redirect untouched", async () => {
     mockRequireManagerSession.mockRejectedValueOnce(new Error("NEXT_REDIRECT"));
     await expect(requireOwnerAction()).rejects.toThrow("NEXT_REDIRECT");
-  });
-
-  it("forbiddenResult is a typed FORBIDDEN result with fixed text", () => {
-    expect(forbiddenResult()).toEqual({
-      success: false,
-      error: "Only an owner can do this.",
-      code: ACTION_FORBIDDEN_CODE,
-    });
-    expect(forbiddenResult().code).toBe("FORBIDDEN");
-  });
-
-  it("isForbiddenError recognises only OwnerRequiredError", () => {
-    expect(isForbiddenError(new OwnerRequiredError())).toBe(true);
-    expect(isForbiddenError(new Error("nope"))).toBe(false);
-    expect(isForbiddenError("OWNER_REQUIRED")).toBe(false);
   });
 });

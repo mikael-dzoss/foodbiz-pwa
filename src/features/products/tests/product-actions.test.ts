@@ -1,8 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { CreateProductInput, UpdateProductInput, Product } from "@/domain";
+import { listProducts } from "../product-data";
 import {
-  listProductsAction,
-  getProductAction,
   createProductAction,
   updateProductAction,
   toggleProductVisibilityAction,
@@ -12,10 +11,11 @@ import {
 } from "../product-actions";
 
 const mockRevalidatePath = vi.fn();
-const mockRevalidateTag = vi.fn();
+const mockUpdateTag = vi.fn();
 vi.mock("next/cache", () => ({
-  revalidatePath: (path: string) => mockRevalidatePath(path),
-  revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
+  revalidatePath: (path: string, type?: string) =>
+    type ? mockRevalidatePath(path, type) : mockRevalidatePath(path),
+  updateTag: (tag: string) => mockUpdateTag(tag),
 }));
 
 const mockUploadProductImage = vi.fn();
@@ -142,52 +142,27 @@ describe("Product Server Actions", () => {
     vi.clearAllMocks();
   });
 
-  describe("listProductsAction", () => {
+  describe("listProducts (data module)", () => {
     it("returns enriched products with category names and low stock threshold", async () => {
-      const res = await listProductsAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.products).toHaveLength(1);
-        expect(res.data.products[0].name).toBe("Burger Gourmet");
-        expect(res.data.products[0].categoryName).toBe("Plats");
-        expect(res.data.lowStockThreshold).toBe(5);
-        expect(res.data.categories).toHaveLength(1);
-      }
+      const res = await listProducts();
+      expect(res.products).toHaveLength(1);
+      expect(res.products[0].name).toBe("Burger Gourmet");
+      expect(res.products[0].categoryName).toBe("Plats");
+      expect(res.lowStockThreshold).toBe(5);
+      expect(res.categories).toHaveLength(1);
     });
 
-    it("rejects invalid filter input", async () => {
-      const res = await listProductsAction({ categoryId: "invalid-uuid" as unknown as string });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid product filter");
-      }
-    });
-  });
-
-  describe("getProductAction", () => {
-    it("returns product with category name when found", async () => {
-      const res = await getProductAction(validProductId);
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.name).toBe("Burger Gourmet");
-        expect(res.data.categoryName).toBe("Plats");
-      }
+    it("falls back to the default threshold and an Uncategorized label", async () => {
+      mockBusinessRepo.getSettings.mockResolvedValueOnce(null as never);
+      mockCategoryRepo.list.mockResolvedValueOnce([]);
+      const res = await listProducts();
+      expect(res.lowStockThreshold).toBe(5);
+      expect(res.products[0].categoryName).toBe("Uncategorized");
     });
 
-    it("rejects invalid product ID with validation error", async () => {
-      const res = await getProductAction("not-a-uuid");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid product ID");
-      }
-    });
-
-    it("returns error when product is not found", async () => {
-      const res = await getProductAction("00000000-0000-0000-0000-000000000000");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/not found/i);
-      }
+    it("throws on repository failure instead of returning an empty list", async () => {
+      mockProductRepo.list.mockRejectedValueOnce(new Error("Offline"));
+      await expect(listProducts()).rejects.toThrow("Offline");
     });
   });
 
@@ -195,35 +170,37 @@ describe("Product Server Actions", () => {
     it("defaults, persists and validates add-on suggestions on create and update", async () => {
       const input = { name: "Bread", categoryId: validCategoryId, price: 100 };
       expect(await createProductAction(input)).toMatchObject({
-        success: true,
+        ok: true,
         data: { suggestAddOns: true },
       });
       expect(await createProductAction({ ...input, suggestAddOns: false })).toMatchObject({
-        success: true,
+        ok: true,
         data: { suggestAddOns: false },
       });
-      expect(await updateProductAction(validProductId, { suggestAddOns: "on" })).toMatchObject({
-        success: true,
+      expect(await updateProductAction({ id: validProductId, suggestAddOns: "on" })).toMatchObject({
+        ok: true,
         data: { suggestAddOns: true },
       });
-      expect(await updateProductAction(validProductId, { suggestAddOns: false })).toMatchObject({
-        success: true,
-        data: { suggestAddOns: false },
-      });
+      expect(await updateProductAction({ id: validProductId, suggestAddOns: false })).toMatchObject(
+        {
+          ok: true,
+          data: { suggestAddOns: false },
+        },
+      );
       expect(await createProductAction({ ...input, suggestAddOns: null })).toMatchObject({
-        success: false,
+        ok: false,
         fieldErrors: { suggestAddOns: expect.any(Array) },
       });
-      expect(await updateProductAction(validProductId, { suggestAddOns: 1 })).toMatchObject({
-        success: false,
+      expect(await updateProductAction({ id: validProductId, suggestAddOns: 1 })).toMatchObject({
+        ok: false,
         fieldErrors: { suggestAddOns: expect.any(Array) },
       });
     });
     it("rejects unauthenticated add-on changes", async () => {
       mockRequireAuthenticatedAction.mockRejectedValueOnce(new Error("Unauthorized"));
-      await expect(updateProductAction(validProductId, { suggestAddOns: false })).rejects.toThrow(
-        "Unauthorized",
-      );
+      await expect(
+        updateProductAction({ id: validProductId, suggestAddOns: false }),
+      ).rejects.toThrow("Unauthorized");
       expect(mockProductRepo.update).not.toHaveBeenCalled();
     });
     it("creates and updates allergen tags and rejects invalid tags", async () => {
@@ -234,19 +211,21 @@ describe("Product Server Actions", () => {
         allergens: ["gluten", "milk"],
       };
       expect(await createProductAction(input)).toMatchObject({
-        success: true,
+        ok: true,
         data: { allergens: input.allergens },
       });
-      expect(await updateProductAction(validProductId, { allergens: [] })).toMatchObject({
-        success: true,
+      expect(await updateProductAction({ id: validProductId, allergens: [] })).toMatchObject({
+        ok: true,
         data: { allergens: [] },
       });
       expect(await createProductAction({ ...input, allergens: ["invalid"] })).toMatchObject({
-        success: false,
+        ok: false,
         fieldErrors: { allergens: expect.any(Array) },
       });
-      expect(await updateProductAction(validProductId, { allergens: ["invalid"] })).toMatchObject({
-        success: false,
+      expect(
+        await updateProductAction({ id: validProductId, allergens: ["invalid"] }),
+      ).toMatchObject({
+        ok: false,
         fieldErrors: { allergens: expect.any(Array) },
       });
     });
@@ -265,8 +244,8 @@ describe("Product Server Actions", () => {
         visible: "true",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.name).toBe("Tiramisu Maison");
         expect(res.data.price).toBe(500);
         expect(res.data.unitCost).toBe(180);
@@ -274,6 +253,10 @@ describe("Product Server Actions", () => {
       }
       expect(mockProductRepo.create).toHaveBeenCalled();
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+      // Public storefront pages (list and product detail) are refreshed too.
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+      expect(mockUpdateTag).toHaveBeenCalledWith(`storefront-catalog-${testBusinessId}`);
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/[locale]", "layout");
     });
 
     it("returns field errors on invalid input", async () => {
@@ -283,8 +266,8 @@ describe("Product Server Actions", () => {
         price: -5,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors).toBeDefined();
         expect(res.fieldErrors?.name).toBeDefined();
       }
@@ -297,28 +280,29 @@ describe("Product Server Actions", () => {
         price: 500,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/category does not exist/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/category does not exist/i);
       }
     });
   });
 
   describe("updateProductAction", () => {
     it("preserves allergens and add-on preference when omitted from partial updates", async () => {
-      expect(await updateProductAction(validProductId, { price: 200 })).toMatchObject({
-        success: true,
+      expect(await updateProductAction({ id: validProductId, price: 200 })).toMatchObject({
+        ok: true,
         data: { allergens: ["gluten"], suggestAddOns: false },
       });
     });
     it("updates product fields and calls revalidatePath", async () => {
-      const res = await updateProductAction(validProductId, {
+      const res = await updateProductAction({
+        id: validProductId,
         name: "Burger Gourmet Deluxe",
         price: "14,00",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(mockProductRepo.update).toHaveBeenCalledWith(
           testBusinessId,
           validProductId,
@@ -333,36 +317,36 @@ describe("Product Server Actions", () => {
       const newImageUrl = `https://storage.example.com/product-images/${testBusinessId}/new-image.webp`;
 
       // 1. Replaced with a new image URL
-      const resReplaced = await updateProductAction(validProductId, {
-        imageUrl: newImageUrl,
-      });
-      expect(resReplaced.success).toBe(true);
+      const resReplaced = await updateProductAction({ id: validProductId, imageUrl: newImageUrl });
+      expect(resReplaced.ok).toBe(true);
       expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
 
       mockRemoveProductImage.mockClear();
 
       // 2. Cleared with null
-      const resCleared = await updateProductAction(validProductId, {
-        imageUrl: null,
-      });
-      expect(resCleared.success).toBe(true);
+      const resCleared = await updateProductAction({ id: validProductId, imageUrl: null });
+      expect(resCleared.ok).toBe(true);
       expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
 
       mockRemoveProductImage.mockClear();
 
       // 3. Same image URL: no orphan removal
-      const resUnchanged = await updateProductAction(validProductId, {
+      const resUnchanged = await updateProductAction({
+        id: validProductId,
         imageUrl: "/images/burger.jpg",
       });
-      expect(resUnchanged.success).toBe(true);
+      expect(resUnchanged.ok).toBe(true);
       expect(mockRemoveProductImage).not.toHaveBeenCalled();
     });
   });
 
   describe("toggleProductVisibilityAction", () => {
     it("toggles product visibility", async () => {
-      const res = await toggleProductVisibilityAction(validProductId, false);
-      expect(res.success).toBe(true);
+      const res = await toggleProductVisibilityAction({
+        productId: validProductId,
+        visible: false,
+      });
+      expect(res.ok).toBe(true);
       expect(mockProductRepo.update).toHaveBeenCalledWith(testBusinessId, validProductId, {
         visible: false,
       });
@@ -373,7 +357,7 @@ describe("Product Server Actions", () => {
   describe("softDeleteProductAction", () => {
     it("soft-deletes product without hard delete and cleans up storage image (#123, L4a)", async () => {
       const res = await softDeleteProductAction(validProductId);
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
       expect(mockProductRepo.softDelete).toHaveBeenCalledWith(testBusinessId, validProductId);
       expect(mockRemoveProductImage).toHaveBeenCalledWith(testBusinessId, "/images/burger.jpg");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
@@ -386,23 +370,27 @@ describe("Product Server Actions", () => {
       });
 
       const res = await softDeleteProductAction(validProductId);
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
       expect(mockRemoveProductImage).not.toHaveBeenCalled();
     });
 
     it("rejects invalid product ID with validation error", async () => {
       const res = await softDeleteProductAction("not-a-uuid");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid product ID");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
       }
     });
   });
 
   describe("adjustProductStockAction", () => {
     it("updates stock when non-negative", async () => {
-      const res = await adjustProductStockAction(validProductId, 25, "Restock / Delivery");
-      expect(res.success).toBe(true);
+      const res = await adjustProductStockAction({
+        productId: validProductId,
+        stock: 25,
+        reason: "Restock / Delivery",
+      });
+      expect(res.ok).toBe(true);
       expect(mockProductRepo.update).toHaveBeenCalledWith(testBusinessId, validProductId, {
         stock: 25,
       });
@@ -410,10 +398,10 @@ describe("Product Server Actions", () => {
     });
 
     it("rejects negative stock adjustment", async () => {
-      const res = await adjustProductStockAction(validProductId, -5);
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/cannot be negative/i);
+      const res = await adjustProductStockAction({ productId: validProductId, stock: -5 });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/cannot be negative/i);
       }
     });
   });
@@ -433,8 +421,8 @@ describe("Product Server Actions", () => {
         const res = await uploadProductImageAction({
           base64Data: validBase64,
         });
-        expect(res.success).toBe(true);
-        if (res.success) {
+        expect(res.ok).toBe(true);
+        if (res.ok) {
           expect(res.data.imageUrl).toBe(validBase64);
         }
       });
@@ -443,9 +431,9 @@ describe("Product Server Actions", () => {
         const res = await uploadProductImageAction({
           base64Data: "not-an-image",
         });
-        expect(res.success).toBe(false);
-        if (!res.success) {
-          expect(res.error).toMatch(/valid image/i);
+        expect(res.ok).toBe(false);
+        if (!res.ok) {
+          expect(res.message).toMatch(/valid image/i);
         }
       });
 
@@ -453,9 +441,9 @@ describe("Product Server Actions", () => {
         const res = await uploadProductImageAction({
           base64Data: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
         });
-        expect(res.success).toBe(false);
-        if (!res.success) {
-          expect(res.error).toMatch(/unsupported image format/i);
+        expect(res.ok).toBe(false);
+        if (!res.ok) {
+          expect(res.message).toMatch(/unsupported image format/i);
         }
       });
     });
@@ -474,8 +462,8 @@ describe("Product Server Actions", () => {
           fileName: "burger.jpg",
         });
 
-        expect(res.success).toBe(true);
-        if (res.success) {
+        expect(res.ok).toBe(true);
+        if (res.ok) {
           expect(res.data.imageUrl).toBe(expectedUrl);
         }
         expect(mockUploadProductImage).toHaveBeenCalledWith(
@@ -496,9 +484,10 @@ describe("Product Server Actions", () => {
           base64Data: validBase64,
         });
 
-        expect(res.success).toBe(false);
-        if (!res.success) {
-          expect(res.error).toBe("Supabase Storage permission denied");
+        expect(res.ok).toBe(false);
+        if (!res.ok) {
+          expect(res.code).toBe("INTERNAL");
+          expect(res.message).not.toContain("permission denied");
         }
       });
 
@@ -507,7 +496,7 @@ describe("Product Server Actions", () => {
           base64Data: "not-a-valid-data-url",
         });
 
-        expect(res.success).toBe(false);
+        expect(res.ok).toBe(false);
         expect(mockUploadProductImage).not.toHaveBeenCalled();
       });
     });

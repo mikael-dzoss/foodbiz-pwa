@@ -110,8 +110,9 @@ describe("ExpenseSheet Component", () => {
 
   it("handles create action API failure and field errors", async () => {
     vi.spyOn(actions, "createExpenseAction").mockResolvedValue({
-      success: false,
-      error: "Validation failed on server",
+      ok: false,
+      code: "INTERNAL",
+      message: "Validation failed on server",
       fieldErrors: {
         description: ["Server rejected description"],
       },
@@ -127,15 +128,16 @@ describe("ExpenseSheet Component", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("expense-error-message")).toBeDefined();
-      expect(screen.getByText("Validation failed on server")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
       expect(screen.getByText("Server rejected description")).toBeDefined();
     });
   });
 
   it("handles update action API failure", async () => {
     vi.spyOn(actions, "updateExpenseAction").mockResolvedValue({
-      success: false,
-      error: "Update rejected by database",
+      ok: false,
+      code: "INTERNAL",
+      message: "Update rejected by database",
     });
 
     render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
@@ -144,7 +146,7 @@ describe("ExpenseSheet Component", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("expense-error-message")).toBeDefined();
-      expect(screen.getByText("Update rejected by database")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 
@@ -166,8 +168,9 @@ describe("ExpenseSheet Component", () => {
 
   it("handles delete confirmation and delete errors", async () => {
     vi.spyOn(actions, "deleteExpenseAction").mockResolvedValue({
-      success: false,
-      error: "Cannot delete expense",
+      ok: false,
+      code: "INTERNAL",
+      message: "Cannot delete expense",
     });
 
     render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
@@ -180,7 +183,7 @@ describe("ExpenseSheet Component", () => {
     fireEvent.click(screen.getByTestId("expense-delete-confirm-button"));
 
     await waitFor(() => {
-      expect(screen.getByText("Cannot delete expense")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 
@@ -193,7 +196,7 @@ describe("ExpenseSheet Component", () => {
     fireEvent.click(screen.getByTestId("expense-delete-confirm-button"));
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to delete expense.")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 

@@ -11,7 +11,8 @@ import {
   type OrderInsertSubscription,
   type RealtimeOrderClient,
 } from "@/lib/supabase/realtime";
-import { listOrdersAction, type EnrichedOrder } from "../order-actions";
+import { listOrdersAction } from "../order-actions";
+import type { EnrichedOrder } from "../order-data";
 import { playOrderChime } from "./sound-chime";
 
 export interface OrderAlertsContextValue {
@@ -103,7 +104,7 @@ export function OrderAlertsProvider({
     const checkPromise = (async () => {
       try {
         const res = await listOrdersAction({ statusTab: "active" });
-        if (!res.success) return;
+        if (!res.ok) return;
 
         const newOrders = res.data.orders.filter((o) => o.status === "NEW");
 

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-export const uuidSchema = z.string().uuid();
+export const uuidSchema = z.uuid();
 export const moneySchema = z.number().int().min(0);
-export const isoDateTimeSchema = z.string().datetime();
+export const isoDateTimeSchema = z.iso.datetime();
 export const isoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)");

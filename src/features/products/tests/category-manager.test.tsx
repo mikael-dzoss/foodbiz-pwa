@@ -30,11 +30,11 @@ const mockCategories = [
 describe("CategoryManager component", () => {
   it("creates and edits roles and shows the saved role", async () => {
     vi.spyOn(categoryActions, "createCategoryAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: { ...mockCategories[0], id: "new", name: "Coffee", role: "drinks" },
     });
     vi.spyOn(categoryActions, "renameCategoryAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: { ...mockCategories[0], role: "snacks" },
     });
     render(<CategoryManager initialCategories={mockCategories} />);
@@ -88,7 +88,7 @@ describe("CategoryManager component", () => {
 
   it("creates a new category on form submit", async () => {
     vi.spyOn(categoryActions, "createCategoryAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         id: "22222222-2222-4222-8222-222222222203",
         businessId: "11111111-1111-4111-8111-111111111111",
@@ -114,8 +114,9 @@ describe("CategoryManager component", () => {
 
   it("displays error when creation fails", async () => {
     vi.spyOn(categoryActions, "createCategoryAction").mockResolvedValueOnce({
-      success: false,
-      error: "A category with this name already exists",
+      ok: false,
+      code: "INTERNAL",
+      message: "A category with this name already exists",
     });
 
     render(<CategoryManager initialCategories={mockCategories} />);
@@ -127,13 +128,13 @@ describe("CategoryManager component", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("A category with this name already exists")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 
   it("handles category renaming", async () => {
     vi.spyOn(categoryActions, "renameCategoryAction").mockResolvedValueOnce({
-      success: true,
+      ok: true,
       data: {
         id: "22222222-2222-4222-8222-222222222201",
         businessId: "11111111-1111-4111-8111-111111111111",
@@ -162,8 +163,9 @@ describe("CategoryManager component", () => {
 
   it("handles category deletion and displays error if non-empty", async () => {
     vi.spyOn(categoryActions, "deleteCategoryAction").mockResolvedValueOnce({
-      success: false,
-      error: "Cannot delete category: 3 product(s) are assigned to it.",
+      ok: false,
+      code: "INTERNAL",
+      message: "Cannot delete category: 3 product(s) are assigned to it.",
     });
 
     render(<CategoryManager initialCategories={mockCategories} />);
@@ -172,9 +174,7 @@ describe("CategoryManager component", () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Cannot delete category: 3 product(s) are assigned to it."),
-      ).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 

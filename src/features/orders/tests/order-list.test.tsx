@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { OrderList } from "../components/order-list";
-import type { ListOrdersResult } from "../order-actions";
+import type { ListOrdersResult } from "../order-data";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

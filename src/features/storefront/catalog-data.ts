@@ -1,4 +1,5 @@
-import { cacheLife, cacheTag, revalidateTag, revalidatePath } from "next/cache";
+import "server-only";
+import { cacheLife, cacheTag, updateTag, revalidatePath } from "next/cache";
 import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";
 import type { BusinessSettings } from "@/domain/business";
@@ -219,12 +220,12 @@ export async function getStorefrontProduct(
 }
 
 /**
- * Revalidates all storefront cached data when products, categories, or settings mutate.
+ * Expires the cached storefront catalog (list and product pages share the `storefront-catalog`
+ * tag) so the next visit reads fresh data. Server Actions only (`updateTag`): call it after any
+ * change that customers can see: products, categories, stock, business profile and settings.
  */
-export async function revalidateStorefrontCatalog(
-  businessId = getStorefrontBusinessId(),
-): Promise<void> {
-  revalidateTag("storefront-catalog", "max");
-  revalidateTag(`storefront-catalog-${businessId}`, "max");
+export function revalidateStorefrontCatalog(businessId = getStorefrontBusinessId()): void {
+  updateTag("storefront-catalog");
+  updateTag(`storefront-catalog-${businessId}`);
   revalidatePath("/[locale]", "layout");
 }

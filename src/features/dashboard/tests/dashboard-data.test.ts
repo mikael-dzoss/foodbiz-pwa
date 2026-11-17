@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Expense, Order, Product } from "@/domain";
-import { getDashboardDataAction } from "../dashboard-actions";
+import { getDashboardData } from "../dashboard-data";
 
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const guestBobId = "77777777-7777-4111-8111-777777777701";
@@ -160,51 +160,33 @@ describe("Dashboard Server Actions", () => {
     ];
   });
 
-  it("loads dashboard data with default 'today' preset", async () => {
-    const res = await getDashboardDataAction({ referenceDate: "2026-10-15" });
+  it("loads dashboard data with the default 'today' preset", async () => {
+    const data = await getDashboardData(undefined, "2026-10-15");
 
-    expect(res.success).toBe(true);
-    if (!res.success) return;
-
-    expect(res.data.periodPreset).toBe("today");
-    expect(res.data.kpis.current.revenue).toBe(2400);
-    expect(res.data.kpis.current.costs).toBe(500);
-    expect(res.data.kpis.current.profit).toBe(1900);
-    expect(res.data.triage.toPrepare.count).toBe(2);
-    expect(res.data.triage.unpaid.count).toBe(1);
-    expect(res.data.triage.unpaid.totalAmount).toBe(1500);
-    expect(res.data.triage.lowStock.count).toBe(1);
-    expect(res.data.activity).toHaveLength(3);
+    expect(data.periodPreset).toBe("today");
+    expect(data.kpis.current.revenue).toBe(2400);
+    expect(data.kpis.current.costs).toBe(500);
+    expect(data.kpis.current.profit).toBe(1900);
+    expect(data.triage.toPrepare.count).toBe(2);
+    expect(data.triage.unpaid.count).toBe(1);
+    expect(data.triage.unpaid.totalAmount).toBe(1500);
+    expect(data.triage.lowStock.count).toBe(1);
+    expect(data.activity).toHaveLength(3);
   });
 
   it("supports periodPreset filtering ('last_7_days')", async () => {
-    const res = await getDashboardDataAction({
-      periodPreset: "last_7_days",
-      referenceDate: "2026-10-15",
-    });
+    const data = await getDashboardData("last_7_days", "2026-10-15");
 
-    expect(res.success).toBe(true);
-    if (!res.success) return;
-
-    expect(res.data.periodPreset).toBe("last_7_days");
-    expect(res.data.period.startDate).toBe("2026-10-09");
-    expect(res.data.period.endDate).toBe("2026-10-15");
+    expect(data.periodPreset).toBe("last_7_days");
+    expect(data.period.startDate).toBe("2026-10-09");
+    expect(data.period.endDate).toBe("2026-10-15");
   });
 
-  it("fails gracefully on invalid input parameters", async () => {
-    const res = await getDashboardDataAction({ periodPreset: "invalid_period" });
-
-    expect(res.success).toBe(false);
-    if (res.success) return;
-    expect(res.error).toContain("Invalid dashboard query parameters");
-  });
-
-  it("catches repository or authentication failure", async () => {
+  it("throws on authentication or repository failure instead of returning empty data", async () => {
     mockRequireAuthenticatedAction.mockRejectedValueOnce(new Error("Unauthorized access"));
+    await expect(getDashboardData()).rejects.toThrow("Unauthorized access");
 
-    const res = await getDashboardDataAction();
-    expect(res.success).toBe(false);
-    if (res.success) return;
-    expect(res.error).toBe("Unauthorized access");
+    mockOrderRepo.list.mockRejectedValueOnce(new Error("Offline"));
+    await expect(getDashboardData()).rejects.toThrow("Offline");
   });
 });

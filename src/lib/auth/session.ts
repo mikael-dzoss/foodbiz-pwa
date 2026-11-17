@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerEnv } from "@/config/env";
@@ -16,11 +17,12 @@ import { maybeAutoProvisionDevManager } from "./dev-provisioning";
 export { MOCK_AUTH_COOKIE_NAME };
 
 /**
- * Retrieves the current manager session.
+ * Retrieves the current manager session, resolved once per request (`React.cache`): the layout, the
+ * page and every data module share one Supabase client and one auth/membership lookup.
  * In mock mode (development only), returns the mock manager fixture.
  * In production, mock sessions are strictly forbidden and throw.
  */
-export async function getManagerSession(): Promise<ManagerSession | null> {
+export const getManagerSession = cache(async (): Promise<ManagerSession | null> => {
   const env = getServerEnv();
 
   if (env.DATA_SOURCE === "mock") {
@@ -82,7 +84,7 @@ export async function getManagerSession(): Promise<ManagerSession | null> {
     business: membership.business,
     expiresAt,
   });
-}
+});
 
 /**
  * Enforces manager authentication on server components and server actions.

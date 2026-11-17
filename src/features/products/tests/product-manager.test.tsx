@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ProductManager } from "../components/product-manager";
-import type { EnrichedProduct } from "../product-actions";
+import type { EnrichedProduct } from "../product-data";
 import type { ProductCategory } from "@/domain";
 
 const mockAdjustProductStockAction = vi.fn();
@@ -101,8 +101,8 @@ const sampleProducts: EnrichedProduct[] = [
 describe("ProductManager Component (Screen M-40)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAdjustProductStockAction.mockResolvedValue({ success: true });
-    mockToggleProductVisibilityAction.mockResolvedValue({ success: true });
+    mockAdjustProductStockAction.mockResolvedValue({ ok: true });
+    mockToggleProductVisibilityAction.mockResolvedValue({ ok: true });
   });
 
   it("renders products list with search, filter chips, and badges", () => {
@@ -293,12 +293,12 @@ describe("ProductManager Component (Screen M-40)", () => {
     const plusBtn = screen.getByTestId("quick-stock-plus-prod-1");
     fireEvent.click(plusBtn);
 
-    expect(mockAdjustProductStockAction).toHaveBeenCalledWith("prod-1", 19);
+    expect(mockAdjustProductStockAction).toHaveBeenCalledWith({ productId: "prod-1", stock: 19 });
 
     const minusBtn = screen.getByTestId("quick-stock-minus-prod-1");
     fireEvent.click(minusBtn);
 
-    expect(mockAdjustProductStockAction).toHaveBeenCalledWith("prod-1", 18);
+    expect(mockAdjustProductStockAction).toHaveBeenCalledWith({ productId: "prod-1", stock: 18 });
   });
 
   it("handles quick visibility toggle (soft delete / hide)", async () => {
@@ -307,7 +307,10 @@ describe("ProductManager Component (Screen M-40)", () => {
     const toggleBtn = screen.getByTestId("toggle-visibility-prod-1");
     fireEvent.click(toggleBtn);
 
-    expect(mockToggleProductVisibilityAction).toHaveBeenCalledWith("prod-1", false);
+    expect(mockToggleProductVisibilityAction).toHaveBeenCalledWith({
+      productId: "prod-1",
+      visible: false,
+    });
   });
 
   it("opens product form sheet on Add Product click", () => {

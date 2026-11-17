@@ -54,7 +54,7 @@ vi.mock("@/components/ui", async (importOriginal) => {
 
 vi.mock("../actions", () => ({
   updatePaymentSettingsAction: vi.fn(async () => ({
-    success: true,
+    ok: true,
     data: mockSettings,
   })),
 }));
@@ -162,8 +162,9 @@ describe("PaymentSettingsForm component (M-64)", () => {
 
   it("displays server error when action fails", async () => {
     vi.mocked(actions.updatePaymentSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Failed to update payment settings",
+      ok: false,
+      code: "INTERNAL",
+      message: "Failed to update payment settings",
     });
 
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
@@ -172,7 +173,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith("Failed to update payment settings");
+      expect(mockShowToast).toHaveBeenCalledWith("Something went wrong. Please try again.");
     });
   });
 
@@ -216,8 +217,9 @@ describe("PaymentSettingsForm component (M-64)", () => {
 
   it("displays field error when action returns fieldErrors", async () => {
     vi.mocked(actions.updatePaymentSettingsAction).mockResolvedValueOnce({
-      success: false,
-      error: "Validation error",
+      ok: false,
+      code: "INTERNAL",
+      message: "Validation error",
       fieldErrors: {
         paymentMethods: ["Please select at least one method"],
       },

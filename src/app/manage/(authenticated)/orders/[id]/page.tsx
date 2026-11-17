@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireManagerSession } from "@/lib/auth";
-import { getOrderAction } from "@/features/orders";
+import { getOrder } from "@/features/orders/order-data";
 import { OrderDetail } from "@/features/orders/components/order-detail";
 import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
 import { isOwnerRole } from "@/domain/auth";
@@ -26,15 +26,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const dict = getDictionary(DEFAULT_LOCALE);
   const { id } = await params;
 
-  const res = await getOrderAction(id);
-  if (!res.success || !res.data.order) {
-    notFound();
-  }
+  const found = await getOrder(id);
+  if (!found) notFound();
 
   return (
     <div className="mx-auto max-w-xl">
       <OrderDetail
-        order={res.data.order}
+        order={found.order}
         refundDisabledReason={
           isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice
         }

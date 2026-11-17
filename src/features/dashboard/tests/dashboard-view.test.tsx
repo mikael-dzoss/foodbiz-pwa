@@ -2,10 +2,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DashboardView } from "../components/dashboard-view";
 import type { DashboardData } from "@/domain";
-import * as actions from "../dashboard-actions";
 
-vi.mock("../dashboard-actions", () => ({
-  getDashboardDataAction: vi.fn(),
+const mockReplace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace }),
 }));
 
 const mockData: DashboardData = {
@@ -151,36 +151,31 @@ describe("DashboardView Component", () => {
     expect(aovCard.textContent).toContain("+4.1%");
   });
 
-  it("switches period when tab is clicked and refreshes dashboard data", async () => {
-    const updatedData: DashboardData = {
-      ...mockData,
-      periodPreset: "last_7_days",
-      period: { startDate: "2026-10-09", endDate: "2026-10-15" },
-      kpis: {
-        ...mockData.kpis,
-        current: {
-          ...mockData.kpis.current,
-          revenue: 125000,
-        },
-      },
-    };
-
-    vi.mocked(actions.getDashboardDataAction).mockResolvedValueOnce({
-      success: true,
-      data: updatedData,
-    });
-
+  it("switches period through the URL so the server re-renders with fresh data", async () => {
     render(<DashboardView initialData={mockData} />);
 
-    const sevenDaysTab = screen.getByTestId("period-tab-last_7_days");
-    fireEvent.click(sevenDaysTab);
+    fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
 
     await waitFor(() => {
-      expect(actions.getDashboardDataAction).toHaveBeenCalledWith({
-        periodPreset: "last_7_days",
+      expect(mockReplace).toHaveBeenCalledWith("/manage?period=last_7_days", {
+        scroll: false,
       });
-      expect(screen.getByTestId("kpi-revenue").textContent).toContain("€1,250.00");
     });
+  });
+
+  it("derives the selected period from server data, not from the last click", async () => {
+    const { rerender } = render(<DashboardView initialData={mockData} />);
+    const selected = (id: string) => screen.getByTestId(id).getAttribute("aria-selected");
+    expect(selected("period-tab-today")).toBe("true");
+
+    // Navigation that never lands (failed/cancelled): the tab falls back to the server value.
+    fireEvent.click(screen.getByTestId("period-tab-last_7_days"));
+    await waitFor(() => expect(selected("period-tab-today")).toBe("true"));
+
+    // Back/forward: new server data moves the tab.
+    rerender(<DashboardView initialData={{ ...mockData, periodPreset: "last_30_days" }} />);
+    expect(selected("period-tab-last_30_days")).toBe("true");
+    expect(selected("period-tab-today")).toBe("false");
   });
 
   it("renders translated French strings when locale='fr'", () => {

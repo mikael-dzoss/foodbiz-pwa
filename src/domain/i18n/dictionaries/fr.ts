@@ -628,6 +628,25 @@ export const frDictionary: Dictionary = {
     retry: "Réessayer",
     back: "Retour",
     ownerOnlyNotice: "Seul le propriétaire de la boutique peut modifier ceci.",
+    actionErrors: {
+      VALIDATION: "Vérifiez les informations et réessayez.",
+      UNAUTHENTICATED: "Veuillez vous reconnecter.",
+      FORBIDDEN: "Seul le propriétaire de la boutique peut faire ceci.",
+      NOT_FOUND: "Introuvable. Cet élément a peut-être été supprimé.",
+      CONFLICT: "Ceci a changé entre-temps. Rechargez la page et réessayez.",
+      RATE_LIMITED: "Trop de tentatives. Veuillez réessayer plus tard.",
+      INTERNAL: "Une erreur est survenue. Veuillez réessayer.",
+    },
+    actionReasons: {
+      STOCK_ERROR: "Certains articles ne sont pas disponibles dans la quantité demandée.",
+      ORDER_STATE_CONFLICT:
+        "Cette commande a été modifiée ailleurs. Rechargez la page et réessayez.",
+    },
+    pageError: {
+      title: "Impossible de charger cette page",
+      message: "Une erreur est survenue lors du chargement de vos données. Veuillez réessayer.",
+      reference: "Référence",
+    },
   },
   auth: {
     continueWithGoogle: "Continuer avec Google",

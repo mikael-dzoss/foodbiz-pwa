@@ -22,6 +22,7 @@ import { SoonBadge } from "@/components/feedback";
 import { STANDARD_EXPENSE_TAGS, type Expense, type StandardExpenseTag } from "@/domain";
 import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "../expense-actions";
 import { Check, Trash2, FileText, AlertCircle } from "lucide-react";
+import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface ExpenseSheetProps {
   open: boolean;
@@ -144,18 +145,19 @@ function ExpenseForm({
 
     try {
       if (isEdit && expense) {
-        const res = await updateExpenseAction(expense.id, {
+        const res = await updateExpenseAction({
+          id: expense.id,
           amount: amountInCents,
           description: description.trim(),
           date: date.trim(),
           tags: selectedTags,
         });
 
-        if (res.success) {
+        if (res.ok) {
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(res.error);
+          setErrorMessage(actionErrorMessage(res));
           if (res.fieldErrors) {
             setFieldErrors(res.fieldErrors);
           }
@@ -168,11 +170,11 @@ function ExpenseForm({
           tags: selectedTags,
         });
 
-        if (res.success) {
+        if (res.ok) {
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(res.error);
+          setErrorMessage(actionErrorMessage(res));
           if (res.fieldErrors) {
             setFieldErrors(res.fieldErrors);
           }
@@ -192,16 +194,16 @@ function ExpenseForm({
 
     try {
       const res = await deleteExpenseAction(expense.id);
-      if (res.success) {
+      if (res.ok) {
         onDeleted?.(expense.id);
         setShowDeleteConfirm(false);
         onClose();
       } else {
-        setErrorMessage(res.error);
+        setErrorMessage(actionErrorMessage(res));
         setShowDeleteConfirm(false);
       }
     } catch {
-      setErrorMessage("Failed to delete expense.");
+      setErrorMessage(actionErrorMessage({ code: "INTERNAL" }));
       setShowDeleteConfirm(false);
     } finally {
       setIsDeleting(false);

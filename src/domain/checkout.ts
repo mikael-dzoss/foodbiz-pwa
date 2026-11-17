@@ -22,7 +22,7 @@ export const checkoutFormSchema = z
       .trim()
       .min(1, "Phone number is required")
       .refine((val) => isValidPhoneNumber(val), {
-        message: "Invalid phone number format",
+        error: "Invalid phone number format",
       }),
     serviceType: serviceTypeSchema,
     deliveryAddress: z
@@ -42,7 +42,7 @@ export const checkoutFormSchema = z
       const address = data.deliveryAddress?.trim() ?? "";
       if (address.length < 5) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["deliveryAddress"],
           message: "Delivery address is required for delivery",
         });
@@ -50,7 +50,7 @@ export const checkoutFormSchema = z
     }
     if (!data.isAsap && !data.requestedDate) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["requestedDate"],
         message: "Please select a date for scheduled orders",
       });
@@ -100,7 +100,7 @@ export const placeOrderInputSchema = z
       .trim()
       .min(1, "Phone number is required")
       .refine((val) => isValidPhoneNumber(val), {
-        message: "Invalid phone number format",
+        error: "Invalid phone number format",
       }),
     serviceType: serviceTypeSchema,
     deliveryAddress: z
@@ -123,7 +123,7 @@ export const placeOrderInputSchema = z
       const address = data.deliveryAddress?.trim() ?? "";
       if (address.length < 5) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["deliveryAddress"],
           message: "Delivery address is required for delivery",
         });
@@ -131,7 +131,7 @@ export const placeOrderInputSchema = z
     }
     if (!data.isAsap && !data.requestedDate) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["requestedDate"],
         message: "Please select a date for scheduled orders",
       });
@@ -162,24 +162,16 @@ export interface PlaceOrderSuccessData {
   readonly totalAmount: number;
 }
 
-export const PLACE_ORDER_ERROR_CODES = [
-  "VALIDATION_ERROR",
+/**
+ * Stable `reason` of a refused place-order action (`ActionFailure.reason`); the checkout maps each
+ * to a localized message. Failures without one fall back to their action code.
+ */
+export const PLACE_ORDER_REASONS = [
   "ANTI_ABUSE_REJECTION",
   "STORE_CLOSED",
   "SERVICE_TYPE_DISABLED",
   "MINIMUM_ORDER_UNMET",
   "STOCK_ERROR",
-  "INTERNAL_ERROR",
 ] as const;
 
-export type PlaceOrderErrorCode = (typeof PLACE_ORDER_ERROR_CODES)[number];
-
-export type PlaceOrderResult =
-  | { readonly success: true; readonly data: PlaceOrderSuccessData }
-  | {
-      readonly success: false;
-      readonly error: string;
-      readonly code?: PlaceOrderErrorCode;
-      readonly fieldErrors?: Record<string, string[]>;
-      readonly lineErrors?: Record<string, string>;
-    };
+export type PlaceOrderReason = (typeof PLACE_ORDER_REASONS)[number];

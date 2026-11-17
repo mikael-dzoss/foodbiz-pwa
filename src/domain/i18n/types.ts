@@ -243,7 +243,7 @@ export interface StorefrontDictionary {
   pickupPolicyNotice: string;
   orderPlacedTitle: string;
   redirectingToTracking: string;
-  /** Customer-facing place-order failure messages, one per PlaceOrderErrorCode (never raw server text). */
+  /** Customer-facing place-order failure messages, one per PlaceOrderReason / action code (never raw server text). */
   orderErrorValidation: string;
   orderErrorAntiAbuse: string;
   orderErrorStoreClosed: string;
@@ -326,6 +326,27 @@ export interface CommonDictionary {
   back: string;
   /** Shown next to a control that only the shop owner may use (disabled with explanation). */
   ownerOnlyNotice: string;
+  /** Generic message per Server Action failure code (see `actionErrorMessage`). */
+  actionErrors: {
+    VALIDATION: string;
+    UNAUTHENTICATED: string;
+    FORBIDDEN: string;
+    NOT_FOUND: string;
+    CONFLICT: string;
+    RATE_LIMITED: string;
+    INTERNAL: string;
+  };
+  /** Specific copy for known domain reasons, preferred over the per-code message. */
+  actionReasons: {
+    STOCK_ERROR: string;
+    ORDER_STATE_CONFLICT: string;
+  };
+  /** Manager area error boundary (a page read failed). */
+  pageError: {
+    title: string;
+    message: string;
+    reference: string;
+  };
 }
 
 export interface SettingsDictionary {

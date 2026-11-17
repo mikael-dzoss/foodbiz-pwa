@@ -18,6 +18,7 @@ if (typeof window !== "undefined" && window.CustomEvent) {
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
   cacheTag: vi.fn(),
   cacheLife: vi.fn(),
 }));

@@ -623,6 +623,24 @@ export const enDictionary: Dictionary = {
     retry: "Try again",
     back: "Back",
     ownerOnlyNotice: "Only the shop owner can change this.",
+    actionErrors: {
+      VALIDATION: "Please check the details and try again.",
+      UNAUTHENTICATED: "Please sign in again.",
+      FORBIDDEN: "Only the shop owner can do this.",
+      NOT_FOUND: "We could not find that. It may have been removed.",
+      CONFLICT: "This changed in the meantime. Please reload and try again.",
+      RATE_LIMITED: "Too many attempts. Please try again later.",
+      INTERNAL: "Something went wrong. Please try again.",
+    },
+    actionReasons: {
+      STOCK_ERROR: "Some items are not available in the requested quantity.",
+      ORDER_STATE_CONFLICT: "This order was updated elsewhere. Please reload and try again.",
+    },
+    pageError: {
+      title: "We could not load this page",
+      message: "Something went wrong while loading your data. Please try again.",
+      reference: "Reference",
+    },
   },
   auth: {
     continueWithGoogle: "Continue with Google",

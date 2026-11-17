@@ -1,18 +1,19 @@
 import { requireAuthenticatedAction } from "@/features/auth";
 import type { CreateCategoryInput, UpdateCategoryInput } from "@/domain/repositories/types";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { listCategories } from "../category-data";
 import {
-  listCategoriesAction,
   createCategoryAction,
   renameCategoryAction,
   deleteCategoryAction,
 } from "../category-actions";
 
 const mockRevalidatePath = vi.fn();
-const mockRevalidateTag = vi.fn();
+const mockUpdateTag = vi.fn();
 vi.mock("next/cache", () => ({
-  revalidatePath: (path: string) => mockRevalidatePath(path),
-  revalidateTag: (tag: string, profile?: string) => mockRevalidateTag(tag, profile),
+  revalidatePath: (path: string, type?: string) =>
+    type ? mockRevalidatePath(path, type) : mockRevalidatePath(path),
+  updateTag: (tag: string) => mockUpdateTag(tag),
 }));
 
 const mockCategories = [
@@ -94,14 +95,11 @@ describe("features: category actions", () => {
     vi.clearAllMocks();
   });
 
-  describe("listCategoriesAction", () => {
+  describe("listCategories (data module)", () => {
     it("returns list of categories", async () => {
-      const res = await listCategoriesAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data).toHaveLength(2);
-        expect(res.data[0].name).toBe("Breads");
-      }
+      const res = await listCategories();
+      expect(res).toHaveLength(2);
+      expect(res[0].name).toBe("Breads");
     });
 
     it("returns list of categories with computed product counts", async () => {
@@ -110,30 +108,32 @@ describe("features: category actions", () => {
         { id: "p2", categoryId: "22222222-2222-4222-8222-222222222201" },
       ] as unknown as import("@/domain/product").Product[]);
 
-      const res = await listCategoriesAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data[0].productCount).toBe(2);
-        expect(res.data[1].productCount).toBe(0);
-      }
+      const res = await listCategories();
+      expect(res[0].productCount).toBe(2);
+      expect(res[1].productCount).toBe(0);
+    });
+
+    it("throws on repository failure instead of returning an empty list", async () => {
+      mockCategoryRepo.list.mockRejectedValueOnce(new Error("Offline"));
+      await expect(listCategories()).rejects.toThrow("Offline");
     });
   });
 
   describe("createCategoryAction", () => {
     it("creates and edits category roles with validation", async () => {
       expect(await createCategoryAction({ name: "Coffee", role: "drinks" })).toMatchObject({
-        success: true,
+        ok: true,
         data: { role: "drinks" },
       });
       expect(
         await renameCategoryAction({ id: mockCategories[0].id, name: "Breads", role: "snacks" }),
-      ).toMatchObject({ success: true, data: { role: "snacks" } });
+      ).toMatchObject({ ok: true, data: { role: "snacks" } });
       expect(await createCategoryAction({ name: "Coffee", role: "invalid" })).toMatchObject({
-        success: false,
+        ok: false,
       });
       expect(
         await renameCategoryAction({ id: mockCategories[0].id, name: "Breads", role: "invalid" }),
-      ).toMatchObject({ success: false });
+      ).toMatchObject({ ok: false });
     });
     it("requires authentication before changing roles", async () => {
       vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
@@ -144,26 +144,28 @@ describe("features: category actions", () => {
     });
     it("creates a new category when name is valid and unique", async () => {
       const res = await createCategoryAction({ name: "Sandwiches" });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.name).toBe("Sandwiches");
         expect(mockCategoryRepo.create).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/categories");
+        expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+        expect(mockRevalidatePath).toHaveBeenCalledWith("/[locale]", "layout");
       }
     });
 
     it("rejects duplicate category name (case-insensitive)", async () => {
       const res = await createCategoryAction({ name: "breads" });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/already exists/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/already exists/i);
       }
       expect(mockCategoryRepo.create).not.toHaveBeenCalled();
     });
 
     it("rejects invalid input", async () => {
       const res = await createCategoryAction({ name: "" });
-      expect(res.success).toBe(false);
+      expect(res.ok).toBe(false);
       expect(mockCategoryRepo.create).not.toHaveBeenCalled();
     });
   });
@@ -174,8 +176,8 @@ describe("features: category actions", () => {
         id: "22222222-2222-4222-8222-222222222201",
         name: "Artisan Breads",
       });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.name).toBe("Artisan Breads");
         expect(mockCategoryRepo.update).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/categories");
@@ -187,7 +189,7 @@ describe("features: category actions", () => {
         id: "22222222-2222-4222-8222-222222222201",
         name: "Breads",
       });
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
     });
 
     it("rejects renaming to an existing name of another category", async () => {
@@ -195,9 +197,9 @@ describe("features: category actions", () => {
         id: "22222222-2222-4222-8222-222222222201",
         name: "Pastries",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/already exists/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/already exists/i);
       }
       expect(mockCategoryRepo.update).not.toHaveBeenCalled();
     });
@@ -210,7 +212,7 @@ describe("features: category actions", () => {
       const res = await deleteCategoryAction({
         id: "22222222-2222-4222-8222-222222222201",
       });
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
       expect(mockCategoryRepo.delete).toHaveBeenCalledWith(
         "11111111-1111-4111-8111-111111111111",
         "22222222-2222-4222-8222-222222222201",
@@ -224,16 +226,16 @@ describe("features: category actions", () => {
       const res = await deleteCategoryAction({
         id: "22222222-2222-4222-8222-222222222202",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/cannot delete.*product.*assigned/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/cannot delete.*product.*assigned/i);
       }
       expect(mockCategoryRepo.delete).not.toHaveBeenCalled();
     });
 
     it("rejects invalid input schema", async () => {
       const res = await deleteCategoryAction({ id: "invalid-id" });
-      expect(res.success).toBe(false);
+      expect(res.ok).toBe(false);
       expect(mockCategoryRepo.delete).not.toHaveBeenCalled();
     });
   });

@@ -31,7 +31,7 @@ vi.mock("@/components/ui", () => ({
 
 vi.mock("../actions", () => ({
   updateBusinessProfileAction: vi.fn(async () => ({
-    success: true,
+    ok: true,
     data: mockBusiness,
   })),
 }));
@@ -80,8 +80,9 @@ describe("BusinessProfileForm component", () => {
   });
   it("announces social URL validation errors", async () => {
     vi.mocked(actions.updateBusinessProfileAction).mockResolvedValueOnce({
-      success: false,
-      error: "Invalid URL",
+      ok: false,
+      code: "INTERNAL",
+      message: "Invalid URL",
       fieldErrors: { instagramUrl: ["HTTPS required"] },
     });
     render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
@@ -154,8 +155,9 @@ describe("BusinessProfileForm component", () => {
 
   it("displays validation error when action returns fieldErrors", async () => {
     vi.mocked(actions.updateBusinessProfileAction).mockResolvedValueOnce({
-      success: false,
-      error: "Store web address slug is already taken",
+      ok: false,
+      code: "INTERNAL",
+      message: "Store web address slug is already taken",
       fieldErrors: {
         slug: ["This web address is already in use by another shop"],
       },
@@ -211,8 +213,9 @@ describe("BusinessProfileForm component", () => {
     );
 
     vi.mocked(actions.updateBusinessProfileAction).mockResolvedValueOnce({
-      success: false,
-      error: "Invalid coordinates",
+      ok: false,
+      code: "INTERNAL",
+      message: "Invalid coordinates",
       fieldErrors: {
         latitude: ["Latitude must be between -90 and 90"],
         longitude: ["Longitude must be between -180 and 180"],

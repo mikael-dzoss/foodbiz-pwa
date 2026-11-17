@@ -26,19 +26,19 @@ vi.mock("@/lib/auth", () => ({
   })),
 }));
 
+vi.mock("@/features/products/category-data", () => ({
+  listCategories: vi.fn(async () => [
+    {
+      id: "22222222-2222-4222-8222-222222222201",
+      businessId: "11111111-1111-4111-8111-111111111111",
+      name: "Breads",
+      sortOrder: 1,
+      createdAt: "2026-08-01T08:00:00.000Z",
+    },
+  ]),
+}));
+
 vi.mock("@/features/products/category-actions", () => ({
-  listCategoriesAction: vi.fn(async () => ({
-    success: true,
-    data: [
-      {
-        id: "22222222-2222-4222-8222-222222222201",
-        businessId: "11111111-1111-4111-8111-111111111111",
-        name: "Breads",
-        sortOrder: 1,
-        createdAt: "2026-08-01T08:00:00.000Z",
-      },
-    ],
-  })),
   createCategoryAction: vi.fn(),
   renameCategoryAction: vi.fn(),
   deleteCategoryAction: vi.fn(),

@@ -151,7 +151,7 @@ describe("ExpenseManager Component", () => {
     };
 
     vi.spyOn(actions, "createExpenseAction").mockResolvedValue({
-      success: true,
+      ok: true,
       data: createdExpense,
     });
 
@@ -191,7 +191,7 @@ describe("ExpenseManager Component", () => {
     };
 
     vi.spyOn(actions, "updateExpenseAction").mockResolvedValue({
-      success: true,
+      ok: true,
       data: updatedExpense,
     });
 
@@ -208,7 +208,8 @@ describe("ExpenseManager Component", () => {
     fireEvent.click(screen.getByTestId("expense-submit-button"));
 
     await waitFor(() => {
-      expect(actions.updateExpenseAction).toHaveBeenCalledWith(mockExpenses[0].id, {
+      expect(actions.updateExpenseAction).toHaveBeenCalledWith({
+        id: mockExpenses[0].id,
         amount: 13000,
         date: expect.any(String),
         description: "Fresh Organic Vegetables (local)",
@@ -223,7 +224,7 @@ describe("ExpenseManager Component", () => {
 
   it("deletes an expense with confirmation dialog via deleteExpenseAction", async () => {
     vi.spyOn(actions, "deleteExpenseAction").mockResolvedValue({
-      success: true,
+      ok: true,
       data: undefined,
     });
 

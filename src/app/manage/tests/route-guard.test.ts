@@ -9,16 +9,18 @@ vi.mock("@/lib/auth", () => ({
 
 import { buildDashboardData } from "@/domain";
 
-vi.mock("@/features/dashboard", () => ({
-  getDashboardDataAction: vi.fn(async () => ({
-    success: true,
-    data: buildDashboardData({
+vi.mock("@/features/dashboard/dashboard-data", () => ({
+  getDashboardData: vi.fn(async () =>
+    buildDashboardData({
       orders: [],
       expenses: [],
       products: [],
       periodPreset: "today",
     }),
-  })),
+  ),
+}));
+
+vi.mock("@/features/dashboard", () => ({
   DashboardView: () => null,
 }));
 

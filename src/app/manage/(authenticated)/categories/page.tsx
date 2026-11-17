@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
-import { listCategoriesAction } from "@/features/products/category-actions";
+import { listCategories } from "@/features/products/category-data";
 import { CategoryManager } from "@/features/products/components/category-manager";
 import { APP_METADATA } from "@/config/app";
 
@@ -16,8 +16,7 @@ export const instant = false;
 
 export default async function CategoriesPage() {
   await requireManagerSession();
-  const res = await listCategoriesAction();
-  const categories = res.success ? res.data : [];
+  const categories = await listCategories();
 
   return (
     <div className="mx-auto max-w-xl space-y-5">

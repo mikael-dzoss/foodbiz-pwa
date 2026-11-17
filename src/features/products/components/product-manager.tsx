@@ -21,11 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { CategoryNav, prefersReducedMotion, useScrollSpy } from "@/components/navigation";
 import { formatMoney, getStockStatus } from "@/domain";
-import {
-  adjustProductStockAction,
-  toggleProductVisibilityAction,
-  type EnrichedProduct,
-} from "../product-actions";
+import { adjustProductStockAction, toggleProductVisibilityAction } from "../product-actions";
+import type { EnrichedProduct } from "../product-data";
 import type { ProductCategory, Product } from "@/domain";
 import { ProductFormSheet } from "./product-form-sheet";
 import { StockAdjustmentSheet } from "./stock-adjustment-sheet";
@@ -155,8 +152,8 @@ export function ProductManager({
     // Optimistic UI update
     setProducts((prev) => prev.map((p) => (p.id === productId ? { ...p, stock: newStock } : p)));
 
-    const res = await adjustProductStockAction(productId, newStock);
-    if (!res.success) {
+    const res = await adjustProductStockAction({ productId, stock: newStock });
+    if (!res.ok) {
       // Rollback on error
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, stock: product.stock } : p)),
@@ -175,8 +172,8 @@ export function ProductManager({
       prev.map((p) => (p.id === productId ? { ...p, visible: newVisible } : p)),
     );
 
-    const res = await toggleProductVisibilityAction(productId, newVisible);
-    if (!res.success) {
+    const res = await toggleProductVisibilityAction({ productId, visible: newVisible });
+    if (!res.ok) {
       // Rollback on error
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, visible: product.visible } : p)),

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { findOrCreateGuest, type Order, type Product, type Guest, OrderRepoError } from "@/domain";
+import { getOrder } from "../order-data";
 import {
   listOrdersAction,
-  getOrderAction,
   createManualOrderAction,
   progressOrderStatusAction,
   recordPaymentAction,
@@ -10,13 +10,14 @@ import {
   markPaidAndCompleteAction,
   recordRefundAction,
   lookupGuestByPhoneAction,
-  acceptOrderAction,
-  rejectOrderAction,
 } from "../order-actions";
 
 const mockRevalidatePath = vi.fn();
+const mockUpdateTag = vi.fn();
 vi.mock("next/cache", () => ({
-  revalidatePath: (path: string) => mockRevalidatePath(path),
+  revalidatePath: (path: string, type?: string) =>
+    type ? mockRevalidatePath(path, type) : mockRevalidatePath(path),
+  updateTag: (tag: string) => mockUpdateTag(tag),
 }));
 
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
@@ -300,12 +301,6 @@ vi.mock("@/features/auth", async () => {
       if (authState.role !== "owner") throw new domainAuth.OwnerRequiredError();
       return context;
     },
-    forbiddenResult: () => ({
-      success: false as const,
-      error: "Only an owner can do this.",
-      code: domainAuth.ACTION_FORBIDDEN_CODE,
-    }),
-    isForbiddenError: (err: unknown) => err instanceof domainAuth.OwnerRequiredError,
   };
 });
 
@@ -474,8 +469,8 @@ describe("Order Server Actions", () => {
   describe("listOrdersAction", () => {
     it("returns active orders by default with accurate global counts", async () => {
       const res = await listOrdersAction();
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.orders).toHaveLength(1);
         expect(res.data.orders[0].id).toBe(validOrderId);
         expect(res.data.counts.active).toBe(1);
@@ -488,8 +483,8 @@ describe("Order Server Actions", () => {
 
     it("filters orders by completed statusTab", async () => {
       const res = await listOrdersAction({ statusTab: "completed" });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.orders).toHaveLength(1);
         expect(res.data.orders[0].id).toBe(completedOrderId);
       }
@@ -497,8 +492,8 @@ describe("Order Server Actions", () => {
 
     it("filters orders by cancelled statusTab", async () => {
       const res = await listOrdersAction({ statusTab: "cancelled" });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.orders).toHaveLength(1);
         expect(res.data.orders[0].id).toBe(cancelledOrderId);
       }
@@ -506,8 +501,8 @@ describe("Order Server Actions", () => {
 
     it("filters orders by unpaidOnly", async () => {
       const res = await listOrdersAction({ statusTab: "all", unpaidOnly: true });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.orders).toHaveLength(2);
         expect(res.data.orders.every((o) => o.paid === "unpaid")).toBe(true);
       }
@@ -515,8 +510,8 @@ describe("Order Server Actions", () => {
 
     it("filters orders by serviceType", async () => {
       const res = await listOrdersAction({ statusTab: "all", serviceType: "delivery" });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.orders).toHaveLength(1);
         expect(res.data.orders[0].serviceType).toBe("delivery");
       }
@@ -525,18 +520,18 @@ describe("Order Server Actions", () => {
     it("searches orders by order number, guest name, or phone", async () => {
       // Order number search
       const resNum = await listOrdersAction({ statusTab: "all", search: "42" });
-      expect(resNum.success).toBe(true);
-      if (resNum.success) expect(resNum.data.orders).toHaveLength(1);
+      expect(resNum.ok).toBe(true);
+      if (resNum.ok) expect(resNum.data.orders).toHaveLength(1);
 
       // Name search
       const resName = await listOrdersAction({ statusTab: "all", search: "Sophie" });
-      expect(resName.success).toBe(true);
-      if (resName.success) expect(resName.data.orders[0].guestName).toBe("Sophie Martin");
+      expect(resName.ok).toBe(true);
+      if (resName.ok) expect(resName.data.orders[0].guestName).toBe("Sophie Martin");
 
       // Phone search
       const resPhone = await listOrdersAction({ statusTab: "all", search: "12345678" });
-      expect(resPhone.success).toBe(true);
-      if (resPhone.success) expect(resPhone.data.orders[0].guestName).toBe("Jean Dupont");
+      expect(resPhone.ok).toBe(true);
+      if (resPhone.ok) expect(resPhone.data.orders[0].guestName).toBe("Jean Dupont");
     });
 
     it("sorts orders with ASAP before scheduled times", async () => {
@@ -560,8 +555,8 @@ describe("Order Server Actions", () => {
       });
 
       const res = await listOrdersAction({ statusTab: "active" });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.orders).toHaveLength(2);
         // Order #42 has requestedTime: null (ASAP), should come first!
         expect(res.data.orders[0].id).toBe(validOrderId);
@@ -571,38 +566,26 @@ describe("Order Server Actions", () => {
 
     it("rejects invalid filter input", async () => {
       const res = await listOrdersAction({ statusTab: "invalid" as unknown as "active" });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid order filter.");
-      }
+      expect(res).toMatchObject({ ok: false, code: "VALIDATION" });
     });
   });
 
-  describe("getOrderAction", () => {
+  describe("getOrder (data module)", () => {
     it("returns order with enriched guest phone and address", async () => {
-      const res = await getOrderAction(validOrderId);
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.order.guestName).toBe("Jean Dupont");
-        expect(res.data.order.guestPhone).toBe("+33612345678");
-        expect(res.data.guest).not.toBeNull();
-      }
+      const res = await getOrder(validOrderId);
+      expect(res?.order.guestName).toBe("Jean Dupont");
+      expect(res?.order.guestPhone).toBe("+33612345678");
+      expect(res?.guest).not.toBeNull();
     });
 
-    it("rejects invalid order ID", async () => {
-      const res = await getOrderAction("not-a-uuid");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid order ID.");
-      }
+    it("returns null for an invalid or unknown order ID", async () => {
+      expect(await getOrder("not-a-uuid")).toBeNull();
+      expect(await getOrder("00000000-0000-4000-8000-000000000000")).toBeNull();
     });
 
-    it("returns error for non-existent order", async () => {
-      const res = await getOrderAction("00000000-0000-4000-8000-000000000000");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Order not found");
-      }
+    it("throws on repository failure instead of returning null", async () => {
+      mockOrderRepo.findById.mockRejectedValueOnce(new Error("Offline"));
+      await expect(getOrder(validOrderId)).rejects.toThrow("Offline");
     });
   });
 
@@ -613,8 +596,8 @@ describe("Order Server Actions", () => {
         guestName: "",
         items: [],
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
         expect(res.fieldErrors).toBeDefined();
       }
     });
@@ -633,9 +616,9 @@ describe("Order Server Actions", () => {
           },
         ],
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toContain("Insufficient stock");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toContain("Insufficient stock");
       }
     });
 
@@ -649,10 +632,8 @@ describe("Order Server Actions", () => {
         isAsap: true,
         items: [{ productId: validProductId, quantity: 1 }],
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("RPC failed");
-      }
+      expect(res).toMatchObject({ ok: false, code: "INTERNAL" });
+      expect(JSON.stringify(res)).not.toContain("RPC failed");
     });
 
     it("creates order as CONFIRMED, reuses existing guest, and decrements stock", async () => {
@@ -671,8 +652,8 @@ describe("Order Server Actions", () => {
         ],
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.status).toBe("CONFIRMED");
         expect(res.data.guestId).toBe(validGuestId);
         expect(res.data.items[0].quantity).toBe(3);
@@ -704,8 +685,8 @@ describe("Order Server Actions", () => {
         ],
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.deliveryAddress).toBe("88 Rue Neuve");
         const createdGuest = mockGuests.find((g) => g.phone === "+33699887766");
         expect(createdGuest).toBeDefined();
@@ -725,8 +706,8 @@ describe("Order Server Actions", () => {
         items: [{ productId: validProductId, quantity: 1 }],
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.guestId).toBe(validGuestId);
         expect(res.data.submittedName).toBe("Jean-Paul Dupont");
         // Canonical stored guest name was NOT overwritten
@@ -745,8 +726,8 @@ describe("Order Server Actions", () => {
         items: [{ productId: validProductId, quantity: 1 }],
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.guestId).toBe(validGuestId);
         expect(res.data.submittedName).toBeNull();
         // Canonical stored guest name WAS updated
@@ -762,9 +743,9 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
         nextStatus: "COMPLETED",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toContain("Cannot transition");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toContain("Cannot transition");
       }
     });
 
@@ -778,9 +759,9 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
         nextStatus: "COMPLETED",
       });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toContain("Cannot transition to COMPLETED while order is unpaid");
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toContain("Cannot transition to COMPLETED while order is unpaid");
       }
     });
 
@@ -791,8 +772,8 @@ describe("Order Server Actions", () => {
         reason: "Chef started",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.status).toBe("PREPARING");
         const lastEvent = res.data.statusHistory?.[res.data.statusHistory.length - 1];
         expect(lastEvent?.status).toBe("PREPARING");
@@ -809,8 +790,8 @@ describe("Order Server Actions", () => {
         reason: "Cancelled by guest",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.status).toBe("CANCELLED");
         expect(res.data.cancellationReason).toBe("Cancelled by guest");
         // Item quantity was 2, so stock should be restored by +2
@@ -818,45 +799,54 @@ describe("Order Server Actions", () => {
       }
     });
 
-    it("acceptOrderAction transitions a NEW order to CONFIRMED", async () => {
+    it("confirms a NEW order", async () => {
       mockOrders[0].status = "NEW";
-      const res = await acceptOrderAction(validOrderId);
-      expect(res.success).toBe(true);
-      if (res.success) {
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "CONFIRMED",
+      });
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.status).toBe("CONFIRMED");
       }
     });
 
-    it("acceptOrderAction rejects invalid order ID", async () => {
-      const res = await acceptOrderAction("not-a-uuid");
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toBe("Invalid order ID.");
-      }
+    it("rejects an invalid order ID", async () => {
+      const res = await progressOrderStatusAction({
+        orderId: "not-a-uuid",
+        nextStatus: "CONFIRMED",
+      });
+      expect(res).toMatchObject({ ok: false, code: "VALIDATION" });
     });
 
-    it("rejectOrderAction fails when reason is empty or whitespace", async () => {
+    it("requires a reason when rejecting a new order", async () => {
       mockOrders[0].status = "NEW";
-      const res = await rejectOrderAction({ orderId: validOrderId, reason: "   " });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toContain("A reason is required when rejecting a new order");
+      const res = await progressOrderStatusAction({
+        orderId: validOrderId,
+        nextStatus: "CANCELLED",
+        reason: "   ",
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toContain("A reason is required when rejecting a new order");
       }
     });
 
-    it("rejectOrderAction cancels NEW order and restores stock with valid reason", async () => {
+    it("cancels a NEW order, restores stock and refreshes the storefront", async () => {
       mockOrders[0].status = "NEW";
       const initialStock = mockProducts[0].stock;
-      const res = await rejectOrderAction({
+      const res = await progressOrderStatusAction({
         orderId: validOrderId,
+        nextStatus: "CANCELLED",
         reason: "Kitchen out of ingredients",
       });
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.status).toBe("CANCELLED");
         expect(res.data.cancellationReason).toBe("Kitchen out of ingredients");
         expect(mockProducts[0].stock).toBe(initialStock + 2);
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/products");
+        expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
       }
     });
   });
@@ -871,8 +861,8 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
         paymentMethod: "cash",
       });
-      expect(payRes.success).toBe(true);
-      if (payRes.success) {
+      expect(payRes.ok).toBe(true);
+      if (payRes.ok) {
         expect(payRes.data.paid).toBe("paid");
         expect(payRes.data.paymentMethod).toBe("cash");
         expect(payRes.data.paidAt).toBeDefined();
@@ -883,8 +873,8 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
         nextStatus: "COMPLETED",
       });
-      expect(compRes.success).toBe(true);
-      if (compRes.success) {
+      expect(compRes.ok).toBe(true);
+      if (compRes.ok) {
         expect(compRes.data.status).toBe("COMPLETED");
       }
     });
@@ -898,9 +888,9 @@ describe("Order Server Actions", () => {
         paymentMethod: "revolut",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/cancelled/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/cancelled/i);
       }
     });
 
@@ -909,7 +899,7 @@ describe("Order Server Actions", () => {
         orderId: "not-a-uuid",
         paymentMethod: "invalid",
       });
-      expect(res.success).toBe(false);
+      expect(res.ok).toBe(false);
     });
   });
 
@@ -922,8 +912,8 @@ describe("Order Server Actions", () => {
 
       const res = await markOrderUnpaidAction({ orderId: validOrderId });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.paid).toBe("unpaid");
         expect(res.data.paymentMethod).toBeNull();
         expect(res.data.paidAt).toBeNull();
@@ -937,9 +927,9 @@ describe("Order Server Actions", () => {
       mockOrders[0].paid = "unpaid";
 
       const res = await markOrderUnpaidAction({ orderId: validOrderId });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/already/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/already/i);
       }
     });
 
@@ -948,9 +938,9 @@ describe("Order Server Actions", () => {
       mockOrders[0].paid = "paid";
 
       const res = await markOrderUnpaidAction({ orderId: validOrderId });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/completed/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/completed/i);
       }
     });
 
@@ -958,9 +948,9 @@ describe("Order Server Actions", () => {
       mockOrders[0].paid = "refunded";
 
       const res = await markOrderUnpaidAction({ orderId: validOrderId });
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/refunded/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/refunded/i);
       }
     });
   });
@@ -976,8 +966,8 @@ describe("Order Server Actions", () => {
         paymentMethod: "wero",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.paid).toBe("paid");
         expect(res.data.paymentMethod).toBe("wero");
         expect(res.data.paidAt).toBeDefined();
@@ -997,9 +987,9 @@ describe("Order Server Actions", () => {
         paymentMethod: "cash",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/ready/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/ready/i);
       }
     });
 
@@ -1012,7 +1002,7 @@ describe("Order Server Actions", () => {
         paymentMethod: "cash",
       });
 
-      expect(res.success).toBe(false);
+      expect(res.ok).toBe(false);
     });
   });
 
@@ -1025,7 +1015,7 @@ describe("Order Server Actions", () => {
 
       const res = await recordRefundAction({ orderId: completedOrderId });
 
-      expect(res).toMatchObject({ success: false, code: "FORBIDDEN" });
+      expect(res).toMatchObject({ ok: false, code: "FORBIDDEN" });
       expect(spy).not.toHaveBeenCalled();
     });
 
@@ -1038,7 +1028,8 @@ describe("Order Server Actions", () => {
 
       const res = await recordRefundAction({ orderId: completedOrderId });
 
-      expect(res).toEqual({ success: false, error: "Failed to record refund" });
+      expect(res).toMatchObject({ ok: false, code: "INTERNAL" });
+      expect(JSON.stringify(res)).not.toContain("orders_pkey");
     });
 
     it("records refund for a cancelled paid order, setting paid to 'refunded' and recording refundedAt", async () => {
@@ -1051,8 +1042,8 @@ describe("Order Server Actions", () => {
         reason: "Customer cancelled and payment was returned via Revolut",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.paid).toBe("refunded");
         expect(res.data.refundedAt).toBeDefined();
         const lastHistory = res.data.statusHistory?.[res.data.statusHistory.length - 1];
@@ -1069,8 +1060,8 @@ describe("Order Server Actions", () => {
         reason: "Cold food complaint refund",
       });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data.paid).toBe("refunded");
         expect(res.data.status).toBe("COMPLETED");
         expect(res.data.refundedAt).toBeDefined();
@@ -1085,9 +1076,9 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/unpaid/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/unpaid/i);
       }
     });
 
@@ -1098,9 +1089,9 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/already/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/already/i);
       }
     });
 
@@ -1113,9 +1104,9 @@ describe("Order Server Actions", () => {
         nextStatus: "COMPLETED",
       });
 
-      expect(res.success).toBe(false);
-      if (!res.success) {
-        expect(res.error).toMatch(/refunded/i);
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.message).toMatch(/refunded/i);
       }
     });
   });
@@ -1123,16 +1114,22 @@ describe("Order Server Actions", () => {
   describe("lookupGuestByPhoneAction", () => {
     it("returns null when phone is empty or too short", async () => {
       const res = await lookupGuestByPhoneAction("12");
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data).toBeNull();
       }
     });
 
+    it("rejects phone input longer than 30 characters", async () => {
+      const res = await lookupGuestByPhoneAction("1".repeat(31));
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.code).toBe("VALIDATION");
+    });
+
     it("finds existing guest by phone", async () => {
       const res = await lookupGuestByPhoneAction("06 12 34 56 78");
-      expect(res.success).toBe(true);
-      if (res.success) {
+      expect(res.ok).toBe(true);
+      if (res.ok) {
         expect(res.data?.name).toBe("Jean Dupont");
       }
     });
@@ -1148,9 +1145,11 @@ describe("Order Server Actions", () => {
         nextStatus: "PREPARING",
       });
       expect(res).toEqual({
-        success: false,
-        error: "The order changed, please reload.",
-        code: "ORDER_STATE_CONFLICT",
+        ok: false,
+        code: "CONFLICT",
+        reason: "ORDER_STATE_CONFLICT",
+        message: "The order changed, please reload.",
+        lineErrors: undefined,
       });
     });
 
@@ -1159,7 +1158,7 @@ describe("Order Server Actions", () => {
         orderId: validOrderId,
         nextStatus: "PREPARING",
       });
-      expect(res.success).toBe(true);
+      expect(res.ok).toBe(true);
       expect(mockOrderRepo.transition).toHaveBeenCalledWith(testBusinessId, validOrderId, {
         expectedStatus: "CONFIRMED",
         nextStatus: "PREPARING",
@@ -1172,7 +1171,7 @@ describe("Order Server Actions", () => {
         o.id === validOrderId ? { ...o, paid: "refunded" as const } : o,
       );
       const res = await recordPaymentAction({ orderId: validOrderId, paymentMethod: "cash" });
-      expect(res.success).toBe(false);
+      expect(res.ok).toBe(false);
       expect(mockOrderRepo.recordPayment).not.toHaveBeenCalled();
     });
 
@@ -1181,7 +1180,7 @@ describe("Order Server Actions", () => {
         o.id === validOrderId ? { ...o, status: "READY" as const, paid: "refunded" as const } : o,
       );
       const res = await markPaidAndCompleteAction({ orderId: validOrderId, paymentMethod: "cash" });
-      expect(res.success).toBe(false);
+      expect(res.ok).toBe(false);
       expect(mockOrderRepo.recordPayment).not.toHaveBeenCalled();
     });
   });

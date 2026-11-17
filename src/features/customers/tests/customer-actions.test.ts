@@ -60,7 +60,7 @@ describe("canonical customer edits", () => {
     const originalOrders = await repos.orders.list(guest.businessId, { guestId: guest.id });
     const result = await updateCustomerAction(input);
     expect(result).toMatchObject({
-      success: true,
+      ok: true,
       data: { id: guest.id, name: "Alex Martin", notes: "Updated notes" },
     });
     const orders = await repos.orders.list(guest.businessId, { guestId: guest.id });
@@ -72,8 +72,8 @@ describe("canonical customer edits", () => {
 
   it("rejects invalid input without modifying the guest", async () => {
     expect(await updateCustomerAction({ ...input, name: " " })).toMatchObject({
-      success: false,
-      error: "invalid",
+      ok: false,
+      code: "VALIDATION",
       fieldErrors: { name: expect.any(Array) },
     });
     expect(await repos.guests.findById(guest.businessId, guest.id)).toEqual(guest);
@@ -84,15 +84,16 @@ describe("canonical customer edits", () => {
     auth.mockRejectedValueOnce(new Error("Unauthorized"));
     await expect(updateCustomerAction(input)).rejects.toThrow("Unauthorized");
     auth.mockResolvedValue({ businessId: "11111111-1111-4111-8111-999999999999" });
-    expect(await updateCustomerAction(input)).toEqual({ success: false, error: "notFound" });
+    expect(await updateCustomerAction(input)).toMatchObject({ ok: false, code: "NOT_FOUND" });
     expect(await repos.guests.findById(guest.businessId, guest.id)).toEqual(guest);
   });
 
   it("reports save failures without exposing repository internals or false success", async () => {
     vi.spyOn(repos.guests, "update").mockRejectedValueOnce(new Error("private database detail"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await updateCustomerAction(input)).toEqual({ success: false, error: "saveFailed" });
+    expect(await updateCustomerAction(input)).toMatchObject({ ok: false, code: "INTERNAL" });
     expect(log).toHaveBeenCalled();
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private database detail");
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

@@ -61,10 +61,10 @@ vi.mock("@/lib/repositories", () => ({
   }),
 }));
 
-vi.mock("@/features/orders", () => ({
-  listOrdersAction: vi.fn(async () => ({
-    success: true,
-    data: {
+vi.mock("@/features/orders/order-data", async (importActual) => ({
+  ...(await importActual<typeof import("@/features/orders/order-data")>()),
+  listOrders: vi.fn(async () => ({
+    ...{
       orders: [
         {
           id: "ord-1",
@@ -105,11 +105,10 @@ vi.mock("@/features/orders", () => ({
       counts: { active: 1, completed: 0, cancelled: 0, total: 1, unpaid: 1 },
     },
   })),
-  getOrderAction: vi.fn(async (id: string) => {
+  getOrder: vi.fn(async (id: string) => {
     if (id === "ord-1") {
       return {
-        success: true,
-        data: {
+        ...{
           order: {
             id: "ord-1",
             businessId: "11111111-1111-4111-8111-111111111111",
@@ -151,8 +150,11 @@ vi.mock("@/features/orders", () => ({
         },
       };
     }
-    return { success: false, error: "Order not found" };
+    return null;
   }),
+}));
+
+vi.mock("@/features/orders", () => ({
   createManualOrderAction: vi.fn(),
   progressOrderStatusAction: vi.fn(),
   recordPaymentAction: vi.fn(),
