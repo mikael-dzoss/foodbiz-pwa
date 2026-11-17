@@ -25,7 +25,7 @@ const twMerge = extendTailwindMerge({
     classGroups: {
       pb: [{ pb: [(value: string) => SAFE_SPACING.test(value)] }],
       pt: [{ pt: [(value: string) => /^safe-min-\d+(\.\d+)?$/.test(value)] }],
-      bottom: [{ bottom: ["sticky-safe"] }],
+      bottom: [{ bottom: ["sticky-safe", "above-nav"] }],
       w: [{ w: ["screen-gutter"] }],
       "bg-image": [{ bg: ["dot-grid"] }],
     },
