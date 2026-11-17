@@ -10,6 +10,7 @@ import {
 } from "@/domain/i18n";
 import { getStorefrontCatalog, StorefrontShell } from "@/features/storefront";
 import { buildStorefrontRootMetadata, toMetaDescription } from "@/features/storefront/metadata";
+import { HtmlLangSync } from "@/components/i18n";
 
 export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
@@ -49,6 +50,8 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   return (
     <div lang={locale} className="flex min-h-full flex-1 flex-col">
+      {/* The static root layout cannot know the locale: keep <html lang> in sync after hydration. */}
+      <HtmlLangSync locale={locale} />
       <StorefrontShell
         locale={locale}
         dict={dict.storefront}

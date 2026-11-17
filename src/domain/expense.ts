@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isoDateSchema, isoDateTimeSchema, moneySchema, uuidSchema } from "./common";
+import type { SupportedLocale } from "./i18n/types";
 import { extractDate } from "./kpis";
 
 export const STANDARD_EXPENSE_TAGS = [
@@ -69,7 +70,10 @@ export function calculateExpensesTotal(expenses: readonly Expense[]): number {
  * Returns groups ordered from most recent month to oldest.
  * Within each group, expenses are ordered newest first.
  */
-export function groupExpensesByMonth(expenses: readonly Expense[]): ExpenseMonthGroup[] {
+export function groupExpensesByMonth(
+  expenses: readonly Expense[],
+  locale: SupportedLocale,
+): ExpenseMonthGroup[] {
   if (expenses.length === 0) {
     return [];
   }
@@ -101,7 +105,7 @@ export function groupExpensesByMonth(expenses: readonly Expense[]): ExpenseMonth
     const month = Number.parseInt(monthStr, 10);
 
     const monthDate = new Date(Date.UTC(year, month - 1, 1));
-    const monthLabel = monthDate.toLocaleDateString("en-US", {
+    const monthLabel = monthDate.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
       month: "long",
       year: "numeric",
       timeZone: "UTC",

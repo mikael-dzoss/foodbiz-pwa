@@ -8,7 +8,7 @@ import type { SupportedLocale } from "../i18n/types";
  *   formatMoney(1250, "en") => "€12.50"
  *   formatMoney(1250, "fr") => "12,50 €"
  */
-export function formatMoney(cents: number, locale: SupportedLocale = "en"): string {
+export function formatMoney(cents: number, locale: SupportedLocale): string {
   const euros = cents / 100;
   return new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-IE", {
     style: "currency",

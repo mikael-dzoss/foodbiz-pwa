@@ -20,7 +20,7 @@ const LOCALE_MAP: Record<SupportedLocale, string> = {
 export function formatDate(
   date: Date | string | number,
   timeZone: string,
-  locale: SupportedLocale = "en",
+  locale: SupportedLocale,
   style: "short" | "medium" | "long" = "medium",
 ): string {
   const options: Intl.DateTimeFormatOptions =
@@ -41,7 +41,7 @@ export function formatDate(
 export function formatTime(
   date: Date | string | number,
   timeZone: string,
-  locale: SupportedLocale = "en",
+  locale: SupportedLocale,
 ): string {
   return new Intl.DateTimeFormat(LOCALE_MAP[locale], {
     hour: "2-digit",
@@ -55,7 +55,7 @@ export function formatTime(
 export function formatDateTime(
   date: Date | string | number,
   timeZone: string,
-  locale: SupportedLocale = "en",
+  locale: SupportedLocale,
 ): string {
   return `${formatDate(date, timeZone, locale, "short")} • ${formatTime(date, timeZone, locale)}`;
 }
@@ -66,7 +66,7 @@ export function formatDateTime(
  */
 export function formatCalendarDate(
   day: string,
-  locale: SupportedLocale = "en",
+  locale: SupportedLocale,
   style: "short" | "medium" | "long" = "medium",
 ): string {
   return formatDate(`${day.slice(0, 10)}T12:00:00Z`, "UTC", locale, style);
@@ -78,7 +78,7 @@ export function formatCalendarDate(
 export function formatRelativeTime(
   date: Date | string | number,
   baseDate: Date | string | number,
-  locale: SupportedLocale = "en",
+  locale: SupportedLocale,
 ): string {
   const d = toDate(date);
   const base = toDate(baseDate);

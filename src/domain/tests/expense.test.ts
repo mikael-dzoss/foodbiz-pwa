@@ -179,8 +179,14 @@ describe("domain: updateExpenseInputSchema", () => {
 });
 
 describe("domain: groupExpensesByMonth", () => {
+  it("labels months in the requested locale", () => {
+    const [first] = groupExpensesByMonth(mockExpenses, "fr");
+    expect(first.monthLabel).toMatch(/20\d\d$/);
+    expect(first.monthLabel).not.toBe(groupExpensesByMonth(mockExpenses, "en")[0].monthLabel);
+  });
+
   it("groups expenses by calendar month and calculates totals and counts", () => {
-    const groups = groupExpensesByMonth(mockExpenses);
+    const groups = groupExpensesByMonth(mockExpenses, "en");
 
     expect(groups).toHaveLength(3);
 
@@ -207,11 +213,11 @@ describe("domain: groupExpensesByMonth", () => {
   });
 
   it("returns empty array for empty expenses list", () => {
-    expect(groupExpensesByMonth([])).toEqual([]);
+    expect(groupExpensesByMonth([], "en")).toEqual([]);
   });
 
   it("sorts expenses within a month descending by date", () => {
-    const groups = groupExpensesByMonth(mockExpenses);
+    const groups = groupExpensesByMonth(mockExpenses, "en");
     const oct = groups[0].expenses;
     expect(oct[0].date).toBe("2026-10-14");
     expect(oct[1].date).toBe("2026-10-10");

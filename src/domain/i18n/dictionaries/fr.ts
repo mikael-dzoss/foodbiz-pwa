@@ -1,7 +1,9 @@
 import type { Dictionary } from "../types";
+import { managerFr } from "./manager-fr";
 
 export const frDictionary: Dictionary = {
   locale: "fr",
+  ...managerFr,
   customers: {
     title: "Clients",
     subtitle: "Reconnaissez vos habitués",
@@ -95,6 +97,8 @@ export const frDictionary: Dictionary = {
       last_30_days: "30 jours",
       this_month: "Ce mois-ci",
     },
+    kpiRegionLabel: "Indicateurs clés de performance",
+    periodPickerLabel: "Filtrer par période",
     kpi: {
       revenue: "Chiffre d'affaires",
       costs: "Dépenses",
@@ -120,6 +124,15 @@ export const frDictionary: Dictionary = {
       manageInventory: "Gérer le stock →",
       allStockHealthy: "Tous les niveaux de stock sont corrects",
       unitsLeft: "restant(s)",
+      itemsCount: "{count} articles",
+      dueAt: "pour {time}",
+      inPrep: "En préparation",
+      newOrder: "Nouvelle",
+      awaitingOne: "1 commande en attente de paiement",
+      awaitingMany: "{count} commandes en attente de paiement",
+      onlyLeft: "Plus que {count} en cuisine",
+      outOfStock: "Rupture de stock",
+      restock: "À réapprovisionner",
     },
     activity: {
       sectionTitle: "Activité récente",
@@ -128,9 +141,22 @@ export const frDictionary: Dictionary = {
       paid: "Payé",
       unpaid: "Impayé",
       expense: "Dépense",
+      recentCount: "{count} récentes",
+      confirmed: "Confirmée",
+      preparing: "En préparation",
+      cancelled: "Annulée",
+      orderTitle: "Commande n° {number}",
+      orderTitleGuest: "Commande ({guest})",
+      guestStatus: "{guest} · {status}",
+      guestPaidVia: "{guest} · {status} ({method})",
     },
   },
   storefront: {
+    stockAvailable: "{count} disponible(s)",
+    inCartNow: "Actuellement dans votre panier : {count}",
+    purchaseActions: "Actions d'achat",
+    honeypotLabel: "Laissez ce champ vide",
+    promoPlaceholder: "ex. MATIN10",
     cart: "Panier",
     cartEmpty: "Votre panier est vide",
     item: "article",
@@ -630,6 +656,15 @@ export const frDictionary: Dictionary = {
     },
   },
   common: {
+    pageNotFound: {
+      title: "Page introuvable",
+      message: "La page que vous recherchez n'existe pas ou a été déplacée.",
+    },
+    decreaseQuantity: "Diminuer la quantité",
+    increaseQuantity: "Augmenter la quantité",
+    tryAgain: "Réessayer",
+    backToHome: "Retour à l'accueil",
+    genericError: "Une erreur est survenue",
     close: "Fermer",
     save: "Enregistrer",
     cancel: "Annuler",
