@@ -13,6 +13,7 @@ export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
 }
 
+// No storefront loading boundary (the catalog is cached), so this navigation blocks on the page read.
 export const instant = false;
 
 export interface TrackPageProps {
