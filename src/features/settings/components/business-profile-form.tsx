@@ -13,12 +13,11 @@ import {
   Palette,
   Check,
   Copy,
-  AlertCircle,
 } from "lucide-react";
 import type { Business } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonItem } from "@/components/feedback";
-import { ActionBar, Button, useToast } from "@/components/ui";
+import { ActionBar, Button, Field, Input, Textarea, useToast } from "@/components/ui";
 import { updateBusinessProfileAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
@@ -213,112 +212,95 @@ export function BusinessProfileForm({
           </div>
 
           {/* Business Name */}
-          <div>
-            <label
-              htmlFor="biz-name"
-              className="text-foreground mb-1.5 block text-sm font-semibold"
-            >
-              {dict.business.nameLabel} <span className="text-destructive">*</span>
-            </label>
-            <input
-              id="biz-name"
+          <Field id="biz-name" label={dict.business.nameLabel} required error={errors.name?.[0]}>
+            <Input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={dict.business.namePlaceholder}
-              className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="rounded-xl px-3.5 py-2.5"
               data-testid="input-business-name"
             />
-            {errors.name && (
-              <p className="text-destructive mt-1 flex items-center gap-1 text-xs">
-                <AlertCircle className="h-3.5 w-3.5" />
-                <span>{errors.name[0]}</span>
-              </p>
-            )}
-          </div>
+          </Field>
 
           {/* Description */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label htmlFor="biz-desc" className="text-foreground text-sm font-semibold">
-                {dict.business.descLabel}
-              </label>
-              <span className="text-muted-foreground text-xs">{description.length}/500</span>
-            </div>
-            <textarea
-              id="biz-desc"
+          <Field id="biz-desc" label={dict.business.descLabel} hint={`${description.length}/500`}>
+            <Textarea
               rows={3}
               maxLength={500}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={dict.business.descPlaceholder}
-              className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-xl border px-3.5 py-2.5 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="min-h-0 rounded-xl px-3.5 py-2.5"
               data-testid="input-business-description"
             />
-          </div>
+          </Field>
 
           {/* Storefront URL Slug */}
-          <div>
-            <label
-              htmlFor="biz-slug"
-              className="text-foreground mb-1.5 block text-sm font-semibold"
-            >
-              {dict.business.slugLabel} <span className="text-destructive">*</span>
-            </label>
-            <div className="border-input bg-card focus-within:ring-ring flex min-h-12 w-full items-center rounded-xl border transition-colors focus-within:ring-2">
-              <span className="bg-muted text-muted-foreground flex h-full items-center rounded-l-xl px-3 font-mono text-sm select-none">
-                {dict.business.slugHelper}
-              </span>
-              <input
-                id="biz-slug"
-                type="text"
-                required
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                disabled={Boolean(slugLockedReason)}
-                aria-describedby={slugLockedReason ? "biz-slug-locked" : undefined}
-                placeholder="la-petite-boulangerie"
-                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 px-3 py-2.5 font-mono text-base focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                data-testid="input-business-slug"
-              />
-              <Button
-                variant="unstyled"
-                size="none"
-                type="button"
-                onClick={handleCopyUrl}
-                aria-label="Copy storefront URL"
-                className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
-              >
-                {copied ? <Check className="text-primary h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-            {slugLockedReason && (
-              <p
-                id="biz-slug-locked"
-                className="text-muted-foreground mt-1.5 text-xs"
-                data-testid="slug-owner-only-notice"
-              >
-                {slugLockedReason}
-              </p>
+          <Field id="biz-slug" label={dict.business.slugLabel} required error={errors.slug?.[0]}>
+            {(control) => (
+              <>
+                <div className="border-input bg-card focus-within:ring-ring flex min-h-12 w-full items-center rounded-xl border transition-colors focus-within:ring-2">
+                  <span className="bg-muted text-muted-foreground flex h-full items-center rounded-l-xl px-3 font-mono text-sm select-none">
+                    {dict.business.slugHelper}
+                  </span>
+                  <Input
+                    {...control}
+                    aria-describedby={
+                      [control["aria-describedby"], slugLockedReason ? "biz-slug-locked" : null]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                    type="text"
+                    required
+                    value={slug}
+                    onChange={(e) =>
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                    }
+                    disabled={Boolean(slugLockedReason)}
+                    placeholder="la-petite-boulangerie"
+                    className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 py-2.5 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
+                    data-testid="input-business-slug"
+                  />
+                  <Button
+                    variant="unstyled"
+                    size="none"
+                    type="button"
+                    onClick={handleCopyUrl}
+                    aria-label="Copy storefront URL"
+                    className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+                  >
+                    {copied ? (
+                      <Check className="text-primary h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {slugLockedReason && (
+                  <p
+                    id="biz-slug-locked"
+                    className="text-muted-foreground mt-1.5 text-xs"
+                    data-testid="slug-owner-only-notice"
+                  >
+                    {slugLockedReason}
+                  </p>
+                )}
+                {!errors.slug && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold">
+                      <Check className="h-3 w-3" />
+                      <span>{dict.business.activeBadge}</span>
+                    </span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      foodbiz.app/s/{slug || "slug"}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
-            {errors.slug ? (
-              <p className="text-destructive mt-1 flex items-center gap-1 text-xs">
-                <AlertCircle className="h-3.5 w-3.5" />
-                <span>{errors.slug[0]}</span>
-              </p>
-            ) : (
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold">
-                  <Check className="h-3 w-3" />
-                  <span>{dict.business.activeBadge}</span>
-                </span>
-                <span className="text-muted-foreground truncate text-xs">
-                  foodbiz.app/s/{slug || "slug"}
-                </span>
-              </div>
-            )}
-          </div>
+          </Field>
         </div>
       </div>
 
@@ -329,111 +311,86 @@ export function BusinessProfileForm({
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-5 shadow-2xs">
           {/* Phone */}
-          <div>
-            <label
-              htmlFor="biz-phone"
-              className="text-foreground mb-1.5 block text-sm font-semibold"
-            >
-              {dict.business.phoneLabel}
-            </label>
-            <div className="relative">
-              <Phone className="text-muted-foreground absolute top-3.5 left-3.5 h-5 w-5" />
-              <input
-                id="biz-phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+33 1 43 55 67 89"
-                className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border py-2.5 pr-3.5 pl-11 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                data-testid="input-business-phone"
-              />
-            </div>
-          </div>
+          <Field id="biz-phone" label={dict.business.phoneLabel}>
+            {(control) => (
+              <div className="relative">
+                <Phone className="text-muted-foreground pointer-events-none absolute top-3.5 left-3.5 h-5 w-5" />
+                <Input
+                  {...control}
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+33 1 43 55 67 89"
+                  data-testid="input-business-phone"
+                  className="rounded-xl py-2.5 pr-3.5 pl-11"
+                />
+              </div>
+            )}
+          </Field>
 
           {/* Email */}
-          <div>
-            <label
-              htmlFor="biz-email"
-              className="text-foreground mb-1.5 block text-sm font-semibold"
-            >
-              {dict.business.emailLabel}
-            </label>
-            <div className="relative">
-              <Mail className="text-muted-foreground absolute top-3.5 left-3.5 h-5 w-5" />
-              <input
-                id="biz-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="bonjour@lapetiteboulangerie.fr"
-                className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border py-2.5 pr-3.5 pl-11 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                data-testid="input-business-email"
-              />
-            </div>
-            {errors.email && (
-              <p className="text-destructive mt-1 flex items-center gap-1 text-xs">
-                <AlertCircle className="h-3.5 w-3.5" />
-                <span>{errors.email[0]}</span>
-              </p>
+          <Field id="biz-email" label={dict.business.emailLabel} error={errors.email?.[0]}>
+            {(control) => (
+              <div className="relative">
+                <Mail className="text-muted-foreground pointer-events-none absolute top-3.5 left-3.5 h-5 w-5" />
+                <Input
+                  {...control}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="bonjour@lapetiteboulangerie.fr"
+                  data-testid="input-business-email"
+                  className="rounded-xl py-2.5 pr-3.5 pl-11"
+                />
+              </div>
             )}
-          </div>
+          </Field>
 
           {/* WhatsApp */}
-          <div>
-            <label
-              htmlFor="biz-whatsapp"
-              className="text-foreground mb-1.5 block text-sm font-semibold"
-            >
-              {dict.business.whatsappLabel}
-            </label>
-            <div className="relative">
-              <MessageCircle className="text-muted-foreground absolute top-3.5 left-3.5 h-5 w-5" />
-              <input
-                id="biz-whatsapp"
-                type="tel"
-                value={whatsappNumber}
-                onChange={(e) => setWhatsappNumber(e.target.value)}
-                placeholder="+33 6 12 34 56 78"
-                className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border py-2.5 pr-3.5 pl-11 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                data-testid="input-business-whatsapp"
-              />
-            </div>
-          </div>
+          <Field id="biz-whatsapp" label={dict.business.whatsappLabel}>
+            {(control) => (
+              <div className="relative">
+                <MessageCircle className="text-muted-foreground pointer-events-none absolute top-3.5 left-3.5 h-5 w-5" />
+                <Input
+                  {...control}
+                  type="tel"
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  placeholder="+33 6 12 34 56 78"
+                  data-testid="input-business-whatsapp"
+                  className="rounded-xl py-2.5 pr-3.5 pl-11"
+                />
+              </div>
+            )}
+          </Field>
 
           {/* Physical Address */}
-          <div>
-            <label
-              htmlFor="biz-address"
-              className="text-foreground mb-1.5 block text-sm font-semibold"
-            >
-              {dict.business.addressLabel}
-            </label>
-            <div className="relative">
-              <MapPin className="text-muted-foreground absolute top-3.5 left-3.5 h-5 w-5" />
-              <textarea
-                id="biz-address"
-                rows={2}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="12 Rue de la Roquette, 75011 Paris, France"
-                className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-xl border py-2.5 pr-3.5 pl-11 text-base transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                data-testid="input-business-address"
-              />
-            </div>
-          </div>
+          <Field id="biz-address" label={dict.business.addressLabel}>
+            {(control) => (
+              <div className="relative">
+                <MapPin className="text-muted-foreground pointer-events-none absolute top-3.5 left-3.5 h-5 w-5" />
+                <Textarea
+                  {...control}
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="12 Rue de la Roquette, 75011 Paris, France"
+                  data-testid="input-business-address"
+                  className="min-h-0 rounded-xl py-2.5 pr-3.5 pl-11"
+                />
+              </div>
+            )}
+          </Field>
 
           {/* Optional Map Coordinates (Latitude / Longitude) */}
           <div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="biz-latitude"
-                  className="text-foreground mb-1.5 block text-sm font-semibold"
-                >
-                  {dict.business.latitudeLabel}
-                </label>
-                <input
-                  id="biz-latitude"
+              <Field
+                id="biz-latitude"
+                label={dict.business.latitudeLabel}
+                error={errors.latitude?.[0]}
+              >
+                <Input
                   type="number"
                   step="any"
                   min="-90"
@@ -442,26 +399,17 @@ export function BusinessProfileForm({
                   onChange={(e) => setLatitude(e.target.value)}
                   placeholder="48.8553"
                   aria-describedby="biz-coords-helper"
-                  aria-invalid={!!errors.latitude}
-                  className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  className="rounded-xl px-3.5 py-2.5 tabular-nums"
                   data-testid="input-business-latitude"
                 />
-                {errors.latitude && (
-                  <p role="alert" className="text-destructive mt-1 text-xs">
-                    {errors.latitude[0]}
-                  </p>
-                )}
-              </div>
+              </Field>
 
-              <div>
-                <label
-                  htmlFor="biz-longitude"
-                  className="text-foreground mb-1.5 block text-sm font-semibold"
-                >
-                  {dict.business.longitudeLabel}
-                </label>
-                <input
-                  id="biz-longitude"
+              <Field
+                id="biz-longitude"
+                label={dict.business.longitudeLabel}
+                error={errors.longitude?.[0]}
+              >
+                <Input
                   type="number"
                   step="any"
                   min="-180"
@@ -470,16 +418,10 @@ export function BusinessProfileForm({
                   onChange={(e) => setLongitude(e.target.value)}
                   placeholder="2.3726"
                   aria-describedby="biz-coords-helper"
-                  aria-invalid={!!errors.longitude}
-                  className="border-input bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  className="rounded-xl px-3.5 py-2.5 tabular-nums"
                   data-testid="input-business-longitude"
                 />
-                {errors.longitude && (
-                  <p role="alert" className="text-destructive mt-1 text-xs">
-                    {errors.longitude[0]}
-                  </p>
-                )}
-              </div>
+              </Field>
             </div>
             <p id="biz-coords-helper" className="text-muted-foreground mt-1.5 text-xs">
               {dict.business.coordinatesHelper}
@@ -503,29 +445,15 @@ export function BusinessProfileForm({
               ["tiktokUrl", dict.business.tiktokLabel],
             ] as const
           ).map(([field, label]) => (
-            <div key={field}>
-              <label
-                htmlFor={`biz-${field}`}
-                className="text-foreground mb-1.5 block text-sm font-semibold"
-              >
-                {label}
-              </label>
-              <input
-                id={`biz-${field}`}
+            <Field key={field} id={`biz-${field}`} label={label} error={errors[field]?.[0]}>
+              <Input
                 type="url"
                 value={socialLinks[field]}
                 onChange={(e) => setSocialLinks({ ...socialLinks, [field]: e.target.value })}
-                aria-invalid={!!errors[field]}
-                aria-describedby={errors[field] ? `error-${field}` : undefined}
-                className="border-input bg-card text-foreground focus-visible:ring-ring min-h-12 w-full rounded-xl border px-3.5 py-2.5 text-base focus-visible:ring-2 focus-visible:outline-none"
+                className="rounded-xl px-3.5 py-2.5"
                 data-testid={`input-business-${field}`}
               />
-              {errors[field] && (
-                <p id={`error-${field}`} role="alert" className="text-destructive mt-1 text-xs">
-                  {errors[field][0]}
-                </p>
-              )}
-            </div>
+            </Field>
           ))}
         </div>
       </section>

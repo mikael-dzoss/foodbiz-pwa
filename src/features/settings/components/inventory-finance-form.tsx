@@ -13,13 +13,12 @@ import {
   Upload,
   Globe,
   Tag,
-  AlertCircle,
   Lock,
 } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
-import { ActionBar, Button, useToast } from "@/components/ui";
+import { ActionBar, Button, Field, Input, useToast } from "@/components/ui";
 import { updateInventoryFinanceSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
@@ -106,36 +105,28 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
           {/* Low-stock Threshold */}
-          <div>
-            <div className="flex items-center gap-2">
-              <Package className="text-primary h-4 w-4" />
-              <label
-                htmlFor="low-stock-threshold-input"
-                className="text-foreground text-sm font-semibold"
-              >
+          <Field
+            id="low-stock-threshold-input"
+            label={
+              <span className="inline-flex items-center gap-2">
+                <Package className="text-primary h-4 w-4" />
                 {dict.inventoryFinance.lowStockLabel}
-              </label>
-            </div>
-            <p className="text-body-sm text-muted-foreground mt-0.5">
-              {dict.inventoryFinance.lowStockHelper}
-            </p>
-            <input
-              id="low-stock-threshold-input"
+              </span>
+            }
+            hint={dict.inventoryFinance.lowStockHelper}
+            hintPosition="above"
+            error={errors.lowStockThreshold?.[0]}
+          >
+            <Input
               data-testid="input-low-stock-threshold"
               type="number"
               min="0"
               step="1"
               value={lowStockThreshold}
               onChange={(e) => setLowStockThreshold(parseInt(e.target.value, 10) || 0)}
-              className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 font-mono text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="h-11 rounded-xl px-3 py-2 font-mono text-sm"
             />
-            {errors.lowStockThreshold && (
-              <p className="text-destructive mt-1 flex items-center gap-1 text-xs font-medium">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                <span>{errors.lowStockThreshold[0]}</span>
-              </p>
-            )}
-          </div>
+          </Field>
 
           {/* Link to Category Management */}
           <div className="border-border border-t pt-3">
@@ -196,42 +187,38 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
           </div>
 
           {/* Tax Percentage */}
-          <div className="border-border border-t pt-3">
-            <div className="flex items-center gap-2">
-              <Receipt className="text-primary h-4 w-4" />
-              <label
-                htmlFor="tax-percentage-input"
-                className="text-foreground text-sm font-semibold"
-              >
+          <Field
+            id="tax-percentage-input"
+            label={
+              <span className="inline-flex items-center gap-2">
+                <Receipt className="text-primary h-4 w-4" />
                 {dict.inventoryFinance.taxLabel}
-              </label>
-            </div>
-            <p className="text-body-sm text-muted-foreground mt-0.5">
-              {dict.inventoryFinance.taxHelper}
-            </p>
-            <div className="relative mt-2">
-              <input
-                id="tax-percentage-input"
-                data-testid="input-tax-percentage"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={taxPercentage}
-                onChange={(e) => setTaxPercentage(parseFloat(e.target.value) || 0)}
-                className="border-input bg-background text-foreground focus-visible:ring-ring w-full rounded-xl border py-2 pr-8 pl-3 font-mono text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              />
-              <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-medium">
-                %
               </span>
-            </div>
-            {errors.taxPercentage && (
-              <p className="text-destructive mt-1 flex items-center gap-1 text-xs font-medium">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                <span>{errors.taxPercentage[0]}</span>
-              </p>
+            }
+            hint={dict.inventoryFinance.taxHelper}
+            hintPosition="above"
+            error={errors.taxPercentage?.[0]}
+            className="border-border border-t pt-3"
+          >
+            {(control) => (
+              <div className="relative">
+                <Input
+                  {...control}
+                  data-testid="input-tax-percentage"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={taxPercentage}
+                  onChange={(e) => setTaxPercentage(parseFloat(e.target.value) || 0)}
+                  className="h-11 rounded-xl py-2 pr-8 pl-3 font-mono text-sm"
+                />
+                <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-medium">
+                  %
+                </span>
+              </div>
             )}
-          </div>
+          </Field>
         </div>
       </div>
 

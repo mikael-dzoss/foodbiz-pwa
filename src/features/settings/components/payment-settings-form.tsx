@@ -9,7 +9,10 @@ import { SoonBadge } from "@/components/feedback";
 import {
   ActionBar,
   Button,
+  Field,
+  Input,
   Switch,
+  Textarea,
   Tabs,
   TabsContent,
   TabsList,
@@ -150,55 +153,47 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
           </h2>
           <div className="border-border bg-card space-y-4 rounded-2xl border p-4 shadow-2xs">
             {/* Revolut Revtag */}
-            <div>
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="revolut-revtag-input"
-                  className="text-foreground text-sm font-semibold"
-                >
-                  {dict.payment.revolutLabel}
-                </label>
-              </div>
-              <p className="text-body-sm text-muted-foreground mt-0.5">
-                {dict.payment.revolutHelper}
-              </p>
-              <div className="relative mt-2">
-                <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 font-mono text-sm">
-                  @
-                </span>
-                <input
-                  id="revolut-revtag-input"
-                  data-testid="input-revolut-revtag"
-                  type="text"
-                  value={revolutRevtag.replace(/^@/, "")}
-                  onChange={(e) => setRevolutRevtag(e.target.value)}
-                  placeholder={dict.payment.revolutPlaceholder.replace(/^@/, "")}
-                  className="border-input bg-background text-foreground focus-visible:ring-ring w-full rounded-xl border py-2 pr-3 pl-8 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                />
-              </div>
-            </div>
+            <Field
+              id="revolut-revtag-input"
+              label={dict.payment.revolutLabel}
+              hint={dict.payment.revolutHelper}
+              hintPosition="above"
+            >
+              {(control) => (
+                <div className="relative">
+                  <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 font-mono text-sm">
+                    @
+                  </span>
+                  <Input
+                    {...control}
+                    data-testid="input-revolut-revtag"
+                    type="text"
+                    value={revolutRevtag.replace(/^@/, "")}
+                    onChange={(e) => setRevolutRevtag(e.target.value)}
+                    placeholder={dict.payment.revolutPlaceholder.replace(/^@/, "")}
+                    className="h-11 rounded-xl py-2 pr-3 pl-8 text-sm"
+                  />
+                </div>
+              )}
+            </Field>
 
             {/* Wero Identifier */}
-            <div className="border-border border-t pt-3">
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="wero-identifier-input"
-                  className="text-foreground text-sm font-semibold"
-                >
-                  {dict.payment.weroLabel}
-                </label>
-              </div>
-              <p className="text-body-sm text-muted-foreground mt-0.5">{dict.payment.weroHelper}</p>
-              <input
-                id="wero-identifier-input"
+            <Field
+              id="wero-identifier-input"
+              label={dict.payment.weroLabel}
+              hint={dict.payment.weroHelper}
+              hintPosition="above"
+              className="border-border border-t pt-3"
+            >
+              <Input
                 data-testid="input-wero-identifier"
                 type="text"
                 value={weroIdentifier}
                 onChange={(e) => setWeroIdentifier(e.target.value)}
                 placeholder={dict.payment.weroPlaceholder}
-                className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="h-11 rounded-xl py-2 text-sm"
               />
-            </div>
+            </Field>
           </div>
         </div>
 
@@ -327,48 +322,38 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
               className="min-w-0 border-0 p-0"
             >
               <TabsContent value="en" className="mt-0">
-                <div>
-                  <label
-                    htmlFor="instructions-en"
-                    className="text-foreground block text-sm font-semibold"
-                  >
-                    {dict.payment.instructionsEnLabel}
-                  </label>
-                  <p className="text-body-sm text-muted-foreground mt-0.5">
-                    {dict.payment.instructionsHelper}
-                  </p>
-                  <textarea
-                    id="instructions-en"
+                <Field
+                  id="instructions-en"
+                  label={dict.payment.instructionsEnLabel}
+                  hint={dict.payment.instructionsHelper}
+                  hintPosition="above"
+                >
+                  <Textarea
                     data-testid="textarea-instructions-en"
                     rows={3}
                     value={paymentInstructionsEn}
                     onChange={(e) => setPaymentInstructionsEn(e.target.value)}
                     placeholder="e.g. Please show your order confirmation on pickup. Revolut or cash accepted."
-                    className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    className="rounded-xl py-2 text-sm"
                   />
-                </div>
+                </Field>
               </TabsContent>
               <TabsContent value="fr" className="mt-0">
-                <div>
-                  <label
-                    htmlFor="instructions-fr"
-                    className="text-foreground block text-sm font-semibold"
-                  >
-                    {dict.payment.instructionsFrLabel}
-                  </label>
-                  <p className="text-body-sm text-muted-foreground mt-0.5">
-                    {dict.payment.instructionsHelper}
-                  </p>
-                  <textarea
-                    id="instructions-fr"
+                <Field
+                  id="instructions-fr"
+                  label={dict.payment.instructionsFrLabel}
+                  hint={dict.payment.instructionsHelper}
+                  hintPosition="above"
+                >
+                  <Textarea
                     data-testid="textarea-instructions-fr"
                     rows={3}
                     value={paymentInstructionsFr}
                     onChange={(e) => setPaymentInstructionsFr(e.target.value)}
                     placeholder="ex. Merci de présenter votre confirmation au comptoir. Espèces ou Revolut acceptés."
-                    className="border-input bg-background text-foreground focus-visible:ring-ring mt-2 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    className="rounded-xl py-2 text-sm"
                   />
-                </div>
+                </Field>
               </TabsContent>
             </fieldset>
           </Tabs>
