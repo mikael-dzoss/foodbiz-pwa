@@ -218,7 +218,7 @@ export function ProductFormSheet({
         data-testid="product-form-sheet"
       >
         <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
-          <SheetTitle className="text-foreground text-lg font-bold">
+          <SheetTitle className="text-foreground">
             {isEditing ? "Edit Product" : "Add Product"}
           </SheetTitle>
           <p className="text-muted-foreground text-xs font-medium">

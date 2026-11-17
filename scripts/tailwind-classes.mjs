@@ -1,20 +1,15 @@
 // Finds class names in src/ that Tailwind does not generate (typos, missing tokens).
 // Detection: collect class-like string literals with the TypeScript parser, then ask the real
 // Tailwind v4 design system built from src/app/globals.css whether each token produces CSS.
+// Known gaps: tests (`tests/`, `*.test.tsx`) are skipped; a string outside `className` is only
+// checked when most of its tokens are valid classes; template literals are checked per fragment.
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { __unstable__loadDesignSystem } from "@tailwindcss/node";
 import ts from "typescript";
 
 /** Class-like tokens that are intentionally not Tailwind (hand-written classes, markers). */
-export const ALLOWLIST = new Set([
-  "dark",
-  "peer",
-  "group",
-  "no-scrollbar",
-  "tabular-nums",
-  "animate-pop-in",
-]);
+export const ALLOWLIST = new Set(["dark", "peer", "group"]);
 
 // Calls whose string arguments are class lists.
 const CLASS_CALLS = new Set(["cn", "clsx", "cva", "twMerge", "tv"]);

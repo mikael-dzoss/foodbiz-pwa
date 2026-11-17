@@ -100,7 +100,7 @@ export function StockAdjustmentSheet({
       >
         {/* Header from Stitch M-43 Canvas */}
         <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
-          <SheetTitle className="text-foreground text-lg font-bold">Adjust Stock</SheetTitle>
+          <SheetTitle className="text-foreground">Adjust Stock</SheetTitle>
           <p className="text-muted-foreground text-xs font-medium">
             {product.name} · {product.categoryName}
           </p>
