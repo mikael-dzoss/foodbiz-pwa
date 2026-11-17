@@ -58,6 +58,8 @@ test("unknown manager order id renders not-found inside the shell with navigatio
 });
 
 test("every manager route renders without a server error", async ({ page }) => {
+  // Walks every manager route; on a cold dev server each first visit compiles the route.
+  test.setTimeout(240_000);
   await signIn(page);
   for (const path of MANAGER_ROUTES) {
     const response = await page.goto(path);
