@@ -50,7 +50,7 @@ const serverEnvSchema = z
     ),
   })
   .refine((data) => data.DATA_SOURCE !== "supabase" || data.STOREFRONT_BUSINESS_ID !== undefined, {
-    message: "STOREFRONT_BUSINESS_ID is required when DATA_SOURCE is 'supabase'",
+    error: "STOREFRONT_BUSINESS_ID is required when DATA_SOURCE is 'supabase'",
     path: ["STOREFRONT_BUSINESS_ID"],
   })
   .refine(
@@ -63,7 +63,7 @@ const serverEnvSchema = z
       return true;
     },
     {
-      message:
+      error:
         "Mock manager session cannot be enabled in production: DATA_SOURCE cannot be 'mock' in production",
       path: ["DATA_SOURCE"],
     },

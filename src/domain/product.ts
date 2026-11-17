@@ -107,7 +107,7 @@ export const productFormInputSchema = z.object({
     if (typeof val === "number") {
       if (!Number.isInteger(val) || val < 0) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: "Price must be a positive integer in cents",
         });
         return z.NEVER;
@@ -117,7 +117,7 @@ export const productFormInputSchema = z.object({
     const cents = parseEuroStringToCents(val);
     if (isNaN(cents) || cents < 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Price must be a valid positive amount",
       });
       return z.NEVER;
@@ -132,7 +132,7 @@ export const productFormInputSchema = z.object({
       if (typeof val === "number") {
         if (!Number.isInteger(val) || val < 0) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             message: "Unit cost must be a positive integer in cents",
           });
           return z.NEVER;
@@ -142,7 +142,7 @@ export const productFormInputSchema = z.object({
       const cents = parseEuroStringToCents(val);
       if (isNaN(cents) || cents < 0) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: "Unit cost must be a valid positive amount",
         });
         return z.NEVER;
@@ -151,8 +151,8 @@ export const productFormInputSchema = z.object({
     }),
   stock: z.coerce
     .number()
-    .int({ message: "Stock must be an integer" })
-    .min(0, { message: "Stock cannot be negative" })
+    .int({ error: "Stock must be an integer" })
+    .min(0, { error: "Stock cannot be negative" })
     .default(0),
   visible: z
     .union([z.boolean(), z.string()])

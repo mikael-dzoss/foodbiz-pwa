@@ -9,7 +9,7 @@ export const dateRangeSchema = z
     endDate: isoDateSchema,
   })
   .refine((range) => range.startDate <= range.endDate, {
-    message: "startDate must be before or equal to endDate",
+    error: "startDate must be before or equal to endDate",
   });
 
 export type DateRange = z.infer<typeof dateRangeSchema>;

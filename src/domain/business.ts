@@ -42,7 +42,7 @@ export const businessSchema = z.object({
   currency: z.literal("EUR").default("EUR"),
   description: z.string().trim().max(500).optional(),
   phone: z.string().trim().optional(),
-  email: z.string().trim().email().optional().or(z.literal("")),
+  email: z.string().trim().pipe(z.email()).optional().or(z.literal("")),
   whatsappNumber: z.string().trim().optional(),
   instagramUrl: socialUrlSchema,
   facebookUrl: socialUrlSchema,
@@ -66,7 +66,7 @@ export const updateBusinessProfileSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase alphanumeric characters and hyphens"),
   description: z.string().trim().max(500, "Description must be 500 characters or less").optional(),
   phone: z.string().trim().optional(),
-  email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
+  email: z.string().trim().pipe(z.email("Invalid email")).optional().or(z.literal("")),
   whatsappNumber: z.string().trim().optional(),
   instagramUrl: socialUrlSchema,
   facebookUrl: socialUrlSchema,
@@ -166,7 +166,7 @@ export const updateOrderingSettingsSchema = z
   .refine(
     (data) => data.serviceTypes.pickup || data.serviceTypes.delivery || data.serviceTypes.dineIn,
     {
-      message: "At least one service type must be enabled",
+      error: "At least one service type must be enabled",
       path: ["serviceTypes"],
     },
   );
@@ -188,7 +188,7 @@ export const updatePaymentSettingsSchema = z
   .refine(
     (data) => data.paymentMethods.cash || data.paymentMethods.revolut || data.paymentMethods.wero,
     {
-      message: "At least one payment option must be enabled",
+      error: "At least one payment option must be enabled",
       path: ["paymentMethods"],
     },
   );
