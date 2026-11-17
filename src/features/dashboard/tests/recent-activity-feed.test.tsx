@@ -41,7 +41,7 @@ const mockActivity: ActivityFeedItem[] = [
 
 describe("RecentActivityFeed Component", () => {
   it("renders chronological feed of mixed orders and expenses with details", () => {
-    render(<RecentActivityFeed items={mockActivity} />);
+    render(<RecentActivityFeed items={mockActivity} now={new Date().toISOString()} />);
 
     expect(screen.getByTestId("recent-activity-section")).toBeDefined();
     expect(screen.getByText("Recent activity")).toBeDefined();
@@ -62,7 +62,7 @@ describe("RecentActivityFeed Component", () => {
   });
 
   it("renders empty state when there are no activities", () => {
-    render(<RecentActivityFeed items={[]} />);
+    render(<RecentActivityFeed items={[]} now={new Date().toISOString()} />);
 
     expect(screen.getByText("No recent activity yet")).toBeDefined();
   });

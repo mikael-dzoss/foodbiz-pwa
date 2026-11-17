@@ -1,4 +1,5 @@
 import type { SupportedLocale } from "../i18n/types";
+import { safeTimeZone } from "../timezone";
 
 function toDate(date: Date | string | number): Date {
   if (date instanceof Date) {
@@ -13,51 +14,62 @@ const LOCALE_MAP: Record<SupportedLocale, string> = {
 };
 
 /**
- * Formats a date into a localized date string.
+ * Formats a date into a localized date string, as the calendar day in `timeZone` (the business
+ * zone), never the server's or the device's.
  */
 export function formatDate(
   date: Date | string | number,
+  timeZone: string,
   locale: SupportedLocale = "en",
   style: "short" | "medium" | "long" = "medium",
 ): string {
-  const d = toDate(date);
-  const intlLocale = LOCALE_MAP[locale];
-
-  if (style === "short") {
-    return new Intl.DateTimeFormat(intlLocale, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(d);
-  }
-
-  if (style === "long") {
-    return new Intl.DateTimeFormat(intlLocale, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(d);
-  }
-
-  return new Intl.DateTimeFormat(intlLocale, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(d);
+  const options: Intl.DateTimeFormatOptions =
+    style === "short"
+      ? { year: "numeric", month: "2-digit", day: "2-digit" }
+      : style === "long"
+        ? { year: "numeric", month: "long", day: "numeric" }
+        : { year: "numeric", month: "short", day: "numeric" };
+  return new Intl.DateTimeFormat(LOCALE_MAP[locale], {
+    ...options,
+    timeZone: safeTimeZone(timeZone),
+  }).format(toDate(date));
 }
 
 /**
- * Formats a date's time portion (HH:mm).
+ * Formats a date's time portion (HH:mm, 24-hour) in `timeZone`.
  */
-export function formatTime(date: Date | string | number, locale: SupportedLocale = "en"): string {
-  const d = toDate(date);
-  const intlLocale = LOCALE_MAP[locale];
-
-  return new Intl.DateTimeFormat(intlLocale, {
+export function formatTime(
+  date: Date | string | number,
+  timeZone: string,
+  locale: SupportedLocale = "en",
+): string {
+  return new Intl.DateTimeFormat(LOCALE_MAP[locale], {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(d);
+    timeZone: safeTimeZone(timeZone),
+  }).format(toDate(date));
+}
+
+/** Short date and time in `timeZone`, e.g. "09/10/2026 • 16:30". */
+export function formatDateTime(
+  date: Date | string | number,
+  timeZone: string,
+  locale: SupportedLocale = "en",
+): string {
+  return `${formatDate(date, timeZone, locale, "short")} • ${formatTime(date, timeZone, locale)}`;
+}
+
+/**
+ * Formats a bare calendar day (YYYY-MM-DD, e.g. an order's requested date or an expense date).
+ * A calendar day has no zone, so it is rendered as is and never shifted.
+ */
+export function formatCalendarDate(
+  day: string,
+  locale: SupportedLocale = "en",
+  style: "short" | "medium" | "long" = "medium",
+): string {
+  return formatDate(`${day.slice(0, 10)}T12:00:00Z`, "UTC", locale, style);
 }
 
 /**
@@ -65,7 +77,7 @@ export function formatTime(date: Date | string | number, locale: SupportedLocale
  */
 export function formatRelativeTime(
   date: Date | string | number,
-  baseDate: Date | string | number = new Date(),
+  baseDate: Date | string | number,
   locale: SupportedLocale = "en",
 ): string {
   const d = toDate(date);

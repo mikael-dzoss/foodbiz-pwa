@@ -43,6 +43,8 @@ describe("ManageDashboardPage", () => {
         expenses: [],
         products: [],
         periodPreset: "last_7_days",
+        now: new Date("2026-10-15T12:00:00Z"),
+        timeZone: "UTC",
       }),
     );
 
@@ -59,11 +61,16 @@ describe("ManageDashboardPage", () => {
   });
 
   it("defaults to today for a missing or invalid period", async () => {
-    const spy = vi
-      .spyOn(dashboardData, "getDashboardData")
-      .mockResolvedValue(
-        buildDashboardData({ orders: [], expenses: [], products: [], periodPreset: "today" }),
-      );
+    const spy = vi.spyOn(dashboardData, "getDashboardData").mockResolvedValue(
+      buildDashboardData({
+        orders: [],
+        expenses: [],
+        products: [],
+        periodPreset: "today",
+        now: new Date("2026-10-15T12:00:00Z"),
+        timeZone: "UTC",
+      }),
+    );
 
     await ManageDashboardPage();
     await ManageDashboardPage({ searchParams: Promise.resolve({ period: "bogus" }) });

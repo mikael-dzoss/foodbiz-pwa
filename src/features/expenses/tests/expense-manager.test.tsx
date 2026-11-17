@@ -47,7 +47,7 @@ describe("ExpenseManager Component", () => {
   });
 
   it("renders screen header, KPI card, filters, and grouped monthly list", () => {
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     expect(screen.getByRole("heading", { name: "Expenses" })).toBeDefined();
     expect(screen.getByTestId("add-expense-button")).toBeDefined();
@@ -71,7 +71,7 @@ describe("ExpenseManager Component", () => {
   });
 
   it("filters expenses when selecting 'All time'", () => {
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     fireEvent.click(screen.getByTestId("period-filter-all"));
 
@@ -82,7 +82,7 @@ describe("ExpenseManager Component", () => {
   });
 
   it("filters expenses by tag", () => {
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     // Click Transport filter
     fireEvent.click(screen.getByTestId("tag-filter-Transport"));
@@ -92,7 +92,7 @@ describe("ExpenseManager Component", () => {
   });
 
   it("renders empty state with quick add when no expenses match filter", () => {
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     // Equipment tag has 0 items
     fireEvent.click(screen.getByTestId("tag-filter-Equipment"));
@@ -110,7 +110,7 @@ describe("ExpenseManager Component", () => {
   });
 
   it("opens create expense sheet on '+ Add expense' click", () => {
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     fireEvent.click(screen.getByTestId("add-expense-button"));
 
@@ -122,7 +122,7 @@ describe("ExpenseManager Component", () => {
   });
 
   it("opens edit expense sheet when clicking an expense row", () => {
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     fireEvent.click(screen.getByTestId("expense-row-55555555-5555-4555-8555-555555555501"));
 
@@ -155,7 +155,7 @@ describe("ExpenseManager Component", () => {
       data: createdExpense,
     });
 
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     fireEvent.click(screen.getByTestId("add-expense-button"));
 
@@ -195,7 +195,7 @@ describe("ExpenseManager Component", () => {
       data: updatedExpense,
     });
 
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     fireEvent.click(screen.getByTestId("expense-row-55555555-5555-4555-8555-555555555501"));
 
@@ -228,7 +228,7 @@ describe("ExpenseManager Component", () => {
       data: undefined,
     });
 
-    render(<ExpenseManager initialExpenses={mockExpenses} />);
+    render(<ExpenseManager now={new Date().toISOString()} initialExpenses={mockExpenses} />);
 
     fireEvent.click(screen.getByTestId("expense-row-55555555-5555-4555-8555-555555555501"));
 

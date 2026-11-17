@@ -273,11 +273,14 @@ const mockProductRepo = {
   }),
 };
 
+let mockTimezone = "UTC";
+
 vi.mock("@/lib/repositories", () => ({
   getRepositories: () => ({
     orders: mockOrderRepo,
     guests: mockGuestRepo,
     products: mockProductRepo,
+    business: { getSettings: vi.fn(async () => ({ timezone: mockTimezone })) },
   }),
 }));
 
@@ -599,6 +602,31 @@ describe("Order Server Actions", () => {
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.fieldErrors).toBeDefined();
+      }
+    });
+
+    it("defaults an ASAP order to today on the business calendar, not the server's UTC day", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-14T23:30:00Z")); // 15 Oct 01:30 in Paris
+      mockTimezone = "Europe/Paris";
+      const place = vi.spyOn(mockOrderRepo, "place");
+      try {
+        const res = await createManualOrderAction({
+          guestPhone: "+33612345678",
+          guestName: "Jean Dupont",
+          serviceType: "pickup",
+          channel: "phone",
+          isAsap: true,
+          items: [{ productId: validProductId, quantity: 1 }],
+        });
+        expect(res.ok).toBe(true);
+        expect(place).toHaveBeenCalledWith(
+          testBusinessId,
+          expect.objectContaining({ requestedDate: "2026-10-15" }),
+        );
+      } finally {
+        vi.useRealTimers();
+        mockTimezone = "UTC";
       }
     });
 

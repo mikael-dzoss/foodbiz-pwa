@@ -21,7 +21,7 @@ describe("ExpenseSheet Component", () => {
 
   it("renders create mode when no expense is provided", () => {
     const onOpenChange = vi.fn();
-    render(<ExpenseSheet open={true} onOpenChange={onOpenChange} />);
+    render(<ExpenseSheet today="2026-10-15" open={true} onOpenChange={onOpenChange} />);
 
     expect(screen.getByTestId("expense-sheet")).toBeDefined();
     expect(screen.getByTestId("expense-sheet-title").textContent).toBe("New expense");
@@ -30,7 +30,7 @@ describe("ExpenseSheet Component", () => {
   });
 
   it("handles quick amount increment buttons and comma decimal input", () => {
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} />);
+    render(<ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} />);
 
     const amountInput = screen.getByTestId("expense-amount-input") as HTMLInputElement;
 
@@ -52,7 +52,9 @@ describe("ExpenseSheet Component", () => {
   });
 
   it("allows toggling tags when multiple tags are selected", () => {
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
+    render(
+      <ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} expense={mockExpense} />,
+    );
 
     // Initial tags are Ingredients and Supplies
     const suppliesTag = screen.getByTestId("expense-tag-Supplies");
@@ -79,7 +81,7 @@ describe("ExpenseSheet Component", () => {
   });
 
   it("validates empty or invalid fields on submit", async () => {
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} />);
+    render(<ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} />);
 
     // Clear description
     const descInput = screen.getByTestId("expense-description-input");
@@ -118,7 +120,7 @@ describe("ExpenseSheet Component", () => {
       },
     });
 
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} />);
+    render(<ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} />);
 
     fireEvent.change(screen.getByTestId("expense-amount-input"), { target: { value: "20.00" } });
     fireEvent.change(screen.getByTestId("expense-description-input"), {
@@ -140,7 +142,9 @@ describe("ExpenseSheet Component", () => {
       message: "Update rejected by database",
     });
 
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
+    render(
+      <ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} expense={mockExpense} />,
+    );
 
     fireEvent.click(screen.getByTestId("expense-submit-button"));
 
@@ -153,7 +157,7 @@ describe("ExpenseSheet Component", () => {
   it("handles unexpected thrown exceptions on submit", async () => {
     vi.spyOn(actions, "createExpenseAction").mockRejectedValue(new Error("Network disconnect"));
 
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} />);
+    render(<ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} />);
 
     fireEvent.change(screen.getByTestId("expense-amount-input"), { target: { value: "10.00" } });
     fireEvent.change(screen.getByTestId("expense-description-input"), {
@@ -173,7 +177,9 @@ describe("ExpenseSheet Component", () => {
       message: "Cannot delete expense",
     });
 
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
+    render(
+      <ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} expense={mockExpense} />,
+    );
 
     // Click delete trigger
     fireEvent.click(screen.getByTestId("expense-delete-trigger"));
@@ -190,7 +196,9 @@ describe("ExpenseSheet Component", () => {
   it("handles unexpected thrown exceptions on delete", async () => {
     vi.spyOn(actions, "deleteExpenseAction").mockRejectedValue(new Error("Network boom"));
 
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
+    render(
+      <ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} expense={mockExpense} />,
+    );
 
     fireEvent.click(screen.getByTestId("expense-delete-trigger"));
     fireEvent.click(screen.getByTestId("expense-delete-confirm-button"));
@@ -202,7 +210,7 @@ describe("ExpenseSheet Component", () => {
 
   it("closes when Cancel button is clicked", () => {
     const onOpenChange = vi.fn();
-    render(<ExpenseSheet open={true} onOpenChange={onOpenChange} />);
+    render(<ExpenseSheet today="2026-10-15" open={true} onOpenChange={onOpenChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -211,6 +219,7 @@ describe("ExpenseSheet Component", () => {
   it("disables deleting with an explanation when only an owner may delete", () => {
     render(
       <ExpenseSheet
+        today="2026-10-15"
         open={true}
         onOpenChange={vi.fn()}
         expense={mockExpense}
@@ -225,7 +234,9 @@ describe("ExpenseSheet Component", () => {
   });
 
   it("keeps deleting enabled without an explanation", () => {
-    render(<ExpenseSheet open={true} onOpenChange={vi.fn()} expense={mockExpense} />);
+    render(
+      <ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} expense={mockExpense} />,
+    );
 
     expect((screen.getByTestId("expense-delete-trigger") as HTMLButtonElement).disabled).toBe(
       false,

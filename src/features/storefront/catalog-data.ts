@@ -1,6 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag, updateTag, revalidatePath } from "next/cache";
 import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/repositories/storefront";
+import { DEFAULT_TIMEZONE, getZonedMinutesOfDay, getZonedParts } from "@/domain/timezone";
 import { featuredDateRange, rankFeaturedQuantities } from "@/domain/featured";
 import type { BusinessSettings } from "@/domain/business";
 import {
@@ -41,12 +42,13 @@ export interface StorefrontProductData {
 }
 
 /**
- * Checks if the store is currently open based on opening hours and system time.
+ * Checks if the store is currently open based on opening hours and the current time on the
+ * business clock (`settings.timezone`), not the server's.
  * If no opening hours are set, defaults to open (unless acceptingOrders is explicitly false).
  */
 export function evaluateStoreOperatingStatus(
   settings: BusinessSettings | null,
-  now: Date = new Date(),
+  now: Date,
 ): { isOpen: boolean; isAcceptingOrders: boolean; scheduleText: string | null } {
   const isAcceptingOrders = settings?.acceptingOrders ?? true;
   const openingHours = settings?.openingHours?.trim() || null;
@@ -67,7 +69,7 @@ export function evaluateStoreOperatingStatus(
     const [, startH, startM, endH, endM] = timeMatch;
     const startMinutes = parseInt(startH, 10) * 60 + parseInt(startM, 10);
     const endMinutes = parseInt(endH, 10) * 60 + parseInt(endM, 10);
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentMinutes = getZonedMinutesOfDay(now, settings?.timezone ?? DEFAULT_TIMEZONE);
 
     if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
       isOpen = false;
@@ -172,7 +174,7 @@ export async function getStorefrontCatalog(): Promise<StorefrontCatalogData> {
     isAcceptingOrders: operatingStatus.isAcceptingOrders,
     isOpen: operatingStatus.isOpen,
     openingHoursText: operatingStatus.scheduleText,
-    currentYear: now.getFullYear(),
+    currentYear: getZonedParts(now, settings?.timezone ?? DEFAULT_TIMEZONE).year,
   };
 }
 
@@ -207,7 +209,8 @@ export async function getStorefrontProduct(
     }
   }
 
-  const operatingStatus = evaluateStoreOperatingStatus(settings);
+  // Clock is read within use cache, so it advances when the hours cache revalidates.
+  const operatingStatus = evaluateStoreOperatingStatus(settings, new Date());
 
   return {
     product: toStorefrontProduct(product),

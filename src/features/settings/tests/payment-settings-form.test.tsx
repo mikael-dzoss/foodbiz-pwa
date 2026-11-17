@@ -37,6 +37,7 @@ const mockSettings: BusinessSettings = {
   paymentInstructionsFr: "Veuillez présenter votre référence de commande.",
   inAppAlerts: true,
   soundAlerts: true,
+  timezone: "Europe/Paris",
 };
 
 const dict = getDictionary(DEFAULT_LOCALE).settings;

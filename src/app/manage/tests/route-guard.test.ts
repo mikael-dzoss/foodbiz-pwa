@@ -16,6 +16,8 @@ vi.mock("@/features/dashboard/dashboard-data", () => ({
       expenses: [],
       products: [],
       periodPreset: "today",
+      now: new Date("2026-10-15T12:00:00Z"),
+      timeZone: "UTC",
     }),
   ),
 }));

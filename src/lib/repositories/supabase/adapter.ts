@@ -93,7 +93,7 @@ export const PUBLIC_PRODUCT_COLUMNS =
   "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
 
 export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
-  "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
+  "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
 type OrderRowWithItems = Tables<"orders"> & {
   order_items: Tables<"order_items">[];
@@ -254,6 +254,7 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
     minOrderAmount: row.min_order_amount,
     leadTimeValue: row.lead_time_value,
     leadTimeUnit: row.lead_time_unit,
+    timezone: row.timezone,
     revolutRevtag: row.revolut_revtag,
     weroIdentifier: row.wero_identifier,
     paymentMethods: row.payment_methods,
@@ -1267,6 +1268,7 @@ export function createSupabaseRepositories(
       if (input.minOrderAmount !== undefined) updateData.min_order_amount = input.minOrderAmount;
       if (input.leadTimeValue !== undefined) updateData.lead_time_value = input.leadTimeValue;
       if (input.leadTimeUnit !== undefined) updateData.lead_time_unit = input.leadTimeUnit;
+      if (input.timezone !== undefined) updateData.timezone = input.timezone;
       if (input.revolutRevtag !== undefined) updateData.revolut_revtag = input.revolutRevtag;
       if (input.weroIdentifier !== undefined) updateData.wero_identifier = input.weroIdentifier;
       if (input.paymentMethods !== undefined)

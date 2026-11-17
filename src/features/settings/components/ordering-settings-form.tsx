@@ -16,6 +16,7 @@ import {
 import type { BusinessSettings } from "@/domain/business";
 import { formatLeadTime, leadTimeUnitSchema, type LeadTimeUnit } from "@/domain/lead-time";
 import type { SettingsDictionary } from "@/domain/i18n";
+import { SELECTABLE_TIMEZONES } from "@/domain/timezone";
 import { SoonBadge } from "@/components/feedback";
 import { Switch, useToast } from "@/components/ui";
 import { updateOrderingSettingsAction } from "../actions";
@@ -70,6 +71,14 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
       ? formatLeadTime({ value: parsedLeadTimeValue, unit: leadTimeUnit }, locale)
       : null;
 
+  // 7. Business time zone (#168)
+  const [timezone, setTimezone] = useState(settings.timezone);
+  const timezoneOptions = SELECTABLE_TIMEZONES.includes(
+    timezone as (typeof SELECTABLE_TIMEZONES)[number],
+  )
+    ? SELECTABLE_TIMEZONES
+    : [timezone, ...SELECTABLE_TIMEZONES];
+
   // Errors
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
@@ -86,6 +95,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
     setMinOrderEuros(((settings.minOrderAmount ?? 0) / 100).toFixed(2));
     setLeadTimeValue(String(settings.leadTimeValue ?? 1));
     setLeadTimeUnit(settings.leadTimeUnit ?? "business_days");
+    setTimezone(settings.timezone);
     setErrors({});
     showToast("Changes discarded");
   };
@@ -124,6 +134,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
         minOrderAmount: minOrderCents,
         leadTimeValue: parsedLeadTimeValue,
         leadTimeUnit,
+        timezone,
       });
 
       if (res.ok) {
@@ -515,6 +526,34 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               <p className="text-danger mt-1 text-xs">{errors.leadTimeValue[0]}</p>
             )}
           </fieldset>
+        </div>
+      </div>
+
+      {/* Section 5c: Business time zone (#168) */}
+      <div className="mb-6">
+        <h2 className="text-label-sm text-muted-foreground mb-2 px-1 font-semibold tracking-wider uppercase">
+          {dict.ordering.timezoneSection}
+        </h2>
+        <div className="border-border bg-card space-y-2 rounded-2xl border p-4 shadow-2xs">
+          <label htmlFor="timezone-select" className="text-foreground block text-sm font-semibold">
+            {dict.ordering.timezoneLabel}
+          </label>
+          <p className="text-body-sm text-muted-foreground">{dict.ordering.timezoneHelper}</p>
+          <select
+            id="timezone-select"
+            data-testid="select-timezone"
+            aria-invalid={!!errors.timezone}
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+            className="border-input bg-background text-foreground focus-visible:ring-ring min-h-11 w-full rounded-xl border px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {timezoneOptions.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+          {errors.timezone && <p className="text-danger mt-1 text-xs">{errors.timezone[0]}</p>}
         </div>
       </div>
 

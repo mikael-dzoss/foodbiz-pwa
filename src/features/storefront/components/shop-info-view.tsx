@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
+import { useZonedToday } from "@/components/time/business-timezone";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import { buildOpenStreetMapEmbedUrl, type BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
@@ -72,9 +74,10 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
     { key: "sunday", label: "Sunday", fr: "Dimanche" },
   ];
 
-  // Current day index (0 is Sunday, 1 is Monday...)
-  const currentDayIndex = new Date().getDay();
-  // Map JS getDay (0=Sun, 1=Mon...6=Sat) to our Monday-indexed list
+  // Today in the business zone (null until hydrated, so server and client render the same)
+  const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
+  // JS weekday (0=Sun, 1=Mon...6=Sat) mapped to our Monday-indexed list; -1 = unknown yet
+  const currentDayIndex = today ? new Date(`${today}T12:00:00Z`).getUTCDay() : -1;
   const currentMondayIndex = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
 
   const isOpen = settings?.acceptingOrders ?? true;

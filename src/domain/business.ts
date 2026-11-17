@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
+import { timeZoneSchema, DEFAULT_TIMEZONE } from "./timezone";
 import { leadTimeUnitSchema, leadTimeValueSchema } from "./lead-time";
 
 const socialUrlSchema = z
@@ -121,6 +122,8 @@ export const businessSettingsSchema = z.object({
   minOrderAmount: z.number().int().min(0).default(0), // cents
   leadTimeValue: leadTimeValueSchema.default(1),
   leadTimeUnit: leadTimeUnitSchema.default("business_days"),
+  // Operating time zone (#168): every date is computed and shown in it
+  timezone: timeZoneSchema.default(DEFAULT_TIMEZONE),
 
   // Payment settings (#72)
   revolutRevtag: z.string().trim().optional().default(""),
@@ -162,6 +165,7 @@ export const updateOrderingSettingsSchema = z
       .default(0),
     leadTimeValue: leadTimeValueSchema.default(1),
     leadTimeUnit: leadTimeUnitSchema.default("business_days"),
+    timezone: timeZoneSchema.default(DEFAULT_TIMEZONE),
   })
   .refine(
     (data) => data.serviceTypes.pickup || data.serviceTypes.delivery || data.serviceTypes.dineIn,

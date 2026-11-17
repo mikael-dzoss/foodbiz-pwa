@@ -7,6 +7,7 @@ import {
   type SupportedLocale,
 } from "@/domain/i18n";
 import { getStorefrontRepositories } from "@/lib/repositories/storefront";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { toStorefrontBusiness } from "@/domain/storefront-business";
 import { OrderTrackingView } from "@/features/storefront";
 
@@ -52,7 +53,10 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
     return null;
   }
 
-  const business = await repos.business.findById(order.businessId);
+  const [business, settings] = await Promise.all([
+    repos.business.findById(order.businessId),
+    repos.business.getSettings(order.businessId),
+  ]);
 
   if (!business) {
     notFound();
@@ -64,6 +68,7 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
       order={order}
       business={toStorefrontBusiness(business)}
       locale={locale}
+      timeZone={settings?.timezone ?? DEFAULT_TIMEZONE}
       dict={dict.orderTracking}
       storefrontDict={dict.storefront}
     />

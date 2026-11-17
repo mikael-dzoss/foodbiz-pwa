@@ -59,6 +59,7 @@ const sampleProductData: StorefrontProductData = {
     paymentInstructionsFr: "",
     inAppAlerts: true,
     soundAlerts: true,
+    timezone: "Europe/Paris",
   },
   isAcceptingOrders: true,
   isOpen: true,

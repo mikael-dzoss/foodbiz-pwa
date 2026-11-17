@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
+import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
 import { ManagerShell } from "@/features/manager";
 import { requireManagerSession } from "@/lib/auth";
 import { getRepositories } from "@/lib/repositories";
@@ -28,7 +30,9 @@ export default async function AuthenticatedManageLayout({
       soundAlertsEnabled={soundAlertsEnabled}
       businessId={session.user.businessId}
     >
-      {children}
+      <BusinessTimeZoneProvider timeZone={settings?.timezone ?? DEFAULT_TIMEZONE}>
+        {children}
+      </BusinessTimeZoneProvider>
     </ManagerShell>
   );
 }

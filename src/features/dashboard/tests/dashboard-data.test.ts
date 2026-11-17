@@ -9,6 +9,7 @@ const guestCharlieId = "77777777-7777-4111-8111-777777777702";
 let mockOrders: Order[] = [];
 let mockExpenses: Expense[] = [];
 let mockProducts: Product[] = [];
+let mockTimezone = "UTC";
 
 const mockOrderRepo = {
   list: vi.fn(async () => mockOrders),
@@ -53,7 +54,12 @@ vi.mock("@/lib/repositories", () => ({
     guests: mockGuestRepo,
     expenses: mockExpenseRepo,
     products: mockProductRepo,
+    business: { getSettings: vi.fn(async () => ({ timezone: mockTimezone })) },
   }),
+}));
+
+vi.mock("@/lib/request-time", () => ({
+  getRequestNow: vi.fn(async () => new Date("2026-10-15T12:00:00Z")),
 }));
 
 const mockRequireAuthenticatedAction = vi.fn(async () => ({
@@ -72,6 +78,7 @@ vi.mock("@/features/auth", () => ({
 describe("Dashboard Server Actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTimezone = "UTC";
 
     mockOrders = [
       {
@@ -161,7 +168,7 @@ describe("Dashboard Server Actions", () => {
   });
 
   it("loads dashboard data with the default 'today' preset", async () => {
-    const data = await getDashboardData(undefined, "2026-10-15");
+    const data = await getDashboardData(undefined, new Date("2026-10-15T12:00:00Z"));
 
     expect(data.periodPreset).toBe("today");
     expect(data.kpis.current.revenue).toBe(2400);
@@ -174,8 +181,16 @@ describe("Dashboard Server Actions", () => {
     expect(data.activity).toHaveLength(3);
   });
 
+  it("resolves 'today' on the business calendar, not the server's UTC one", async () => {
+    // 23:30 UTC on 14 Oct is already 15 Oct (01:30) in Paris
+    mockTimezone = "Europe/Paris";
+    const data = await getDashboardData("today", new Date("2026-10-14T23:30:00Z"));
+    expect(data.period).toEqual({ startDate: "2026-10-15", endDate: "2026-10-15" });
+    expect(data.generatedAt).toBe("2026-10-14T23:30:00.000Z");
+  });
+
   it("supports periodPreset filtering ('last_7_days')", async () => {
-    const data = await getDashboardData("last_7_days", "2026-10-15");
+    const data = await getDashboardData("last_7_days", new Date("2026-10-15T12:00:00Z"));
 
     expect(data.periodPreset).toBe("last_7_days");
     expect(data.period.startDate).toBe("2026-10-09");

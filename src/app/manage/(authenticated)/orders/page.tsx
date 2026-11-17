@@ -3,6 +3,7 @@ import { requireManagerSession } from "@/lib/auth";
 import { listOrders } from "@/features/orders/order-data";
 import { OrderList } from "@/features/orders/components/order-list";
 import { APP_METADATA } from "@/config/app";
+import { getRequestNow } from "@/lib/request-time";
 
 export const metadata: Metadata = {
   title: `Orders | ${APP_METADATA.name}`,
@@ -26,10 +27,16 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps = {})
       : "active";
 
   const initialData = await listOrders({ statusTab: "all" });
+  const now = (await getRequestNow()).toISOString();
 
   return (
     <div className="mx-auto max-w-xl">
-      <OrderList initialData={initialData} initialTab={initialTab} initialUnpaidOnly={isUnpaid} />
+      <OrderList
+        initialData={initialData}
+        initialTab={initialTab}
+        initialUnpaidOnly={isUnpaid}
+        now={now}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const mockData: DashboardData = {
+  generatedAt: "2026-10-15T12:00:00.000Z",
   periodPreset: "today",
   period: { startDate: "2026-10-15", endDate: "2026-10-15" },
   kpis: {

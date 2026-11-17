@@ -85,6 +85,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
   it("renders order reference, items, fulfillment, and confirmed status", () => {
     render(
       <OrderTrackingView
+        timeZone="Europe/Paris"
         order={mockActiveOrder}
         business={mockBusiness}
         locale="en"
@@ -108,6 +109,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
   it("reflects CANCELLED outcome with reason from kitchen", () => {
     render(
       <OrderTrackingView
+        timeZone="Europe/Paris"
         order={mockCancelledOrder}
         business={mockBusiness}
         locale="en"
@@ -131,6 +133,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
   it("renders French localization cleanly", () => {
     render(
       <OrderTrackingView
+        timeZone="Europe/Paris"
         order={mockCancelledOrder}
         business={mockBusiness}
         locale="fr"
@@ -161,6 +164,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     render(
       <OrderTrackingView
+        timeZone="Europe/Paris"
         order={deliveryOrder}
         business={mockBusiness}
         locale="en"
@@ -184,6 +188,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     const { rerender } = render(
       <OrderTrackingView
+        timeZone="Europe/Paris"
         order={readyOrder}
         business={mockBusiness}
         locale="en"
@@ -201,6 +206,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     rerender(
       <OrderTrackingView
+        timeZone="Europe/Paris"
         order={completedOrder}
         business={mockBusiness}
         locale="en"
@@ -209,5 +215,26 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
 
     expect(screen.getByTestId("tracking-status-badge").textContent).toContain("Completed");
+  });
+
+  it("shows the placement time in the business time zone, not the device's (#168)", () => {
+    const order: Order = { ...mockActiveOrder, createdAt: "2026-10-13T22:45:00.000Z" };
+    const text = (zone: string) => {
+      const { container, unmount } = render(
+        <OrderTrackingView
+          timeZone={zone}
+          order={order}
+          business={mockBusiness}
+          locale="en"
+          dict={enDict.orderTracking}
+        />,
+      );
+      const content = container.textContent ?? "";
+      unmount();
+      return content;
+    };
+
+    expect(text("Europe/Paris")).toContain("00:45");
+    expect(text("America/New_York")).toContain("18:45");
   });
 });

@@ -225,6 +225,7 @@ describe("domain: filterExpenses", () => {
     const filtered = filterExpenses(mockExpenses, {
       period: "this-month",
       referenceDate: refDate,
+      timeZone: "UTC",
     });
     expect(filtered).toHaveLength(2);
     expect(filtered.every((e) => e.date.startsWith("2026-10"))).toBe(true);
@@ -234,6 +235,7 @@ describe("domain: filterExpenses", () => {
     const filtered = filterExpenses(mockExpenses, {
       period: "last-month",
       referenceDate: refDate,
+      timeZone: "UTC",
     });
     expect(filtered).toHaveLength(2);
     expect(filtered.every((e) => e.date.startsWith("2026-09"))).toBe(true);
@@ -265,19 +267,20 @@ describe("domain: filterExpenses", () => {
     const decFiltered = filterExpenses(testList, {
       period: "last-month",
       referenceDate: janRef,
+      timeZone: "UTC",
     });
     expect(decFiltered).toHaveLength(1);
     expect(decFiltered[0].description).toBe("December bill");
   });
 
   it("filters by tag", () => {
-    const ingredients = filterExpenses(mockExpenses, { tag: "Ingredients" });
+    const ingredients = filterExpenses(mockExpenses, { tag: "Ingredients", timeZone: "UTC" });
     expect(ingredients).toHaveLength(1);
     expect(ingredients[0].description).toBe("Organic vegetables");
   });
 
   it("returns all when tag is 'all' or empty", () => {
-    const all = filterExpenses(mockExpenses, { tag: "all" });
+    const all = filterExpenses(mockExpenses, { tag: "all", timeZone: "UTC" });
     expect(all).toHaveLength(5);
   });
 
@@ -286,6 +289,7 @@ describe("domain: filterExpenses", () => {
       period: "this-month",
       tag: "Transport",
       referenceDate: refDate,
+      timeZone: "UTC",
     });
     expect(combined).toHaveLength(1);
     expect(combined[0].description).toBe("Van fuel refill");
@@ -299,5 +303,28 @@ describe("domain: calculateExpensesTotal", () => {
 
   it("returns 0 for empty array", () => {
     expect(calculateExpensesTotal([])).toBe(0);
+  });
+
+  it("takes the current month from the business calendar, not UTC (#168)", () => {
+    // 23:30 UTC on 30 Sep is already 1 Oct in Paris
+    const instant = new Date("2026-09-30T23:30:00Z");
+    const paris = filterExpenses(mockExpenses, {
+      period: "this-month",
+      referenceDate: instant,
+      timeZone: "Europe/Paris",
+    });
+    const utc = filterExpenses(mockExpenses, {
+      period: "this-month",
+      referenceDate: instant,
+      timeZone: "UTC",
+    });
+    expect(paris.every((e) => e.date.startsWith("2026-10"))).toBe(true);
+    expect(utc.every((e) => e.date.startsWith("2026-09"))).toBe(true);
+  });
+
+  it("requires a reference date with a period filter", () => {
+    expect(() => filterExpenses(mockExpenses, { period: "this-month", timeZone: "UTC" })).toThrow(
+      "referenceDate",
+    );
   });
 });

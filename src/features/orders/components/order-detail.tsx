@@ -34,7 +34,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney, formatDate, formatTime, type OrderStatus } from "@/domain";
+import {
+  formatMoney,
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  type OrderStatus,
+} from "@/domain";
+import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import {
   progressOrderStatusAction,
   recordPaymentAction,
@@ -87,9 +95,7 @@ function formatRequestedDateTime(requestedDate?: string | null, requestedTime?: 
     return requestedTime ? `Today at ${requestedTime}` : "ASAP";
   }
 
-  const [y, m, d] = requestedDate.split("-").map(Number);
-  const dateObj = y && m && d ? new Date(y, m - 1, d) : new Date(requestedDate);
-  const formattedDate = formatDate(dateObj, "en", "medium");
+  const formattedDate = formatCalendarDate(requestedDate, "en", "medium");
 
   if (requestedTime) {
     return `${formattedDate} at ${requestedTime}`;
@@ -98,6 +104,7 @@ function formatRequestedDateTime(requestedDate?: string | null, requestedTime?: 
 }
 
 export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
+  const timeZone = useBusinessTimeZone();
   const router = useRouter();
   const [currentOrder, setCurrentOrder] = React.useState<EnrichedOrder>(order);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -341,7 +348,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           status: ev.status,
           label: isCancelled ? "Order Cancelled" : ev.status,
           state: isCancelled ? ("ongoing" as const) : ("validated" as const),
-          timestampText: `${formatDate(ev.timestamp, "en", "short")} • ${formatTime(ev.timestamp, "en")}`,
+          timestampText: formatDateTime(ev.timestamp, timeZone, "en"),
           note: ev.note ?? (isCancelled ? currentOrder.cancellationReason : null),
         };
       });
@@ -381,7 +388,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           label: step.label,
           state: "validated" as const,
           timestampText: historyEv
-            ? `${formatDate(historyEv.timestamp, "en", "short")} • ${formatTime(historyEv.timestamp, "en")}`
+            ? formatDateTime(historyEv.timestamp, timeZone, "en")
             : "Completed",
           note: historyEv?.note ?? step.defaultNote,
         };
@@ -392,9 +399,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           status: step.status,
           label: step.label,
           state: "ongoing" as const,
-          timestampText: historyEv
-            ? `${formatDate(historyEv.timestamp, "en", "short")} • ${formatTime(historyEv.timestamp, "en")}`
-            : "Now",
+          timestampText: historyEv ? formatDateTime(historyEv.timestamp, timeZone, "en") : "Now",
           note: historyEv?.note ?? step.defaultNote,
         };
       }
@@ -407,7 +412,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         note: step.defaultNote,
       };
     });
-  }, [currentOrder]);
+  }, [currentOrder, timeZone]);
 
   return (
     <div className="flex flex-col gap-3 pb-36" data-testid="order-detail-screen">
@@ -458,8 +463,8 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           Order #{currentOrder.orderNumber ?? "—"}
         </h1>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          Created on {formatDate(currentOrder.createdAt, "en", "long")} at{" "}
-          {formatTime(currentOrder.createdAt, "en")} • via {currentOrder.channel}
+          Created on {formatDate(currentOrder.createdAt, timeZone, "en", "long")} at{" "}
+          {formatTime(currentOrder.createdAt, timeZone, "en")} • via {currentOrder.channel}
         </p>
       </div>
 
@@ -714,7 +719,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               <span className="text-foreground font-medium capitalize">
                 {currentOrder.paymentMethod}
                 {currentOrder.paidAt &&
-                  ` on ${formatDate(currentOrder.paidAt, "en", "short")} at ${formatTime(currentOrder.paidAt, "en")}`}
+                  ` on ${formatDate(currentOrder.paidAt, timeZone, "en", "short")} at ${formatTime(currentOrder.paidAt, timeZone, "en")}`}
               </span>
             </div>
           )}
@@ -725,7 +730,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               <span className="text-foreground font-medium capitalize">
                 Refunded
                 {currentOrder.refundedAt &&
-                  ` on ${formatDate(currentOrder.refundedAt, "en", "short")} at ${formatTime(currentOrder.refundedAt, "en")}`}
+                  ` on ${formatDate(currentOrder.refundedAt, timeZone, "en", "short")} at ${formatTime(currentOrder.refundedAt, timeZone, "en")}`}
               </span>
             </div>
           )}

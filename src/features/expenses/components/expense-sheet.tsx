@@ -25,6 +25,8 @@ import { Check, Trash2, FileText, AlertCircle } from "lucide-react";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 
 export interface ExpenseSheetProps {
+  /** Today on the business calendar (YYYY-MM-DD): the default date of a new expense. */
+  today: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   expense?: Expense | null;
@@ -35,6 +37,7 @@ export interface ExpenseSheetProps {
 }
 
 interface ExpenseFormProps {
+  today: string;
   expense?: Expense | null;
   onClose: () => void;
   onSaved?: (expense: Expense) => void;
@@ -43,6 +46,7 @@ interface ExpenseFormProps {
 }
 
 function ExpenseForm({
+  today,
   expense,
   onClose,
   onSaved,
@@ -56,9 +60,7 @@ function ExpenseForm({
     expense ? (expense.amount / 100).toFixed(2) : "",
   );
   const [description, setDescription] = React.useState(expense ? expense.description : "");
-  const [date, setDate] = React.useState(
-    expense ? expense.date : new Date().toISOString().slice(0, 10),
-  );
+  const [date, setDate] = React.useState(expense ? expense.date : today);
   const [selectedTags, setSelectedTags] = React.useState<string[]>(
     expense && expense.tags.length > 0 ? [...expense.tags] : ["Ingredients"],
   );
@@ -509,6 +511,7 @@ export function ExpenseSheet({
   onSaved,
   onDeleted,
   deleteDisabledReason,
+  today,
 }: ExpenseSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -522,6 +525,7 @@ export function ExpenseSheet({
 
         {open && (
           <ExpenseForm
+            today={today}
             key={expense ? expense.id : "new-expense"}
             expense={expense}
             onClose={() => onOpenChange(false)}

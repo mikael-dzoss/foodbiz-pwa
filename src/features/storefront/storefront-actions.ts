@@ -18,7 +18,13 @@ import {
   RATE_LIMIT_IP_MAX_REQUESTS,
   RATE_LIMIT_WINDOW_MS,
 } from "@/domain/anti-abuse";
-import { normalizePhoneNumber, type PlacedOrderSummary, type Product } from "@/domain";
+import {
+  DEFAULT_TIMEZONE,
+  getZonedDay,
+  normalizePhoneNumber,
+  type PlacedOrderSummary,
+  type Product,
+} from "@/domain";
 import { validateOrderStock } from "@/domain/stock";
 import { calculateOrderTotals, type PricingLineItem } from "@/domain/pricing";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
@@ -108,8 +114,17 @@ export const placeOrderAction = defineAction(
 
     const repos = getStorefrontRepositories();
 
+    // The requested date defaults to today on the business calendar, not the server's (UTC) one.
+    const [business, settings] = await Promise.all([
+      repos.business.findById(businessId),
+      repos.business.getSettings(businessId),
+    ]);
+
     // 5. Order request for the repository (also used to replay a retry, see rejectOrReplay)
-    const todayDate = new Date().toISOString().slice(0, 10);
+    // place_order checks "past" and the horizon against the database's UTC current_date with a
+    // one-day slack; every IANA zone is within a day of UTC, so this default always passes. Don't
+    // tighten that slack without making place_order zone-aware (far-east zones would break).
+    const todayDate = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
     const placeInput = {
       guestName: data.name,
       guestPhone: normalizedPhone,
@@ -161,11 +176,7 @@ export const placeOrderAction = defineAction(
       }
     };
 
-    // 6. Business & Settings Verification (public columns only: this action runs for anonymous visitors)
-    const [business, settings] = await Promise.all([
-      repos.business.findById(businessId),
-      repos.business.getSettings(businessId),
-    ]);
+    // 6. Business & Settings Verification (read above, public columns only: anonymous visitors)
     if (!business) throw new ActionError("VALIDATION", "Business was not found.");
 
     if (settings) {

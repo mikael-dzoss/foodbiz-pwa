@@ -123,6 +123,7 @@ export type Database = {
           in_app_alerts: boolean;
           sound_alerts: boolean;
           updated_at: string;
+          timezone: string;
         };
         Insert: {
           id?: string;
@@ -150,6 +151,7 @@ export type Database = {
           in_app_alerts?: boolean;
           sound_alerts?: boolean;
           updated_at?: string;
+          timezone?: string;
         };
         Update: {
           id?: string;
@@ -177,6 +179,7 @@ export type Database = {
           in_app_alerts?: boolean;
           sound_alerts?: boolean;
           updated_at?: string;
+          timezone?: string;
         };
         Relationships: [
           {

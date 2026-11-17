@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { OrderList } from "../components/order-list";
+import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
 import type { ListOrdersResult } from "../order-data";
 
 vi.mock("next/navigation", () => ({
@@ -208,7 +209,7 @@ const mockInitialData: ListOrdersResult = {
 
 describe("OrderList Component", () => {
   it("renders status tabs with counts", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     expect(screen.getByTestId("tab-active").textContent).toContain("Active");
     expect(screen.getByTestId("tab-active").textContent).toContain("2");
     expect(screen.getByTestId("tab-completed").textContent).toContain("Completed");
@@ -218,7 +219,7 @@ describe("OrderList Component", () => {
   });
 
   it("shows active orders by default and highlights NEW orders", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     // Active orders ord-1 and ord-2 should be visible
     expect(screen.getByTestId("order-card-ord-1")).toBeDefined();
     expect(screen.getByTestId("order-card-ord-2")).toBeDefined();
@@ -234,7 +235,7 @@ describe("OrderList Component", () => {
   });
 
   it("switches to completed tab and displays completed orders", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     fireEvent.click(screen.getByTestId("tab-completed"));
 
     expect(screen.getByTestId("order-card-ord-3")).toBeDefined();
@@ -242,7 +243,7 @@ describe("OrderList Component", () => {
   });
 
   it("switches to cancelled tab and displays cancelled orders with refund due and refunded badges", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     fireEvent.click(screen.getByTestId("tab-cancelled"));
 
     expect(screen.getByTestId("order-card-ord-4")).toBeDefined();
@@ -262,7 +263,7 @@ describe("OrderList Component", () => {
   });
 
   it("filters active orders by unpaidOnly", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     const unpaidButton = screen.getByTestId("filter-unpaid");
     fireEvent.click(unpaidButton);
 
@@ -272,7 +273,7 @@ describe("OrderList Component", () => {
   });
 
   it("filters active orders by serviceType", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     fireEvent.click(screen.getByTestId("filter-service-delivery"));
 
     // ord-2 is delivery, ord-1 is pickup
@@ -281,7 +282,7 @@ describe("OrderList Component", () => {
   });
 
   it("searches orders by guest name or phone or order number", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     const searchInput = screen.getByTestId("order-search-input");
 
     // Search by guest name
@@ -296,7 +297,7 @@ describe("OrderList Component", () => {
   });
 
   it("renders empty state when no orders match search", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     const searchInput = screen.getByTestId("order-search-input");
     fireEvent.change(searchInput, { target: { value: "NonExistent" } });
 
@@ -305,7 +306,7 @@ describe("OrderList Component", () => {
   });
 
   it("renders 'Accept' quick progress button for NEW orders", () => {
-    render(<OrderList initialData={mockInitialData} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={mockInitialData} />);
     const acceptBtn = screen.getByTestId("quick-progress-ord-1");
     expect(acceptBtn.textContent).toContain("Accept");
   });
@@ -318,11 +319,40 @@ describe("OrderList Component", () => {
         ...mockInitialData.orders.slice(1),
       ],
     };
-    render(<OrderList initialData={dataWithMismatch} />);
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={dataWithMismatch} />);
     expect(screen.getByTestId("order-submitted-name-badge").textContent).toBe("Ordered as Marc");
 
     const searchInput = screen.getByTestId("order-search-input");
     fireEvent.change(searchInput, { target: { value: "Marc" } });
     expect(screen.getByTestId("order-card-ord-1")).toBeDefined();
+  });
+
+  it("reads due dates against 'now' on the business calendar (#168)", () => {
+    const dueToday = {
+      ...mockInitialData,
+      orders: mockInitialData.orders.map((o) => ({
+        ...o,
+        status: "CONFIRMED" as const,
+        requestedDate: "2026-10-14",
+        requestedTime: "23:00",
+      })),
+    };
+    // 22:30 UTC on 14 Oct is 00:30 on 15 Oct in Paris: due yesterday; in New York it is 18:30
+    // on the 14th and the 23:00 deadline is still ahead
+    const { unmount } = render(
+      <BusinessTimeZoneProvider timeZone="Europe/Paris">
+        <OrderList now="2026-10-14T22:30:00.000Z" initialData={dueToday} />
+      </BusinessTimeZoneProvider>,
+    );
+    expect(screen.getAllByText("(-1d)").length).toBeGreaterThan(0);
+    unmount();
+
+    render(
+      <BusinessTimeZoneProvider timeZone="America/New_York">
+        <OrderList now="2026-10-14T22:30:00.000Z" initialData={dueToday} />
+      </BusinessTimeZoneProvider>,
+    );
+    expect(screen.queryByText("(-1d)")).toBeNull();
+    expect(screen.queryByText("(-overdue)")).toBeNull();
   });
 });

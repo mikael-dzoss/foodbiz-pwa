@@ -13,6 +13,8 @@ import {
   type Order,
 } from "../index";
 
+/** Legacy fixtures are written as UTC days, so the existing cases run in UTC. */
+const TZ = "UTC";
 const businessId = "11111111-1111-4111-8111-111111111111";
 
 function makeOrder(overrides: Partial<Order>): Order {
@@ -60,17 +62,17 @@ function makeExpense(overrides: Partial<Expense>): Expense {
 describe("KPI Engine", () => {
   describe("extractDate", () => {
     it("extracts YYYY-MM-DD from various date representations", () => {
-      expect(extractDate("2026-10-05")).toBe("2026-10-05");
-      expect(extractDate("2026-10-05T14:32:00.000Z")).toBe("2026-10-05");
+      expect(extractDate("2026-10-05", TZ)).toBe("2026-10-05");
+      expect(extractDate("2026-10-05T14:32:00.000Z", TZ)).toBe("2026-10-05");
       const d = new Date(Date.UTC(2026, 9, 5, 22, 0, 0));
-      expect(extractDate(d)).toBe("2026-10-05");
+      expect(extractDate(d, TZ)).toBe("2026-10-05");
     });
 
     it("throws on invalid date input", () => {
-      expect(() => extractDate("not-a-date")).toThrow();
-      expect(() => extractDate(new Date(NaN))).toThrow();
-      expect(() => extractDate("2026-02-30")).toThrow();
-      expect(() => extractDate(123 as unknown as string)).toThrow();
+      expect(() => extractDate("not-a-date", TZ)).toThrow();
+      expect(() => extractDate(new Date(NaN), TZ)).toThrow();
+      expect(() => extractDate("2026-02-30", TZ)).toThrow();
+      expect(() => extractDate(123 as unknown as string, TZ)).toThrow();
     });
   });
 
@@ -78,42 +80,42 @@ describe("KPI Engine", () => {
     const referenceDate = "2026-10-15"; // Thursday
 
     it("resolves 'today'", () => {
-      expect(resolveDateRange("today", referenceDate)).toEqual({
+      expect(resolveDateRange("today", referenceDate, TZ)).toEqual({
         startDate: "2026-10-15",
         endDate: "2026-10-15",
       });
     });
 
     it("resolves 'yesterday'", () => {
-      expect(resolveDateRange("yesterday", referenceDate)).toEqual({
+      expect(resolveDateRange("yesterday", referenceDate, TZ)).toEqual({
         startDate: "2026-10-14",
         endDate: "2026-10-14",
       });
     });
 
     it("resolves 'last_7_days' (7 days inclusive up to reference date)", () => {
-      expect(resolveDateRange("last_7_days", referenceDate)).toEqual({
+      expect(resolveDateRange("last_7_days", referenceDate, TZ)).toEqual({
         startDate: "2026-10-09",
         endDate: "2026-10-15",
       });
     });
 
     it("resolves 'last_30_days' (30 days inclusive up to reference date)", () => {
-      expect(resolveDateRange("last_30_days", referenceDate)).toEqual({
+      expect(resolveDateRange("last_30_days", referenceDate, TZ)).toEqual({
         startDate: "2026-09-16",
         endDate: "2026-10-15",
       });
     });
 
     it("resolves 'this_month'", () => {
-      expect(resolveDateRange("this_month", referenceDate)).toEqual({
+      expect(resolveDateRange("this_month", referenceDate, TZ)).toEqual({
         startDate: "2026-10-01",
         endDate: "2026-10-31",
       });
     });
 
     it("resolves 'last_month'", () => {
-      expect(resolveDateRange("last_month", referenceDate)).toEqual({
+      expect(resolveDateRange("last_month", referenceDate, TZ)).toEqual({
         startDate: "2026-09-01",
         endDate: "2026-09-30",
       });
@@ -193,7 +195,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses: [], period });
+      const metrics = calculateKpiMetrics({ orders, expenses: [], period, timeZone: TZ });
 
       expect(metrics.revenue).toBe(3500); // 2000 + 1500
       expect(metrics.paidOrderCount).toBe(2);
@@ -231,7 +233,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses: [], period });
+      const metrics = calculateKpiMetrics({ orders, expenses: [], period, timeZone: TZ });
       expect(metrics.revenue).toBe(3000);
       expect(metrics.paidOrderCount).toBe(3);
     });
@@ -283,7 +285,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses, period });
+      const metrics = calculateKpiMetrics({ orders, expenses, period, timeZone: TZ });
       expect(metrics.costs).toBe(250);
       expect(metrics.completedOrderCount).toBe(2);
       expect(metrics.cancelledOrderCount).toBe(1);
@@ -324,7 +326,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses: [], period });
+      const metrics = calculateKpiMetrics({ orders, expenses: [], period, timeZone: TZ });
 
       expect(metrics.pendingRevenue).toBe(4000); // 2500 + 1500 (within period)
       expect(metrics.totalPendingRevenue).toBe(8000); // 2500 + 1500 + 4000 (across all non-cancelled)
@@ -357,7 +359,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses: [], period });
+      const metrics = calculateKpiMetrics({ orders, expenses: [], period, timeZone: TZ });
 
       expect(metrics.revenue).toBe(0);
       expect(metrics.pendingRevenue).toBe(500);
@@ -390,7 +392,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses, period });
+      const metrics = calculateKpiMetrics({ orders, expenses, period, timeZone: TZ });
 
       expect(metrics.revenue).toBe(5000);
       expect(metrics.costs).toBe(3500);
@@ -403,7 +405,12 @@ describe("KPI Engine", () => {
           date: "2026-10-04",
         }),
       ];
-      const lossMetrics = calculateKpiMetrics({ orders, expenses: highExpenses, period });
+      const lossMetrics = calculateKpiMetrics({
+        orders,
+        expenses: highExpenses,
+        period,
+        timeZone: TZ,
+      });
       expect(lossMetrics.revenue).toBe(5000);
       expect(lossMetrics.costs).toBe(7000);
       expect(lossMetrics.profit).toBe(-2000);
@@ -440,7 +447,7 @@ describe("KPI Engine", () => {
         }),
       ];
 
-      const metrics = calculateKpiMetrics({ orders, expenses: [], period });
+      const metrics = calculateKpiMetrics({ orders, expenses: [], period, timeZone: TZ });
 
       expect(metrics.completedOrderCount).toBe(2);
       expect(metrics.cancelledOrderCount).toBe(1);
@@ -448,7 +455,7 @@ describe("KPI Engine", () => {
     });
 
     it("handles empty arrays gracefully with zero counts and zero AOV", () => {
-      const metrics = calculateKpiMetrics({ orders: [], expenses: [], period });
+      const metrics = calculateKpiMetrics({ orders: [], expenses: [], period, timeZone: TZ });
 
       expect(metrics).toEqual({
         revenue: 0,
@@ -530,6 +537,7 @@ describe("KPI Engine", () => {
       ];
 
       const report = calculateKpiReport({
+        timeZone: TZ,
         orders,
         expenses: [],
         period,
@@ -551,6 +559,7 @@ describe("KPI Engine", () => {
 
     it("allows disabling previous period comparison", () => {
       const report = calculateKpiReport({
+        timeZone: TZ,
         orders: [],
         expenses: [],
         period,
@@ -582,18 +591,85 @@ describe("KPI Engine", () => {
 
     it("validates full KpiReport schema", () => {
       const report = calculateKpiReport({
+        timeZone: TZ,
         orders: [],
         expenses: [],
         period: { startDate: "2026-10-01", endDate: "2026-10-05" },
       });
       expect(kpiReportSchema.safeParse(report).success).toBe(true);
     });
+  });
+});
 
-    it("defaults referenceDate to current date when omitted in resolveDateRange", () => {
-      const todayRange = resolveDateRange("today");
-      const todayIso = new Date().toISOString().slice(0, 10);
-      expect(todayRange.startDate).toBe(todayIso);
-      expect(todayRange.endDate).toBe(todayIso);
+describe("KPI ranges in the business time zone (#168)", () => {
+  const PARIS = "Europe/Paris";
+
+  it("extractDate assigns a timestamp to the business calendar day", () => {
+    // 22:30 UTC on 9 Oct is 00:30 on the 10th in Paris, still the 9th in New York
+    expect(extractDate("2026-10-09T22:30:00.000Z", PARIS)).toBe("2026-10-10");
+    expect(extractDate("2026-10-09T22:30:00.000Z", "America/New_York")).toBe("2026-10-09");
+    expect(extractDate(new Date("2026-10-09T22:30:00.000Z"), PARIS)).toBe("2026-10-10");
+    expect(extractDate("2026-10-09T22:30:00+02:00", PARIS)).toBe("2026-10-09");
+    // A bare calendar day has no zone and is never shifted
+    expect(extractDate("2026-10-09", PARIS)).toBe("2026-10-09");
+    // A timestamp without an offset is read as UTC
+    expect(extractDate("2026-10-09T22:30:00", PARIS)).toBe("2026-10-10");
+    expect(() => extractDate("2026-10-09Tgarbage", PARIS)).toThrow("Invalid date values");
+  });
+
+  it("resolves 'today' from the instant on the local calendar", () => {
+    const justAfterLocalMidnight = new Date("2026-10-09T22:30:00Z");
+    expect(resolveDateRange("today", justAfterLocalMidnight, PARIS)).toEqual({
+      startDate: "2026-10-10",
+      endDate: "2026-10-10",
     });
+    expect(resolveDateRange("today", justAfterLocalMidnight, "UTC")).toEqual({
+      startDate: "2026-10-09",
+      endDate: "2026-10-09",
+    });
+  });
+
+  it("resolves week and month presets across the local month end and DST", () => {
+    // 23:30 UTC on 31 Oct is already 1 Nov in Paris
+    const ref = new Date("2026-10-31T23:30:00Z");
+    expect(resolveDateRange("this_month", ref, PARIS)).toEqual({
+      startDate: "2026-11-01",
+      endDate: "2026-11-30",
+    });
+    expect(resolveDateRange("last_month", ref, PARIS)).toEqual({
+      startDate: "2026-10-01",
+      endDate: "2026-10-31",
+    });
+    expect(resolveDateRange("last_7_days", ref, PARIS)).toEqual({
+      startDate: "2026-10-26",
+      endDate: "2026-11-01",
+    });
+    // The fall-back Sunday (25 Oct) is a single calendar day in the range
+    expect(resolveDateRange("last_7_days", new Date("2026-10-26T10:00:00Z"), PARIS)).toEqual({
+      startDate: "2026-10-20",
+      endDate: "2026-10-26",
+    });
+  });
+
+  it("counts an order paid after local midnight in the next day's revenue", () => {
+    const order = makeOrder({
+      paidAt: "2026-10-09T22:30:00.000Z", // 00:30 on the 10th in Paris
+      totalAmount: 2000,
+    });
+    const parisDay = { startDate: "2026-10-10", endDate: "2026-10-10" };
+    const utcDay = { startDate: "2026-10-09", endDate: "2026-10-09" };
+
+    expect(
+      calculateKpiMetrics({ orders: [order], expenses: [], period: parisDay, timeZone: PARIS })
+        .revenue,
+    ).toBe(2000);
+    expect(
+      calculateKpiMetrics({ orders: [order], expenses: [], period: utcDay, timeZone: PARIS })
+        .revenue,
+    ).toBe(0);
+    expect(
+      calculateKpiMetrics({ orders: [order], expenses: [], period: utcDay, timeZone: "UTC" })
+        .revenue,
+    ).toBe(2000);
   });
 });

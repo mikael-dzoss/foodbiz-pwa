@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getBusinessProfile, getBusinessSettings } from "../settings-data";
+import {
+  getBusinessProfile,
+  getBusinessSettings,
+  getBusinessTimeZone,
+  getBusinessToday,
+} from "../settings-data";
 
 const businessId = "11111111-1111-4111-8111-111111111111";
 const repo = vi.hoisted(() => ({
@@ -9,6 +14,9 @@ const repo = vi.hoisted(() => ({
 const auth = vi.hoisted(() => ({ requireAuthenticatedAction: vi.fn() }));
 vi.mock("@/lib/repositories", () => ({ getRepositories: () => ({ business: repo }) }));
 vi.mock("@/features/auth", () => auth);
+vi.mock("@/lib/request-time", () => ({
+  getRequestNow: vi.fn(async () => new Date("2026-10-09T22:30:00Z")),
+}));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -39,5 +47,18 @@ describe("settings data", () => {
   it("throws on read failure instead of falling back to defaults", async () => {
     repo.getSettings.mockRejectedValueOnce(new Error("Offline"));
     await expect(getBusinessSettings()).rejects.toThrow("Offline");
+  });
+
+  it("returns the business time zone and 'today' on its calendar (#168)", async () => {
+    repo.getSettings.mockResolvedValue({ businessId, timezone: "Europe/Paris" });
+    // 22:30 UTC on 9 Oct is 00:30 on the 10th in Paris
+    expect(await getBusinessToday()).toBe("2026-10-10");
+    repo.getSettings.mockResolvedValue({ businessId, timezone: "America/New_York" });
+    expect(await getBusinessToday()).toBe("2026-10-09");
+  });
+
+  it("falls back to the default zone before the first settings save (#168)", async () => {
+    repo.getSettings.mockResolvedValueOnce(null);
+    expect(await getBusinessTimeZone()).toBe("Europe/Paris");
   });
 });

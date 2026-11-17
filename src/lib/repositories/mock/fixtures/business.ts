@@ -47,6 +47,7 @@ export const demoSettings: BusinessSettings = {
   minOrderAmount: 1500, // €15.00 in cents
   leadTimeValue: 1,
   leadTimeUnit: "business_days",
+  timezone: "Europe/Paris",
 
   // Payment (#72)
   revolutRevtag: "@boulangerie",

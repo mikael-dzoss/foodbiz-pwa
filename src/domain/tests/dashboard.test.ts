@@ -296,7 +296,8 @@ describe("Dashboard Domain Engine", () => {
         expenses,
         products,
         periodPreset: "today",
-        referenceDate: "2026-10-15",
+        now: new Date("2026-10-15T12:00:00Z"),
+        timeZone: "UTC",
       });
 
       expect(data.periodPreset).toBe("today");

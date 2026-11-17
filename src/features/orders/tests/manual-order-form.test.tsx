@@ -52,7 +52,7 @@ describe("ManualOrderForm Component", () => {
   });
 
   it("renders all form sections and products with stock badges", () => {
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
 
     expect(screen.getByText("Step 1: Guest Information")).toBeDefined();
     expect(screen.getByText("Step 2: Service & Timing")).toBeDefined();
@@ -66,7 +66,7 @@ describe("ManualOrderForm Component", () => {
   });
 
   it("renders boxed cancel button in header and opens order preview modal via preview & create", () => {
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
     expect(screen.getByTestId("cancel-header-button")).toBeDefined();
 
     // Select 1 burger, fill guest name & phone
@@ -97,7 +97,7 @@ describe("ManualOrderForm Component", () => {
       },
     });
 
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
     const phoneInput = screen.getByTestId("guest-phone-input");
 
     fireEvent.change(phoneInput, { target: { value: "+33612345678" } });
@@ -122,7 +122,7 @@ describe("ManualOrderForm Component", () => {
   });
 
   it("disables preview button until phone and name pass syntax validation", () => {
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
 
     // Select 1 burger
     const burgerRow = screen.getByTestId("product-row-p-1");
@@ -150,7 +150,7 @@ describe("ManualOrderForm Component", () => {
   });
 
   it("increments quantity and updates order total", () => {
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
 
     // Burger stepper
     const burgerRow = screen.getByTestId("product-row-p-1");
@@ -164,7 +164,7 @@ describe("ManualOrderForm Component", () => {
   });
 
   it("prevents incrementing out of stock product", () => {
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
 
     // Frites stepper has stock 0
     const fritesRow = screen.getByTestId("product-row-p-2");
@@ -175,7 +175,7 @@ describe("ManualOrderForm Component", () => {
   });
 
   it("shows delivery address field when delivery is selected", () => {
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
     expect(screen.queryByTestId("delivery-address-input")).toBeNull();
 
     fireEvent.click(screen.getByTestId("service-type-delivery"));
@@ -206,7 +206,7 @@ describe("ManualOrderForm Component", () => {
       },
     });
 
-    render(<ManualOrderForm products={mockProducts} />);
+    render(<ManualOrderForm today="2026-10-15" products={mockProducts} />);
 
     // Fill phone and name
     fireEvent.change(screen.getByTestId("guest-phone-input"), {

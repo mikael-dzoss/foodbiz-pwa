@@ -1,8 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
 import { requireAuthenticatedAction } from "@/features/auth";
 import { getRepositories } from "@/lib/repositories";
-import type { Business, BusinessSettings } from "@/domain";
+import { DEFAULT_TIMEZONE, getZonedDay, type Business, type BusinessSettings } from "@/domain";
+import { getRequestNow } from "@/lib/request-time";
 
 /** The signed-in manager's business profile. Read errors throw to the route error boundary. */
 export async function getBusinessProfile(): Promise<Business> {
@@ -38,6 +40,7 @@ function defaultSettings(businessId: string): BusinessSettings {
     paymentInstructionsFr: "",
     inAppAlerts: true,
     soundAlerts: true,
+    timezone: DEFAULT_TIMEZONE,
   };
 }
 
@@ -45,4 +48,15 @@ function defaultSettings(businessId: string): BusinessSettings {
 export async function getBusinessSettings(): Promise<BusinessSettings> {
   const { businessId } = await requireAuthenticatedAction();
   return (await getRepositories().business.getSettings(businessId)) ?? defaultSettings(businessId);
+}
+
+/** The signed-in manager's business time zone (IANA name), deduplicated per request. */
+export const getBusinessTimeZone = cache(async (): Promise<string> => {
+  return (await getBusinessSettings()).timezone;
+});
+
+/** Today's calendar day (YYYY-MM-DD) on the business calendar, read at request time. */
+export async function getBusinessToday(): Promise<string> {
+  const [now, timeZone] = await Promise.all([getRequestNow(), getBusinessTimeZone()]);
+  return getZonedDay(now, timeZone);
 }

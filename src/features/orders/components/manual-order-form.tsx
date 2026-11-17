@@ -53,9 +53,11 @@ const NAME_UPDATE_TOAST_MESSAGE =
 
 export interface ManualOrderFormProps {
   products: Product[];
+  /** Today on the business calendar (YYYY-MM-DD): the default scheduled date. */
+  today: string;
 }
 
-export function ManualOrderForm({ products }: ManualOrderFormProps) {
+export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
   const router = useRouter();
   const { showToast } = useSafeToast();
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -75,7 +77,7 @@ export function ManualOrderForm({ products }: ManualOrderFormProps) {
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
   const [channel, setChannel] = React.useState<"phone" | "whatsapp" | "in-person">("phone");
   const [isAsap, setIsAsap] = React.useState(true);
-  const [requestedDate, setRequestedDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [requestedDate, setRequestedDate] = React.useState(today);
   const [requestedTime, setRequestedTime] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [paymentPreference] = React.useState<"on_handover" | "revolut" | "wero">("on_handover");

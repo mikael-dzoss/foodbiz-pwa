@@ -76,6 +76,7 @@ let mockSettings: BusinessSettings = {
   paymentInstructionsFr: "Paiement au retrait",
   inAppAlerts: true,
   soundAlerts: true,
+  timezone: "Europe/Paris",
 };
 
 const mockBusinessRepo = {
@@ -376,6 +377,37 @@ describe("Settings Server Actions", () => {
         expect(res.fieldErrors).toBeDefined();
         expect(res.fieldErrors?.serviceTypes).toBeDefined();
       }
+    });
+  });
+
+  describe("updateOrderingSettingsAction time zone (#168)", () => {
+    const base = {
+      acceptingOrders: true,
+      serviceTypes: { pickup: true, delivery: true, dineIn: false },
+      deliveryFee: 0,
+      minOrderAmount: 0,
+    };
+
+    it("persists a valid IANA zone and revalidates the storefront", async () => {
+      const res = await updateOrderingSettingsAction({ ...base, timezone: "Africa/Douala" });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) expect(res.data.timezone).toBe("Africa/Douala");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+    });
+
+    it("rejects an unknown zone with a field error", async () => {
+      const res = await updateOrderingSettingsAction({ ...base, timezone: "Mars/Olympus_Mons" });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.fieldErrors?.timezone).toBeDefined();
+    });
+
+    it("rejects an unauthenticated caller", async () => {
+      vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
+      await expect(
+        updateOrderingSettingsAction({ ...base, timezone: "Europe/Paris" }),
+      ).rejects.toThrow("Unauthorized");
     });
   });
 

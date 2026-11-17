@@ -2,6 +2,8 @@ import "server-only";
 
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
+import { getBusinessTimeZone } from "@/features/settings/settings-data";
+import { getRequestNow } from "@/lib/request-time";
 import {
   type DashboardData,
   type DashboardPeriodPreset,
@@ -15,15 +17,17 @@ import {
  */
 export async function getDashboardData(
   periodPreset: DashboardPeriodPreset = "today",
-  referenceDate?: string,
+  now?: Date,
 ): Promise<DashboardData> {
   const { businessId } = await requireAuthenticatedAction();
   const repos = getRepositories();
-  const [orders, guests, expenses, products] = await Promise.all([
+  const [orders, guests, expenses, products, timeZone, requestNow] = await Promise.all([
     repos.orders.list(businessId),
     repos.guests.list(businessId),
     repos.expenses.list(businessId),
     repos.products.list(businessId),
+    getBusinessTimeZone(),
+    now ?? getRequestNow(),
   ]);
 
   return buildDashboardData({
@@ -31,6 +35,7 @@ export async function getDashboardData(
     expenses,
     products,
     periodPreset,
-    referenceDate,
+    now: requestNow,
+    timeZone,
   });
 }
