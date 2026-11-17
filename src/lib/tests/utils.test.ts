@@ -17,6 +17,7 @@ describe("cn utility", () => {
   it("keeps custom type tokens next to text colours and replaces them like font sizes", () => {
     expect(cn("text-caption text-muted-foreground")).toBe("text-caption text-muted-foreground");
     expect(cn("text-title-md text-sm")).toBe("text-sm");
+    expect(cn("text-title-sm text-muted-foreground")).toBe("text-title-sm text-muted-foreground");
     expect(cn("text-sm text-label-sm")).toBe("text-label-sm");
   });
 

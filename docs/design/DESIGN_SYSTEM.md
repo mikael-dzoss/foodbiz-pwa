@@ -94,7 +94,8 @@ Inter only (`next/font`, Latin + Latin Extended), `font-feature-settings: "tnum"
 | ------------------- | ------------ | ------ | ---------------------------- |
 | `text-display`      | 32 / 40      | 600    | KPI hero value               |
 | `text-title-lg`     | 22 / 28      | 600    | Screen title, settings h1    |
-| `text-title-md`     | 18 / 24      | 600    | Section and card titles      |
+| `text-title-md`     | 18 / 24      | 600    | Sheet, dialog, app-bar title |
+| `text-title-sm`     | 16 / 24      | 600    | Section titles               |
 | `text-body-md`      | 16 / 24      | 400    | Body, inputs                 |
 | `text-body-sm`      | 14 / 20      | 400    | Secondary text, list meta    |
 | `text-label-md`     | 14 / 20      | 500    | Buttons, tabs, form labels   |
@@ -103,7 +104,7 @@ Inter only (`next/font`, Latin + Latin Extended), `font-feature-settings: "tnum"
 | `text-caption`      | 11 / inherit | n/a    | Dense badges and meta        |
 | `text-micro`        | 10 / inherit | n/a    | Count pills and tiny tags    |
 
-The first eight are `@utility` blocks (size, line height and weight together, so variants such as `md:text-title-lg` work); `text-caption` and `text-micro` are `--text-*` theme sizes. A composite utility sits in the utilities layer, so a later `font-*` or `leading-*` on the same element overrides its weight or line height. `src/lib/utils.ts` teaches `cn()` (tailwind-merge) all of these names.
+The first nine are `@utility` blocks (size, line height and weight together, so variants such as `md:text-title-lg` work); `text-caption` and `text-micro` are `--text-*` theme sizes. A composite utility sits in the utilities layer, so a later `font-*` or `leading-*` on the same element overrides its weight or line height. `src/lib/utils.ts` teaches `cn()` (tailwind-merge) all of these names.
 
 ### Title roles
 
@@ -113,7 +114,7 @@ Titles look the same on every screen: each role has one utility that carries siz
 | ------------------------------------ | ------------------------------ | -------------------------------------------------------------- |
 | Screen title (one per screen)        | `h1`                           | `text-title-lg`                                                |
 | Compact app-bar title                | `h1` in a sticky top bar       | `text-title-md`                                                |
-| Section title                        | `h2`                           | `text-title-md`                                                |
+| Section title                        | `h2`                           | `text-title-sm`                                                |
 | Group label (overline above a group) | `h2`/`h3`                      | `text-label-sm uppercase tracking-wider text-muted-foreground` |
 | Sheet and dialog title               | `SheetTitle`, `DialogTitle`    | component default (`text-title-md`)                            |
 | Card and list-item title             | `h3` or the row's primary text | `text-label-md`                                                |

@@ -172,6 +172,12 @@ body {
   font-weight: 600;
 }
 
+@utility text-title-sm {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
 @utility text-body-md {
   font-size: 1rem;
   line-height: 1.5rem;
