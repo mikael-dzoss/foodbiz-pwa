@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import {
   DEFAULT_LOCALE,
   getDictionary,
@@ -38,15 +38,4 @@ export function ManagerLocaleProvider({
 
 export function useManagerLocale(): ManagerLocaleValue {
   return useContext(ManagerLocaleContext);
-}
-
-/**
- * Keeps `<html lang>` on the active locale. The root layout is static (cacheComponents) and cannot
- * read the cookie, so the manager area (noindex) syncs it after hydration.
- */
-export function HtmlLangSync({ locale }: { locale: SupportedLocale }) {
-  useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
-  return null;
 }

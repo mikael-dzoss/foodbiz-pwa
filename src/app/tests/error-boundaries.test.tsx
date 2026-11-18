@@ -1,27 +1,14 @@
-import { render, screen, act } from "@testing-library/react";
-import React from "react";
+import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import ErrorPage from "../error";
-import NotFound from "../not-found";
+import NotFound from "../global-not-found";
 
-describe("src/app ErrorPage", () => {
-  it("shows generic copy, never the raw error message, and triggers retry", () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const retry = vi.fn();
+// The real document renders <html>/<body> and loads next/font, which do not belong in a unit test.
+vi.mock("@/components/root-document", () => ({
+  RootDocument: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
-    render(<ErrorPage error={new Error("Failed to load storefront data")} retry={retry} />);
-
-    expect(screen.getByText("We could not load this page")).toBeDefined();
-    expect(screen.queryByText("Failed to load storefront data")).toBeNull();
-
-    act(() => {
-      screen.getByRole("button", { name: "Try again" }).click();
-    });
-    expect(retry).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("src/app NotFound", () => {
+describe("global not-found", () => {
   it("renders empty state and link to home page", () => {
     render(<NotFound />);
 

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { DEFAULT_LOCALE } from "./src/domain/i18n/types";
 import { buildSecurityHeaders } from "./src/config/security-headers";
 
 /**
@@ -50,6 +51,11 @@ const nextConfig: NextConfig = {
     ];
   },
   partialPrefetching: true,
+  // No root layout above `/`, so the redirect to the default storefront locale lives here.
+  redirects() {
+    return [{ source: "/", destination: `/${DEFAULT_LOCALE}`, permanent: false }];
+  },
+  experimental: { globalNotFound: true },
   images: {
     remotePatterns: supabaseImagePattern(),
     // Next blocks loopback hosts by default; needed only for the local Supabase stack in dev.

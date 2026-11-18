@@ -10,7 +10,7 @@ import {
 } from "@/domain/i18n";
 import { getStorefrontCatalog, StorefrontShell } from "@/features/storefront";
 import { buildStorefrontRootMetadata, toMetaDescription } from "@/features/storefront/metadata";
-import { HtmlLangSync } from "@/components/i18n";
+import { RootDocument, rootMetadata, rootViewport } from "@/components/root-document";
 
 export async function generateStaticParams() {
   return SUPPORTED_LOCALES.map((locale) => ({ locale }));
@@ -24,6 +24,8 @@ export interface LocaleLayoutProps {
   params: Promise<{ locale: string }>;
 }
 
+export const viewport = rootViewport;
+
 export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
   const { locale: requested } = await params;
   const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
@@ -32,11 +34,14 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
     "{business}",
     business.name,
   );
-  return buildStorefrontRootMetadata({
-    businessName: business.name,
-    description: toMetaDescription(business.description, fallback),
-    locale,
-  });
+  return {
+    ...rootMetadata,
+    ...buildStorefrontRootMetadata({
+      businessName: business.name,
+      description: toMetaDescription(business.description, fallback),
+      locale,
+    }),
+  };
 }
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
@@ -49,18 +54,19 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const { business, currentYear } = await getStorefrontCatalog();
 
   return (
-    <div lang={locale} className="flex min-h-full flex-1 flex-col">
-      {/* The static root layout cannot know the locale: keep <html lang> in sync after hydration. */}
-      <HtmlLangSync locale={locale} />
-      <StorefrontShell
-        locale={locale}
-        dict={dict.storefront}
-        businessName={business.name}
-        business={business}
-        currentYear={currentYear}
-      >
-        {children}
-      </StorefrontShell>
-    </div>
+    // Root layout of the storefront: <html lang> is the requested locale in the server HTML.
+    <RootDocument lang={locale}>
+      <div className="flex min-h-full flex-1 flex-col">
+        <StorefrontShell
+          locale={locale}
+          dict={dict.storefront}
+          businessName={business.name}
+          business={business}
+          currentYear={currentYear}
+        >
+          {children}
+        </StorefrontShell>
+      </div>
+    </RootDocument>
   );
 }

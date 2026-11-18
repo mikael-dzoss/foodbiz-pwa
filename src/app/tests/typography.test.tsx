@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("Typography with Inter (#27)", () => {
-  it("loads Inter with latin and latin-ext in layout.tsx", () => {
-    const layoutContent = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf-8");
+  it("loads Inter with latin and latin-ext in the root document", () => {
+    const layoutContent = readFileSync(resolve(process.cwd(), "src/components/root-document/root-document.tsx"), "utf-8");
     expect(layoutContent).toContain('import { Inter } from "next/font/google"');
     expect(layoutContent).toContain('"latin"');
     expect(layoutContent).toContain('"latin-ext"');
