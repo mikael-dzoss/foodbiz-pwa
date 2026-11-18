@@ -5,7 +5,7 @@ import { getServerEnv } from "@/config/env";
 import { DEFAULT_LOCALE, isSupportedLocale } from "@/domain/i18n";
 
 /** First path segments that are not storefront locales. */
-const TOP_LEVEL_AREAS = new Set(["manage", "auth", "patterns"]);
+const TOP_LEVEL_AREAS = new Set(["manage", "auth", "patterns", "api"]);
 
 /**
  * `[locale]` is a top-level dynamic segment, so `/zzz` or `/de/cart` would match it and 404 from

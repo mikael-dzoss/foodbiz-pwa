@@ -125,12 +125,18 @@ describe("unknownLocaleRewrite", () => {
     expect(unknownLocaleRewrite(path)).toBe(expected);
   });
 
-  it.each(["/", "/en", "/fr/cart", "/manage", "/manage/orders", "/auth/callback", "/patterns"])(
-    "leaves %s alone",
-    (path) => {
-      expect(unknownLocaleRewrite(path)).toBeNull();
-    },
-  );
+  it.each([
+    "/",
+    "/en",
+    "/fr/cart",
+    "/manage",
+    "/manage/orders",
+    "/auth/callback",
+    "/patterns",
+    "/api/test/reset",
+  ])("leaves %s alone", (path) => {
+    expect(unknownLocaleRewrite(path)).toBeNull();
+  });
 
   it("rewrites an unknown-locale request in the proxy", async () => {
     vi.stubEnv("DATA_SOURCE", "mock");

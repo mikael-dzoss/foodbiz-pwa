@@ -931,9 +931,18 @@ export function createMockRepositories(
   return { products, categories, orders, guests, expenses, business, members, reset, withRole };
 }
 
-let singletonInstance: MockRepositories | null = null;
+// Kept on globalThis: Next bundles route handlers and pages separately, so a module-level
+// variable would give each its own copy of the "shared" in-memory data.
+const SINGLETON_KEY = Symbol.for("foodbiz.mockRepositories");
+type MockGlobal = { [SINGLETON_KEY]?: MockRepositories };
 
 export function getMockRepositories(): MockRepositories {
-  if (!singletonInstance) singletonInstance = createMockRepositories();
-  return singletonInstance;
+  const holder = globalThis as MockGlobal;
+  holder[SINGLETON_KEY] ??= createMockRepositories();
+  return holder[SINGLETON_KEY];
+}
+
+/** Puts the shared mock data (and its rate-limit logs) back to the seed state. */
+export function resetMockData(): void {
+  getMockRepositories().reset();
 }
