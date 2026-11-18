@@ -150,7 +150,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
   for (let i = 0; i < 3; i++) {
     await page
-      .getByRole("button", { name: getDictionary(locale).common.increaseQuantity, exact: true })
+      .getByRole("button", { name: getDictionary("en").common.increaseQuantity, exact: true })
       .click();
   }
   await page.getByTestId("proceed-checkout-button").click();
