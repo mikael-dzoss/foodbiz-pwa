@@ -1,5 +1,4 @@
 export {
-  HtmlLangSync,
   ManagerLocaleProvider,
   useManagerLocale,
   type ManagerLocaleValue,

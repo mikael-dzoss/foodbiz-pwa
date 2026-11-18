@@ -462,7 +462,7 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       );
 
       const bakeryInfoLink = screen.getByRole("link", {
-        name: /100% Organic Flours & Artisanal Baking/i,
+        name: /Store Info/i,
       });
       expect(bakeryInfoLink.getAttribute("href")).toBe("/en/info");
 

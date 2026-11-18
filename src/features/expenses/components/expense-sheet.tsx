@@ -234,9 +234,6 @@ function ExpenseForm({
           <SheetTitle data-testid="expense-sheet-title">
             {isEdit ? t.titleEdit : t.titleNew}
           </SheetTitle>
-          <span className="text-muted-foreground border-border rounded border px-2 py-0.5 font-mono text-xs">
-            {t.screenTag}
-          </span>
         </div>
         <SheetDescription>{isEdit ? t.descriptionEdit : t.descriptionNew}</SheetDescription>
       </SheetHeader>

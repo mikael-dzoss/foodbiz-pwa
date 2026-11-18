@@ -71,7 +71,6 @@ describe("InventoryFinanceForm component (M-65)", () => {
     render(<InventoryFinanceForm settings={mockSettings} dict={dict} />);
 
     expect(screen.getByTestId("inventory-finance-form")).toBeDefined();
-    expect(screen.getByText("M-65")).toBeDefined();
     expect(
       screen.getByRole("heading", { name: dict.inventoryFinance.title, level: 1 }),
     ).toBeDefined();

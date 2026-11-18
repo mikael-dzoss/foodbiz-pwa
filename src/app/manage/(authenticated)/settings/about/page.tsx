@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft, ShieldCheck, ExternalLink, Heart } from "lucide-react";
+import { ChevronLeft, Heart } from "lucide-react";
 import { requireManagerSession } from "@/lib/auth";
 import { getDictionary, interpolate } from "@/domain/i18n";
+import { SoonItem } from "@/components/feedback";
 import { APP_METADATA } from "@/config/app";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
@@ -29,9 +30,6 @@ export default async function AboutPage() {
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.settings.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-68"}
-        </span>
       </div>
 
       <div className="mb-6">
@@ -52,35 +50,21 @@ export default async function AboutPage() {
           </div>
         </div>
 
+        {/* TODO(legal): replace with links to /[locale]/legal/* once the legal pages ship (#97);
+            see LEGAL_PAGES_AVAILABLE in config/app. */}
         <div className="border-border divide-border divide-y border-t pt-3">
-          <a
-            href="https://github.com/mikael-dzoss/foodbiz-pwa"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground flex items-center justify-between py-3 text-sm font-medium transition-colors"
-          >
-            <span>{x.about.github}</span>
-            <ExternalLink className="h-4 w-4" />
-          </a>
-          <Link
-            href={`/${locale}/legal/terms`}
-            className="text-muted-foreground hover:text-foreground flex items-center justify-between py-3 text-sm font-medium transition-colors"
-          >
-            <span>{x.about.terms}</span>
-            <ExternalLink className="h-4 w-4" />
-          </Link>
-          <Link
-            href={`/${locale}/legal/privacy`}
-            className="text-muted-foreground hover:text-foreground flex items-center justify-between py-3 text-sm font-medium transition-colors"
-          >
-            <span>{x.about.privacy}</span>
-            <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="border-border bg-muted/40 text-muted-foreground flex items-center gap-2 rounded-xl p-3 text-xs">
-          <ShieldCheck className="text-primary h-4 w-4 shrink-0" />
-          <span>{x.about.serverRegion}</span>
+          <SoonItem
+            featureKey="legal.terms"
+            description=""
+            className="bg-transparent px-0"
+            data-testid="soon-legal-terms"
+          />
+          <SoonItem
+            featureKey="legal.privacy"
+            description=""
+            className="border-b-0 bg-transparent px-0"
+            data-testid="soon-legal-privacy"
+          />
         </div>
       </div>
 

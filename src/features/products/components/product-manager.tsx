@@ -34,12 +34,15 @@ export interface ProductManagerProps {
   initialProducts: EnrichedProduct[];
   categories: ProductCategory[];
   lowStockThreshold?: number;
+  /** `new` opens the add form on load (the quick-add sheet links here). */
+  initialAction?: string;
 }
 
 export function ProductManager({
   initialProducts,
   categories,
   lowStockThreshold = 5,
+  initialAction,
 }: ProductManagerProps) {
   const { locale, dict } = useManagerLocale();
   const t = dict.productsAdmin;
@@ -48,7 +51,7 @@ export function ProductManager({
   const [selectedFilter, setSelectedFilter] = React.useState<string>("all");
 
   // Sheet states
-  const [formSheetOpen, setFormSheetOpen] = React.useState(false);
+  const [formSheetOpen, setFormSheetOpen] = React.useState(initialAction === "new");
   const [editingProduct, setEditingProduct] = React.useState<EnrichedProduct | null>(null);
 
   const [stockSheetOpen, setStockSheetOpen] = React.useState(false);
@@ -233,12 +236,6 @@ export function ProductManager({
             </div>
             <p className="text-muted-foreground text-xs font-medium">{t.subtitle}</p>
           </div>
-
-          {/* TODO(catalog): wire to business ordering schedule / store status toggle (#71, #83) */}
-          <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
-            <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
-            {t.menuActive}
-          </span>
         </div>
 
         {/* Action Buttons Row */}

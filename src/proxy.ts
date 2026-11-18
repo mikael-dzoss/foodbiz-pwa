@@ -2,10 +2,29 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 import { MOCK_AUTH_COOKIE_NAME } from "@/domain/auth";
 import { getServerEnv } from "@/config/env";
+import { DEFAULT_LOCALE, isSupportedLocale } from "@/domain/i18n";
+
+/** First path segments that are not storefront locales. */
+const TOP_LEVEL_AREAS = new Set(["manage", "auth", "patterns"]);
+
+/**
+ * `[locale]` is a top-level dynamic segment, so `/zzz` or `/de/cart` would match it and 404 from
+ * its root layout, where Next can only show its bare default page. Rewriting them under the
+ * default locale to a path no route matches gives the localized storefront not-found, in the
+ * storefront shell, with a real 404 status.
+ */
+export function unknownLocaleRewrite(pathname: string): string | null {
+  const first = pathname.split("/")[1];
+  if (!first || isSupportedLocale(first) || TOP_LEVEL_AREAS.has(first)) return null;
+  return `/${DEFAULT_LOCALE}/__unknown${pathname}`;
+}
 
 export async function proxy(request: NextRequest) {
   const env = getServerEnv();
   const { pathname } = request.nextUrl;
+
+  const rewrite = unknownLocaleRewrite(pathname);
+  if (rewrite) return NextResponse.rewrite(new URL(rewrite, request.url));
 
   // Mock data source: convenience redirect for unauthenticated /manage routes
   if (env.DATA_SOURCE === "mock") {

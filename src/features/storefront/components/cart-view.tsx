@@ -62,7 +62,7 @@ export function CartView({
         <div className="bg-muted text-muted-foreground mb-4 flex h-20 w-20 items-center justify-center rounded-full">
           <ShoppingBag className="h-10 w-10 opacity-50" />
         </div>
-        <h2 className="text-title-sm text-foreground">{dict.emptyCartTitle}</h2>
+        <h1 className="text-title-sm text-foreground">{dict.emptyCartTitle}</h1>
         <p className="text-muted-foreground mt-2 max-w-sm text-sm">{dict.emptyCartMessage}</p>
         <div className="mt-6">
           <Button asChild size="lg" className="rounded-xl px-6">

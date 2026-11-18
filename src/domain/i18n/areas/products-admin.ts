@@ -4,7 +4,6 @@ import type { SupportedLocale } from "../types";
 export interface ProductsAdminDictionary {
   title: string;
   subtitle: string;
-  menuActive: string;
   categoriesLink: string;
   addProduct: string;
   searchPlaceholder: string;
@@ -111,7 +110,6 @@ export interface ProductsAdminDictionary {
 const en: ProductsAdminDictionary = {
   title: "Products",
   subtitle: "Manage menu items, pricing, and stock",
-  menuActive: "Menu Active",
   categoriesLink: "Categories ({count})",
   addProduct: "Add Product",
   searchPlaceholder: "Search products by name...",
@@ -218,7 +216,6 @@ const en: ProductsAdminDictionary = {
 const fr: ProductsAdminDictionary = {
   title: "Produits",
   subtitle: "Gérez les articles du menu, les prix et le stock",
-  menuActive: "Menu actif",
   categoriesLink: "Catégories ({count})",
   addProduct: "Ajouter un produit",
   searchPlaceholder: "Rechercher un produit par nom...",

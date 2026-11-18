@@ -69,9 +69,6 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-61"}
-        </span>
       </div>
 
       <div className="mb-6">
@@ -82,17 +79,8 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
       {/* Section 1: Manager Profile Card */}
       <div className="border-border bg-card mb-6 rounded-2xl border p-5 shadow-2xs">
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="bg-primary-soft text-primary-soft-foreground flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold">
-              {managerInitial}
-            </div>
-            {/* Google security badge indicator */}
-            <div
-              className="border-background bg-card text-primary absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full border shadow-xs"
-              title={x.verifiedGoogle}
-            >
-              <ShieldCheck className="text-primary h-3.5 w-3.5" />
-            </div>
+          <div className="bg-primary-soft text-primary-soft-foreground flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold">
+            {managerInitial}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -106,13 +94,6 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
             <p className="text-body-sm text-muted-foreground/80 mt-0.5 truncate">
               {session.business.name}
             </p>
-          </div>
-        </div>
-
-        <div className="border-border mt-4 border-t pt-3">
-          <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <ShieldCheck className="text-primary h-4 w-4 shrink-0" />
-            <span>{dict.account.managedViaGoogle}</span>
           </div>
         </div>
       </div>
@@ -252,7 +233,6 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
               {interpolate(x.posLine, { name: APP_METADATA.name, version: dict.about.version })}
             </span>
           </div>
-          <span>{x.connectedRegion}</span>
         </div>
       </div>
     </div>

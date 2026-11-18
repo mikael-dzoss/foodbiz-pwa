@@ -322,6 +322,43 @@ export function calculateKpiDelta(current: number, previous: number): KpiMetricD
   return { absolute, percentage };
 }
 
+/** KPI metrics that carry a period-over-period delta. */
+export type KpiDeltaMetric = keyof NonNullable<KpiReport["deltas"]>;
+
+/** Metrics where a decrease is the favourable outcome. */
+const LOWER_IS_BETTER: ReadonlySet<KpiDeltaMetric> = new Set<KpiDeltaMetric>([
+  "costs",
+  "cancelledOrderCount",
+]);
+
+export type KpiDeltaDirection = "up" | "down" | "flat";
+export type KpiDeltaSentiment = "good" | "bad" | "neutral";
+
+export interface KpiDeltaPresentation {
+  /** The sign of the value change (never inverted by whether the change is good). */
+  direction: KpiDeltaDirection;
+  /** Whether the change is favourable, which depends on the metric (lower costs are good). */
+  sentiment: KpiDeltaSentiment;
+  /** Unsigned size of the change, in percent. */
+  magnitude: number;
+}
+
+/**
+ * Turns a delta percentage into what the UI shows: the sign always follows the value change, the
+ * good/bad reading follows the metric. Returns `null` when there is no comparable previous value.
+ */
+export function presentKpiDelta(
+  metric: KpiDeltaMetric,
+  percentage: number | null | undefined,
+): KpiDeltaPresentation | null {
+  if (percentage === null || percentage === undefined || !Number.isFinite(percentage)) return null;
+  if (percentage === 0) return { direction: "flat", sentiment: "neutral", magnitude: 0 };
+  const direction: KpiDeltaDirection = percentage > 0 ? "up" : "down";
+  const increaseIsGood = !LOWER_IS_BETTER.has(metric);
+  const good = (direction === "up") === increaseIsGood;
+  return { direction, sentiment: good ? "good" : "bad", magnitude: Math.abs(percentage) };
+}
+
 export interface CalculateKpiReportInput {
   orders: readonly Order[];
   expenses: readonly Expense[];

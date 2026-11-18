@@ -49,6 +49,22 @@ export const managerEn: ManagerExtras = {
         title: "Brand Theme Colour",
         description: "Custom accent colour on digital receipts and storefront.",
       },
+      "business.logo": {
+        title: "Store Logo",
+        description: "Upload a square logo for the storefront and receipts.",
+      },
+      "legal.terms": {
+        title: "Terms of Service",
+        description: "Public terms page for your storefront customers.",
+      },
+      "legal.privacy": {
+        title: "Privacy Policy",
+        description: "Public privacy page for your storefront customers.",
+      },
+      "analytics.dashboard": {
+        title: "Analytics",
+        description: "Sales trends, top products and breakdowns.",
+      },
     },
     quickAddDescriptions: {
       order: "Take customer order manually",
@@ -65,9 +81,7 @@ export const managerEn: ManagerExtras = {
     developmentDivider: "or for development",
     demoSignIn: "Sign in as Manager (Demo Account)",
     restricted: "Authorized managers and staff only. Contact support if you need access.",
-    systemOnline: "System Online",
-    latency: "Latency: 24ms",
-    footer: "FoodBiz Operations v1.2 · Encrypted Connection",
+    footer: "FoodBiz Operations · Encrypted Connection",
   },
   orders: ordersCopy.en,
   expenses: expensesCopy.en,

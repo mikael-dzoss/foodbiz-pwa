@@ -35,11 +35,6 @@ export default async function CategoriesPage() {
             <p className="text-muted-foreground text-xs">{t.subtitle}</p>
           </div>
         </div>
-        {/* TODO(catalog): Wire to business ordering schedule / store status toggle (#71, #83) */}
-        <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
-          <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
-          {t.menuActive}
-        </span>
       </div>
 
       <CategoryManager initialCategories={categories} />

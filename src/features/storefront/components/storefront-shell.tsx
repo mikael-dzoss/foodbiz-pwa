@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import { SkipLink } from "@/components/ui/skip-link";
 import { StorefrontHeader } from "./storefront-header";
 import { StorefrontFooter } from "./storefront-footer";
 import { CartProvider } from "../context/cart-context";
@@ -31,6 +32,7 @@ export function StorefrontShell({
     <CartProvider>
       <MenuSearchProvider>
         <div className="bg-background text-foreground flex min-h-screen flex-col">
+          <SkipLink label={dict.skipToContent} />
           <Suspense fallback={null}>
             <StorefrontHeader
               locale={locale}
@@ -39,7 +41,13 @@ export function StorefrontShell({
               cartCount={cartCount}
             />
           </Suspense>
-          <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 focus:outline-none sm:px-6"
+          >
+            {children}
+          </main>
           <Suspense fallback={null}>
             <StorefrontFooter
               locale={locale}

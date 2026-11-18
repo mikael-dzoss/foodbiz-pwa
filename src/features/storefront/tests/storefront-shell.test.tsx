@@ -52,6 +52,22 @@ describe("Storefront Shell (#30)", () => {
     expect(screen.getByRole("link", { name: /Cart - 0 items/i })).toBeDefined();
   });
 
+  it.each([
+    ["en", enDictionary, "Skip to content"],
+    ["fr", frDictionary, "Aller au contenu"],
+  ] as const)("starts with a localized skip link to main (%s)", (locale, dictionary, label) => {
+    render(
+      <StorefrontShell locale={locale} dict={dictionary.storefront}>
+        <div>Catalog Content</div>
+      </StorefrontShell>,
+    );
+    const skip = screen.getByRole("link", { name: label });
+    expect(skip.getAttribute("href")).toBe("#main-content");
+    expect(document.querySelector("a[href], button")).toBe(skip);
+    expect(screen.getByRole("main").id).toBe("main-content");
+    expect(screen.getByRole("main").getAttribute("tabindex")).toBe("-1");
+  });
+
   it("displays badge with item count when cartCount > 0", () => {
     render(
       <StorefrontShell locale="en" dict={enDictionary.storefront} cartCount={3}>

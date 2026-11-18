@@ -39,7 +39,11 @@ export interface ManagerShellDictionary {
     | "account.export_data"
     | "account.delete"
     | "business.cover_image"
-    | "business.brand_color",
+    | "business.brand_color"
+    | "business.logo"
+    | "legal.terms"
+    | "legal.privacy"
+    | "analytics.dashboard",
     { title: string; description: string }
   >;
   quickAddDescriptions: {
@@ -58,8 +62,6 @@ export interface LoginDictionary {
   developmentDivider: string;
   demoSignIn: string;
   restricted: string;
-  systemOnline: string;
-  latency: string;
   footer: string;
 }
 

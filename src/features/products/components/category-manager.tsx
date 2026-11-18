@@ -9,7 +9,7 @@ import {
   renameCategoryAction,
   deleteCategoryAction,
 } from "../category-actions";
-import { Plus, Edit2, Trash2, Check, X, Folder, GripVertical, Info, Lightbulb } from "lucide-react";
+import { Plus, Edit2, Trash2, Check, X, Folder, Info, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -198,7 +198,6 @@ export function CategoryManager({ initialCategories, dict: dictOverride }: Categ
               {categories.length}
             </span>
           </div>
-          <span className="text-muted-foreground text-xs">{t.dragToReorder}</span>
         </div>
 
         {/* List items */}
@@ -290,16 +289,6 @@ export function CategoryManager({ initialCategories, dict: dictOverride }: Categ
                   role="listitem"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <Button
-                      variant="unstyled"
-                      size="none"
-                      type="button"
-                      data-testid={`reorder-category-${cat.id}`}
-                      aria-label={interpolate(t.reorder, { name: cat.name })}
-                      className="text-muted-foreground/60 hover:text-foreground -ml-1 min-h-11 min-w-11 touch-manipulation p-1"
-                    >
-                      <GripVertical className="h-4 w-4" />
-                    </Button>
                     <div className="min-w-0">
                       <div className="text-foreground truncate text-sm font-semibold">
                         {cat.name}

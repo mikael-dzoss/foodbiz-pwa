@@ -173,9 +173,6 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-63"}
-        </span>
       </div>
 
       {/* Header */}
@@ -565,7 +562,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
           {dict.ordering.soonSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
-          <div className="flex items-center justify-between p-4 opacity-75">
+          <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">
                 <MapPin className="h-4 w-4" />
@@ -581,7 +578,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
             <SoonBadge />
           </div>
 
-          <div className="flex items-center justify-between p-4 opacity-75">
+          <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">
                 <Layers className="h-4 w-4" />

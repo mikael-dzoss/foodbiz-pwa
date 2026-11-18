@@ -115,7 +115,7 @@ describe("BusinessProfileForm component", () => {
       "12 Rue de la Roquette",
     );
 
-    expect(screen.getByText(dict.business.activeBadge)).toBeDefined();
+    expect(screen.getByTestId("soon-business-logo")).toBeDefined();
     expect(screen.getByTestId("soon-cover-image")).toBeDefined();
     expect(screen.getByTestId("soon-brand-color")).toBeDefined();
   });

@@ -98,12 +98,11 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="bg-primary/10 text-primary text-micro rounded px-2 py-0.5 font-semibold tracking-wider uppercase">
-                  Bio &amp; Artisanal
-                </span>
-                <span className="text-muted-foreground text-micro font-medium">
-                  {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
-                </span>
+                {business.address?.split(",")[1]?.trim() && (
+                  <span className="text-muted-foreground text-micro font-medium">
+                    {business.address.split(",")[1].trim()}
+                  </span>
+                )}
               </div>
               <h1 id="overview-heading" className="text-title-lg text-foreground mt-0.5">
                 {business.name}
@@ -190,7 +189,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               href={whatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`${dict.chatOnWhatsApp}: ${business.whatsappNumber}`}
               className="group text-foreground border-whatsapp/30 bg-whatsapp/10 hover:bg-whatsapp/15 flex items-center justify-between rounded-lg border p-3.5 transition-all duration-150 active:scale-99"
             >
               <div className="flex items-center gap-3">
@@ -221,7 +219,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               {hasPhone && (
                 <a
                   href={`tel:${business.phone}`}
-                  aria-label={`${dict.callShop}: ${business.phone}`}
                   className="border-border/70 bg-card hover:bg-muted flex flex-col justify-between rounded-lg border p-3 transition-colors active:scale-98"
                 >
                   <div className="flex items-center justify-between">
@@ -229,8 +226,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                     <span className="text-primary text-micro font-semibold">{dict.callShop}</span>
                   </div>
                   <div className="mt-2.5">
-                    <p className="text-foreground text-xs font-semibold">Bakery Counter</p>
-                    <p className="text-muted-foreground text-caption mt-0.5 tabular-nums">
+                    <p className="text-muted-foreground text-caption tabular-nums">
                       {business.phone}
                     </p>
                   </div>
@@ -240,7 +236,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               {hasEmail && (
                 <a
                   href={`mailto:${business.email}`}
-                  aria-label={`${dict.emailShop}: ${business.email}`}
                   className="border-border/70 bg-card hover:bg-muted flex flex-col justify-between rounded-lg border p-3 transition-colors active:scale-98"
                 >
                   <div className="flex items-center justify-between">
@@ -248,10 +243,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                     <span className="text-primary text-micro font-semibold">{dict.emailShop}</span>
                   </div>
                   <div className="mt-2.5 truncate">
-                    <p className="text-foreground text-xs font-semibold">Custom Orders</p>
-                    <p className="text-muted-foreground text-caption mt-0.5 truncate">
-                      {business.email}
-                    </p>
+                    <p className="text-muted-foreground text-caption truncate">{business.email}</p>
                   </div>
                 </a>
               )}
@@ -352,7 +344,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 via-transparent to-transparent p-3">
                 <span className="text-caption flex items-center gap-1.5 font-semibold text-white">
                   <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
-                  {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
+                  {business.address?.split(",")[1]?.trim() ?? business.name}
                 </span>
               </div>
             </div>
@@ -363,14 +355,8 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               <h2 id="address-heading" className="sr-only">
                 {dict.address}
               </h2>
-              <span className="text-muted-foreground text-micro font-semibold tracking-wider uppercase">
-                Bakery &amp; Flour Lab
-              </span>
-              <p className="text-foreground mt-0.5 text-xs leading-snug font-semibold">
+              <p className="text-foreground text-xs leading-snug font-semibold">
                 {business.address}
-              </p>
-              <p className="text-muted-foreground text-caption mt-0.5">
-                Métro: Bastille (Lines 1, 5, 8) or Voltaire (Line 9)
               </p>
             </div>
 
@@ -379,7 +365,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={dict.getDirections}
                 className="border-border hover:bg-muted text-foreground flex h-10 w-full items-center justify-center gap-2 rounded-lg border text-xs font-semibold transition-colors active:scale-99"
               >
                 <MapPin className="text-primary h-4 w-4" />
@@ -415,8 +400,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
             <span className="text-muted-foreground text-micro block uppercase">Delivery Fee</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              {formatMoney(settings?.deliveryFee ?? 250, locale)}{" "}
-              <span className="text-muted-foreground text-micro font-normal">(Free &gt; €40)</span>
+              {formatMoney(settings?.deliveryFee ?? 250, locale)}
             </span>
           </div>
 
@@ -424,13 +408,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             <span className="text-muted-foreground text-micro block uppercase">Est. Time</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
               {leadTimeText}
-            </span>
-          </div>
-
-          <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground text-micro block uppercase">Coverage</span>
-            <span className="text-foreground mt-0.5 block truncate text-xs font-bold">
-              Paris 11e, 10e, 12e
             </span>
           </div>
         </div>

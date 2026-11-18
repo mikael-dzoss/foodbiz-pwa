@@ -171,9 +171,6 @@ export function ExpenseManager({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-title-lg text-foreground">{t.title}</h1>
-            <span className="text-muted-foreground border-border rounded border px-1.5 py-0.5 font-mono text-xs">
-              {t.screenTag}
-            </span>
           </div>
           <p className="text-muted-foreground mt-0.5 text-xs">{t.subtitle}</p>
         </div>
@@ -296,7 +293,7 @@ export function ExpenseManager({
           size="none"
           type="button"
           onClick={() => setSelectedTag("all")}
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+          className={`flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
             selectedTag === "all"
               ? "bg-primary-soft text-primary-soft-foreground border-primary"
               : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -317,7 +314,7 @@ export function ExpenseManager({
               key={tag}
               type="button"
               onClick={() => setSelectedTag(tag)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+              className={`flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
                 isSelected
                   ? "bg-primary-soft text-primary-soft-foreground border-primary"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
@@ -334,6 +331,7 @@ export function ExpenseManager({
       {/* Monthly Grouped Expense List */}
       {monthGroups.length === 0 ? (
         <EmptyState
+          headingLevel={2}
           icon={<Receipt className="h-6 w-6" />}
           title={t.empty.title}
           description={expenses.length === 0 ? t.empty.none : t.empty.filtered}

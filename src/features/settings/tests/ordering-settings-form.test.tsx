@@ -71,7 +71,6 @@ describe("OrderingSettingsForm component (M-63)", () => {
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
 
     expect(screen.getByTestId("ordering-settings-form")).toBeDefined();
-    expect(screen.getByText("M-63")).toBeDefined();
     expect(screen.getByRole("heading", { name: dict.ordering.title, level: 1 })).toBeDefined();
 
     expect(screen.getByTestId("switch-accepting-orders")).toBeDefined();

@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import LocaleHomePage from "../[locale]/page";
 import ProductDetailPage from "../[locale]/p/[id]/page";
 import ShopInfoPage from "../[locale]/info/page";
-import RootPage from "../page";
 import { CartProvider } from "@/features/storefront";
 
 const notFoundMock = vi.fn();
@@ -21,12 +20,6 @@ vi.mock("next/cache", () => ({
 }));
 
 describe("Internationalized storefront pages", () => {
-  it("RootPage redirects to default locale /en", async () => {
-    const { redirect } = await import("next/navigation");
-    RootPage();
-    expect(redirect).toHaveBeenCalledWith("/en");
-  });
-
   it("LocaleHomePage renders English catalog with search and categories", async () => {
     const page = await LocaleHomePage({ params: Promise.resolve({ locale: "en" }) });
     render(<CartProvider>{page}</CartProvider>);

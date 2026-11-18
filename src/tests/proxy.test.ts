@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { proxy } from "@/proxy";
+import { proxy, unknownLocaleRewrite } from "@/proxy";
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_AUTH_COOKIE_NAME } from "@/domain/auth";
 import { updateSession } from "@/lib/supabase/proxy";
@@ -114,5 +114,30 @@ describe("proxy", () => {
 
     const response = await proxy(request);
     expect(response.status).toBe(200);
+  });
+});
+
+describe("unknownLocaleRewrite", () => {
+  it.each([
+    ["/zzz", "/en/__unknown/zzz"],
+    ["/de/cart", "/en/__unknown/de/cart"],
+  ])("rewrites %s under the default locale to an unmatched path", (path, expected) => {
+    expect(unknownLocaleRewrite(path)).toBe(expected);
+  });
+
+  it.each(["/", "/en", "/fr/cart", "/manage", "/manage/orders", "/auth/callback", "/patterns"])(
+    "leaves %s alone",
+    (path) => {
+      expect(unknownLocaleRewrite(path)).toBeNull();
+    },
+  );
+
+  it("rewrites an unknown-locale request in the proxy", async () => {
+    vi.stubEnv("DATA_SOURCE", "mock");
+    const response = await proxy(new NextRequest("http://localhost:3000/de/cart"));
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "http://localhost:3000/en/__unknown/de/cart",
+    );
+    vi.unstubAllEnvs();
   });
 });

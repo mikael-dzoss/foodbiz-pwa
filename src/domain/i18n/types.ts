@@ -22,9 +22,13 @@ export interface NavigationDictionary {
   analytics: string;
   settings: string;
   more: string;
+  /** Label of the skip link at the top of every shell. */
+  skipToContent: string;
 }
 
 export interface StorefrontDictionary {
+  /** Label of the skip link at the top of the storefront shell. */
+  skipToContent: string;
   /** "{count} available" next to the in-stock label. */
   stockAvailable: string;
   /** "Currently in your cart: {count}". */
@@ -288,7 +292,6 @@ export interface QuickAddDictionary {
 export interface DashboardDictionary {
   title: string;
   subtitle: string;
-  activeStatus: string;
   periods: {
     today: string;
     last_7_days: string;
@@ -305,6 +308,8 @@ export interface DashboardDictionary {
     averageOrderValue: string;
     vsPreviousPeriod: string;
     vsYesterday: string;
+    /** Screen-reader words for a KPI delta: direction of the change, then whether it is favourable. */
+    delta: { up: string; down: string; flat: string; good: string; bad: string };
   };
   triage: {
     sectionTitle: string;
@@ -410,7 +415,6 @@ export interface SettingsDictionary {
     title: string;
     description: string;
     profileTitle: string;
-    managedViaGoogle: string;
     preferencesTitle: string;
     languageLabel: string;
     themeLabel: string;
@@ -425,14 +429,12 @@ export interface SettingsDictionary {
     description: string;
     identitySection: string;
     logoLabel: string;
-    uploadLogo: string;
     nameLabel: string;
     namePlaceholder: string;
     descLabel: string;
     descPlaceholder: string;
     slugLabel: string;
     slugHelper: string;
-    activeBadge: string;
     contactSection: string;
     socialSection: string;
     instagramLabel: string;

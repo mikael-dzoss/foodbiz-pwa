@@ -10,7 +10,7 @@ export default async function OrderNotFound() {
   const text = getDictionary(locale).common.notFound;
   return (
     <div className="mx-auto max-w-xl space-y-4" data-testid="order-not-found">
-      <EmptyState title={text.title} description={text.message} />
+      <EmptyState headingLevel={1} title={text.title} description={text.message} />
       <Button asChild variant="outline">
         <Link href="/manage/orders" data-testid="not-found-back-to-orders">
           {text.backToOrders}

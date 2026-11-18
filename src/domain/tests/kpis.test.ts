@@ -7,6 +7,7 @@ import {
   extractDate,
   getPreviousDateRange,
   kpiReportSchema,
+  presentKpiDelta,
   resolveDateRange,
   type DateRange,
   type Expense,
@@ -671,5 +672,45 @@ describe("KPI ranges in the business time zone (#168)", () => {
       calculateKpiMetrics({ orders: [order], expenses: [], period: utcDay, timeZone: "UTC" })
         .revenue,
     ).toBe(2000);
+  });
+});
+
+describe("presentKpiDelta", () => {
+  it("signs the change by the value and judges it by the metric", () => {
+    expect(presentKpiDelta("revenue", 12.5)).toEqual({
+      direction: "up",
+      sentiment: "good",
+      magnitude: 12.5,
+    });
+    expect(presentKpiDelta("revenue", -3)).toEqual({
+      direction: "down",
+      sentiment: "bad",
+      magnitude: 3,
+    });
+  });
+
+  it("treats lower costs and fewer cancellations as favourable", () => {
+    expect(presentKpiDelta("costs", -5.2)).toEqual({
+      direction: "down",
+      sentiment: "good",
+      magnitude: 5.2,
+    });
+    expect(presentKpiDelta("costs", 8)).toEqual({
+      direction: "up",
+      sentiment: "bad",
+      magnitude: 8,
+    });
+    expect(presentKpiDelta("cancelledOrderCount", -10)?.sentiment).toBe("good");
+  });
+
+  it("is flat and neutral at zero, and absent without a comparable value", () => {
+    expect(presentKpiDelta("costs", 0)).toEqual({
+      direction: "flat",
+      sentiment: "neutral",
+      magnitude: 0,
+    });
+    expect(presentKpiDelta("profit", null)).toBeNull();
+    expect(presentKpiDelta("profit", undefined)).toBeNull();
+    expect(presentKpiDelta("profit", Number.NaN)).toBeNull();
   });
 });

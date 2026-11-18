@@ -274,7 +274,6 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
               {interpolate(x.posLine, { name: APP_METADATA.name, version: dict.about.version })}
             </span>
           </div>
-          <span>{x.connectedRegion}</span>
         </div>
       </div>
     </div>

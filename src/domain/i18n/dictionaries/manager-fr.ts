@@ -49,6 +49,22 @@ export const managerFr: ManagerExtras = {
         title: "Couleur de la marque",
         description: "Couleur d'accent personnalisée sur les reçus numériques et la boutique.",
       },
+      "business.logo": {
+        title: "Logo de la boutique",
+        description: "Téléversez un logo carré pour la boutique et les reçus.",
+      },
+      "legal.terms": {
+        title: "Conditions d'utilisation",
+        description: "Page publique des conditions pour vos clients.",
+      },
+      "legal.privacy": {
+        title: "Politique de confidentialité",
+        description: "Page publique de confidentialité pour vos clients.",
+      },
+      "analytics.dashboard": {
+        title: "Statistiques",
+        description: "Tendances des ventes, meilleurs produits et détails.",
+      },
     },
     quickAddDescriptions: {
       order: "Saisir une commande manuellement",
@@ -66,9 +82,7 @@ export const managerFr: ManagerExtras = {
     demoSignIn: "Se connecter en tant que gestionnaire (compte démo)",
     restricted:
       "Réservé aux gestionnaires et au personnel autorisés. Contactez le support si vous avez besoin d'un accès.",
-    systemOnline: "Système en ligne",
-    latency: "Latence : 24 ms",
-    footer: "FoodBiz Operations v1.2 · Connexion chiffrée",
+    footer: "FoodBiz Operations · Connexion chiffrée",
   },
   orders: ordersCopy.fr,
   expenses: expensesCopy.fr,

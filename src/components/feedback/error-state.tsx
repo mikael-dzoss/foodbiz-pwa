@@ -9,6 +9,8 @@ export interface ErrorStateProps {
   onRetry?: () => void;
   /** Required with `onRetry` (translated by the caller). */
   retryLabel?: string;
+  /** Level of the title heading: 1 when the state is the whole page, 3 (default) inside a section. */
+  headingLevel?: 1 | 2 | 3;
   className?: string;
   "data-testid"?: string;
 }
@@ -18,9 +20,11 @@ export function ErrorState({
   message,
   onRetry,
   retryLabel,
+  headingLevel = 3,
   className,
   "data-testid": testId,
 }: ErrorStateProps) {
+  const Heading = `h${headingLevel}` as const;
   return (
     <div
       role="alert"
@@ -33,7 +37,7 @@ export function ErrorState({
       <div className="bg-destructive/15 text-destructive mb-3 flex h-12 w-12 items-center justify-center rounded-full">
         <AlertCircle className="h-6 w-6" />
       </div>
-      <h3 className="text-title-sm text-foreground">{title}</h3>
+      <Heading className="text-title-sm text-foreground">{title}</Heading>
       <p className="text-body-sm text-muted-foreground mt-1 max-w-sm">{message}</p>
       {onRetry && (
         <Button

@@ -14,7 +14,7 @@ export default function LocaleNotFound() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4" data-testid="storefront-not-found">
-      <EmptyState title={dict.notFoundTitle} description={dict.notFoundMessage} />
+      <EmptyState headingLevel={1} title={dict.notFoundTitle} description={dict.notFoundMessage} />
       <div className="flex justify-center">
         <Button asChild>
           <Link href={`/${locale}`} data-testid="storefront-not-found-home">

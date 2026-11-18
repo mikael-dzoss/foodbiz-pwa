@@ -184,13 +184,37 @@ describe("Base UI Primitives (#28)", () => {
           data-testid="kpi"
           label="Today's Revenue"
           value="€842.50"
-          delta={{ percentage: 12.4, isPositive: true, periodLabel: "vs yesterday" }}
+          delta={{
+            percentage: 12.4,
+            direction: "up",
+            sentiment: "good",
+            srLabel: "Up, favourable",
+            periodLabel: "vs yesterday",
+          }}
         />,
       );
       expect(screen.getByText("Today's Revenue")).toBeDefined();
       expect(screen.getByText("€842.50")).toBeDefined();
       expect(screen.getByText("+12.4%")).toBeDefined();
       expect(screen.getByText("vs yesterday")).toBeDefined();
+      expect(screen.getByText("Up, favourable")).toBeDefined();
+    });
+
+    it("signs a decrease with a minus and reads a favourable drop as good", () => {
+      render(
+        <KPICard
+          label="Costs"
+          value="€10"
+          delta={{
+            percentage: 5.2,
+            direction: "down",
+            sentiment: "good",
+            srLabel: "Down, favourable",
+          }}
+        />,
+      );
+      expect(screen.getByText("\u22125.2%")).toBeDefined();
+      expect(screen.queryByText("+5.2%")).toBeNull();
     });
   });
 

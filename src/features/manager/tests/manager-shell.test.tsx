@@ -1,7 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ManagerShell } from "../components/manager-shell";
 import { enDictionary } from "@/domain/i18n";
+import { ToastProvider } from "@/components/ui";
+
+// The shell hosts SoonItem rows, which need the root ToastProvider the app layout provides.
+const render = (ui: ReactElement) => rtlRender(<ToastProvider>{ui}</ToastProvider>);
 
 const { pathname } = vi.hoisted(() => ({ pathname: vi.fn(() => "/manage") }));
 vi.mock("next/navigation", () => ({
@@ -43,6 +48,20 @@ describe("Manager App Shell & Navigation (#29)", () => {
       </ManagerShell>,
     );
     expect(screen.getByRole("navigation", { name: /Manager mobile navigation/i })).toBeDefined();
+  });
+
+  it("starts with a skip link that targets the focusable main landmark", () => {
+    render(
+      <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>
+        <div>Dashboard View</div>
+      </ManagerShell>,
+    );
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    expect(skip.getAttribute("href")).toBe("#main-content");
+    expect(document.querySelector("a[href], button")).toBe(skip);
+    const main = screen.getByRole("main");
+    expect(main.id).toBe("main-content");
+    expect(main.getAttribute("tabindex")).toBe("-1");
   });
 
   it("renders both mobile bottom nav and desktop sidebar", () => {

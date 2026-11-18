@@ -91,9 +91,6 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-67"}
-        </span>
       </div>
 
       {/* Header */}
@@ -235,7 +232,7 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
         <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.notifications.soonSection}
         </h2>
-        <div className="border-border bg-card divide-border divide-y rounded-2xl border opacity-75 shadow-2xs">
+        <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
           {/* Email notifications */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">

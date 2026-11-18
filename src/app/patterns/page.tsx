@@ -290,12 +290,24 @@ export default function PatternsPage() {
             <KPICard
               label="Today's Revenue"
               value="€842.50"
-              delta={{ percentage: 12.4, isPositive: true, periodLabel: "vs yesterday" }}
+              delta={{
+                percentage: 12.4,
+                direction: "up",
+                sentiment: "good",
+                srLabel: "Up, favourable",
+                periodLabel: "vs yesterday",
+              }}
             />
             <KPICard
               label="Active Orders"
               value="14"
-              delta={{ percentage: 5.2, isPositive: false, periodLabel: "vs avg" }}
+              delta={{
+                percentage: 5.2,
+                direction: "down",
+                sentiment: "bad",
+                srLabel: "Down, unfavourable",
+                periodLabel: "vs avg",
+              }}
             />
           </div>
         </section>

@@ -81,7 +81,8 @@ export function StorefrontHeader({
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-title-md text-foreground">{dict.storeInfo}</h1>
+              {/* Not a heading: the page's h1 is the business name inside the info view. */}
+              <p className="text-title-md text-foreground">{dict.storeInfo}</p>
               <span className="border-border bg-muted text-muted-foreground text-caption rounded border px-1.5 py-0.5 font-medium">
                 {dict.aboutBadge}
               </span>
@@ -128,7 +129,7 @@ export function StorefrontHeader({
             <Link
               href={pathForEn}
               aria-label={`EN - ${locale === "fr" ? dict.switchLanguage : "English"}`}
-              className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
+              className={`inline-flex min-h-9 min-w-9 items-center justify-center rounded-full px-2 text-xs transition-colors ${
                 locale === "en"
                   ? "bg-card text-foreground font-bold shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -139,7 +140,7 @@ export function StorefrontHeader({
             <Link
               href={pathForFr}
               aria-label={`FR - ${locale === "en" ? dict.switchLanguage : "Français"}`}
-              className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
+              className={`inline-flex min-h-9 min-w-9 items-center justify-center rounded-full px-2 text-xs transition-colors ${
                 locale === "fr"
                   ? "bg-card text-foreground font-bold shadow-xs"
                   : "text-muted-foreground hover:text-foreground"

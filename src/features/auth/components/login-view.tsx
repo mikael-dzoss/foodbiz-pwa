@@ -5,6 +5,7 @@ import { LoginErrorBanner, LoginNextInput } from "./login-error-banner";
 import type { AuthErrorCode } from "@/domain/auth";
 import { DEFAULT_LOCALE, getDictionary, type SupportedLocale } from "@/domain/i18n";
 import { Button } from "@/components/ui/button";
+import { SkipLink } from "@/components/ui/skip-link";
 
 export interface LoginViewProps {
   error?: AuthErrorCode | string | null;
@@ -23,10 +24,15 @@ export function LoginView({
 
   return (
     <div className="bg-background text-foreground selection:bg-primary-soft selection:text-primary flex min-h-screen flex-col items-center justify-between antialiased">
+      <SkipLink label={dict.nav.skipToContent} />
       <h1 className="sr-only">{dict.login.pageHeading}</h1>
 
       {/* Mobile Screen Container (Strict mobile context matching Stitch A-01) */}
-      <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-between px-4 pb-6">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-between px-4 pb-6 focus:outline-none"
+      >
         {/* Top Header Bar from Stitch A-01 Spec */}
         <header className="border-border mx-auto flex h-14 w-full max-w-sm items-center justify-between border-b px-2">
           <Link
@@ -138,16 +144,6 @@ export function LoginView({
               <p className="text-muted-foreground text-xs leading-snug">{dict.login.restricted}</p>
             </div>
           </section>
-
-          {/* Quick Operations Diagnostic / Status from Stitch Spec */}
-          {/* TODO(ops): Wire system status and latency indicator to health check endpoint (#97, #100) */}
-          <div className="text-muted-foreground mt-4 flex items-center justify-between px-2 text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="bg-primary inline-block h-2 w-2 rounded-full" />
-              <span className="font-medium">{dict.login.systemOnline}</span>
-            </div>
-            <div className="font-medium tabular-nums">{dict.login.latency}</div>
-          </div>
         </div>
 
         {/* Bottom Metadata & Legal from Stitch Spec */}
