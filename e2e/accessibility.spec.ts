@@ -53,7 +53,12 @@ for (const colorScheme of ["light", "dark"] as const) {
             .click();
           await page.goto(`/${locale}/cart`);
           for (let i = 0; i < 3; i++) {
-            await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+            await page
+              .getByRole("button", {
+                name: locale === "fr" ? "Augmenter la quantité" : "Increase quantity",
+                exact: true,
+              })
+              .click();
           }
         }
         const response = await page.goto(path);

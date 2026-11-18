@@ -4,7 +4,6 @@ import type { SupportedLocale } from "../types";
 /** Manager orders screens: list, detail, manual order form and live alerts. */
 export interface OrdersDictionary {
   title: string;
-  posLive: string;
   newOrder: string;
   statusTabsLabel: string;
   tabs: { active: string; completed: string; cancelled: string };
@@ -226,7 +225,6 @@ export interface OrdersDictionary {
 
 const en: OrdersDictionary = {
   title: "Orders",
-  posLive: "POS Live",
   newOrder: "New order",
   statusTabsLabel: "Order Status Tabs",
   tabs: { active: "Active", completed: "Completed", cancelled: "Cancelled" },
@@ -475,7 +473,6 @@ const en: OrdersDictionary = {
 
 const fr: OrdersDictionary = {
   title: "Commandes",
-  posLive: "Caisse en direct",
   newOrder: "Nouvelle commande",
   statusTabsLabel: "Onglets de statut des commandes",
   tabs: { active: "En cours", completed: "Terminées", cancelled: "Annulées" },

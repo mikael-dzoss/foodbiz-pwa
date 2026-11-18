@@ -57,21 +57,21 @@ test("manual order requires payment before completion", async ({ page }) => {
   await expect(page).toHaveURL(/\/manage\/orders\/[a-f0-9-]+$/);
   await page.getByRole("button", { name: "Start preparing", exact: true }).click();
   await page.getByRole("button", { name: "Mark as ready", exact: true }).click();
-  await expect(page.getByTestId("order-detail-screen")).toContainText("READY");
+  await expect(page.getByTestId("order-detail-screen")).toContainText("Ready");
   await expect(page.getByTestId("next-status-action-button")).toHaveCount(0);
   await expect(page.getByTestId("order-actions-bar")).toContainText(
     "Payment required before completing order handover",
   );
   await page.reload();
   await expect(page.getByTestId("payment-card")).toContainText("Unpaid");
-  await expect(page.getByTestId("order-detail-screen")).toContainText("Status: READY");
+  await expect(page.getByTestId("order-detail-screen")).toContainText("Status: Ready");
   await page.getByTestId("record-payment-button").click();
   await page.getByTestId("payment-method-cash").click();
   await page.getByTestId("confirm-payment-button").click();
   await expect(page.getByTestId("record-payment-dialog")).not.toBeVisible();
   await page.getByRole("button", { name: "Complete order", exact: true }).click();
   await page.reload();
-  await expect(page.getByTestId("order-detail-screen")).toContainText("COMPLETED");
+  await expect(page.getByTestId("order-detail-screen")).toContainText("Completed");
   await expect(page.getByTestId("payment-card")).toContainText("Paid");
 });
 

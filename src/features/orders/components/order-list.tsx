@@ -263,15 +263,8 @@ export function OrderList({
   return (
     <div className="flex flex-col gap-3.5 pb-24" data-testid="orders-list-screen">
       {/* Top Header: Matching Stitch M-20 */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-2">
-          <h1 className="text-title-lg text-foreground">{t.title}</h1>
-          {/* POS Live Status Beacon */}
-          <div className="bg-primary-soft text-primary-soft-foreground text-caption flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium">
-            <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
-            {t.posLive}
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <h1 className="text-title-lg text-foreground min-w-0">{t.title}</h1>
 
         {/* Single-line New Order action button */}
         <Link href="/manage/orders/new">
