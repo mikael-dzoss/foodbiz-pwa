@@ -72,7 +72,6 @@ describe("PaymentSettingsForm component (M-64)", () => {
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
 
     expect(screen.getByTestId("payment-settings-form")).toBeDefined();
-    expect(screen.getByText("M-64")).toBeDefined();
     expect(screen.getByRole("heading", { name: dict.payment.title, level: 1 })).toBeDefined();
 
     expect((screen.getByTestId("input-revolut-revtag") as HTMLInputElement).value).toBe(

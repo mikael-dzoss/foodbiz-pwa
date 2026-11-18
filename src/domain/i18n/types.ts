@@ -410,7 +410,6 @@ export interface SettingsDictionary {
     title: string;
     description: string;
     profileTitle: string;
-    managedViaGoogle: string;
     preferencesTitle: string;
     languageLabel: string;
     themeLabel: string;
@@ -425,14 +424,12 @@ export interface SettingsDictionary {
     description: string;
     identitySection: string;
     logoLabel: string;
-    uploadLogo: string;
     nameLabel: string;
     namePlaceholder: string;
     descLabel: string;
     descPlaceholder: string;
     slugLabel: string;
     slugHelper: string;
-    activeBadge: string;
     contactSection: string;
     socialSection: string;
     instagramLabel: string;

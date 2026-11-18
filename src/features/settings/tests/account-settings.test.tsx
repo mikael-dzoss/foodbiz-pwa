@@ -58,14 +58,13 @@ afterEach(() => {
 });
 
 describe("AccountSettings component", () => {
-  it("renders manager profile details and Google Workspace footnote", () => {
+  it("renders manager profile details ", () => {
     render(<AccountSettings session={mockSession} dict={dict} currentLocale="en" />);
 
     expect(screen.getByRole("heading", { name: dict.account.title, level: 1 })).toBeDefined();
     expect(screen.getByText("Marie Dupont")).toBeDefined();
     expect(screen.getByText("manager@lapetiteboulangerie.fr")).toBeDefined();
     expect(screen.getByText("Owner & Manager")).toBeDefined();
-    expect(screen.getByText(dict.account.managedViaGoogle)).toBeDefined();
     expect(screen.getByTestId("back-to-settings")).toBeDefined();
   });
 

@@ -115,7 +115,6 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("account-settings")).toBeDefined();
-    expect(screen.getByText("M-61")).toBeDefined();
   });
 
   it("renders BusinessProfilePage (M-62) and invokes requireManagerSession", async () => {
@@ -124,7 +123,6 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("business-profile-form")).toBeDefined();
-    expect(screen.getByText("M-62")).toBeDefined();
   });
 
   it("renders AboutPage (M-68) and invokes requireManagerSession", async () => {
@@ -133,7 +131,6 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("about-page")).toBeDefined();
-    expect(screen.getByText("M-68")).toBeDefined();
   });
 
   it("renders OrderingSettingsPage (M-63) and invokes requireManagerSession", async () => {
@@ -142,7 +139,6 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("ordering-settings-form")).toBeDefined();
-    expect(screen.getByText("M-63")).toBeDefined();
   });
 
   it("renders PaymentSettingsPage (M-64) and invokes requireManagerSession", async () => {
@@ -151,7 +147,6 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("payment-settings-form")).toBeDefined();
-    expect(screen.getByText("M-64")).toBeDefined();
   });
 
   it("renders InventoryFinanceSettingsPage (M-65) and invokes requireManagerSession", async () => {
@@ -160,7 +155,6 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("inventory-finance-form")).toBeDefined();
-    expect(screen.getByText("M-65")).toBeDefined();
   });
 
   it("renders NotificationsSettingsPage (M-67) and invokes requireManagerSession", async () => {
@@ -169,6 +163,5 @@ describe("Settings Pages Route Guards and Rendering", () => {
 
     expect(auth.requireManagerSession).toHaveBeenCalled();
     expect(screen.getByTestId("notifications-app-form")).toBeDefined();
-    expect(screen.getByText("M-67")).toBeDefined();
   });
 });

@@ -171,9 +171,6 @@ export function ExpenseManager({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-title-lg text-foreground">{t.title}</h1>
-            <span className="text-muted-foreground border-border rounded border px-1.5 py-0.5 font-mono text-xs">
-              {t.screenTag}
-            </span>
           </div>
           <p className="text-muted-foreground mt-0.5 text-xs">{t.subtitle}</p>
         </div>

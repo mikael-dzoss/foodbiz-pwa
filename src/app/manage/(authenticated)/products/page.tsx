@@ -8,8 +8,13 @@ export const metadata: Metadata = {
   description: "Manage menu items, pricing, stock levels and categories.",
 };
 
-export default async function ProductsPage() {
+interface ProductsPageProps {
+  searchParams?: Promise<{ action?: string }>;
+}
+
+export default async function ProductsPage({ searchParams }: ProductsPageProps = {}) {
   await requireManagerSession();
+  const params = searchParams ? await searchParams : undefined;
   const { products, categories, lowStockThreshold } = await listProducts();
 
   return (
@@ -18,6 +23,7 @@ export default async function ProductsPage() {
         initialProducts={products}
         categories={categories}
         lowStockThreshold={lowStockThreshold}
+        initialAction={params?.action}
       />
     </div>
   );

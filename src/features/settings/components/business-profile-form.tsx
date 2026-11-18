@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   ChevronLeft,
-  Camera,
   Phone,
   Mail,
   MessageCircle,
@@ -108,11 +107,6 @@ export function BusinessProfileForm({
     }
   };
 
-  const handleLogoUploadClick = () => {
-    // In MVP, logo upload opens file input or sets mock logo
-    showToast(x.logoReady);
-  };
-
   const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     const parsedLatitude = latitude.trim() === "" ? null : Number(latitude);
     const parsedLongitude = longitude.trim() === "" ? null : Number(longitude);
@@ -158,9 +152,6 @@ export function BusinessProfileForm({
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-62"}
-        </span>
       </div>
 
       <div className="mb-6">
@@ -174,42 +165,27 @@ export function BusinessProfileForm({
           {dict.business.identitySection}
         </h2>
         <div className="border-border bg-card space-y-4 rounded-2xl border p-5 shadow-2xs">
-          {/* Logo Uploader */}
+          {/* Logo: shown when set; uploading is not built yet */}
+          {/* TODO(settings): wire logo upload to Storage (no issue yet; log one via issue-logger) */}
           <div className="flex items-center gap-4">
-            <div className="relative">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt={name}
-                  className="border-border h-16 w-16 rounded-full border object-cover"
-                />
-              ) : (
-                <div className="bg-primary-soft text-primary-soft-foreground flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold">
-                  {storeInitial}
-                </div>
-              )}
-              <div className="bg-primary text-primary-foreground absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full shadow-xs">
-                <Camera className="h-3.5 w-3.5" />
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={name}
+                className="border-border h-16 w-16 shrink-0 rounded-full border object-cover"
+              />
+            ) : (
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-2xl font-bold">
+                {storeInitial}
               </div>
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <label className="text-foreground block text-sm font-semibold">
-                {dict.business.logoLabel}
-              </label>
-              <p className="text-body-sm text-muted-foreground mb-2">{x.logoHint}</p>
-              <Button
-                variant="unstyled"
-                size="none"
-                type="button"
-                onClick={handleLogoUploadClick}
-                className="border-border bg-card hover:bg-muted text-foreground focus-visible:ring-ring inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <Camera className="h-4 w-4" />
-                <span>{dict.business.uploadLogo}</span>
-              </Button>
-            </div>
+            )}
+            <SoonItem
+              featureKey="business.logo"
+              description={x.logoHint}
+              className="border-border min-w-0 flex-1 rounded-xl border"
+              data-testid="soon-business-logo"
+            />
           </div>
 
           {/* Business Name */}
@@ -290,10 +266,6 @@ export function BusinessProfileForm({
                 )}
                 {!errors.slug && (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold">
-                      <Check className="h-3 w-3" />
-                      <span>{dict.business.activeBadge}</span>
-                    </span>
                     <span className="text-muted-foreground truncate text-xs">
                       {`foodbiz.app/s/${slug || "slug"}`}
                     </span>

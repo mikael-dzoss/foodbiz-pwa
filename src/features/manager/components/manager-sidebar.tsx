@@ -15,6 +15,7 @@ import {
   Folder,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SoonItem } from "@/components/feedback";
 import type { NavigationDictionary, QuickAddDictionary } from "@/domain/i18n";
 import { APP_METADATA } from "@/config/app";
 import { signOutAction } from "@/features/auth/actions";
@@ -49,7 +50,6 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
     { href: "/manage/categories", label: manager.categories, icon: Folder },
     { href: "/manage/expenses", label: navDict.expenses, icon: Receipt },
     { href: "/manage/customers", label: navDict.customers, icon: Users },
-    { href: "/manage/analytics", label: navDict.analytics, icon: BarChart3 },
     { href: "/manage/settings", label: navDict.settings, icon: Settings },
   ];
 
@@ -122,6 +122,15 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
             </Link>
           );
         })}
+        {/* TODO(analytics): replace with a real nav link once the analytics screens ship (#75) */}
+        <SoonItem
+          featureKey="analytics.dashboard"
+          title={navDict.analytics}
+          description=""
+          leading={<BarChart3 className="h-5 w-5" />}
+          className="min-h-11 rounded-lg border-0 bg-transparent px-3 py-2"
+          data-testid="soon-analytics-nav"
+        />
       </nav>
 
       {/* Sign out */}

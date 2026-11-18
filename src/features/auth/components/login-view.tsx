@@ -138,16 +138,6 @@ export function LoginView({
               <p className="text-muted-foreground text-xs leading-snug">{dict.login.restricted}</p>
             </div>
           </section>
-
-          {/* Quick Operations Diagnostic / Status from Stitch Spec */}
-          {/* TODO(ops): Wire system status and latency indicator to health check endpoint (#97, #100) */}
-          <div className="text-muted-foreground mt-4 flex items-center justify-between px-2 text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="bg-primary inline-block h-2 w-2 rounded-full" />
-              <span className="font-medium">{dict.login.systemOnline}</span>
-            </div>
-            <div className="font-medium tabular-nums">{dict.login.latency}</div>
-          </div>
         </div>
 
         {/* Bottom Metadata & Legal from Stitch Spec */}

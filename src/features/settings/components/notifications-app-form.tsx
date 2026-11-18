@@ -91,9 +91,6 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-67"}
-        </span>
       </div>
 
       {/* Header */}

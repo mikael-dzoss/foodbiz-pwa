@@ -97,7 +97,7 @@ describe("OperationalWidgets Component", () => {
     expect(screen.getByText(/Only 4 left in kitchen/)).toBeDefined();
 
     const productLink = screen.getByTestId("low-stock-product-p-1");
-    expect(productLink.getAttribute("href")).toBe("/manage/products/p-1");
+    expect(productLink.getAttribute("href")).toBe("/manage/products");
   });
 
   it("renders healthy empty states when all queues are clear", () => {

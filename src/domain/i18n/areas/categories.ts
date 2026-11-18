@@ -5,7 +5,6 @@ export interface CategoriesDictionary {
   title: string;
   subtitle: string;
   backToDashboard: string;
-  menuActive: string;
   addTitle: string;
   nameLabel: string;
   nameHint: string;
@@ -15,13 +14,11 @@ export interface CategoriesDictionary {
   dismiss: string;
   allCategories: string;
   categoriesCount: string;
-  dragToReorder: string;
   empty: string;
   editNameLabel: string;
   saveNameLabel: string;
   save: string;
   cancelEditing: string;
-  reorder: string;
   productOne: string;
   productOther: string;
   inCatalog: string;
@@ -42,7 +39,6 @@ const en: CategoriesDictionary = {
   title: "Categories",
   subtitle: "Organise your menu and products",
   backToDashboard: "Back to dashboard",
-  menuActive: "Menu Active",
   addTitle: "Add New Category",
   nameLabel: "Category name",
   nameHint: "Visible in ordering menu and kitchen tickets",
@@ -52,13 +48,11 @@ const en: CategoriesDictionary = {
   dismiss: "Dismiss",
   allCategories: "All Categories",
   categoriesCount: "Categories ({count})",
-  dragToReorder: "Drag to reorder",
   empty: "No categories yet. Create your first category above.",
   editNameLabel: "Edit category name",
   saveNameLabel: "Save category name",
   save: "Save",
   cancelEditing: "Cancel editing",
-  reorder: "Reorder {name}",
   productOne: "{count} product",
   productOther: "{count} products",
   inCatalog: "In catalog",
@@ -79,7 +73,6 @@ const fr: CategoriesDictionary = {
   title: "Catégories",
   subtitle: "Organisez votre menu et vos produits",
   backToDashboard: "Retour au tableau de bord",
-  menuActive: "Menu actif",
   addTitle: "Ajouter une catégorie",
   nameLabel: "Nom de la catégorie",
   nameHint: "Visible dans le menu de commande et sur les tickets cuisine",
@@ -89,13 +82,11 @@ const fr: CategoriesDictionary = {
   dismiss: "Fermer",
   allCategories: "Toutes les catégories",
   categoriesCount: "Catégories ({count})",
-  dragToReorder: "Glisser pour réordonner",
   empty: "Aucune catégorie pour le moment. Créez votre première catégorie ci-dessus.",
   editNameLabel: "Modifier le nom de la catégorie",
   saveNameLabel: "Enregistrer le nom de la catégorie",
   save: "Enregistrer",
   cancelEditing: "Annuler la modification",
-  reorder: "Déplacer {name}",
   productOne: "{count} produit",
   productOther: "{count} produits",
   inCatalog: "Au catalogue",

@@ -1,7 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ManagerShell } from "../components/manager-shell";
 import { enDictionary } from "@/domain/i18n";
+import { ToastProvider } from "@/components/ui";
+
+// The shell hosts SoonItem rows, which need the root ToastProvider the app layout provides.
+const render = (ui: ReactElement) => rtlRender(<ToastProvider>{ui}</ToastProvider>);
 
 const { pathname } = vi.hoisted(() => ({ pathname: vi.fn(() => "/manage") }));
 vi.mock("next/navigation", () => ({

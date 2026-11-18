@@ -50,8 +50,8 @@ describe("LoginView", () => {
     expect(screen.getByRole("heading", { name: /manager sign-in/i, level: 1 })).toBeDefined();
     expect(screen.getByText("Manager Portal")).toBeDefined();
     expect(screen.getByRole("button", { name: /continue with google/i })).toBeDefined();
-    expect(screen.getByText("System Online")).toBeDefined();
-    expect(screen.getByText("Latency: 24ms")).toBeDefined();
+    expect(screen.queryByText("System Online")).toBeNull();
+    expect(screen.queryByText(/Latency/)).toBeNull();
   });
 
   it("renders demo button only when showDemoAccount is true", () => {

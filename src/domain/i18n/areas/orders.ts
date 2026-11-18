@@ -157,7 +157,6 @@ export interface OrdersDictionary {
   };
   manual: {
     title: string;
-    screenTag: string;
     back: string;
     cancel: string;
     step1: string;
@@ -405,7 +404,6 @@ const en: OrdersDictionary = {
   },
   manual: {
     title: "New Order",
-    screenTag: "Screen M-30 • Manual",
     back: "Orders",
     cancel: "Cancel",
     step1: "Step 1: Guest Information",
@@ -653,7 +651,6 @@ const fr: OrdersDictionary = {
   },
   manual: {
     title: "Nouvelle commande",
-    screenTag: "Écran M-30 • Manuel",
     back: "Commandes",
     cancel: "Annuler",
     step1: "Étape 1 : Informations client",

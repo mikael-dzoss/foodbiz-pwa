@@ -103,6 +103,30 @@ export const FEATURE_REGISTRY: Record<FeatureKey, FeatureDefinition> = {
     title: "Brand Theme Colour",
     description: "Custom accent colour on digital receipts and storefront.",
   },
+  "business.logo": {
+    key: "business.logo",
+    status: "soon",
+    title: "Store Logo",
+    description: "Upload a square logo for the storefront and receipts.",
+  },
+  "legal.terms": {
+    key: "legal.terms",
+    status: "soon",
+    title: "Terms of Service",
+    description: "Public terms page for your storefront customers.",
+  },
+  "legal.privacy": {
+    key: "legal.privacy",
+    status: "soon",
+    title: "Privacy Policy",
+    description: "Public privacy page for your storefront customers.",
+  },
+  "analytics.dashboard": {
+    key: "analytics.dashboard",
+    status: "soon",
+    title: "Analytics",
+    description: "Sales trends, top products and breakdowns.",
+  },
   "products.import": {
     key: "products.import",
     status: "soon",

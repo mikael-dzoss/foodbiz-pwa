@@ -73,7 +73,6 @@ describe("NotificationsAppForm component (M-67)", () => {
     render(<NotificationsAppForm settings={mockSettings} dict={dict} />);
 
     expect(screen.getByTestId("notifications-app-form")).toBeDefined();
-    expect(screen.getByText("M-67")).toBeDefined();
     expect(screen.getByRole("heading", { name: dict.notifications.title, level: 1 })).toBeDefined();
 
     expect(screen.getByTestId("switch-in-app-alerts")).toBeDefined();

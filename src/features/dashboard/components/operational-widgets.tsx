@@ -163,7 +163,7 @@ export function OperationalWidgets({ triage, className }: OperationalWidgetsProp
                 {lowStock.items.map((product) => (
                   <Link
                     key={product.id}
-                    href={`/manage/products/${product.id}`}
+                    href="/manage/products"
                     className="hover:bg-muted/50 active:bg-muted flex items-center justify-between p-3.5 transition-colors"
                     data-testid={`low-stock-product-${product.id}`}
                   >

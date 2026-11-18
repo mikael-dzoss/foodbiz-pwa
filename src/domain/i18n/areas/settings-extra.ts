@@ -10,16 +10,13 @@ export interface SettingsExtraDictionary {
   pwaAlreadyInstalled: string;
   pwaHowTo: string;
   urlCopied: string;
-  logoReady: string;
   logoHint: string;
   copyUrl: string;
-  verifiedGoogle: string;
   languageEnglish: string;
   languageFrench: string;
   languageUpdated: string;
   aboutVersionLine: string;
   posLine: string;
-  connectedRegion: string;
   activeOfThree: string;
   hoursPlaceholder: string;
   hoursEmptyHint: string;
@@ -56,10 +53,6 @@ export interface SettingsExtraDictionary {
   about: {
     intro: string;
     versionBuild: string;
-    github: string;
-    terms: string;
-    privacy: string;
-    serverRegion: string;
     builtWith: string;
     forBusinesses: string;
   };
@@ -74,16 +67,13 @@ const en: SettingsExtraDictionary = {
   pwaAlreadyInstalled: "FoodBiz is already installed on this device",
   pwaHowTo: "To install, tap Share or Menu in your browser, then 'Add to Home Screen'",
   urlCopied: "Store URL copied to clipboard",
-  logoReady: "Logo upload ready — select an image to preview",
   logoHint: "PNG, JPG or WebP (square 1:1)",
   copyUrl: "Copy storefront URL",
-  verifiedGoogle: "Verified via Google Workspace",
   languageEnglish: "English (EN)",
   languageFrench: "Français (FR)",
   languageUpdated: "Language updated to English",
   aboutVersionLine: "Version {version} • Legal terms, support contacts & license",
   posLine: "{name} POS & Operations {version}",
-  connectedRegion: "Connected to European Region (Brussels)",
   activeOfThree: "{count} of 3 active",
   hoursPlaceholder: "e.g. Mon-Sat: 08:00 - 19:30, Sun: Closed",
   hoursEmptyHint: "Leave empty for continuous dark kitchen or on-demand delivery operations.",
@@ -121,11 +111,7 @@ const en: SettingsExtraDictionary = {
   },
   about: {
     intro: "Food business operations and mobile point-of-sale platform.",
-    versionBuild: "Version {version} (Build 2026.10)",
-    github: "GitHub Repository",
-    terms: "Terms of Service",
-    privacy: "Privacy Policy",
-    serverRegion: "Operational server: European Region (Brussels)",
+    versionBuild: "Version {version}",
     builtWith: "Built with",
     forBusinesses: "for modern artisanal food businesses",
   },
@@ -141,16 +127,13 @@ const fr: SettingsExtraDictionary = {
   pwaHowTo:
     "Pour installer, touchez Partager ou Menu dans votre navigateur, puis « Ajouter à l'écran d'accueil »",
   urlCopied: "Adresse de la boutique copiée dans le presse-papiers",
-  logoReady: "Import du logo prêt : sélectionnez une image pour l'aperçu",
   logoHint: "PNG, JPG ou WebP (carré 1:1)",
   copyUrl: "Copier l'adresse de la boutique",
-  verifiedGoogle: "Vérifié via Google Workspace",
   languageEnglish: "English (EN)",
   languageFrench: "Français (FR)",
   languageUpdated: "Langue mise à jour en français",
   aboutVersionLine: "Version {version} • Conditions légales, contacts du support et licence",
   posLine: "{name} Caisse et exploitation {version}",
-  connectedRegion: "Connecté à la région Europe (Bruxelles)",
   activeOfThree: "{count} sur 3 actifs",
   hoursPlaceholder: "ex. : Lun-Sam : 08:00 - 19:30, Dim : fermé",
   hoursEmptyHint: "Laissez vide pour une cuisine ouverte en continu ou une livraison à la demande.",
@@ -188,11 +171,7 @@ const fr: SettingsExtraDictionary = {
   },
   about: {
     intro: "Plateforme de gestion et de caisse mobile pour les professionnels de la restauration.",
-    versionBuild: "Version {version} (build 2026.10)",
-    github: "Dépôt GitHub",
-    terms: "Conditions d'utilisation",
-    privacy: "Politique de confidentialité",
-    serverRegion: "Serveur opérationnel : région Europe (Bruxelles)",
+    versionBuild: "Version {version}",
     builtWith: "Conçu avec",
     forBusinesses: "pour les entreprises artisanales de restauration",
   },

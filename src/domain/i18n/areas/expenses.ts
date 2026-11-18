@@ -4,7 +4,6 @@ import type { SupportedLocale } from "../types";
 /** Manager expenses list and expense sheet. */
 export interface ExpensesDictionary {
   title: string;
-  screenTag: string;
   subtitle: string;
   add: string;
   periodLabel: string;
@@ -19,7 +18,6 @@ export interface ExpensesDictionary {
   sheet: {
     titleEdit: string;
     titleNew: string;
-    screenTag: string;
     descriptionEdit: string;
     descriptionNew: string;
     amountLabel: string;
@@ -51,7 +49,6 @@ export interface ExpensesDictionary {
 
 const en: ExpensesDictionary = {
   title: "Expenses",
-  screenTag: "Screen M-50",
   subtitle: "Track business operating costs, ingredients and supplier invoices.",
   add: "Add expense",
   periodLabel: "Period",
@@ -76,7 +73,6 @@ const en: ExpensesDictionary = {
   sheet: {
     titleEdit: "Edit expense",
     titleNew: "New expense",
-    screenTag: "Screen M-51",
     descriptionEdit: "Update expense details, change category or delete record.",
     descriptionNew: "Record an operating cost or receipt for your food business.",
     amountLabel: "Amount (€)",
@@ -109,7 +105,6 @@ const en: ExpensesDictionary = {
 
 const fr: ExpensesDictionary = {
   title: "Dépenses",
-  screenTag: "Écran M-50",
   subtitle: "Suivez vos frais d'exploitation, achats d'ingrédients et factures fournisseurs.",
   add: "Ajouter une dépense",
   periodLabel: "Période",
@@ -134,7 +129,6 @@ const fr: ExpensesDictionary = {
   sheet: {
     titleEdit: "Modifier la dépense",
     titleNew: "Nouvelle dépense",
-    screenTag: "Écran M-51",
     descriptionEdit: "Modifiez les détails, changez la catégorie ou supprimez l'enregistrement.",
     descriptionNew: "Enregistrez un frais d'exploitation ou un reçu pour votre activité.",
     amountLabel: "Montant (€)",

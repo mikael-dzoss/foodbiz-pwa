@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SoonBadge } from "@/components/feedback";
+import { SoonItem } from "@/components/feedback";
 import { signOutAction } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
 import { useManagerLocale } from "@/components/i18n";
@@ -98,24 +98,17 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
               );
             }
 
+            // TODO(analytics): becomes a real link once the analytics screens ship (#75)
             return (
-              <div
+              <SoonItem
                 key={item.href}
-                className="border-border bg-muted/30 text-muted-foreground flex min-h-12 items-center gap-3 rounded-xl border p-3 opacity-80"
-              >
-                <div className="bg-muted text-muted-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{item.title}</span>
-                    <SoonBadge />
-                  </div>
-                  <span className="text-body-sm text-muted-foreground/80 truncate">
-                    {item.description}
-                  </span>
-                </div>
-              </div>
+                featureKey="analytics.dashboard"
+                title={item.title}
+                description={item.description}
+                leading={<Icon className="h-5 w-5" />}
+                className="min-h-12 rounded-xl border p-3"
+                data-testid="soon-analytics-more"
+              />
             );
           })}
         </div>

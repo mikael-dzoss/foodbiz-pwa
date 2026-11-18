@@ -11,6 +11,12 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
+vi.mock("@/components/root-document", () => ({
+  RootDocument: ({ children }: { children: unknown }) => children,
+  rootMetadata: {},
+  rootViewport: {},
+}));
+
 vi.mock("@/features/storefront", () => ({
   getStorefrontCatalog: vi.fn(),
   StorefrontShell: () => null,

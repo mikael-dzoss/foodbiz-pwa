@@ -278,9 +278,6 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
         <div className="flex flex-col items-center text-center">
           <h1 className="text-title-md text-foreground">{t.title}</h1>
-          <span className="text-muted-foreground text-caption font-medium tracking-wider uppercase">
-            {t.screenTag}
-          </span>
         </div>
 
         <Link href="/manage/orders">

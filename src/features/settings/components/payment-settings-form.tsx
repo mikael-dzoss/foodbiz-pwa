@@ -121,9 +121,6 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
           <ChevronLeft className="h-5 w-5" />
           <span>{dict.title}</span>
         </Link>
-        <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          {"M-64"}
-        </span>
       </div>
 
       {/* Owner-only explanation: the form below is read-only for other members */}
