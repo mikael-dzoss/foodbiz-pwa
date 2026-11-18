@@ -292,10 +292,34 @@ jobs:
 
       # Not sharded: a second job repeats checkout, npm ci and the browser install (~1.5 min billed)
       # to save about half of a 3 to 4 minute suite, i.e. more billed minutes, not fewer.
+      # Both projects (mobile: whole suite; desktop: @desktop subset), one dev server, one worker.
       - run: npm run test:e2e
 
+      # A test that failed once and passed on retry is flaky: list it where reviewers look.
+      - name: Report flaky tests
+        id: flaky
+        if: ${{ !cancelled() }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const file = "test-results/results.json";
+            if (!fs.existsSync(file)) process.exit(0);
+            const flaky = [];
+            const walk = (suite) => {
+              for (const spec of suite.specs ?? [])
+                for (const test of spec.tests ?? [])
+                  if (test.status === "flaky") flaky.push(`${test.projectName}: ${suite.file ?? ""} ${spec.title}`);
+              for (const child of suite.suites ?? []) walk(child);
+            };
+            for (const suite of JSON.parse(fs.readFileSync(file, "utf8")).suites ?? []) walk(suite);
+            if (flaky.length === 0) process.exit(0);
+            const lines = ["### Flaky e2e tests (passed only on retry)", "", ...flaky.map((t) => `- ${t}`)];
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "found=true\n");
+          '
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ failure() }}
+        if: ${{ failure() || steps.flaky.outputs.found == 'true' }}
         with:
           name: playwright-results
           path: |
