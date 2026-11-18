@@ -189,7 +189,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               href={whatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`${dict.chatOnWhatsApp}: ${business.whatsappNumber}`}
               className="group text-foreground border-whatsapp/30 bg-whatsapp/10 hover:bg-whatsapp/15 flex items-center justify-between rounded-lg border p-3.5 transition-all duration-150 active:scale-99"
             >
               <div className="flex items-center gap-3">
@@ -220,7 +219,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               {hasPhone && (
                 <a
                   href={`tel:${business.phone}`}
-                  aria-label={`${dict.callShop}: ${business.phone}`}
                   className="border-border/70 bg-card hover:bg-muted flex flex-col justify-between rounded-lg border p-3 transition-colors active:scale-98"
                 >
                   <div className="flex items-center justify-between">
@@ -228,8 +226,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                     <span className="text-primary text-micro font-semibold">{dict.callShop}</span>
                   </div>
                   <div className="mt-2.5">
-                    <p className="text-foreground text-xs font-semibold">Bakery Counter</p>
-                    <p className="text-muted-foreground text-caption mt-0.5 tabular-nums">
+                    <p className="text-muted-foreground text-caption tabular-nums">
                       {business.phone}
                     </p>
                   </div>
@@ -239,7 +236,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               {hasEmail && (
                 <a
                   href={`mailto:${business.email}`}
-                  aria-label={`${dict.emailShop}: ${business.email}`}
                   className="border-border/70 bg-card hover:bg-muted flex flex-col justify-between rounded-lg border p-3 transition-colors active:scale-98"
                 >
                   <div className="flex items-center justify-between">
@@ -247,10 +243,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                     <span className="text-primary text-micro font-semibold">{dict.emailShop}</span>
                   </div>
                   <div className="mt-2.5 truncate">
-                    <p className="text-foreground text-xs font-semibold">Custom Orders</p>
-                    <p className="text-muted-foreground text-caption mt-0.5 truncate">
-                      {business.email}
-                    </p>
+                    <p className="text-muted-foreground text-caption truncate">{business.email}</p>
                   </div>
                 </a>
               )}
@@ -362,14 +355,8 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               <h2 id="address-heading" className="sr-only">
                 {dict.address}
               </h2>
-              <span className="text-muted-foreground text-micro font-semibold tracking-wider uppercase">
-                Bakery &amp; Flour Lab
-              </span>
-              <p className="text-foreground mt-0.5 text-xs leading-snug font-semibold">
+              <p className="text-foreground text-xs leading-snug font-semibold">
                 {business.address}
-              </p>
-              <p className="text-muted-foreground text-caption mt-0.5">
-                Métro: Bastille (Lines 1, 5, 8) or Voltaire (Line 9)
               </p>
             </div>
 
@@ -378,7 +365,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={dict.getDirections}
                 className="border-border hover:bg-muted text-foreground flex h-10 w-full items-center justify-center gap-2 rounded-lg border text-xs font-semibold transition-colors active:scale-99"
               >
                 <MapPin className="text-primary h-4 w-4" />

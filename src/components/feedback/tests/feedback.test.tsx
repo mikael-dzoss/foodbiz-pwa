@@ -31,7 +31,7 @@ describe("Feedback Components & States (#33, #34)", () => {
       );
 
       const item = screen.getByTestId("soon-row");
-      expect(item.getAttribute("aria-label")).toContain("coming soon");
+      expect(screen.getByRole("button", { name: /\(coming soon\)$/ })).toBe(item);
 
       fireEvent.click(item);
       expect(listener).toHaveBeenCalledWith(

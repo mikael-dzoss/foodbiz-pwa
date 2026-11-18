@@ -45,7 +45,6 @@ export function SoonItem({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${displayTitle} (${manager.comingSoon})`}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -77,6 +76,8 @@ export function SoonItem({
       <div className="flex shrink-0 items-center gap-2">
         <ChevronRight className="text-muted-foreground/60 h-5 w-5" />
       </div>
+      {/* Named from content (WCAG 2.5.3): the visible text plus this, so the name ends "(coming soon)". */}
+      <span className="sr-only">({manager.comingSoon})</span>
     </div>
   );
 }
