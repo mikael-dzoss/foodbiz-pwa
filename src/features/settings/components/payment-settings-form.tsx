@@ -365,7 +365,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
         <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.payment.soonSection}
         </h2>
-        <div className="border-border bg-card rounded-2xl border p-4 opacity-75 shadow-2xs">
+        <div className="border-border bg-card rounded-2xl border p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">

@@ -227,7 +227,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
         <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {dict.inventoryFinance.soonSection}
         </h2>
-        <div className="border-border bg-card divide-border divide-y rounded-2xl border opacity-75 shadow-2xs">
+        <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
           {/* Change Currency */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
