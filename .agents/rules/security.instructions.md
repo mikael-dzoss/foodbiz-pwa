@@ -1,4 +1,6 @@
 ---
+trigger: glob
+globs: "**/src/proxy.ts, **/src/lib/supabase/**, **/src/config/**, **/src/features/auth/**, **/actions.ts, **/next.config.ts, **/.env.example"
 paths:
   - "src/proxy.ts"
   - "src/lib/supabase/**"

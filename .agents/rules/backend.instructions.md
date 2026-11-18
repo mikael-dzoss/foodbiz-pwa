@@ -1,4 +1,6 @@
 ---
+trigger: glob
+globs: "**/supabase/**"
 applyTo: "supabase/**"
 paths:
   - "supabase/**"

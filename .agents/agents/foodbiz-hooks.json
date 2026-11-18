@@ -1,0 +1,10 @@
+{
+  "foodbiz-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [{ "type": "command", "command": "node ../../scripts/agy-guard.mjs", "timeout": 15 }]
+      }
+    ]
+  }
+}

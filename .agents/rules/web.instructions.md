@@ -1,4 +1,6 @@
 ---
+trigger: glob
+globs: "**/src/**"
 applyTo: "src/**"
 paths:
   - "src/**"
