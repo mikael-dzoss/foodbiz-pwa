@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 import { getDictionary } from "../src/domain/i18n";
 import { formatMoney } from "../src/domain/formatting";
 
@@ -63,9 +63,7 @@ test("storefront dish detail adds selected drink as a separate cart line", async
     const managerContext = await browser.newContext();
     try {
       const manager = await managerContext.newPage();
-      await manager.goto("/manage/login");
-      await manager.getByTestId("btn-demo-sign-in").click();
-      await expect(manager).toHaveURL("/manage");
+      await signIn(manager);
       await manager.goto("/manage/settings/ordering");
       await manager.getByTestId("input-opening-hours").fill("00:00 - 23:59");
       await manager
@@ -175,7 +173,8 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   await expect(page.getByTestId("confirmation-payment")).toContainText("cash, Revolut or Wero");
   await expect(page.getByTestId("confirmation-payment")).toContainText("Unpaid");
-  await page.waitForTimeout(1500);
+  // Once hydrated and idle the confirmation must have stayed put (no redirect away).
+  await page.waitForLoadState("networkidle");
   await expect(page).toHaveURL(confirmationURL);
   await page.getByTestId("confirmation-track-link").click();
   await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}$/);
@@ -190,9 +189,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   const managerContext = await browser.newContext();
   try {
     const manager = await managerContext.newPage();
-    await manager.goto("/manage/login");
-    await manager.getByTestId("btn-demo-sign-in").click();
-    await expect(manager).toHaveURL("/manage");
+    await signIn(manager);
     await manager.goto("/manage/orders");
     await manager
       .getByRole("link", {

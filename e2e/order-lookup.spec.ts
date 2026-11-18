@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("customer finds an order by phone and order number (#230)", async ({ page }) => {
   await page.goto("/en/track");

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 
 // The browser runs in Auckland (UTC+12/13); the business operates in Europe/Paris (the demo
 // default). Server render and hydration must both show Paris time (#168).
@@ -21,9 +21,7 @@ test("order detail shows the business time zone and hydrates cleanly", async ({ 
   page.on("pageerror", (error) => problems.push(error.message));
 
   const suffix = randomUUID().replace(/\D/g, "").padEnd(8, "0").slice(0, 8);
-  await page.goto("/manage/login");
-  await page.getByTestId("btn-demo-sign-in").click();
-  await expect(page).toHaveURL("/manage");
+  await signIn(page);
 
   await page.goto("/manage/orders/new");
   await page.getByTestId("guest-phone-input").fill(`+336${suffix}`);

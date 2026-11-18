@@ -1,15 +1,13 @@
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 
 test("customer edits persist and canonical names propagate to linked orders", async ({ page }) => {
   const suffix = randomUUID().replace(/\D/g, "").padEnd(8, "0").slice(0, 8);
   const phone = `+336${suffix}`;
   const name = `Guest ${randomUUID().slice(0, 8)}`;
   const updated = `${name} updated`;
-  await page.goto("/manage/login");
-  await page.getByTestId("btn-demo-sign-in").click();
-  await expect(page).toHaveURL("/manage");
+  await signIn(page);
   await page.goto("/manage/orders/new");
   await page.getByTestId("guest-phone-input").fill(phone);
   await page.getByTestId("guest-name-input").fill(name);
@@ -54,13 +52,10 @@ for (const locale of ["en", "fr"] as const) {
         page,
         context,
       }, testInfo) => {
-        await page.setViewportSize({ width: 360, height: 800 });
         await context.addCookies([
           { name: "foodbiz_locale", value: locale, url: "http://127.0.0.1:3100" },
         ]);
-        await page.goto("/manage/login");
-        await page.getByTestId("btn-demo-sign-in").click();
-        await expect(page).toHaveURL("/manage");
+        await signIn(page);
         const main = page.getByRole("main");
         for (const width of [360, 390]) {
           await page.setViewportSize({ width, height: 844 });

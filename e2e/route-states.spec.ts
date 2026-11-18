@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 
 const MANAGER_ROUTES = [
   "/manage",
@@ -21,12 +21,6 @@ const MANAGER_ROUTES = [
   "/manage/settings/payment",
 ];
 
-async function signIn(page: import("@playwright/test").Page) {
-  await page.goto("/manage/login");
-  await page.getByTestId("btn-demo-sign-in").click();
-  await expect(page).toHaveURL("/manage");
-}
-
 test("unknown locales return a real 404", async ({ request }) => {
   for (const path of ["/de", "/xx/cart"]) {
     const response = await request.get(path);
@@ -44,18 +38,21 @@ test("storefront unknown product shows the localized not-found inside the shell"
   await expect(page.getByTestId("storefront-not-found")).toContainText("Page not found");
 });
 
-test("unknown manager order id renders not-found inside the shell with navigation", async ({
-  page,
-}) => {
-  // The mobile bottom nav is hidden on order sub-routes by design; the desktop sidebar stays.
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await signIn(page);
-  await page.goto(`/manage/orders/${randomUUID()}`);
-  await expect(page.getByTestId("order-not-found")).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Manager desktop sidebar" })).toBeVisible();
-  await page.getByTestId("not-found-back-to-orders").click();
-  await expect(page).toHaveURL("/manage/orders");
-});
+// The mobile bottom nav is hidden on order sub-routes by design; the desktop sidebar stays.
+test(
+  "unknown manager order id renders not-found inside the shell with navigation",
+  { tag: "@desktop-only" },
+  async ({ page }) => {
+    await signIn(page);
+    await page.goto(`/manage/orders/${randomUUID()}`);
+    await expect(page.getByTestId("order-not-found")).toBeVisible();
+    await expect(
+      page.getByRole("complementary", { name: "Manager desktop sidebar" }),
+    ).toBeVisible();
+    await page.getByTestId("not-found-back-to-orders").click();
+    await expect(page).toHaveURL("/manage/orders");
+  },
+);
 
 test("every manager route renders without a server error", async ({ page }) => {
   // Walks every manager route; on a cold dev server each first visit compiles the route.

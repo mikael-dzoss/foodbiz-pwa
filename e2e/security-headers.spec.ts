@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 
 // This suite runs against `next dev` (mock data cannot run in a production build), so the
 // served CSP is the development variant. The production variant is covered by unit tests.
@@ -48,9 +49,7 @@ test("storefront pages produce no CSP violations", async ({ page }) => {
 
 test("manager pages produce no CSP violations", async ({ page }) => {
   const violations = trackViolations(page);
-  await page.goto("/manage/login");
-  await page.getByTestId("btn-demo-sign-in").click();
-  await expect(page).toHaveURL("/manage");
+  await signIn(page);
   for (const path of ["/manage", "/manage/products", "/manage/orders", "/manage/settings"]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
