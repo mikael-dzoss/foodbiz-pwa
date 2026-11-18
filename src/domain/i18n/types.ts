@@ -288,7 +288,6 @@ export interface QuickAddDictionary {
 export interface DashboardDictionary {
   title: string;
   subtitle: string;
-  activeStatus: string;
   periods: {
     today: string;
     last_7_days: string;
@@ -305,6 +304,8 @@ export interface DashboardDictionary {
     averageOrderValue: string;
     vsPreviousPeriod: string;
     vsYesterday: string;
+    /** Screen-reader words for a KPI delta: direction of the change, then whether it is favourable. */
+    delta: { up: string; down: string; flat: string; good: string; bad: string };
   };
   triage: {
     sectionTitle: string;

@@ -88,7 +88,6 @@ export const enDictionary: Dictionary = {
   dashboard: {
     title: "Dashboard",
     subtitle: "Today at a glance",
-    activeStatus: "Active",
     periods: {
       today: "Today",
       last_7_days: "7 days",
@@ -105,6 +104,7 @@ export const enDictionary: Dictionary = {
       averageOrderValue: "Average order value",
       vsPreviousPeriod: "vs previous period",
       vsYesterday: "vs yesterday",
+      delta: { up: "Up", down: "Down", flat: "Unchanged", good: "favourable", bad: "unfavourable" },
     },
     triage: {
       sectionTitle: "Kitchen & Operations",

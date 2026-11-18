@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { KPICard } from "@/components/ui/kpi-card";
+import { KPICard, type KPICardProps } from "@/components/ui/kpi-card";
 import {
   formatMoney,
   formatPercent,
+  presentKpiDelta,
+  type KpiDeltaMetric,
   type DashboardData,
   type DashboardPeriodPreset,
 } from "@/domain";
@@ -39,6 +41,23 @@ export function DashboardView({ initialData, className }: DashboardViewProps) {
 
   const { kpis, triage, activity } = data;
 
+  const deltaFor = (metric: KpiDeltaMetric): KPICardProps["delta"] => {
+    const shown = presentKpiDelta(metric, kpis.deltas?.[metric].percentage);
+    if (!shown) return undefined;
+    const words = dict.dashboard.kpi.delta;
+    return {
+      percentage: shown.magnitude,
+      formatted: formatPercent(shown.magnitude, locale),
+      direction: shown.direction,
+      sentiment: shown.sentiment,
+      srLabel:
+        shown.direction === "flat"
+          ? words.flat
+          : `${words[shown.direction]}, ${words[shown.sentiment === "good" ? "good" : "bad"]}`,
+      periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
+    };
+  };
+
   return (
     <div
       className={cn("space-y-6 pb-12 transition-opacity", isPending && "opacity-70", className)}
@@ -51,10 +70,6 @@ export function DashboardView({ initialData, className }: DashboardViewProps) {
             <h1 className="text-title-lg text-foreground">{dict.dashboard.title}</h1>
             <p className="text-muted-foreground text-xs font-normal">{dict.dashboard.subtitle}</p>
           </div>
-          <span className="bg-primary-soft text-primary-soft-foreground text-caption inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium">
-            <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
-            {dict.dashboard.activeStatus}
-          </span>
         </div>
 
         {/* Period Selector Tabs */}
@@ -75,77 +90,32 @@ export function DashboardView({ initialData, className }: DashboardViewProps) {
         className="space-y-3"
       >
         <div className="grid grid-cols-2 gap-3">
-          {/* Revenue */}
           <KPICard
             label={dict.dashboard.kpi.revenue}
             value={formatMoney(kpis.current.revenue, locale)}
-            delta={
-              kpis.deltas?.revenue.percentage !== null &&
-              kpis.deltas?.revenue.percentage !== undefined
-                ? {
-                    percentage: Math.abs(kpis.deltas.revenue.percentage),
-                    formatted: formatPercent(Math.abs(kpis.deltas.revenue.percentage), locale),
-                    isPositive: kpis.deltas.revenue.percentage >= 0,
-                    periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
-                  }
-                : undefined
-            }
+            delta={deltaFor("revenue")}
             data-testid="kpi-revenue"
           />
 
-          {/* Costs (cost reduction is positive for business) */}
+          {/* Costs: a decrease is favourable, which presentKpiDelta encodes per metric */}
           <KPICard
             label={dict.dashboard.kpi.costs}
             value={formatMoney(kpis.current.costs, locale)}
-            delta={
-              kpis.deltas?.costs.percentage !== null && kpis.deltas?.costs.percentage !== undefined
-                ? {
-                    percentage: Math.abs(kpis.deltas.costs.percentage),
-                    formatted: formatPercent(Math.abs(kpis.deltas.costs.percentage), locale),
-                    isPositive: kpis.deltas.costs.percentage <= 0,
-                    periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
-                  }
-                : undefined
-            }
+            delta={deltaFor("costs")}
             data-testid="kpi-costs"
           />
 
-          {/* Profit */}
           <KPICard
             label={dict.dashboard.kpi.profit}
             value={formatMoney(kpis.current.profit, locale)}
-            delta={
-              kpis.deltas?.profit.percentage !== null &&
-              kpis.deltas?.profit.percentage !== undefined
-                ? {
-                    percentage: Math.abs(kpis.deltas.profit.percentage),
-                    formatted: formatPercent(Math.abs(kpis.deltas.profit.percentage), locale),
-                    isPositive: kpis.deltas.profit.percentage >= 0,
-                    periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
-                  }
-                : undefined
-            }
+            delta={deltaFor("profit")}
             data-testid="kpi-profit"
           />
 
-          {/* Orders Count */}
           <KPICard
             label={dict.dashboard.kpi.orders}
             value={`${kpis.current.paidOrderCount}`}
-            delta={
-              kpis.deltas?.paidOrderCount.percentage !== null &&
-              kpis.deltas?.paidOrderCount.percentage !== undefined
-                ? {
-                    percentage: Math.abs(kpis.deltas.paidOrderCount.percentage),
-                    formatted: formatPercent(
-                      Math.abs(kpis.deltas.paidOrderCount.percentage),
-                      locale,
-                    ),
-                    isPositive: kpis.deltas.paidOrderCount.percentage >= 0,
-                    periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
-                  }
-                : undefined
-            }
+            delta={deltaFor("paidOrderCount")}
             data-testid="kpi-orders"
           />
         </div>
@@ -154,20 +124,7 @@ export function DashboardView({ initialData, className }: DashboardViewProps) {
         <KPICard
           label={dict.dashboard.kpi.averageOrderValue}
           value={formatMoney(kpis.current.averageOrderValue, locale)}
-          delta={
-            kpis.deltas?.averageOrderValue.percentage !== null &&
-            kpis.deltas?.averageOrderValue.percentage !== undefined
-              ? {
-                  percentage: Math.abs(kpis.deltas.averageOrderValue.percentage),
-                  formatted: formatPercent(
-                    Math.abs(kpis.deltas.averageOrderValue.percentage),
-                    locale,
-                  ),
-                  isPositive: kpis.deltas.averageOrderValue.percentage >= 0,
-                  periodLabel: dict.dashboard.kpi.vsPreviousPeriod,
-                }
-              : undefined
-          }
+          delta={deltaFor("averageOrderValue")}
           className="w-full"
           data-testid="kpi-average-order-value"
         />

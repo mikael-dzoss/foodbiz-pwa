@@ -90,7 +90,6 @@ export const frDictionary: Dictionary = {
   dashboard: {
     title: "Tableau de bord",
     subtitle: "Aperçu de la journée",
-    activeStatus: "Actif",
     periods: {
       today: "Aujourd'hui",
       last_7_days: "7 jours",
@@ -107,6 +106,13 @@ export const frDictionary: Dictionary = {
       averageOrderValue: "Panier moyen",
       vsPreviousPeriod: "vs période précédente",
       vsYesterday: "vs hier",
+      delta: {
+        up: "En hausse",
+        down: "En baisse",
+        flat: "Stable",
+        good: "favorable",
+        bad: "défavorable",
+      },
     },
     triage: {
       sectionTitle: "Cuisine & Opérations",

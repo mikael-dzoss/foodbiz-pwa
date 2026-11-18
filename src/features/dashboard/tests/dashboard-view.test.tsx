@@ -118,12 +118,11 @@ describe("DashboardView Component", () => {
     vi.clearAllMocks();
   });
 
-  it("renders screen header, active status, period picker and all 5 KPI cards", () => {
+  it("renders screen header, period picker and all 5 KPI cards", () => {
     render(<DashboardView initialData={mockData} />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Dashboard" })).toBeDefined();
     expect(screen.getByText("Today at a glance")).toBeDefined();
-    expect(screen.getByText("Active")).toBeDefined();
 
     // Period tabs
     expect(screen.getByTestId("period-tab-today")).toBeDefined();
@@ -135,10 +134,14 @@ describe("DashboardView Component", () => {
     const revCard = screen.getByTestId("kpi-revenue");
     expect(revCard.textContent).toContain("€420.00");
     expect(revCard.textContent).toContain("+12.5%");
+    expect(revCard.textContent).toContain("Up, favourable");
 
     const costCard = screen.getByTestId("kpi-costs");
     expect(costCard.textContent).toContain("€145.00");
-    expect(costCard.textContent).toContain("+5.2%"); // Math.abs on delta percentage
+    // Costs fell 5.2%: the sign follows the value, and a decrease is favourable for costs.
+    expect(costCard.textContent).toContain("\u22125.2%");
+    expect(costCard.textContent).not.toContain("+5.2%");
+    expect(costCard.textContent).toContain("Down, favourable");
 
     const profitCard = screen.getByTestId("kpi-profit");
     expect(profitCard.textContent).toContain("€275.00");
@@ -199,7 +202,6 @@ describe("DashboardView Component", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Tableau de bord" })).toBeDefined();
     expect(screen.getByText("Aperçu de la journée")).toBeDefined();
-    expect(screen.getByText("Actif")).toBeDefined();
     expect(screen.getByText("Aujourd'hui")).toBeDefined();
     expect(screen.getByText("7 jours")).toBeDefined();
     expect(screen.getByText("Chiffre d'affaires")).toBeDefined();
