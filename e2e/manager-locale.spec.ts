@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 
 // The manager language is a cookie set from Account settings; French is the longer language, so
 // the pages are also checked for horizontal overflow at 360 px.
@@ -8,13 +9,7 @@ async function signInInFrench(page: Page) {
   await page
     .context()
     .addCookies([{ name: "foodbiz_locale", value: "fr", url: "http://127.0.0.1:3100" }]);
-  await page.goto("/manage/login");
-  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-  // The first click can land before hydration on a cold dev server: retry until signed in.
-  await expect(async () => {
-    await page.getByTestId("btn-demo-sign-in").click();
-    await expect(page).toHaveURL("/manage", { timeout: 5_000 });
-  }).toPass({ timeout: 40_000 });
+  await signIn(page);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -52,9 +47,7 @@ test("the manager dashboard, orders and settings render in French", async ({ pag
 test("switching the language in Account settings updates the manager and <html lang>", async ({
   page,
 }) => {
-  await page.goto("/manage/login");
-  await page.getByTestId("btn-demo-sign-in").click();
-  await expect(page).toHaveURL("/manage");
+  await signIn(page);
   await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
 
   await page.goto("/manage/settings/account");

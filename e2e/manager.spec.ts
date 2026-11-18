@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, signIn } from "./fixtures";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/manage/login");
-  await page.getByTestId("btn-demo-sign-in").click();
-  await expect(page).toHaveURL("/manage");
+  await signIn(page);
 });
 
 test("product CRUD persists edits and soft deletion", async ({ page }) => {
