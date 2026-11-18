@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
-import { DEFAULT_LOCALE, getDictionary } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
 import { isOwnerRole } from "@/domain/auth";
 import { listExpenses } from "@/features/expenses/expense-data";
 import { ExpenseManager } from "@/features/expenses/components";
 import { getRequestNow } from "@/lib/request-time";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
 export const metadata: Metadata = {
   title: "Expenses",
@@ -17,7 +18,8 @@ interface ExpensesPageProps {
 
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const session = await requireManagerSession();
-  const dict = getDictionary(DEFAULT_LOCALE);
+  const locale = await getManagerLocale();
+  const dict = getDictionary(locale);
   const params = searchParams ? await searchParams : undefined;
   const expenses = await listExpenses();
   const now = (await getRequestNow()).toISOString();

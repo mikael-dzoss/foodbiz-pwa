@@ -5,6 +5,8 @@ import { CategoryManager } from "@/features/products/components/category-manager
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getDictionary } from "@/domain/i18n";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
 export const metadata: Metadata = {
   title: "Category Management",
@@ -13,6 +15,7 @@ export const metadata: Metadata = {
 
 export default async function CategoriesPage() {
   await requireManagerSession();
+  const t = getDictionary(await getManagerLocale()).categories;
   const categories = await listCategories();
 
   return (
@@ -22,20 +25,20 @@ export default async function CategoriesPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/manage"
-            aria-label="Back to dashboard"
+            aria-label={t.backToDashboard}
             className="text-foreground hover:bg-muted -ml-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-title-lg text-foreground">Categories</h1>
-            <p className="text-muted-foreground text-xs">Organise your menu and products</p>
+            <h1 className="text-title-lg text-foreground">{t.title}</h1>
+            <p className="text-muted-foreground text-xs">{t.subtitle}</p>
           </div>
         </div>
         {/* TODO(catalog): Wire to business ordering schedule / store status toggle (#71, #83) */}
         <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
           <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
-          Menu Active
+          {t.menuActive}
         </span>
       </div>
 

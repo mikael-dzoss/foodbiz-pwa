@@ -1,9 +1,12 @@
 import type { Allergen } from "@/domain/allergen";
 import type { CategoryRole } from "@/domain/category";
+import type { ManagerExtras } from "./manager-types";
 
 export const SUPPORTED_LOCALES = ["en", "fr"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: SupportedLocale = "en";
+/** Cookie holding the signed-in manager's UI language (set from Account settings). */
+export const LOCALE_COOKIE = "foodbiz_locale";
 
 export function isSupportedLocale(locale: string): locale is SupportedLocale {
   return SUPPORTED_LOCALES.includes(locale as SupportedLocale);
@@ -22,6 +25,13 @@ export interface NavigationDictionary {
 }
 
 export interface StorefrontDictionary {
+  /** "{count} available" next to the in-stock label. */
+  stockAvailable: string;
+  /** "Currently in your cart: {count}". */
+  inCartNow: string;
+  purchaseActions: string;
+  honeypotLabel: string;
+  promoPlaceholder: string;
   cart: string;
   cartEmpty: string;
   item: string;
@@ -285,6 +295,8 @@ export interface DashboardDictionary {
     last_30_days: string;
     this_month: string;
   };
+  kpiRegionLabel: string;
+  periodPickerLabel: string;
   kpi: {
     revenue: string;
     costs: string;
@@ -310,18 +322,42 @@ export interface DashboardDictionary {
     manageInventory: string;
     allStockHealthy: string;
     unitsLeft: string;
+    itemsCount: string;
+    dueAt: string;
+    inPrep: string;
+    newOrder: string;
+    awaitingOne: string;
+    awaitingMany: string;
+    onlyLeft: string;
+    outOfStock: string;
+    restock: string;
   };
   activity: {
     sectionTitle: string;
     viewAll: string;
     empty: string;
+    recentCount: string;
     paid: string;
     unpaid: string;
     expense: string;
+    confirmed: string;
+    preparing: string;
+    cancelled: string;
+    orderTitle: string;
+    orderTitleGuest: string;
+    guestStatus: string;
+    guestPaidVia: string;
   };
 }
 
 export interface CommonDictionary {
+  /** Root not-found (a URL outside the localized storefront and the manager). */
+  pageNotFound: { title: string; message: string };
+  decreaseQuantity: string;
+  increaseQuantity: string;
+  tryAgain: string;
+  backToHome: string;
+  genericError: string;
   close: string;
   save: string;
   cancel: string;
@@ -670,7 +706,7 @@ export interface AuthDictionary {
   };
 }
 
-export interface Dictionary {
+export interface Dictionary extends ManagerExtras {
   locale: SupportedLocale;
   nav: NavigationDictionary;
   dashboard: DashboardDictionary;
@@ -684,3 +720,5 @@ export interface Dictionary {
   products: ProductsDictionary;
   auth: AuthDictionary;
 }
+
+export * from "./manager-types";

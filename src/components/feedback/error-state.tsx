@@ -4,19 +4,20 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 
 export interface ErrorStateProps {
-  title?: string;
+  title: string;
   message: string;
   onRetry?: () => void;
+  /** Required with `onRetry` (translated by the caller). */
   retryLabel?: string;
   className?: string;
   "data-testid"?: string;
 }
 
 export function ErrorState({
-  title = "Something went wrong",
+  title,
   message,
   onRetry,
-  retryLabel = "Try again",
+  retryLabel,
   className,
   "data-testid": testId,
 }: ErrorStateProps) {

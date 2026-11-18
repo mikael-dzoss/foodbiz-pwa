@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { ManagerLocaleProvider } from "@/components/i18n";
 import { DashboardView } from "../components/dashboard-view";
 import type { DashboardData } from "@/domain";
 
@@ -101,11 +102,11 @@ const mockData: DashboardData = {
     {
       id: "o-1",
       type: "order",
-      title: "Order #1042",
-      subtitle: "Alice · Paid",
+      orderNumber: 1042,
+      guestName: "Alice",
       amount: 2400,
       timestamp: "2026-10-15T10:00:00.000Z",
-      statusLabel: "Paid",
+      statusKey: "paid",
       statusVariant: "paid",
       href: "/manage/orders/o-1",
     },
@@ -190,7 +191,11 @@ describe("DashboardView Component", () => {
   });
 
   it("renders translated French strings when locale='fr'", () => {
-    render(<DashboardView initialData={mockData} locale="fr" />);
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <DashboardView initialData={mockData} />
+      </ManagerLocaleProvider>,
+    );
 
     expect(screen.getByRole("heading", { level: 1, name: "Tableau de bord" })).toBeDefined();
     expect(screen.getByText("Aperçu de la journée")).toBeDefined();

@@ -14,6 +14,7 @@ import {
   updateInventoryFinanceSettingsSchema,
   updateNotificationSettingsSchema,
   SUPPORTED_LOCALES,
+  LOCALE_COOKIE,
   isOwnerRole,
 } from "@/domain";
 
@@ -71,7 +72,7 @@ export const switchLanguageAction = defineAction(
   "switchLanguage",
   { input: z.enum(SUPPORTED_LOCALES, { error: "Unsupported locale" }) },
   async ({ input: locale }) => {
-    (await cookies()).set("foodbiz_locale", locale, {
+    (await cookies()).set(LOCALE_COOKIE, locale, {
       path: "/",
       maxAge: 31536000,
       sameSite: "lax",

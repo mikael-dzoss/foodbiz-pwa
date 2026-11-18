@@ -237,12 +237,12 @@ describe("Dashboard Domain Engine", () => {
       // Newest first: o-2 (11:42), e-1 (11:00), o-1 (10:00)
       expect(feed[0].id).toBe("o-2");
       expect(feed[0].type).toBe("order");
-      expect(feed[0].title).toBe("Order #1042");
+      expect(feed[0].orderNumber).toBe(1042);
       expect(feed[0].statusVariant).toBe("unpaid");
 
       expect(feed[1].id).toBe("e-1");
       expect(feed[1].type).toBe("expense");
-      expect(feed[1].title).toBe("Metro Cash & Carry");
+      expect(feed[1].description).toBe("Metro Cash & Carry");
       expect(feed[1].statusVariant).toBe("expense");
 
       expect(feed[2].id).toBe("o-1");

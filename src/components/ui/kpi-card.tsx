@@ -8,6 +8,8 @@ export interface KPICardProps {
   value: string;
   delta?: {
     percentage: number;
+    /** Locale-formatted percentage ("12,4 %"); overrides the plain number. */
+    formatted?: string;
     isPositive?: boolean;
     periodLabel?: string;
   };
@@ -37,7 +39,7 @@ export function KPICard({ label, value, delta, className, "data-testid": testId 
             )}
             <span className="tabular-nums">
               {delta.isPositive ? "+" : ""}
-              {delta.percentage}%
+              {delta.formatted ?? `${delta.percentage}%`}
             </span>
           </span>
           {delta.periodLabel && <span className="text-muted-foreground">{delta.periodLabel}</span>}

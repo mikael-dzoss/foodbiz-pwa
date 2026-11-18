@@ -90,7 +90,12 @@ export function StorefrontMenuDrawer({
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
       </Button>
-      <SheetContent side="left" data-testid="storefront-menu-drawer" className="gap-0 p-4">
+      <SheetContent
+        side="left"
+        closeLabel={dict.dismiss}
+        data-testid="storefront-menu-drawer"
+        className="gap-0 p-4"
+      >
         <div className="border-border mb-3 flex items-center gap-3 border-b pr-10 pb-4">
           <span
             className="bg-primary text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"

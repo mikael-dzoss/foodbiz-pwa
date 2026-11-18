@@ -388,7 +388,7 @@ export function CheckoutForm({
         aria-hidden="true"
         tabIndex={-1}
       >
-        <label htmlFor="checkout-honeypot">Leave this field blank</label>
+        <label htmlFor="checkout-honeypot">{dict.honeypotLabel}</label>
         <input
           id="checkout-honeypot"
           type="text"

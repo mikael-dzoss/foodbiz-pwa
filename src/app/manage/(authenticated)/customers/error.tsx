@@ -1,10 +1,10 @@
 "use client";
 
 import { ErrorState } from "@/components/feedback";
-import { getDictionary } from "@/domain/i18n";
+import { useManagerLocale } from "@/components/i18n";
 
 export default function CustomersError({ retry }: { retry: () => void }) {
-  const text = getDictionary().customers;
+  const text = useManagerLocale().dict.customers;
   return (
     <div className="mx-auto max-w-xl">
       <ErrorState

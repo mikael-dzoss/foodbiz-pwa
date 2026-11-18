@@ -8,7 +8,7 @@ test("customer edits persist and canonical names propagate to linked orders", as
   const name = `Guest ${randomUUID().slice(0, 8)}`;
   const updated = `${name} updated`;
   await page.goto("/manage/login");
-  await page.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+  await page.getByTestId("btn-demo-sign-in").click();
   await expect(page).toHaveURL("/manage");
   await page.goto("/manage/orders/new");
   await page.getByTestId("guest-phone-input").fill(phone);
@@ -59,7 +59,7 @@ for (const locale of ["en", "fr"] as const) {
           { name: "foodbiz_locale", value: locale, url: "http://127.0.0.1:3100" },
         ]);
         await page.goto("/manage/login");
-        await page.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+        await page.getByTestId("btn-demo-sign-in").click();
         await expect(page).toHaveURL("/manage");
         const main = page.getByRole("main");
         for (const width of [360, 390]) {

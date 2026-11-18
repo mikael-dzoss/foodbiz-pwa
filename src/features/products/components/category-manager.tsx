@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { categoryRoleSchema, type CategoryRole } from "@/domain/category";
-import { getDictionary, type ProductsDictionary } from "@/domain/i18n";
+import { type ProductsDictionary } from "@/domain/i18n";
 import type { ProductCategory } from "@/domain/product";
 import {
   createCategoryAction,
@@ -17,16 +17,18 @@ import { NativeSelect } from "@/components/ui/native-select";
 
 import type { CategoryWithProductCount } from "../category-data";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface CategoryManagerProps {
   initialCategories: CategoryWithProductCount[];
   dict?: ProductsDictionary;
 }
 
-export function CategoryManager({
-  initialCategories,
-  dict = getDictionary().products,
-}: CategoryManagerProps) {
+export function CategoryManager({ initialCategories, dict: dictOverride }: CategoryManagerProps) {
+  const { locale, dict: managerDict } = useManagerLocale();
+  const dict = dictOverride ?? managerDict.products;
+  const t = managerDict.categories;
   const [categories, setCategories] = useState<CategoryWithProductCount[]>(initialCategories);
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState<CategoryRole>("regular");
@@ -51,7 +53,7 @@ export function CategoryManager({
       setNewName("");
       setNewRole("regular");
     } else {
-      setCreateError(actionErrorMessage(res));
+      setCreateError(actionErrorMessage(res, locale));
     }
     return null;
   }, null);
@@ -81,7 +83,7 @@ export function CategoryManager({
       setEditingId(null);
       setEditName("");
     } else {
-      setRenameError(actionErrorMessage(res));
+      setRenameError(actionErrorMessage(res, locale));
     }
   };
 
@@ -95,7 +97,7 @@ export function CategoryManager({
     if (res.ok) {
       setCategories((prev) => prev.filter((c) => c.id !== id));
     } else {
-      setDeleteError(actionErrorMessage(res));
+      setDeleteError(actionErrorMessage(res, locale));
     }
   };
 
@@ -104,22 +106,22 @@ export function CategoryManager({
       {/* 1. Add Category Section (Stitch M-42 Form Card) */}
       <section className="bg-card border-border rounded-lg border p-4 shadow-none sm:p-5">
         <form action={createAction} className="space-y-3">
-          <h2 className="text-title-sm text-foreground">Add New Category</h2>
+          <h2 className="text-title-sm text-foreground">{t.addTitle}</h2>
 
           <Field
             id="new-category-name-input"
-            label="Category name"
+            label={t.nameLabel}
             hint={
               <span className="flex items-center gap-1">
                 <Info className="h-3.5 w-3.5 shrink-0" />
-                <span>Visible in ordering menu and kitchen tickets</span>
+                <span>{t.nameHint}</span>
               </span>
             }
             error={createError}
           >
             <Input
               type="text"
-              placeholder="e.g. Desserts, Drinks..."
+              placeholder={t.namePlaceholder}
               value={newName}
               onChange={(e) => {
                 setNewName(e.target.value);
@@ -127,7 +129,7 @@ export function CategoryManager({
               }}
               className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-12 rounded-lg text-base"
               data-testid="new-category-name-input"
-              aria-label="New category name"
+              aria-label={t.newNameLabel}
             />
           </Field>
 
@@ -156,7 +158,7 @@ export function CategoryManager({
             className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary h-12 w-full gap-2 rounded-lg text-sm font-semibold shadow-none"
           >
             <Plus className="h-4 w-4" />
-            <span>Add Category</span>
+            <span>{t.addButton}</span>
           </Button>
         </form>
       </section>
@@ -176,7 +178,7 @@ export function CategoryManager({
             onClick={() => setDeleteError(null)}
             className="text-destructive/80 hover:text-destructive min-h-11 min-w-11 text-xs underline"
           >
-            Dismiss
+            {t.dismiss}
           </Button>
         </div>
       )}
@@ -187,20 +189,23 @@ export function CategoryManager({
         <div className="border-border flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-title-sm text-foreground">
-              All Categories <span className="sr-only">Categories ({categories.length})</span>
+              {t.allCategories}{" "}
+              <span className="sr-only">
+                {interpolate(t.categoriesCount, { count: categories.length })}
+              </span>
             </h2>
             <span className="bg-muted text-foreground border-border rounded-full border px-2 py-0.5 text-xs font-semibold">
               {categories.length}
             </span>
           </div>
-          <span className="text-muted-foreground text-xs">Drag to reorder</span>
+          <span className="text-muted-foreground text-xs">{t.dragToReorder}</span>
         </div>
 
         {/* List items */}
         {categories.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center justify-center p-8 text-center text-sm">
             <Folder className="mb-2 h-8 w-8 opacity-40" />
-            <p>No categories yet. Create your first category above.</p>
+            <p>{t.empty}</p>
           </div>
         ) : (
           <div className="divide-border divide-y" role="list">
@@ -239,7 +244,7 @@ export function CategoryManager({
                           if (renameError) setRenameError(null);
                         }}
                         className="min-h-11 flex-1 text-sm"
-                        aria-label="Edit category name"
+                        aria-label={t.editNameLabel}
                         autoFocus
                       />
                       <Button
@@ -249,10 +254,10 @@ export function CategoryManager({
                         onClick={() => handleRename(cat.id)}
                         disabled={!editName.trim()}
                         className="min-h-11 min-w-11 shrink-0 gap-1"
-                        aria-label="Save category name"
+                        aria-label={t.saveNameLabel}
                       >
                         <Check className="h-4 w-4" />
-                        <span>Save</span>
+                        <span>{t.save}</span>
                       </Button>
                       <Button
                         type="button"
@@ -261,7 +266,7 @@ export function CategoryManager({
                         data-testid={`cancel-category-edit-${cat.id}`}
                         onClick={cancelEditing}
                         className="min-h-11 min-w-11 shrink-0"
-                        aria-label="Cancel editing"
+                        aria-label={t.cancelEditing}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -290,7 +295,7 @@ export function CategoryManager({
                       size="none"
                       type="button"
                       data-testid={`reorder-category-${cat.id}`}
-                      aria-label={`Reorder ${cat.name}`}
+                      aria-label={interpolate(t.reorder, { name: cat.name })}
                       className="text-muted-foreground/60 hover:text-foreground -ml-1 min-h-11 min-w-11 touch-manipulation p-1"
                     >
                       <GripVertical className="h-4 w-4" />
@@ -304,16 +309,18 @@ export function CategoryManager({
                       </div>
                       <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                         <span className="font-medium">
-                          {productCount} {productCount === 1 ? "product" : "products"}
+                          {interpolate(productCount === 1 ? t.productOne : t.productOther, {
+                            count: productCount,
+                          })}
                         </span>
                         <span className="text-muted-foreground/40">•</span>
                         {inCatalog ? (
                           <span className="bg-primary-soft text-primary-soft-foreground text-caption inline-flex items-center rounded px-1.5 py-0.5 font-semibold">
-                            In catalog
+                            {t.inCatalog}
                           </span>
                         ) : (
                           <span className="bg-destructive/10 text-destructive text-caption inline-flex items-center rounded px-1.5 py-0.5 font-semibold">
-                            Unassigned
+                            {t.unassigned}
                           </span>
                         )}
                       </div>
@@ -328,10 +335,10 @@ export function CategoryManager({
                       size="sm"
                       onClick={() => startEditing(cat)}
                       className="text-foreground hover:bg-muted min-h-11 min-w-11 gap-1 text-xs font-medium"
-                      aria-label={`Rename ${cat.name}`}
+                      aria-label={interpolate(t.rename, { name: cat.name })}
                     >
                       <Edit2 className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Edit</span>
+                      <span className="hidden sm:inline">{t.edit}</span>
                     </Button>
 
                     <Button
@@ -348,10 +355,12 @@ export function CategoryManager({
                       }
                       aria-label={
                         inCatalog
-                          ? `Delete ${cat.name} (in use by ${productCount} items)`
-                          : `Delete ${cat.name}`
+                          ? interpolate(t.deleteInUse, { name: cat.name, count: productCount })
+                          : interpolate(t.delete, { name: cat.name })
                       }
-                      title={inCatalog ? `In use by ${productCount} item(s)` : undefined}
+                      title={
+                        inCatalog ? interpolate(t.inUseTitle, { count: productCount }) : undefined
+                      }
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -366,10 +375,14 @@ export function CategoryManager({
         {/* Recommendation: If an offline POS or kitchen terminal sync bridge is introduced in the future (#71), add the live sync indicator here. Currently, categories sync reactively to storefront via Server Actions. */}
         <div className="bg-muted/40 border-border text-muted-foreground flex items-center justify-between border-t px-4 py-2.5 text-xs">
           <span>
-            {categories.length} {categories.length === 1 ? "category" : "categories"}
+            {interpolate(categories.length === 1 ? t.categoryOne : t.categoryOther, {
+              count: categories.length,
+            })}
           </span>
           <span className="text-foreground font-medium">
-            {categories.reduce((sum, c) => sum + (c.productCount ?? 0), 0)} products total
+            {interpolate(t.productsTotal, {
+              count: categories.reduce((sum, c) => sum + (c.productCount ?? 0), 0),
+            })}
           </span>
         </div>
       </section>
@@ -378,8 +391,7 @@ export function CategoryManager({
       <div className="bg-card border-border flex items-start gap-3 rounded-lg border p-3.5 shadow-none">
         <Lightbulb className="text-primary mt-0.5 h-4 w-4 shrink-0" />
         <div className="text-muted-foreground text-xs leading-relaxed">
-          <strong className="text-foreground font-semibold">Pro tip:</strong> Categories with active
-          products cannot be removed directly to prevent orphaned items in your store.
+          <strong className="text-foreground font-semibold">{t.tipLabel}</strong> {t.tip}
         </div>
       </div>
     </div>

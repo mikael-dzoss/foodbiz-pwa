@@ -13,10 +13,17 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SoonBadge } from "@/components/feedback";
-import { STANDARD_EXPENSE_TAGS, type Expense, type StandardExpenseTag } from "@/domain";
+import {
+  STANDARD_EXPENSE_TAGS,
+  formatMoney,
+  type Expense,
+  type StandardExpenseTag,
+} from "@/domain";
 import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "../expense-actions";
 import { Check, Trash2, FileText, AlertCircle } from "lucide-react";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface ExpenseSheetProps {
   /** Today on the business calendar (YYYY-MM-DD): the default date of a new expense. */
@@ -39,6 +46,14 @@ interface ExpenseFormProps {
   deleteDisabledReason?: string;
 }
 
+/** Server field messages are English zod text: show a localized generic message per field instead. */
+function localizeFieldErrors(
+  errors: Record<string, string[]>,
+  message: string,
+): Record<string, string[]> {
+  return Object.fromEntries(Object.keys(errors).map((field) => [field, [message]]));
+}
+
 function ExpenseForm({
   today,
   expense,
@@ -48,6 +63,9 @@ function ExpenseForm({
   deleteDisabledReason,
 }: ExpenseFormProps) {
   const isEdit = Boolean(expense);
+  const { locale, dict } = useManagerLocale();
+  const t = dict.expenses.sheet;
+  const tags = dict.expenses.tags;
 
   // Form states initialized directly from props (key change handles resets)
   const [amountStr, setAmountStr] = React.useState(
@@ -114,7 +132,7 @@ function ExpenseForm({
     if (Number.isNaN(parsedAmount) || amountInCents <= 0) {
       setFieldErrors((prev) => ({
         ...prev,
-        amount: ["Amount must be greater than 0"],
+        amount: [t.errors.amount],
       }));
       return null;
     }
@@ -122,7 +140,7 @@ function ExpenseForm({
     if (!description.trim()) {
       setFieldErrors((prev) => ({
         ...prev,
-        description: ["Description is required"],
+        description: [t.errors.description],
       }));
       return null;
     }
@@ -130,7 +148,7 @@ function ExpenseForm({
     if (!date.trim()) {
       setFieldErrors((prev) => ({
         ...prev,
-        date: ["Date is required"],
+        date: [t.errors.date],
       }));
       return null;
     }
@@ -138,7 +156,7 @@ function ExpenseForm({
     if (selectedTags.length === 0) {
       setFieldErrors((prev) => ({
         ...prev,
-        tags: ["At least one tag is required"],
+        tags: [t.errors.tags],
       }));
       return null;
     }
@@ -157,9 +175,9 @@ function ExpenseForm({
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(actionErrorMessage(res));
+          setErrorMessage(actionErrorMessage(res, locale));
           if (res.fieldErrors) {
-            setFieldErrors(res.fieldErrors);
+            setFieldErrors(localizeFieldErrors(res.fieldErrors, t.errors.invalidField));
           }
         }
       } else {
@@ -174,14 +192,14 @@ function ExpenseForm({
           onSaved?.(res.data);
           onClose();
         } else {
-          setErrorMessage(actionErrorMessage(res));
+          setErrorMessage(actionErrorMessage(res, locale));
           if (res.fieldErrors) {
-            setFieldErrors(res.fieldErrors);
+            setFieldErrors(localizeFieldErrors(res.fieldErrors, t.errors.invalidField));
           }
         }
       }
     } catch {
-      setErrorMessage("An unexpected error occurred. Please try again.");
+      setErrorMessage(actionErrorMessage({ code: "INTERNAL" }, locale));
     }
     return null;
   }, null);
@@ -198,11 +216,11 @@ function ExpenseForm({
         setShowDeleteConfirm(false);
         onClose();
       } else {
-        setErrorMessage(actionErrorMessage(res));
+        setErrorMessage(actionErrorMessage(res, locale));
         setShowDeleteConfirm(false);
       }
     } catch {
-      setErrorMessage(actionErrorMessage({ code: "INTERNAL" }));
+      setErrorMessage(actionErrorMessage({ code: "INTERNAL" }, locale));
       setShowDeleteConfirm(false);
     } finally {
       setIsDeleting(false);
@@ -214,17 +232,13 @@ function ExpenseForm({
       <SheetHeader className="mb-4">
         <div className="flex items-center justify-between">
           <SheetTitle data-testid="expense-sheet-title">
-            {isEdit ? "Edit expense" : "New expense"}
+            {isEdit ? t.titleEdit : t.titleNew}
           </SheetTitle>
           <span className="text-muted-foreground border-border rounded border px-2 py-0.5 font-mono text-xs">
-            Screen M-51
+            {t.screenTag}
           </span>
         </div>
-        <SheetDescription>
-          {isEdit
-            ? "Update expense details, change category or delete record."
-            : "Record an operating cost or receipt for your food business."}
-        </SheetDescription>
+        <SheetDescription>{isEdit ? t.descriptionEdit : t.descriptionNew}</SheetDescription>
       </SheetHeader>
 
       {errorMessage && (
@@ -241,7 +255,7 @@ function ExpenseForm({
       <form action={formAction} className="space-y-4">
         {/* Amount input */}
         <div className="space-y-1.5">
-          <Field id="expense-amount" label="Amount (€)" error={fieldErrors.amount?.[0]}>
+          <Field id="expense-amount" label={t.amountLabel} error={fieldErrors.amount?.[0]}>
             {(control) => (
               <div className="border-input bg-card focus-within:border-primary relative flex items-center rounded-lg border p-2.5 transition-colors">
                 <span className="text-muted-foreground mr-2 text-xl font-bold">€</span>
@@ -272,7 +286,7 @@ function ExpenseForm({
               onClick={() => handleQuickAddAmount(1000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
-              +€10
+              +{formatMoney(1000, locale)}
             </Button>
             <Button
               variant="unstyled"
@@ -281,7 +295,7 @@ function ExpenseForm({
               onClick={() => handleQuickAddAmount(5000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
-              +€50
+              +{formatMoney(5000, locale)}
             </Button>
             <Button
               variant="unstyled"
@@ -290,7 +304,7 @@ function ExpenseForm({
               onClick={() => handleQuickAddAmount(10000)}
               className="border-border bg-muted/40 hover:bg-muted text-foreground rounded-lg border px-2.5 py-1 text-xs font-medium transition-all active:scale-95"
             >
-              +€100
+              +{formatMoney(10000, locale)}
             </Button>
           </div>
         </div>
@@ -298,12 +312,12 @@ function ExpenseForm({
         {/* Description / Vendor */}
         <Field
           id="expense-description"
-          label="Description / Vendor"
+          label={t.descriptionLabel}
           error={fieldErrors.description?.[0]}
         >
           <Input
             type="text"
-            placeholder="e.g. Fresh vegetables, Metro Wholesale"
+            placeholder={t.descriptionPlaceholder}
             value={description}
             onChange={(e) => {
               setDescription(e.target.value);
@@ -314,7 +328,7 @@ function ExpenseForm({
         </Field>
 
         {/* Date */}
-        <Field id="expense-date" label="Date of expense" error={fieldErrors.date?.[0]}>
+        <Field id="expense-date" label={t.dateLabel} error={fieldErrors.date?.[0]}>
           <Input
             type="date"
             value={date}
@@ -329,9 +343,13 @@ function ExpenseForm({
         {/* Expense Category Tags */}
         <div className="space-y-1.5">
           <label className="text-foreground text-xs font-semibold tracking-wider uppercase">
-            Expense Category
+            {t.categoryLabel}
           </label>
-          <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Expense categories">
+          <div
+            className="flex flex-wrap gap-2 pt-1"
+            role="group"
+            aria-label={t.categoriesGroupLabel}
+          >
             {STANDARD_EXPENSE_TAGS.map((tag) => {
               const isSelected = selectedTags.includes(tag);
               return (
@@ -350,7 +368,7 @@ function ExpenseForm({
                   data-testid={`expense-tag-${tag}`}
                 >
                   {isSelected && <Check className="h-3.5 w-3.5" />}
-                  <span>{tag}</span>
+                  <span>{tags[tag]}</span>
                 </Button>
               );
             })}
@@ -365,10 +383,8 @@ function ExpenseForm({
               <FileText className="h-4 w-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-foreground text-xs font-medium">Attach receipt / invoice</span>
-              <span className="text-muted-foreground text-caption">
-                Automatic OCR receipt extraction
-              </span>
+              <span className="text-foreground text-xs font-medium">{t.attachReceipt}</span>
+              <span className="text-muted-foreground text-caption">{t.ocr}</span>
             </div>
           </div>
           {/* TODO(expenses): attach receipt or invoice (#57) */}
@@ -383,7 +399,7 @@ function ExpenseForm({
             className="h-12 w-full text-sm font-semibold"
             data-testid="expense-submit-button"
           >
-            {isSubmitting ? "Saving..." : isEdit ? "Save changes" : "Save expense"}
+            {isSubmitting ? t.saving : isEdit ? t.saveChanges : t.save}
           </Button>
 
           <Button
@@ -393,7 +409,7 @@ function ExpenseForm({
             onClick={onClose}
             className="h-11 w-full text-sm"
           >
-            Cancel
+            {t.cancel}
           </Button>
 
           {/* Destructive delete option in edit mode */}
@@ -410,7 +426,7 @@ function ExpenseForm({
                 data-testid="expense-delete-trigger"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span>Delete this expense</span>
+                <span>{t.deleteTrigger}</span>
               </Button>
               {deleteDisabledReason && (
                 <p
@@ -432,10 +448,10 @@ function ExpenseForm({
         onOpenChange={setShowDeleteConfirm}
         destructive
         loading={isDeleting}
-        title="Delete Expense"
-        description={`Are you sure you want to delete this expense (${expense?.description})? This action cannot be undone.`}
-        cancelLabel="Cancel"
-        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        title={t.deleteTitle}
+        description={interpolate(t.deleteDescription, { name: expense?.description ?? "" })}
+        cancelLabel={t.cancel}
+        confirmLabel={isDeleting ? t.deleting : t.deleteConfirm}
         onConfirm={handleDelete}
         data-testid="expense-delete-dialog"
         confirmTestId="expense-delete-confirm-button"

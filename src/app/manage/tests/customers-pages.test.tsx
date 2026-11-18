@@ -16,6 +16,8 @@ const { locale, list, detail } = vi.hoisted(() => ({
   detail: vi.fn(),
 }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: locale }) }));
+// Exercise the real locale helper (the suite default is a stub that always answers English).
+vi.mock("@/lib/i18n/manager-locale", async (importOriginal) => importOriginal());
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");

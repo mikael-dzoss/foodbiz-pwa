@@ -28,6 +28,8 @@ import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import { progressOrderStatusAction } from "../order-actions";
 import type { EnrichedOrder, ListOrdersResult } from "../order-data";
 import { cn } from "@/lib/utils";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate, type OrdersDictionary } from "@/domain/i18n";
 
 export interface OrderListProps {
   initialData: ListOrdersResult;
@@ -59,7 +61,7 @@ interface NextActionStep {
   buttonClass: string;
 }
 
-function getNextAction(order: EnrichedOrder): NextActionStep | null {
+function getNextAction(order: EnrichedOrder, t: OrdersDictionary): NextActionStep | null {
   const commonButtonClass =
     "border border-primary/30 bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80";
 
@@ -67,28 +69,28 @@ function getNextAction(order: EnrichedOrder): NextActionStep | null {
     case "NEW":
       return {
         status: "CONFIRMED",
-        label: "Accept",
+        label: t.nextAction.accept,
         icon: CheckCircle2,
         buttonClass: commonButtonClass,
       };
     case "CONFIRMED":
       return {
         status: "PREPARING",
-        label: "Start preparing",
+        label: t.nextAction.startPreparing,
         icon: ChefHat,
         buttonClass: commonButtonClass,
       };
     case "PREPARING":
       return {
         status: "READY",
-        label: "Mark ready",
+        label: t.nextAction.markReady,
         icon: PackageCheck,
         buttonClass: commonButtonClass,
       };
     case "READY":
       return {
         status: "COMPLETED",
-        label: order.paid !== "paid" ? "Pay & Complete" : "Complete order",
+        label: order.paid !== "paid" ? t.nextAction.payAndComplete : t.nextAction.completeOrder,
         icon: Check,
         buttonClass: commonButtonClass,
       };
@@ -103,6 +105,7 @@ function getDueTimeDiff(
   requestedTime: string | null | undefined,
   now: Date,
   timeZone: string,
+  t: OrdersDictionary,
 ) {
   if (!requestedDate) return null;
   const [y, m, d] = requestedDate.split("-").map(Number);
@@ -112,17 +115,17 @@ function getDueTimeDiff(
   const diffDays = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
 
   if (diffDays > 0) {
-    return { text: `(+${diffDays}d)`, isOverdue: false };
+    return { text: interpolate(t.daysAhead, { days: diffDays }), isOverdue: false };
   } else if (diffDays === 0) {
     if (requestedTime) {
       const [dueH, dueM] = requestedTime.split(":").map(Number);
       if (dueH * 60 + dueM < getZonedMinutesOfDay(now, timeZone)) {
-        return { text: "(-overdue)", isOverdue: true };
+        return { text: t.overdue, isOverdue: true };
       }
     }
     return null;
   } else {
-    return { text: `(${diffDays}d)`, isOverdue: true };
+    return { text: interpolate(t.daysLate, { days: Math.abs(diffDays) }), isOverdue: true };
   }
 }
 
@@ -134,6 +137,8 @@ export function OrderList({
 }: OrderListProps) {
   const timeZone = useBusinessTimeZone();
   const router = useRouter();
+  const { locale, dict } = useManagerLocale();
+  const t = dict.orders;
   const [localStatusUpdates, setLocalStatusUpdates] = React.useState<Record<string, OrderStatus>>(
     {},
   );
@@ -229,7 +234,7 @@ export function OrderList({
     e.preventDefault();
     e.stopPropagation();
 
-    const next = getNextAction(order);
+    const next = getNextAction(order, t);
     if (!next) return;
 
     if (next.status === "COMPLETED" && order.paid !== "paid") {
@@ -258,15 +263,8 @@ export function OrderList({
   return (
     <div className="flex flex-col gap-3.5 pb-24" data-testid="orders-list-screen">
       {/* Top Header: Matching Stitch M-20 */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-2">
-          <h1 className="text-title-lg text-foreground">Orders</h1>
-          {/* POS Live Status Beacon */}
-          <div className="bg-primary-soft text-primary-soft-foreground text-caption flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium">
-            <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full" />
-            POS Live
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <h1 className="text-title-lg text-foreground min-w-0">{t.title}</h1>
 
         {/* Single-line New Order action button */}
         <Link href="/manage/orders/new">
@@ -277,7 +275,7 @@ export function OrderList({
             data-testid="create-order-button"
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>New order</span>
+            <span>{t.newOrder}</span>
           </Button>
         </Link>
       </div>
@@ -289,7 +287,7 @@ export function OrderList({
         className="flex flex-col gap-3.5"
       >
         <TabsList
-          aria-label="Order Status Tabs"
+          aria-label={t.statusTabsLabel}
           className="bg-muted/80 grid h-auto w-full grid-cols-3 gap-1 rounded-xl p-1 text-center text-xs"
         >
           <TabsTrigger
@@ -297,7 +295,7 @@ export function OrderList({
             className="text-muted-foreground hover:text-foreground data-[state=active]:bg-primary-soft data-[state=active]:text-primary-soft-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-bold data-[state=active]:shadow-xs"
             data-testid="tab-active"
           >
-            <span>Active</span>
+            <span>{t.tabs.active}</span>
             <span className="bg-card text-primary-soft-foreground text-micro inline-flex items-center justify-center rounded-full px-1.5 font-bold tabular-nums">
               {liveCounts.active}
             </span>
@@ -308,7 +306,7 @@ export function OrderList({
             className="text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-xs"
             data-testid="tab-completed"
           >
-            <span>Completed</span>
+            <span>{t.tabs.completed}</span>
             <span className="text-muted-foreground text-micro tabular-nums">
               ({liveCounts.completed})
             </span>
@@ -319,7 +317,7 @@ export function OrderList({
             className="text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 gap-1 rounded-lg px-0 py-2 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-xs"
             data-testid="tab-cancelled"
           >
-            <span>Cancelled</span>
+            <span>{t.tabs.cancelled}</span>
             <span className="text-muted-foreground text-micro tabular-nums">
               ({liveCounts.cancelled})
             </span>
@@ -334,7 +332,7 @@ export function OrderList({
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search guest name, phone, or order #..."
+              placeholder={t.searchPlaceholder}
               className="border-input bg-card h-11 rounded-xl pr-9 pl-10 text-xs"
               data-testid="order-search-input"
             />
@@ -345,7 +343,7 @@ export function OrderList({
                 type="button"
                 onClick={() => setSearchQuery("")}
                 className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 p-1"
-                aria-label="Clear search"
+                aria-label={t.clearSearch}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -365,7 +363,7 @@ export function OrderList({
               className="h-9 min-h-9 rounded-full px-3 text-xs font-semibold whitespace-nowrap"
               data-testid="filter-service-all"
             >
-              All
+              {t.filters.all}
             </Button>
 
             <Button
@@ -380,7 +378,7 @@ export function OrderList({
               data-testid="filter-unpaid"
             >
               <span className="bg-destructive h-1.5 w-1.5 rounded-full" />
-              Unpaid only ({liveCounts.unpaid})
+              {interpolate(t.filters.unpaidOnly, { count: liveCounts.unpaid })}
             </Button>
 
             <Button
@@ -393,7 +391,7 @@ export function OrderList({
               className="h-9 min-h-9 rounded-full px-3 text-xs font-medium whitespace-nowrap"
               data-testid="filter-service-pickup"
             >
-              Pickup ({liveCounts.pickup})
+              {interpolate(t.filters.pickup, { count: liveCounts.pickup })}
             </Button>
 
             <Button
@@ -406,7 +404,7 @@ export function OrderList({
               className="h-9 min-h-9 rounded-full px-3 text-xs font-medium whitespace-nowrap"
               data-testid="filter-service-delivery"
             >
-              Delivery ({liveCounts.delivery})
+              {interpolate(t.filters.delivery, { count: liveCounts.delivery })}
             </Button>
           </div>
         </div>
@@ -416,14 +414,14 @@ export function OrderList({
           {filteredOrders.length === 0 ? (
             <EmptyState
               icon={<ShoppingBag className="h-6 w-6" />}
-              title="No orders found"
+              title={t.empty.title}
               description={
                 searchQuery || unpaidOnly || selectedServiceType !== "all"
-                  ? "Try adjusting your filters or search terms."
-                  : `No ${activeTab} orders at the moment.`
+                  ? t.empty.filtered
+                  : t.empty[activeTab]
               }
               action={{
-                label: "Clear filters",
+                label: t.empty.clearFilters,
                 onClick: () => {
                   setSearchQuery("");
                   setUnpaidOnly(false);
@@ -434,7 +432,7 @@ export function OrderList({
             />
           ) : (
             <section
-              aria-label="Order triage list"
+              aria-label={t.listLabel}
               className="flex flex-col gap-3"
               data-testid="orders-list"
             >
@@ -446,7 +444,7 @@ export function OrderList({
                   .map((it) => `${it.quantity}× ${it.productName}`)
                   .join(", ");
                 const hasMoreItems = order.items.length > 2;
-                const nextAction = getNextAction(order);
+                const nextAction = getNextAction(order, t);
                 const dueDiff =
                   activeTab === "active"
                     ? getDueTimeDiff(
@@ -454,6 +452,7 @@ export function OrderList({
                         order.requestedTime,
                         new Date(now),
                         timeZone,
+                        t,
                       )
                     : null;
 
@@ -472,8 +471,11 @@ export function OrderList({
                         <span className="text-foreground text-sm font-bold tabular-nums">
                           #{order.orderNumber ?? "—"}
                         </span>
-                        <Badge variant={STATUS_BADGE_MAP[order.status] ?? "default"}>
-                          {order.status}
+                        <Badge
+                          variant={STATUS_BADGE_MAP[order.status] ?? "default"}
+                          className="uppercase"
+                        >
+                          {t.status[order.status]}
                         </Badge>
                       </div>
 
@@ -481,8 +483,13 @@ export function OrderList({
                         <Clock className="text-muted-foreground h-3.5 w-3.5" />
                         <span className="tabular-nums">
                           {order.requestedTime
-                            ? `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} at ${order.requestedTime}`
-                            : `${order.serviceType === "pickup" ? "Pickup" : "Delivery"} ASAP`}
+                            ? interpolate(
+                                order.serviceType === "pickup" ? t.pickupAt : t.deliveryAt,
+                                { time: order.requestedTime },
+                              )
+                            : order.serviceType === "pickup"
+                              ? t.pickupAsap
+                              : t.deliveryAsap}
                         </span>
                         {dueDiff && (
                           <span
@@ -517,10 +524,10 @@ export function OrderList({
                               <span className="text-muted-foreground/60 shrink-0 text-xs">•</span>
                               <span
                                 data-testid="order-submitted-name-badge"
-                                title={`Ordered as ${order.submittedName}`}
+                                title={interpolate(t.orderedAs, { name: order.submittedName })}
                                 className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
                               >
-                                Ordered as {order.submittedName}
+                                {interpolate(t.orderedAs, { name: order.submittedName })}
                               </span>
                             </>
                           )}
@@ -530,13 +537,13 @@ export function OrderList({
                             <>
                               <MapPin className="text-muted-foreground h-3 w-3 shrink-0" />
                               <span className="truncate">
-                                {order.deliveryAddress ?? "Delivery address pending"}
+                                {order.deliveryAddress ?? t.addressPending}
                               </span>
                             </>
                           ) : (
                             <>
                               <Store className="text-muted-foreground h-3 w-3 shrink-0" />
-                              <span className="truncate">Store Pickup</span>
+                              <span className="truncate">{t.storePickup}</span>
                             </>
                           )}
                         </div>
@@ -545,7 +552,7 @@ export function OrderList({
                       {/* Dedicated Eye button mapping to details view */}
                       <Link
                         href={`/manage/orders/${order.id}`}
-                        aria-label={`View order details for #${order.orderNumber}`}
+                        aria-label={interpolate(t.viewDetails, { number: order.orderNumber ?? "" })}
                         className="bg-muted hover:bg-border text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors active:scale-95"
                         data-testid={`view-order-${order.id}`}
                       >
@@ -556,7 +563,10 @@ export function OrderList({
                     {/* Items Ordered Preview Box */}
                     <div className="bg-muted text-foreground rounded-lg px-2.5 py-1.5 text-xs leading-relaxed">
                       <span className="font-semibold">
-                        {itemCount} {itemCount === 1 ? "item" : "items"}:
+                        {interpolate(itemCount === 1 ? t.itemOne : t.itemOther, {
+                          count: itemCount,
+                        })}
+                        :
                       </span>{" "}
                       <span className="text-muted-foreground">{itemsSummary}</span>
                       {hasMoreItems ? "..." : ""}
@@ -566,7 +576,7 @@ export function OrderList({
                     <div className="border-border/60 flex items-center justify-between gap-2 border-t pt-2">
                       <div className="flex items-center gap-2">
                         <span className="text-foreground text-sm font-bold tabular-nums">
-                          {formatMoney(order.totalAmount)}
+                          {formatMoney(order.totalAmount, locale)}
                         </span>
                         {order.status === "CANCELLED" && order.paid === "paid" ? (
                           <Badge
@@ -575,12 +585,12 @@ export function OrderList({
                             data-testid="refund-due-badge"
                           >
                             <AlertCircle className="h-2.5 w-2.5" />
-                            Refund Due
+                            {t.payment.refundDue}
                           </Badge>
                         ) : order.paid === "paid" ? (
                           <Badge variant="paid" className="text-micro gap-0.5 px-1.5 py-0">
                             <CheckCircle2 className="h-2.5 w-2.5" />
-                            Paid
+                            {t.payment.paid}
                           </Badge>
                         ) : order.paid === "refunded" ? (
                           <Badge
@@ -588,12 +598,12 @@ export function OrderList({
                             className="text-micro gap-0.5 px-1.5 py-0"
                             data-testid="refunded-badge"
                           >
-                            Refunded
+                            {t.payment.refunded}
                           </Badge>
                         ) : (
                           <Badge variant="unpaid" className="text-micro gap-0.5 px-1.5 py-0">
                             <AlertCircle className="h-2.5 w-2.5" />
-                            Unpaid
+                            {t.payment.unpaid}
                           </Badge>
                         )}
                       </div>
@@ -614,7 +624,9 @@ export function OrderList({
                         >
                           <nextAction.icon className="h-3.5 w-3.5" />
                           <span>
-                            {transitioningId === order.id ? "Updating..." : nextAction.label}
+                            {transitioningId === order.id
+                              ? t.nextAction.updating
+                              : nextAction.label}
                           </span>
                         </Button>
                       )}

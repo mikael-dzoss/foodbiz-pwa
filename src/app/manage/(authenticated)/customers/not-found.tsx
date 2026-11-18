@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { EmptyState } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
 export default async function CustomerNotFound() {
-  const preference = (await cookies()).get("foodbiz_locale")?.value ?? DEFAULT_LOCALE;
-  const text = getDictionary(isSupportedLocale(preference) ? preference : DEFAULT_LOCALE).customers;
+  const text = getDictionary(await getManagerLocale()).customers;
   return (
     <div className="mx-auto max-w-xl space-y-4" data-testid="customer-not-found">
       <EmptyState title={text.notFound} />

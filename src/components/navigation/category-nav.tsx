@@ -137,6 +137,7 @@ export function CategoryNav({
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
+          closeLabel={dismissLabel}
           side="bottom"
           data-testid="category-nav-sheet"
           onCloseAutoFocus={(event) => {

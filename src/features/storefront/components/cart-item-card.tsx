@@ -7,6 +7,7 @@ import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Button } from "@/components/ui/button";
+import { getDictionary } from "@/domain/i18n";
 
 export interface CartItemCardProps {
   item: CartItem;
@@ -82,6 +83,8 @@ export function CartItemCard({
             min={1}
             max={item.maxStock}
             onChange={onUpdateQuantity}
+            decreaseLabel={getDictionary(locale).common.decreaseQuantity}
+            increaseLabel={getDictionary(locale).common.increaseQuantity}
             data-testid={`cart-stepper-${item.productId}`}
           />
         </div>

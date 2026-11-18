@@ -374,7 +374,14 @@ export default function PatternsPage() {
               <span className="text-body-md block">Croissants</span>
               <span className="text-body-sm text-muted-foreground block">€2.20 each</span>
             </div>
-            <QuantityStepper value={stepperVal} min={1} max={20} onChange={setStepperVal} />
+            <QuantityStepper
+              value={stepperVal}
+              min={1}
+              max={20}
+              onChange={setStepperVal}
+              decreaseLabel="Decrease quantity"
+              increaseLabel="Increase quantity"
+            />
           </Card>
         </section>
 

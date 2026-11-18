@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { ManagerLocaleProvider } from "@/components/i18n";
 import { ExpenseSheet } from "../components/expense-sheet";
 import type { Expense } from "@/domain";
 import * as actions from "../expense-actions";
@@ -35,15 +36,15 @@ describe("ExpenseSheet Component", () => {
     const amountInput = screen.getByTestId("expense-amount-input") as HTMLInputElement;
 
     // Click +€10
-    fireEvent.click(screen.getByText("+€10"));
+    fireEvent.click(screen.getByText("+€10.00"));
     expect(amountInput.value).toBe("10.00");
 
     // Click +€50
-    fireEvent.click(screen.getByText("+€50"));
+    fireEvent.click(screen.getByText("+€50.00"));
     expect(amountInput.value).toBe("60.00");
 
     // Click +€100
-    fireEvent.click(screen.getByText("+€100"));
+    fireEvent.click(screen.getByText("+€100.00"));
     expect(amountInput.value).toBe("160.00");
 
     // Manual typing with comma
@@ -131,8 +132,33 @@ describe("ExpenseSheet Component", () => {
     await waitFor(() => {
       expect(screen.getByTestId("expense-error-message")).toBeDefined();
       expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
-      expect(screen.getByText("Server rejected description")).toBeDefined();
+      expect(screen.getByText("Please check this field.")).toBeDefined();
+      expect(screen.queryByText("Server rejected description")).toBeNull();
     });
+  });
+
+  it("shows a Server Action failure in the manager's French locale, never the server text", async () => {
+    vi.spyOn(actions, "createExpenseAction").mockResolvedValue({
+      ok: false,
+      code: "INTERNAL",
+      message: "Validation failed on server",
+    });
+
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <ExpenseSheet today="2026-10-15" open={true} onOpenChange={vi.fn()} />
+      </ManagerLocaleProvider>,
+    );
+
+    expect(screen.getByTestId("expense-sheet-title").textContent).toBe("Nouvelle dépense");
+    fireEvent.change(screen.getByTestId("expense-amount-input"), { target: { value: "20.00" } });
+    fireEvent.change(screen.getByTestId("expense-description-input"), {
+      target: { value: "Carburant" },
+    });
+    fireEvent.click(screen.getByTestId("expense-submit-button"));
+
+    expect(await screen.findByText("Une erreur est survenue. Veuillez réessayer.")).toBeDefined();
+    expect(screen.queryByText("Validation failed on server")).toBeNull();
   });
 
   it("handles update action API failure", async () => {
@@ -166,7 +192,7 @@ describe("ExpenseSheet Component", () => {
     fireEvent.click(screen.getByTestId("expense-submit-button"));
 
     await waitFor(() => {
-      expect(screen.getByText("An unexpected error occurred. Please try again.")).toBeDefined();
+      expect(screen.getByText("Something went wrong. Please try again.")).toBeDefined();
     });
   });
 

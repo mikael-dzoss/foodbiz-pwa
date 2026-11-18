@@ -5,7 +5,8 @@ import {
   sanitizeManagerRedirectPath,
   type AuthErrorCode,
 } from "@/domain/auth";
-import { DEFAULT_LOCALE, isSupportedLocale, type SupportedLocale } from "@/domain/i18n";
+import { isSupportedLocale, type SupportedLocale } from "@/domain/i18n";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { LoginView } from "@/features/auth/components/login-view";
 
 export const metadata: Metadata = {
@@ -37,8 +38,9 @@ export default async function ManagerLoginPage(props: ManagerLoginPageProps = {}
       : "auth_failed"
     : undefined;
 
+  // An explicit ?locale wins (OAuth round-trip), otherwise the manager's saved language.
   const locale: SupportedLocale =
-    rawLocale && isSupportedLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
+    rawLocale && isSupportedLocale(rawLocale) ? rawLocale : await getManagerLocale();
 
   const next = rawNext ? sanitizeManagerRedirectPath(rawNext) : undefined;
 

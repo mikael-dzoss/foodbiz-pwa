@@ -64,7 +64,7 @@ test("storefront dish detail adds selected drink as a separate cart line", async
     try {
       const manager = await managerContext.newPage();
       await manager.goto("/manage/login");
-      await manager.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+      await manager.getByTestId("btn-demo-sign-in").click();
       await expect(manager).toHaveURL("/manage");
       await manager.goto("/manage/settings/ordering");
       await manager.getByTestId("input-opening-hours").fill("00:00 - 23:59");
@@ -111,7 +111,9 @@ for (const [locale, method, recipient, phone] of [
       .click();
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
-      await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+      await page
+        .getByRole("button", { name: getDictionary(locale).common.increaseQuantity, exact: true })
+        .click();
     }
     await page.getByTestId("proceed-checkout-button").click();
     await page.getByTestId("checkout-name-input").fill(`E2E ${method} Guest`);
@@ -147,7 +149,9 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await page.goto("/en/cart");
   await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
   for (let i = 0; i < 3; i++) {
-    await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+    await page
+      .getByRole("button", { name: getDictionary("en").common.increaseQuantity, exact: true })
+      .click();
   }
   await page.getByTestId("proceed-checkout-button").click();
   await page.getByTestId("checkout-name-input").fill("E2E Checkout Guest");
@@ -187,7 +191,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   try {
     const manager = await managerContext.newPage();
     await manager.goto("/manage/login");
-    await manager.getByRole("button", { name: "Sign in as Manager (Demo Account)" }).click();
+    await manager.getByTestId("btn-demo-sign-in").click();
     await expect(manager).toHaveURL("/manage");
     await manager.goto("/manage/orders");
     await manager
@@ -197,7 +201,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
       })
       .click();
     await manager.getByTestId("accept-order-button").click();
-    await expect(manager.getByTestId("order-detail-screen")).toContainText("CONFIRMED");
+    await expect(manager.getByTestId("order-detail-screen")).toContainText("Confirmed");
     await page.goto(trackingURL);
     await expect(page.getByTestId("tracking-status-badge")).toContainText("Confirmed");
     await expect(page.getByTestId("tracking-order-title")).toHaveText(ticket);

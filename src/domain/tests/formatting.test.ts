@@ -25,8 +25,8 @@ describe("Formatting Utilities (#32)", () => {
       expect(fr0).toBe("0,00 €");
     });
 
-    it("defaults to English when locale is omitted", () => {
-      expect(formatMoney(2500)).toBe("€25.00");
+    it("formats an English amount with the explicit locale", () => {
+      expect(formatMoney(2500, "en")).toBe("€25.00");
     });
   });
 

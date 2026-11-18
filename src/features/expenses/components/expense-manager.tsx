@@ -9,6 +9,7 @@ import {
   formatCalendarDate,
   getZonedDay,
   formatMoney,
+  formatPercent,
   groupExpensesByMonth,
   filterExpenses,
   calculateExpensesTotal,
@@ -18,6 +19,8 @@ import {
 } from "@/domain";
 import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import { ExpenseSheet } from "./expense-sheet";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface ExpenseManagerProps {
   initialExpenses: Expense[];
@@ -35,6 +38,8 @@ export function ExpenseManager({
   deleteDisabledReason,
 }: ExpenseManagerProps) {
   const timeZone = useBusinessTimeZone();
+  const { locale, dict } = useManagerLocale();
+  const t = dict.expenses;
   const [expenses, setExpenses] = React.useState<Expense[]>(initialExpenses);
   const [periodFilter, setPeriodFilter] = React.useState<ExpensePeriodFilter>("this-month");
   const [selectedTag, setSelectedTag] = React.useState<string>("all");
@@ -62,8 +67,8 @@ export function ExpenseManager({
 
   // Group filtered expenses by month
   const monthGroups = React.useMemo(() => {
-    return groupExpensesByMonth(filteredExpenses);
-  }, [filteredExpenses]);
+    return groupExpensesByMonth(filteredExpenses, locale);
+  }, [filteredExpenses, locale]);
 
   // Overall total spent for the active filter view
   const currentTotal = React.useMemo(() => {
@@ -157,7 +162,7 @@ export function ExpenseManager({
     }
   };
 
-  const formatDateDisplay = (dateStr: string) => formatCalendarDate(dateStr, "en");
+  const formatDateDisplay = (dateStr: string) => formatCalendarDate(dateStr, locale, "medium");
 
   return (
     <div className="space-y-4 pb-20" data-testid="expenses-manager">
@@ -165,14 +170,12 @@ export function ExpenseManager({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-title-lg text-foreground">Expenses</h1>
+            <h1 className="text-title-lg text-foreground">{t.title}</h1>
             <span className="text-muted-foreground border-border rounded border px-1.5 py-0.5 font-mono text-xs">
-              Screen M-50
+              {t.screenTag}
             </span>
           </div>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Track business operating costs, ingredients and supplier invoices.
-          </p>
+          <p className="text-muted-foreground mt-0.5 text-xs">{t.subtitle}</p>
         </div>
 
         <Button
@@ -181,22 +184,30 @@ export function ExpenseManager({
           data-testid="add-expense-button"
         >
           <Plus className="h-4 w-4" />
-          <span>Add expense</span>
+          <span>{t.add}</span>
         </Button>
       </div>
 
       {/* Period Segmented Control */}
       <SegmentedControl
-        aria-label="Period"
+        aria-label={t.periodLabel}
         value={periodFilter}
         onValueChange={setPeriodFilter}
         className="bg-muted/50 border-border rounded-xl border"
         optionClassName="min-h-9 flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
         selectedClassName="bg-card text-foreground font-semibold shadow-sm"
         options={[
-          { value: "this-month", label: "This month", "data-testid": "period-filter-this-month" },
-          { value: "last-month", label: "Last month", "data-testid": "period-filter-last-month" },
-          { value: "all", label: "All time", "data-testid": "period-filter-all" },
+          {
+            value: "this-month",
+            label: t.periods.thisMonth,
+            "data-testid": "period-filter-this-month",
+          },
+          {
+            value: "last-month",
+            label: t.periods.lastMonth,
+            "data-testid": "period-filter-last-month",
+          },
+          { value: "all", label: t.periods.allTime, "data-testid": "period-filter-all" },
         ]}
       />
 
@@ -207,22 +218,25 @@ export function ExpenseManager({
       >
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-            Total Spent (
-            {periodFilter === "this-month"
-              ? "This month"
-              : periodFilter === "last-month"
-                ? "Last month"
-                : "All time"}
-            )
+            {interpolate(t.totalSpent, {
+              period:
+                periodFilter === "this-month"
+                  ? t.periods.thisMonth
+                  : periodFilter === "last-month"
+                    ? t.periods.lastMonth
+                    : t.periods.allTime,
+            })}
           </span>
           <span className="text-muted-foreground text-xs">
-            {filteredExpenses.length} {filteredExpenses.length === 1 ? "expense" : "expenses"}
+            {interpolate(filteredExpenses.length === 1 ? t.countOne : t.countOther, {
+              count: filteredExpenses.length,
+            })}
           </span>
         </div>
 
         <div className="flex items-baseline justify-between">
           <div className="text-foreground text-3xl font-extrabold tracking-tight tabular-nums">
-            {formatMoney(currentTotal)}
+            {formatMoney(currentTotal, locale)}
           </div>
         </div>
 
@@ -234,7 +248,7 @@ export function ExpenseManager({
                 <div
                   key={item.tag}
                   style={{ width: `${item.percentage}%` }}
-                  title={`${item.tag}: ${item.percentage}%`}
+                  title={`${t.tags[item.tag]}: ${formatPercent(item.percentage, locale)}`}
                   className={
                     item.tag === "Ingredients"
                       ? "bg-emerald-500"
@@ -266,7 +280,7 @@ export function ExpenseManager({
                     }`}
                   />
                   <span>
-                    {item.tag} ({item.percentage}%)
+                    {t.tags[item.tag]} ({formatPercent(item.percentage, locale)})
                   </span>
                 </span>
               ))}
@@ -289,7 +303,7 @@ export function ExpenseManager({
           }`}
           data-testid="tag-filter-all"
         >
-          <span>All</span>
+          <span>{t.allTags}</span>
           <span className="font-mono opacity-75">({tagCounts.all ?? 0})</span>
         </Button>
 
@@ -310,7 +324,7 @@ export function ExpenseManager({
               }`}
               data-testid={`tag-filter-${tag}`}
             >
-              <span>{tag}</span>
+              <span>{t.tags[tag]}</span>
               <span className="font-mono opacity-75">({count})</span>
             </Button>
           );
@@ -321,14 +335,10 @@ export function ExpenseManager({
       {monthGroups.length === 0 ? (
         <EmptyState
           icon={<Receipt className="h-6 w-6" />}
-          title="No expenses found"
-          description={
-            expenses.length === 0
-              ? "You haven't recorded any expenses yet. Start tracking ingredients, equipment and costs."
-              : "No expenses match the current period and category filters."
-          }
+          title={t.empty.title}
+          description={expenses.length === 0 ? t.empty.none : t.empty.filtered}
           action={{
-            label: "Add expense",
+            label: t.add,
             onClick: openCreateSheet,
           }}
           data-testid="expenses-empty-state"
@@ -341,14 +351,14 @@ export function ExpenseManager({
               <div className="text-muted-foreground flex items-center justify-between px-1 text-xs font-semibold tracking-wider uppercase">
                 <span data-testid={`month-header-${group.monthKey}`}>{group.monthLabel}</span>
                 <span className="text-foreground font-medium tabular-nums">
-                  {formatMoney(group.totalAmount)}
+                  {formatMoney(group.totalAmount, locale)}
                 </span>
               </div>
 
               {/* Group rows card */}
               <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-xl border">
                 {group.expenses.map((expense) => {
-                  const mainTag = expense.tags[0] ?? "Expenses";
+                  const mainTag = expense.tags[0] ?? "";
                   return (
                     <Button
                       variant="unstyled"
@@ -378,14 +388,17 @@ export function ExpenseManager({
                         <div className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
                           <span>{formatDateDisplay(expense.date)}</span>
                           <span>•</span>
-                          <span className="font-medium">{mainTag}</span>
+                          <span className="font-medium">
+                            {(t.tags as Record<string, string>)[mainTag] ??
+                              (mainTag || t.fallbackTag)}
+                          </span>
                         </div>
                       </div>
 
                       {/* Right amount and chevron */}
                       <div className="flex items-center gap-1.5">
                         <span className="text-foreground text-sm font-semibold tabular-nums">
-                          {formatMoney(expense.amount)}
+                          {formatMoney(expense.amount, locale)}
                         </span>
                         <ChevronRight className="text-muted-foreground/60 h-4 w-4 shrink-0" />
                       </div>

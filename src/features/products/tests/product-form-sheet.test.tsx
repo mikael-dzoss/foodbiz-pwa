@@ -125,7 +125,7 @@ describe("ProductFormSheet Component (Screen M-41)", () => {
     );
     fireEvent.click(screen.getByTestId("save-product-button"));
     await waitFor(() =>
-      expect(screen.getByText("Choose valid allergens").getAttribute("role")).toBe("alert"),
+      expect(screen.getByText("Check the allergen selection.").getAttribute("role")).toBe("alert"),
     );
   });
 

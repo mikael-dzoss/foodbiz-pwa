@@ -21,6 +21,7 @@ import {
 } from "@/components/ui";
 import { updatePaymentSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface PaymentSettingsFormProps {
   settings: BusinessSettings;
@@ -31,6 +32,8 @@ export interface PaymentSettingsFormProps {
 
 export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentSettingsFormProps) {
   const { showToast, showError } = useToast();
+  const { locale: managerLocale, dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   type SaveResult = Awaited<ReturnType<typeof updatePaymentSettingsAction>> | null;
   const [dismissed, setDismissed] = useState<SaveResult>(null);
 
@@ -65,7 +68,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
     setPaymentInstructionsEn(settings.paymentInstructionsEn ?? "");
     setPaymentInstructionsFr(settings.paymentInstructionsFr ?? "");
     setDismissed(result);
-    showToast("Changes discarded");
+    showToast(x.discarded);
   };
 
   const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
@@ -95,7 +98,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
     if (res.ok) {
       showToast(dict.payment.saveSuccess);
     } else {
-      showError(actionErrorMessage(res));
+      showError(actionErrorMessage(res, managerLocale));
     }
     return res;
   }, null);
@@ -119,7 +122,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
           <span>{dict.title}</span>
         </Link>
         <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          M-64
+          {"M-64"}
         </span>
       </div>
 
@@ -304,14 +307,14 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                 data-testid="tab-instructions-en"
                 className="data-[state=active]:bg-card data-[state=active]:text-foreground min-h-9 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-2xs"
               >
-                English
+                {x.languageEnglish}
               </TabsTrigger>
               <TabsTrigger
                 value="fr"
                 data-testid="tab-instructions-fr"
                 className="min-h-9 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:font-semibold data-[state=active]:shadow-2xs"
               >
-                Français
+                {x.languageFrench}
               </TabsTrigger>
             </TabsList>
 
@@ -333,7 +336,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     rows={3}
                     value={paymentInstructionsEn}
                     onChange={(e) => setPaymentInstructionsEn(e.target.value)}
-                    placeholder="e.g. Please show your order confirmation on pickup. Revolut or cash accepted."
+                    placeholder={x.instructionsPlaceholderEn}
                     className="rounded-xl py-2 text-sm"
                   />
                 </Field>
@@ -350,7 +353,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     rows={3}
                     value={paymentInstructionsFr}
                     onChange={(e) => setPaymentInstructionsFr(e.target.value)}
-                    placeholder="ex. Merci de présenter votre confirmation au comptoir. Espèces ou Revolut acceptés."
+                    placeholder={x.instructionsPlaceholderFr}
                     className="rounded-xl py-2 text-sm"
                   />
                 </Field>
@@ -373,11 +376,9 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Online Card Payments (Stripe & Apple Pay)
+                  {x.soon.stripeTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Automated card authorization directly on web storefront
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.stripeDesc}</span>
               </div>
             </div>
             {/* TODO(payment): wire Stripe Connect onboarding (#72) */}

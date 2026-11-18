@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { BusinessTimeZoneProvider } from "@/components/time/business-timezone";
 import { ManagerShell } from "@/features/manager";
 import { requireManagerSession } from "@/lib/auth";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { getRepositories } from "@/lib/repositories";
 
 // The session check must resolve before the shell (and its business settings) can render.
@@ -22,7 +23,7 @@ export default async function AuthenticatedManageLayout({
   const settings = await repos.business.getSettings(session.user.businessId);
   const soundAlertsEnabled = settings?.soundAlerts ?? true;
 
-  const dict = getDictionary(DEFAULT_LOCALE);
+  const dict = getDictionary(await getManagerLocale());
 
   return (
     <ManagerShell

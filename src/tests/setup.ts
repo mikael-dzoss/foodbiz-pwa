@@ -23,6 +23,11 @@ vi.mock("next/cache", () => ({
   cacheLife: vi.fn(),
 }));
 
+// The manager locale reads a request cookie: render tests default to English (override per test).
+vi.mock("@/lib/i18n/manager-locale", () => ({
+  getManagerLocale: vi.fn(async () => "en"),
+}));
+
 afterEach(() => {
   cleanup();
 });

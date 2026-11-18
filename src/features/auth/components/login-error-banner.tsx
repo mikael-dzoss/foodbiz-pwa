@@ -47,7 +47,7 @@ export function LoginErrorBanner({ error, locale }: LoginErrorBannerProps) {
             data-testid="login-error-signout-btn"
             className="text-primary hover:text-primary/80 focus-visible:ring-ring text-xs font-semibold underline underline-offset-2 transition-colors focus-visible:outline-none"
           >
-            {activeLocale === "fr" ? "Se déconnecter" : "Sign out"}
+            {dict.manager.signOut}
           </Button>
         </form>
       )}

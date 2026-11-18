@@ -1,7 +1,9 @@
 import type { Dictionary } from "../types";
+import { managerEn } from "./manager-en";
 
 export const enDictionary: Dictionary = {
   locale: "en",
+  ...managerEn,
   customers: {
     title: "Customers",
     subtitle: "Recognise your regulars",
@@ -93,6 +95,8 @@ export const enDictionary: Dictionary = {
       last_30_days: "30 days",
       this_month: "This month",
     },
+    kpiRegionLabel: "Key Performance Indicators",
+    periodPickerLabel: "Filter by time period",
     kpi: {
       revenue: "Revenue",
       costs: "Costs",
@@ -118,6 +122,15 @@ export const enDictionary: Dictionary = {
       manageInventory: "Manage inventory →",
       allStockHealthy: "All inventory is well-stocked",
       unitsLeft: "units left",
+      itemsCount: "{count} items",
+      dueAt: "Due at {time}",
+      inPrep: "In prep",
+      newOrder: "New",
+      awaitingOne: "1 order awaiting payment handover",
+      awaitingMany: "{count} orders awaiting payment settlement",
+      onlyLeft: "Only {count} left in kitchen",
+      outOfStock: "Out of stock",
+      restock: "Restock",
     },
     activity: {
       sectionTitle: "Recent activity",
@@ -126,9 +139,22 @@ export const enDictionary: Dictionary = {
       paid: "Paid",
       unpaid: "Unpaid",
       expense: "Expense",
+      recentCount: "{count} recent",
+      confirmed: "Confirmed",
+      preparing: "Preparing",
+      cancelled: "Cancelled",
+      orderTitle: "Order #{number}",
+      orderTitleGuest: "Order ({guest})",
+      guestStatus: "{guest} · {status}",
+      guestPaidVia: "{guest} · {status} ({method})",
     },
   },
   storefront: {
+    stockAvailable: "{count} available",
+    inCartNow: "Currently in your cart: {count}",
+    purchaseActions: "Purchase actions",
+    honeypotLabel: "Leave this field blank",
+    promoPlaceholder: "e.g. MORNING10",
     cart: "Cart",
     cartEmpty: "Your cart is empty",
     item: "item",
@@ -624,6 +650,15 @@ export const enDictionary: Dictionary = {
     },
   },
   common: {
+    pageNotFound: {
+      title: "Page not found",
+      message: "The page you are looking for doesn't exist or has been moved.",
+    },
+    decreaseQuantity: "Decrease quantity",
+    increaseQuantity: "Increase quantity",
+    tryAgain: "Try again",
+    backToHome: "Back to home",
+    genericError: "Something went wrong",
     close: "Close",
     save: "Save",
     cancel: "Cancel",

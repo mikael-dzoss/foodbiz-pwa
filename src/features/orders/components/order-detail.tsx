@@ -54,6 +54,8 @@ import {
 import type { EnrichedOrder } from "../order-data";
 import { cn } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate, type OrdersDictionary, type SupportedLocale } from "@/domain/i18n";
 
 export interface OrderDetailProps {
   order: EnrichedOrder;
@@ -76,37 +78,45 @@ interface NextStepConfig {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-function getNextStep(status: string): NextStepConfig | null {
+function getNextStep(status: string, t: OrdersDictionary["detail"]): NextStepConfig | null {
   switch (status) {
     case "NEW":
-      return { nextStatus: "CONFIRMED", label: "Confirm order", icon: CheckCircle2 };
+      return { nextStatus: "CONFIRMED", label: t.nextStep.confirm, icon: CheckCircle2 };
     case "CONFIRMED":
-      return { nextStatus: "PREPARING", label: "Start preparing", icon: ChefHat };
+      return { nextStatus: "PREPARING", label: t.nextStep.startPreparing, icon: ChefHat };
     case "PREPARING":
-      return { nextStatus: "READY", label: "Mark as ready", icon: PackageCheck };
+      return { nextStatus: "READY", label: t.nextStep.markReady, icon: PackageCheck };
     case "READY":
-      return { nextStatus: "COMPLETED", label: "Complete order", icon: Check };
+      return { nextStatus: "COMPLETED", label: t.nextStep.complete, icon: Check };
     default:
       return null;
   }
 }
 
-function formatRequestedDateTime(requestedDate?: string | null, requestedTime?: string | null) {
+function formatRequestedDateTime(
+  requestedDate: string | null | undefined,
+  requestedTime: string | null | undefined,
+  locale: SupportedLocale,
+  t: OrdersDictionary["detail"],
+) {
   if (!requestedDate) {
-    return requestedTime ? `Today at ${requestedTime}` : "ASAP";
+    return requestedTime ? interpolate(t.timeToday, { time: requestedTime }) : t.asap;
   }
 
-  const formattedDate = formatCalendarDate(requestedDate, "en", "medium");
+  const date = formatCalendarDate(requestedDate, locale, "medium");
 
   if (requestedTime) {
-    return `${formattedDate} at ${requestedTime}`;
+    return interpolate(t.dateAtTime, { date, time: requestedTime });
   }
-  return `${formattedDate} (ASAP)`;
+  return interpolate(t.dateAsap, { date });
 }
 
 export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const timeZone = useBusinessTimeZone();
   const router = useRouter();
+  const { locale, dict } = useManagerLocale();
+  const o = dict.orders;
+  const t = o.detail;
   const [currentOrder, setCurrentOrder] = React.useState<EnrichedOrder>(order);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -126,7 +136,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
   const [refundReason, setRefundReason] = React.useState("");
 
-  const nextStep = getNextStep(currentOrder.status);
+  const nextStep = getNextStep(currentOrder.status, t);
   const isNotPaid = currentOrder.paid !== "paid";
   const isReadyUnpaid = currentOrder.status === "READY" && currentOrder.paid === "unpaid";
   const isReadyNotPaid = currentOrder.status === "READY" && isNotPaid;
@@ -135,9 +145,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const handleProgressStatus = async () => {
     if (!nextStep) return;
     if (nextStep.nextStatus === "COMPLETED" && isNotPaid) {
-      setErrorMessage(
-        "Cannot complete order while payment is not marked as paid. Please record payment first.",
-      );
+      setErrorMessage(t.cannotCompleteUnpaid);
       return;
     }
 
@@ -158,7 +166,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -181,7 +189,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -189,7 +197,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const handleRejectOrder = async () => {
     const trimmed = rejectionReason.trim();
     if (!trimmed) {
-      setRejectionError("A reason is required when rejecting a new order.");
+      setRejectionError(t.reject.required);
       return;
     }
 
@@ -212,7 +220,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -237,7 +245,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -268,7 +276,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -290,7 +298,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -314,7 +322,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       });
       router.refresh();
     } else {
-      setErrorMessage(actionErrorMessage(res));
+      setErrorMessage(actionErrorMessage(res, locale));
     }
   };
 
@@ -336,7 +344,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const timelineSteps = React.useMemo(() => {
     if (currentOrder.status === "CANCELLED") {
       const history = currentOrder.statusHistory ?? [
-        { status: "NEW", timestamp: currentOrder.createdAt, note: "Order placed" },
+        { status: "NEW", timestamp: currentOrder.createdAt, note: t.timeline.placed },
         {
           status: "CANCELLED",
           timestamp: currentOrder.updatedAt,
@@ -347,25 +355,31 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         const isCancelled = ev.status === "CANCELLED";
         return {
           status: ev.status,
-          label: isCancelled ? "Order Cancelled" : ev.status,
+          label: isCancelled ? t.timeline.cancelled : o.status[ev.status],
           state: isCancelled ? ("ongoing" as const) : ("validated" as const),
-          timestampText: formatDateTime(ev.timestamp, timeZone, "en"),
+          timestampText: formatDateTime(ev.timestamp, timeZone, locale),
           note: ev.note ?? (isCancelled ? currentOrder.cancellationReason : null),
         };
       });
     }
 
+    const isPickup = currentOrder.serviceType === "pickup";
     const STANDARD_STEPS: { status: OrderStatus; label: string; defaultNote: string }[] = [
-      { status: "NEW", label: "Order Placed", defaultNote: `Received via ${currentOrder.channel}` },
-      { status: "CONFIRMED", label: "Confirmed", defaultNote: "Confirmed by kitchen" },
-      { status: "PREPARING", label: "Preparing", defaultNote: "Kitchen preparing items" },
+      {
+        status: "NEW",
+        label: t.timeline.placed,
+        defaultNote: interpolate(t.timeline.placedNote, {
+          channel: o.channels[currentOrder.channel],
+        }),
+      },
+      { status: "CONFIRMED", label: t.timeline.confirmed, defaultNote: t.timeline.confirmedNote },
+      { status: "PREPARING", label: t.timeline.preparing, defaultNote: t.timeline.preparingNote },
       {
         status: "READY",
-        label: currentOrder.serviceType === "pickup" ? "Ready for Pickup" : "Out for Delivery",
-        defaultNote:
-          currentOrder.serviceType === "pickup" ? "Packed at counter" : "Dispatched with driver",
+        label: isPickup ? t.timeline.readyPickup : t.timeline.readyDelivery,
+        defaultNote: isPickup ? t.timeline.readyPickupNote : t.timeline.readyDeliveryNote,
       },
-      { status: "COMPLETED", label: "Completed", defaultNote: "Handed over to customer" },
+      { status: "COMPLETED", label: t.timeline.completed, defaultNote: t.timeline.completedNote },
     ];
 
     const ORDER_RANKS: Record<OrderStatus, number> = {
@@ -389,8 +403,8 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           label: step.label,
           state: "validated" as const,
           timestampText: historyEv
-            ? formatDateTime(historyEv.timestamp, timeZone, "en")
-            : "Completed",
+            ? formatDateTime(historyEv.timestamp, timeZone, locale)
+            : t.timeline.done,
           note: historyEv?.note ?? step.defaultNote,
         };
       }
@@ -400,7 +414,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           status: step.status,
           label: step.label,
           state: "ongoing" as const,
-          timestampText: historyEv ? formatDateTime(historyEv.timestamp, timeZone, "en") : "Now",
+          timestampText: historyEv
+            ? formatDateTime(historyEv.timestamp, timeZone, locale)
+            : t.timeline.now,
           note: historyEv?.note ?? step.defaultNote,
         };
       }
@@ -409,11 +425,11 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         status: step.status,
         label: step.label,
         state: "future" as const,
-        timestampText: "Upcoming",
+        timestampText: t.timeline.upcoming,
         note: step.defaultNote,
       };
     });
-  }, [currentOrder, timeZone]);
+  }, [currentOrder, timeZone, locale, o, t]);
 
   return (
     <div className="flex flex-col gap-3 pb-36" data-testid="order-detail-screen">
@@ -425,12 +441,15 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           data-testid="back-to-orders-link"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Orders</span>
+          <span>{t.back}</span>
         </Link>
 
         <div className="flex items-center gap-2">
-          <Badge variant={STATUS_BADGE_MAP[currentOrder.status] ?? "default"} className="text-xs">
-            {currentOrder.status}
+          <Badge
+            variant={STATUS_BADGE_MAP[currentOrder.status] ?? "default"}
+            className="text-xs uppercase"
+          >
+            {o.status[currentOrder.status]}
           </Badge>
           {/* TODO(print): wire to thermal receipt printer (#48) */}
           <Button
@@ -438,7 +457,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             size="none"
             type="button"
             onClick={handlePrint}
-            aria-label="Print kitchen ticket"
+            aria-label={t.printTicket}
             className="border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted flex h-9 w-9 items-center justify-center rounded-lg border transition-colors active:scale-95"
             data-testid="print-ticket-button"
           >
@@ -449,7 +468,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
       {printNotice && (
         <div className="bg-primary-soft text-primary-soft-foreground flex items-center justify-between rounded-lg p-2.5 text-xs font-medium">
-          <span>Kitchen ticket print job queued (mock printer).</span>
+          <span>{t.printQueued}</span>
           <Button
             variant="unstyled"
             size="none"
@@ -457,17 +476,22 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             onClick={() => setPrintNotice(false)}
             className="text-xs font-bold underline"
           >
-            Dismiss
+            {t.dismiss}
           </Button>
         </div>
       )}
 
       {/* Title & Metadata */}
       <div>
-        <h1 className="text-title-lg text-foreground">Order #{currentOrder.orderNumber ?? "—"}</h1>
+        <h1 className="text-title-lg text-foreground">
+          {interpolate(t.orderTitle, { number: currentOrder.orderNumber ?? "—" })}
+        </h1>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          Created on {formatDate(currentOrder.createdAt, timeZone, "en", "long")} at{" "}
-          {formatTime(currentOrder.createdAt, timeZone, "en")} • via {currentOrder.channel}
+          {interpolate(t.createdLine, {
+            date: formatDate(currentOrder.createdAt, timeZone, locale, "long"),
+            time: formatTime(currentOrder.createdAt, timeZone, locale),
+            channel: o.channels[currentOrder.channel],
+          })}
         </p>
       </div>
 
@@ -489,7 +513,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
           <span className="text-muted-foreground text-caption font-bold tracking-wider uppercase">
-            Guest &amp; Service
+            {t.guestService}
           </span>
           <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold capitalize">
             {currentOrder.serviceType === "pickup" ? (
@@ -497,7 +521,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             ) : (
               <Truck className="h-3 w-3" />
             )}
-            <span>{currentOrder.serviceType}</span>
+            <span>{o.service[currentOrder.serviceType]}</span>
           </span>
         </div>
 
@@ -505,7 +529,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           <h2 className="text-title-sm text-foreground mb-0.5">{currentOrder.guestName}</h2>
           <div className="mb-3 flex min-w-0 items-center gap-1.5 text-xs font-medium">
             <span className="text-muted-foreground shrink-0 tabular-nums">
-              {currentOrder.guestPhone ?? "No phone recorded"}
+              {currentOrder.guestPhone ?? t.noPhone}
             </span>
             {currentOrder.submittedName &&
               currentOrder.submittedName !== currentOrder.guestName && (
@@ -513,10 +537,10 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   <span className="text-muted-foreground/60 shrink-0">•</span>
                   <span
                     data-testid="order-submitted-name-badge"
-                    title={`Ordered as ${currentOrder.submittedName}`}
+                    title={interpolate(o.orderedAs, { name: currentOrder.submittedName })}
                     className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption min-w-0 truncate rounded border px-1.5 py-0.5 font-medium"
                   >
-                    Ordered as {currentOrder.submittedName}
+                    {interpolate(o.orderedAs, { name: currentOrder.submittedName })}
                   </span>
                 </>
               )}
@@ -531,7 +555,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 data-testid="call-guest-button"
               >
                 <Phone className="text-primary h-4 w-4" />
-                <span>Call</span>
+                <span>{t.call}</span>
               </a>
               {whatsappUrl && (
                 <a
@@ -542,7 +566,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   data-testid="whatsapp-guest-button"
                 >
                   <MessageSquare className="text-primary h-4 w-4" />
-                  <span>WhatsApp</span>
+                  <span>{t.whatsapp}</span>
                 </a>
               )}
             </div>
@@ -553,20 +577,25 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
                 <Clock className="h-3.5 w-3.5" />
-                <span>Deadline</span>
+                <span>{t.deadline}</span>
               </span>
               <span className="text-foreground font-bold tabular-nums">
-                {formatRequestedDateTime(currentOrder.requestedDate, currentOrder.requestedTime)}
+                {formatRequestedDateTime(
+                  currentOrder.requestedDate,
+                  currentOrder.requestedTime,
+                  locale,
+                  t,
+                )}
               </span>
             </div>
 
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
                 <PhoneCall className="h-3.5 w-3.5" />
-                <span>Channel</span>
+                <span>{t.channel}</span>
               </span>
               <span className="text-foreground font-semibold capitalize">
-                {currentOrder.channel} order
+                {o.channelOrders[currentOrder.channel]}
               </span>
             </div>
 
@@ -575,7 +604,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               <div className="border-border/60 flex items-start justify-between gap-2 border-t pt-1">
                 <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1.5 font-medium">
                   <MapPin className="h-3.5 w-3.5" />
-                  <span>Address</span>
+                  <span>{t.address}</span>
                 </span>
                 <span className="text-foreground text-right font-semibold">
                   {currentOrder.deliveryAddress}
@@ -593,13 +622,15 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
           <div className="flex items-center gap-2">
-            <h2 className="text-title-sm text-foreground">Order Items</h2>
+            <h2 className="text-title-sm text-foreground">{t.orderItems}</h2>
             <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums">
-              {currentOrder.items.reduce((s, it) => s + it.quantity, 0)} items
+              {interpolate(t.itemsCount, {
+                count: currentOrder.items.reduce((s, it) => s + it.quantity, 0),
+              })}
             </span>
           </div>
           <span className="text-muted-foreground text-xs font-medium">
-            Ticket #{currentOrder.orderNumber ?? "—"}
+            {interpolate(t.ticket, { number: currentOrder.orderNumber ?? "—" })}
           </span>
         </div>
 
@@ -617,12 +648,12 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 <div>
                   <p className="text-foreground text-sm font-semibold">{item.productName}</p>
                   <p className="text-muted-foreground text-xs tabular-nums">
-                    Unit {formatMoney(item.unitPrice)}
+                    {interpolate(t.unitPrice, { price: formatMoney(item.unitPrice, locale) })}
                   </p>
                 </div>
               </div>
               <span className="text-foreground text-sm font-bold tabular-nums">
-                {formatMoney(item.totalPrice)}
+                {formatMoney(item.totalPrice, locale)}
               </span>
             </div>
           ))}
@@ -633,7 +664,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 my-2.5 flex items-center gap-2 rounded-lg border p-2 text-xs">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>
-              <strong className="font-semibold">Kitchen note:</strong> {currentOrder.notes}
+              <strong className="font-semibold">{t.kitchenNote}</strong> {currentOrder.notes}
             </span>
           </div>
         )}
@@ -641,21 +672,21 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         {/* Price Breakdown with Subtotal, VAT tax, and Total */}
         <div className="border-border/60 space-y-1.5 border-t pt-2.5 text-xs">
           <div className="text-muted-foreground flex items-center justify-between">
-            <span>Subtotal</span>
+            <span>{t.subtotal}</span>
             <span className="text-foreground font-medium tabular-nums">
-              {formatMoney(subtotal)}
+              {formatMoney(subtotal, locale)}
             </span>
           </div>
           <div className="text-muted-foreground flex items-center justify-between">
-            <span>Tax (incl. VAT)</span>
+            <span>{t.tax}</span>
             <span className="text-foreground font-medium tabular-nums">
-              {formatMoney(includedTax)}
+              {formatMoney(includedTax, locale)}
             </span>
           </div>
           <div className="border-border/60 flex items-center justify-between border-t pt-2">
-            <span className="text-foreground text-sm font-bold">Total</span>
+            <span className="text-foreground text-sm font-bold">{t.total}</span>
             <span className="text-foreground text-base font-bold tabular-nums">
-              {formatMoney(currentOrder.totalAmount)}
+              {formatMoney(currentOrder.totalAmount, locale)}
             </span>
           </div>
         </div>
@@ -668,7 +699,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       >
         <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
           <span className="text-muted-foreground text-caption font-bold tracking-wider uppercase">
-            Payment
+            {t.paymentTitle}
           </span>
           {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" ? (
             <Badge
@@ -677,7 +708,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               data-testid="refund-due-badge"
             >
               <AlertCircle className="h-3 w-3" />
-              Refund Due
+              {o.payment.refundDue}
             </Badge>
           ) : currentOrder.paid === "paid" ? (
             <Badge
@@ -685,7 +716,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
             >
               <CheckCircle2 className="h-3 w-3" />
-              Paid
+              {o.payment.paid}
             </Badge>
           ) : currentOrder.paid === "refunded" ? (
             <Badge
@@ -694,7 +725,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               data-testid="refunded-badge"
             >
               <CheckCircle2 className="h-3 w-3" />
-              Refunded
+              {o.payment.refunded}
             </Badge>
           ) : (
             <Badge
@@ -702,38 +733,44 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               className="gap-1 py-0.5 text-xs font-bold tracking-wide uppercase"
             >
               <AlertCircle className="h-3 w-3" />
-              Unpaid
+              {o.payment.unpaid}
             </Badge>
           )}
         </div>
 
         <div className="space-y-2.5 pt-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground font-medium">Method requested</span>
+            <span className="text-muted-foreground font-medium">{t.methodRequested}</span>
             <div className="text-foreground inline-flex items-center gap-1.5 font-semibold uppercase">
               <CreditCard className="text-primary h-3.5 w-3.5" />
-              <span>{currentOrder.paymentPreference.replace("_", " ")}</span>
+              <span>{o.paymentPreferences[currentOrder.paymentPreference]}</span>
             </div>
           </div>
 
           {currentOrder.paid === "paid" && currentOrder.paymentMethod && (
             <div className="text-muted-foreground flex items-center justify-between text-xs">
-              <span>Settled via</span>
+              <span>{t.settledVia}</span>
               <span className="text-foreground font-medium capitalize">
-                {currentOrder.paymentMethod}
+                {o.paymentMethods[currentOrder.paymentMethod]}
                 {currentOrder.paidAt &&
-                  ` on ${formatDate(currentOrder.paidAt, timeZone, "en", "short")} at ${formatTime(currentOrder.paidAt, timeZone, "en")}`}
+                  interpolate(t.onAt, {
+                    date: formatDate(currentOrder.paidAt, timeZone, locale, "short"),
+                    time: formatTime(currentOrder.paidAt, timeZone, locale),
+                  })}
               </span>
             </div>
           )}
 
           {currentOrder.paid === "refunded" && (
             <div className="text-muted-foreground flex items-center justify-between text-xs">
-              <span>Settlement</span>
+              <span>{t.settlement}</span>
               <span className="text-foreground font-medium capitalize">
-                Refunded
+                {t.refundedLabel}
                 {currentOrder.refundedAt &&
-                  ` on ${formatDate(currentOrder.refundedAt, timeZone, "en", "short")} at ${formatTime(currentOrder.refundedAt, timeZone, "en")}`}
+                  interpolate(t.onAt, {
+                    date: formatDate(currentOrder.refundedAt, timeZone, locale, "short"),
+                    time: formatTime(currentOrder.refundedAt, timeZone, locale),
+                  })}
               </span>
             </div>
           )}
@@ -742,7 +779,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex flex-col gap-2 rounded-lg border p-2.5 text-xs">
               <div className="flex items-center gap-1.5 font-semibold">
                 <AlertCircle className="text-warning h-4 w-4 shrink-0" />
-                <span>Order was paid before cancellation. Refund required.</span>
+                <span>{t.paidBeforeCancel}</span>
               </div>
               <Button
                 type="button"
@@ -754,7 +791,11 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 data-testid="record-refund-cta"
               >
                 <CreditCard className="h-4 w-4" />
-                <span>Record refund ({formatMoney(currentOrder.totalAmount)})</span>
+                <span>
+                  {interpolate(t.recordRefund, {
+                    amount: formatMoney(currentOrder.totalAmount, locale),
+                  })}
+                </span>
               </Button>
               {refundDisabledReason && (
                 <p
@@ -781,7 +822,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 data-testid="post-completion-refund-button"
               >
                 <CreditCard className="h-3.5 w-3.5" />
-                <span>Record refund (customer dispute)</span>
+                <span>{t.recordRefundDispute}</span>
               </Button>
               {refundDisabledReason && (
                 <p
@@ -809,7 +850,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   data-testid="mark-unpaid-button"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  <span>Mark as unpaid (undo)</span>
+                  <span>{t.markUnpaid}</span>
                 </Button>
               </div>
             )}
@@ -826,7 +867,11 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               data-testid="record-payment-button"
             >
               <CreditCard className="h-4 w-4" />
-              <span>Record payment ({formatMoney(currentOrder.totalAmount)})</span>
+              <span>
+                {interpolate(t.recordPayment, {
+                  amount: formatMoney(currentOrder.totalAmount, locale),
+                })}
+              </span>
             </Button>
           )}
         </div>
@@ -838,9 +883,9 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
         data-testid="order-timeline-card"
       >
         <div className="border-border/60 mb-2.5 flex items-center justify-between border-b pb-2.5">
-          <h2 className="text-title-sm text-foreground">Order Timeline</h2>
+          <h2 className="text-title-sm text-foreground">{t.timelineTitle}</h2>
           <span className="text-muted-foreground text-xs font-medium tabular-nums">
-            Status: {currentOrder.status}
+            {interpolate(t.statusLine, { status: o.status[currentOrder.status] })}
           </span>
         </div>
 
@@ -889,7 +934,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                           : "text-muted-foreground",
                       )}
                     >
-                      ({step.status})
+                      ({o.status[step.status as OrderStatus]})
                     </span>
                   </p>
                   <span
@@ -936,7 +981,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           {isReadyNotPaid && (
             <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption flex items-center gap-1.5 rounded-lg border p-2 font-semibold">
               <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
-              <span>Payment required before completing order handover</span>
+              <span>{t.paymentRequired}</span>
             </div>
           )}
 
@@ -951,7 +996,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   data-testid="accept-order-button"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Accept order</span>
+                  <span>{t.acceptOrder}</span>
                 </Button>
                 <Button
                   type="button"
@@ -966,7 +1011,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   data-testid="reject-order-button"
                 >
                   <Ban className="h-4 w-4" />
-                  <span>Reject order</span>
+                  <span>{t.rejectOrder}</span>
                 </Button>
               </>
             ) : isReadyUnpaid ? (
@@ -981,7 +1026,11 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 data-testid="mark-paid-and-complete-button"
               >
                 <Check className="h-4 w-4" />
-                <span>Mark paid & complete ({formatMoney(currentOrder.totalAmount)})</span>
+                <span>
+                  {interpolate(t.markPaidComplete, {
+                    amount: formatMoney(currentOrder.totalAmount, locale),
+                  })}
+                </span>
               </Button>
             ) : nextStep ? (
               <Button
@@ -1006,7 +1055,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 data-testid="cancel-order-button"
               >
                 <Ban className="h-4 w-4" />
-                <span>Cancel</span>
+                <span>{t.cancel}</span>
               </Button>
             )}
           </div>
@@ -1017,16 +1066,15 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent data-testid="reject-order-dialog">
           <DialogHeader>
-            <DialogTitle>Reject Order #{currentOrder.orderNumber}</DialogTitle>
-            <DialogDescription>
-              Rejecting this order will cancel it and restore reserved items back to inventory.
-              Please specify the reason for the customer.
-            </DialogDescription>
+            <DialogTitle>
+              {interpolate(t.reject.title, { number: currentOrder.orderNumber ?? "" })}
+            </DialogTitle>
+            <DialogDescription>{t.reject.description}</DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-2 py-2">
             <label htmlFor="reject-reason-input" className="text-foreground text-xs font-semibold">
-              Rejection Reason <span className="text-destructive">*</span>
+              {t.reject.reasonLabel} <span className="text-destructive">*</span>
             </label>
             <Textarea
               id="reject-reason-input"
@@ -1037,7 +1085,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                   setRejectionError(null);
                 }
               }}
-              placeholder="e.g. Kitchen at capacity, item unavailable, outside delivery area..."
+              placeholder={t.reject.placeholder}
               className="text-xs"
               data-testid="reject-reason-input"
             />
@@ -1055,7 +1103,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               onClick={() => setRejectDialogOpen(false)}
               disabled={isSubmitting}
             >
-              Keep order
+              {t.reject.keep}
             </Button>
             <Button
               type="button"
@@ -1064,7 +1112,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               disabled={isSubmitting || !rejectionReason.trim()}
               data-testid="confirm-reject-button"
             >
-              {isSubmitting ? "Rejecting..." : "Confirm rejection"}
+              {isSubmitting ? t.reject.submitting : t.reject.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1074,11 +1122,10 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent data-testid="cancel-order-dialog">
           <DialogHeader>
-            <DialogTitle>Cancel Order #{currentOrder.orderNumber}</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel this order? This will release reserved stock back into
-              inventory.
-            </DialogDescription>
+            <DialogTitle>
+              {interpolate(t.cancelDialog.title, { number: currentOrder.orderNumber ?? "" })}
+            </DialogTitle>
+            <DialogDescription>{t.cancelDialog.description}</DialogDescription>
           </DialogHeader>
 
           {currentOrder.paid === "paid" && (
@@ -1089,14 +1136,17 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
               <div className="flex flex-col gap-0.5">
                 <span>
-                  This order was marked as paid ({formatMoney(currentOrder.totalAmount)}{" "}
-                  {currentOrder.paymentMethod
-                    ? `via ${currentOrder.paymentMethod.charAt(0).toUpperCase() + currentOrder.paymentMethod.slice(1)}`
-                    : ""}
-                  ).
-                </span>
-                <span className="text-muted-foreground font-normal">
-                  Please remember to issue a refund manually to the customer.
+                  {interpolate(
+                    currentOrder.paymentMethod
+                      ? t.cancelDialog.paidWarningVia
+                      : t.cancelDialog.paidWarning,
+                    {
+                      amount: formatMoney(currentOrder.totalAmount, locale),
+                      method: currentOrder.paymentMethod
+                        ? o.paymentMethods[currentOrder.paymentMethod]
+                        : "",
+                    },
+                  )}
                 </span>
               </div>
             </div>
@@ -1104,12 +1154,12 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
 
           <div className="flex flex-col gap-2 py-2">
             <label className="text-foreground text-xs font-semibold">
-              Cancellation Reason (optional)
+              {t.cancelDialog.reasonLabel}
             </label>
             <Textarea
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
-              placeholder="e.g. Customer requested, kitchen issue..."
+              placeholder={t.cancelDialog.placeholder}
               className="text-xs"
               data-testid="cancel-reason-input"
             />
@@ -1122,7 +1172,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               onClick={() => setCancelDialogOpen(false)}
               disabled={isSubmitting}
             >
-              Keep order
+              {t.cancelDialog.keep}
             </Button>
             <Button
               type="button"
@@ -1131,7 +1181,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               disabled={isSubmitting}
               data-testid="confirm-cancel-button"
             >
-              {isSubmitting ? "Cancelling..." : "Confirm cancellation"}
+              {isSubmitting ? t.cancelDialog.submitting : t.cancelDialog.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1149,11 +1199,17 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           <DialogHeader>
             <DialogTitle>
               {paymentDialogMode === "shortcut"
-                ? `Mark Paid & Complete Order #${currentOrder.orderNumber}`
-                : `Record Payment for Order #${currentOrder.orderNumber}`}
+                ? interpolate(t.paymentDialog.titleShortcut, {
+                    number: currentOrder.orderNumber ?? "",
+                  })
+                : interpolate(t.paymentDialog.titleRecord, {
+                    number: currentOrder.orderNumber ?? "",
+                  })}
             </DialogTitle>
             <DialogDescription>
-              Select payment method used for {formatMoney(currentOrder.totalAmount)}
+              {interpolate(t.paymentDialog.description, {
+                amount: formatMoney(currentOrder.totalAmount, locale),
+              })}
             </DialogDescription>
           </DialogHeader>
 
@@ -1173,7 +1229,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 )}
                 data-testid={`payment-method-${method}`}
               >
-                <span>{method}</span>
+                <span>{o.paymentMethods[method]}</span>
                 {selectedPaymentMethod === method && <Check className="h-4 w-4" />}
               </Button>
             ))}
@@ -1186,7 +1242,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               onClick={() => setPaymentDialogOpen(false)}
               disabled={isSubmitting}
             >
-              Cancel
+              {t.paymentDialog.cancel}
             </Button>
             <Button
               type="button"
@@ -1195,7 +1251,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               disabled={isSubmitting}
               data-testid="confirm-payment-button"
             >
-              Confirm payment
+              {t.paymentDialog.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1205,20 +1261,24 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
         <DialogContent data-testid="record-refund-dialog">
           <DialogHeader>
-            <DialogTitle>Record Refund for Order #{currentOrder.orderNumber}</DialogTitle>
+            <DialogTitle>
+              {interpolate(t.refundDialog.title, { number: currentOrder.orderNumber ?? "" })}
+            </DialogTitle>
             <DialogDescription>
-              Confirm refund of {formatMoney(currentOrder.totalAmount)} returned to customer.
+              {interpolate(t.refundDialog.description, {
+                amount: formatMoney(currentOrder.totalAmount, locale),
+              })}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-2 py-2">
             <label className="text-foreground text-xs font-semibold">
-              Refund Reason (optional)
+              {t.refundDialog.reasonLabel}
             </label>
             <Textarea
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
-              placeholder="e.g. Order cancelled, quality dispute, item missing..."
+              placeholder={t.refundDialog.placeholder}
               className="text-xs"
               data-testid="refund-reason-input"
             />
@@ -1231,7 +1291,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               onClick={() => setRefundDialogOpen(false)}
               disabled={isSubmitting}
             >
-              Cancel
+              {t.paymentDialog.cancel}
             </Button>
             <Button
               type="button"
@@ -1240,7 +1300,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               disabled={isSubmitting}
               data-testid="confirm-refund-button"
             >
-              {isSubmitting ? "Recording..." : "Confirm refund"}
+              {isSubmitting ? t.refundDialog.submitting : t.refundDialog.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>

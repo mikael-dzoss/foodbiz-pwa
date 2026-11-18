@@ -14,6 +14,8 @@ import {
 import { listOrdersAction } from "../order-actions";
 import type { EnrichedOrder } from "../order-data";
 import { playOrderChime } from "./sound-chime";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface OrderAlertsContextValue {
   newOrdersCount: number;
@@ -57,6 +59,8 @@ export function OrderAlertsProvider({
 }: OrderAlertsProviderProps) {
   const router = useRouter();
   const { showToast } = useSafeToast();
+  const { locale, dict } = useManagerLocale();
+  const alertsText = dict.orders.alerts;
   const [newOrdersCount, setNewOrdersCount] = React.useState(initialNewCount);
   const [soundAlerts, setSoundAlerts] = React.useState(initialSoundAlerts);
   const [isConnected, setIsConnected] = React.useState(false);
@@ -74,11 +78,13 @@ export function OrderAlertsProvider({
     (order: EnrichedOrder) => {
       // 1. Toast notification with action
       const orderRef = order.orderNumber ? `#${order.orderNumber}` : "";
-      const totalText = order.totalAmount ? ` (${formatMoney(order.totalAmount)})` : "";
-      const guestText = order.guestName ? ` from ${order.guestName}` : "";
+      const totalText = order.totalAmount ? ` (${formatMoney(order.totalAmount, locale)})` : "";
+      const guestText = order.guestName
+        ? ` ${interpolate(alertsText.from, { name: order.guestName })}`
+        : "";
 
-      showToast(`New Order ${orderRef}${guestText}${totalText}`, 6000, {
-        label: "View",
+      showToast(`${alertsText.newOrder} ${orderRef}${guestText}${totalText}`, 6000, {
+        label: alertsText.view,
         onClick: () => {
           clearNewOrdersBadge();
           router.push(`/manage/orders/${order.id}`);
@@ -93,7 +99,7 @@ export function OrderAlertsProvider({
       // 3. Increment badge
       setNewOrdersCount((prev) => prev + 1);
     },
-    [showToast, soundAlerts, router, clearNewOrdersBadge],
+    [showToast, soundAlerts, router, clearNewOrdersBadge, locale, alertsText],
   );
 
   const checkForNewOrders = React.useCallback(async () => {

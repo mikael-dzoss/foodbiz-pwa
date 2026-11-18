@@ -20,7 +20,12 @@ describe.each(["light", "dark"])("%s component accessibility", (theme) => {
         <Textarea id="notes" />
         <Checkbox aria-label="Paid" />
         <Switch aria-label="Visible on menu" />
-        <QuantityStepper value={1} onChange={() => {}} />
+        <QuantityStepper
+          value={1}
+          onChange={() => {}}
+          decreaseLabel="Decrease quantity"
+          increaseLabel="Increase quantity"
+        />
         <Button>Save</Button>
       </main>,
     );

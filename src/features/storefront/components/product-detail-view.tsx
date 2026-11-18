@@ -7,7 +7,12 @@ import { ShoppingBag, Check, UtensilsCrossed, Lightbulb } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { AddOnCandidates } from "@/domain/add-ons";
 import type { StorefrontProduct } from "@/domain/storefront-product";
-import { getDictionary, type SupportedLocale, type StorefrontDictionary } from "@/domain/i18n";
+import {
+  getDictionary,
+  interpolate,
+  type SupportedLocale,
+  type StorefrontDictionary,
+} from "@/domain/i18n";
 import { ActionBar } from "@/components/ui/action-bar";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import type { StorefrontProductData } from "../catalog-data";
@@ -175,7 +180,10 @@ export function ProductDetailView({
             ) : (
               <>
                 <span>{dict.inStock}</span>
-                <span className="opacity-80"> · {product.stock} available</span>
+                <span className="opacity-80">
+                  {" "}
+                  · {interpolate(dict.stockAvailable, { count: product.stock })}
+                </span>
               </>
             )}
           </span>
@@ -236,7 +244,7 @@ export function ProductDetailView({
       {currentCartQty > 0 && (
         <div className="border-border bg-muted mt-2 flex items-center justify-between rounded-lg border p-3 text-xs">
           <span className="text-muted-foreground font-medium">
-            Currently in your cart: <strong className="text-foreground">{currentCartQty}</strong>
+            {interpolate(dict.inCartNow, { count: currentCartQty })}
           </span>
           <Link href={`/${locale}/cart`} className="text-primary font-semibold hover:underline">
             {dict.viewCart} →
@@ -245,12 +253,14 @@ export function ProductDetailView({
       )}
 
       {/* Sticky Bottom Action Bar with Stepper & Add Button (Stitch C-02) */}
-      <ActionBar placement="bottom" role="complementary" aria-label="Purchase actions">
+      <ActionBar placement="bottom" role="complementary" aria-label={dict.purchaseActions}>
         {/* Quantity Stepper */}
         <div className="shrink-0">
           <QuantityStepper
             value={quantity}
             onChange={setQuantity}
+            decreaseLabel={getDictionary(locale).common.decreaseQuantity}
+            increaseLabel={getDictionary(locale).common.increaseQuantity}
             min={1}
             max={Math.max(1, product.stock)}
             disabled={!canOrder}

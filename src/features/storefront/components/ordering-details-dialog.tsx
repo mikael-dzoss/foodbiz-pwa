@@ -60,6 +60,7 @@ export function OrderingDetailsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        closeLabel={dict.dismiss}
         data-testid="ordering-details-dialog"
         className="animate-pop-in w-screen-gutter max-w-sm gap-4 rounded-2xl p-5"
       >

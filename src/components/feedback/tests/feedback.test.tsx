@@ -89,7 +89,13 @@ describe("Feedback Components & States (#33, #34)", () => {
     it("renders error message and triggers retry", () => {
       const handleRetry = vi.fn();
       render(
-        <ErrorState data-testid="error" message="Failed to load orders." onRetry={handleRetry} />,
+        <ErrorState
+          data-testid="error"
+          title="Something went wrong"
+          message="Failed to load orders."
+          onRetry={handleRetry}
+          retryLabel="Try again"
+        />,
       );
 
       expect(screen.getByText("Something went wrong")).toBeDefined();

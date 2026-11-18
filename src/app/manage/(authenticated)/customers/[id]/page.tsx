@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { getCustomer } from "@/features/customers/customer-data";
 import { CustomerDetail } from "@/features/customers/components/customer-detail";
 
@@ -11,8 +11,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const { id } = await params;
   const detail = await getCustomer(id);
   if (!detail) notFound();
-  const preference = (await cookies()).get("foodbiz_locale")?.value ?? DEFAULT_LOCALE;
-  const locale = isSupportedLocale(preference) ? preference : DEFAULT_LOCALE;
+  const locale = await getManagerLocale();
   return (
     <div className="mx-auto max-w-xl">
       <CustomerDetail

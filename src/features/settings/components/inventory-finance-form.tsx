@@ -21,6 +21,7 @@ import { SoonBadge } from "@/components/feedback";
 import { ActionBar, Button, Field, Input, useToast } from "@/components/ui";
 import { updateInventoryFinanceSettingsAction } from "../actions";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
 
 export interface InventoryFinanceFormProps {
   settings: BusinessSettings;
@@ -29,6 +30,8 @@ export interface InventoryFinanceFormProps {
 
 export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormProps) {
   const { showToast, showError } = useToast();
+  const { locale: managerLocale, dict: managerDict } = useManagerLocale();
+  const x = managerDict.settingsExtra;
   type SaveResult = Awaited<ReturnType<typeof updateInventoryFinanceSettingsAction>> | null;
   const [dismissed, setDismissed] = useState<SaveResult>(null);
 
@@ -48,7 +51,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
     setTaxPercentage(settings.taxPercentage ?? 0);
     setDateFormat(settings.dateFormat ?? "DD/MM/YYYY");
     setDismissed(result);
-    showToast("Changes discarded");
+    showToast(x.discarded);
   };
 
   const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
@@ -62,7 +65,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
     if (res.ok) {
       showToast(dict.inventoryFinance.saveSuccess);
     } else {
-      showError(actionErrorMessage(res));
+      showError(actionErrorMessage(res, managerLocale));
     }
     return res;
   }, null);
@@ -86,7 +89,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
           <span>{dict.title}</span>
         </Link>
         <span className="text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 text-xs font-medium">
-          M-65
+          {"M-65"}
         </span>
       </div>
 
@@ -144,7 +147,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
                     {dict.inventoryFinance.manageCategoriesButton}
                   </span>
                   <span className="text-muted-foreground block text-xs">
-                    Reorder and organize storefront menu categories
+                    {x.soon.categoriesReorder}
                   </span>
                 </div>
               </div>
@@ -181,8 +184,8 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
               {dict.inventoryFinance.currencyHelper}
             </p>
             <div className="bg-muted/40 border-border text-foreground mt-2 flex items-center justify-between rounded-xl border px-3 py-2 text-sm font-medium">
-              <span>Euro (€)</span>
-              <span className="text-muted-foreground font-mono text-xs">ISO 4217: EUR</span>
+              <span>{x.euro}</span>
+              <span className="text-muted-foreground font-mono text-xs">{x.isoLine}</span>
             </div>
           </div>
 
@@ -236,10 +239,10 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Multi-Currency Support
+                  {x.soon.multiCurrencyTitle}
                 </span>
                 <span className="text-muted-foreground block text-xs">
-                  Accept GBP, USD and Swiss Francs
+                  {x.soon.multiCurrencyDesc}
                 </span>
               </div>
             </div>
@@ -255,11 +258,9 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Custom Expense Tags
+                  {x.soon.customTagsTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Create custom accounting allocation buckets
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.customTagsDesc}</span>
               </div>
             </div>
             {/* TODO(expenses): wire dynamic custom expense tags (#73) */}
@@ -274,11 +275,9 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  CSV Product & Order Export
+                  {x.soon.csvExportTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Spreadsheet dumps for accounting and inventory audits
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.csvExportDesc}</span>
               </div>
             </div>
             {/* TODO(analytics): wire CSV accounting exporter (#73) */}
@@ -293,11 +292,9 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
               </div>
               <div>
                 <span className="text-foreground block text-sm font-medium">
-                  Product Sizes & Combo Menus
+                  {x.soon.sizesComboTitle}
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Variants, formulas and bundle pricing
-                </span>
+                <span className="text-muted-foreground block text-xs">{x.soon.sizesComboDesc}</span>
               </div>
             </div>
             {/* TODO(catalog): wire product size variants (#73) */}

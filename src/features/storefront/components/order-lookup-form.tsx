@@ -42,7 +42,7 @@ export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) 
         <input type="hidden" name="locale" value={locale} />
         {/* Honeypot: hidden from people and assistive tech */}
         <div className="hidden" aria-hidden="true">
-          <label htmlFor="order-lookup-website">Website</label>
+          <label htmlFor="order-lookup-website">{dict.honeypotLabel}</label>
           <input
             id="order-lookup-website"
             name="website"

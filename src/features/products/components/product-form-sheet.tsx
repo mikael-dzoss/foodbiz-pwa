@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ChangeEvent } from "react";
 import { allergenSchema, type Allergen } from "@/domain/allergen";
-import { getDictionary, type ProductsDictionary } from "@/domain/i18n";
+import { type ProductsDictionary } from "@/domain/i18n";
 import Image from "next/image";
 import { Camera, Check, Loader2, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -19,6 +19,7 @@ import {
   productFormInputSchema,
   type ProductCategory,
   type Product,
+  formatPercent,
 } from "@/domain";
 import {
   createProductAction,
@@ -28,6 +29,8 @@ import {
 import type { EnrichedProduct } from "../product-data";
 import { compressImageFile } from "../utils/image-compression";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
 
 export interface ProductFormSheetProps {
   product?: EnrichedProduct | null;
@@ -46,9 +49,12 @@ export function ProductFormSheet({
   onOpenChange,
   onProductSaved,
   lowStockThreshold = 5,
-  dict = getDictionary().products,
+  dict: dictOverride,
 }: ProductFormSheetProps) {
   const isEditing = Boolean(product);
+  const { locale, dict: managerDict } = useManagerLocale();
+  const dict = dictOverride ?? managerDict.products;
+  const t = managerDict.productsAdmin.form;
 
   const [prevProduct, setPrevProduct] = useState<EnrichedProduct | null>(product ?? null);
   const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
@@ -107,6 +113,10 @@ export function ProductFormSheet({
     }
   }
 
+  // Server and schema messages are English: show a localized message per field instead.
+  const fieldMessage = (field: string): string =>
+    (t.errors as Record<string, string>)[field] ?? t.errors.invalid;
+
   // Live gross margin preview
   const priceInCents = parseEuroStringToCents(priceStr) || 0;
   const costInCents = parseEuroStringToCents(unitCostStr) || 0;
@@ -136,10 +146,10 @@ export function ProductFormSheet({
       if (res.ok) {
         setImageUrl(res.data.imageUrl);
       } else {
-        setGeneralError(actionErrorMessage(res));
+        setGeneralError(actionErrorMessage(res, locale));
       }
-    } catch (err) {
-      setGeneralError(err instanceof Error ? err.message : "Error compressing image");
+    } catch {
+      setGeneralError(t.compressError);
     } finally {
       setIsUploadingImage(false);
     }
@@ -170,7 +180,7 @@ export function ProductFormSheet({
       for (const issue of clientValidation.error.issues) {
         const field = issue.path[0] ? String(issue.path[0]) : "general";
         if (!errors[field]) errors[field] = [];
-        errors[field].push(issue.message);
+        errors[field].push(fieldMessage(field));
       }
       setFieldErrors(errors);
       return null;
@@ -188,9 +198,13 @@ export function ProductFormSheet({
       onProductSaved?.(res.data);
       onOpenChange(false);
     } else {
-      setGeneralError(actionErrorMessage(res));
+      setGeneralError(actionErrorMessage(res, locale));
       if (res.fieldErrors) {
-        setFieldErrors(res.fieldErrors);
+        setFieldErrors(
+          Object.fromEntries(
+            Object.keys(res.fieldErrors).map((field) => [field, [fieldMessage(field)]]),
+          ),
+        );
       }
     }
     return null;
@@ -205,18 +219,16 @@ export function ProductFormSheet({
       >
         <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
           <SheetTitle className="text-foreground">
-            {isEditing ? "Edit Product" : "Add Product"}
+            {isEditing ? t.titleEdit : t.titleNew}
           </SheetTitle>
-          <p className="text-muted-foreground text-xs font-medium">
-            Manage item details, pricing & stock
-          </p>
+          <p className="text-muted-foreground text-xs font-medium">{t.subtitle}</p>
         </SheetHeader>
 
         <form action={formAction} className="space-y-5 px-5 py-4">
           {/* Section 1: Product Photo Upload */}
           <div className="space-y-2">
             <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-              Product Photo
+              {t.photo}
             </span>
 
             <div className="border-border bg-card flex items-center gap-4 rounded-lg border p-3.5">
@@ -224,7 +236,7 @@ export function ProductFormSheet({
                 {imageUrl ? (
                   <Image
                     src={imageUrl}
-                    alt={name || "Product photo"}
+                    alt={name || t.photoAlt}
                     fill
                     sizes="80px"
                     unoptimized={imageUrl.startsWith("data:")}
@@ -241,14 +253,12 @@ export function ProductFormSheet({
               </div>
 
               <div className="flex-1 space-y-1.5">
-                <p className="text-foreground text-xs font-semibold">Upload & compress image</p>
-                <p className="text-muted-foreground text-caption">
-                  PNG, JPG up to 5MB. Automatically resized.
-                </p>
+                <p className="text-foreground text-xs font-semibold">{t.uploadTitle}</p>
+                <p className="text-muted-foreground text-caption">{t.uploadHint}</p>
 
                 <div className="flex items-center gap-2 pt-1">
                   <label className="bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80 inline-flex h-8 cursor-pointer items-center rounded-md px-3 text-xs font-medium transition-colors">
-                    <span>{imageUrl ? "Change photo" : "Select photo"}</span>
+                    <span>{imageUrl ? t.changePhoto : t.selectPhoto}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -266,9 +276,9 @@ export function ProductFormSheet({
                       size="sm"
                       onClick={handleRemoveImage}
                       className="text-destructive hover:bg-destructive/10 h-8 px-2 text-xs"
-                      aria-label="Remove image"
+                      aria-label={t.removeImage}
                     >
-                      <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
+                      <Trash2 className="mr-1 h-3.5 w-3.5" /> {t.remove}
                     </Button>
                   )}
                 </div>
@@ -280,18 +290,18 @@ export function ProductFormSheet({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-                General Information
+                {t.general}
               </span>
-              <span className="text-muted-foreground text-caption">* Required</span>
+              <span className="text-muted-foreground text-caption">{t.required}</span>
             </div>
 
             {/* Product Name */}
-            <Field id="product-name" label="Product name" required error={fieldErrors.name?.[0]}>
+            <Field id="product-name" label={t.nameLabel} required error={fieldErrors.name?.[0]}>
               <Input
                 name="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Burger Gourmet"
+                placeholder={t.namePlaceholder}
                 className="h-11 text-sm font-medium"
                 data-testid="product-name-input"
                 required
@@ -301,7 +311,7 @@ export function ProductFormSheet({
             {/* Category */}
             <Field
               id="product-category"
-              label="Category"
+              label={t.categoryLabel}
               required
               error={fieldErrors.categoryId?.[0]}
             >
@@ -322,12 +332,12 @@ export function ProductFormSheet({
             </Field>
 
             {/* Description */}
-            <Field id="product-description" label="Description (optional)">
+            <Field id="product-description" label={t.descriptionLabel}>
               <Textarea
                 name="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ingredients, allergens, details..."
+                placeholder={t.descriptionPlaceholder}
                 rows={3}
                 className="text-sm font-normal"
                 data-testid="product-description-input"
@@ -373,11 +383,11 @@ export function ProductFormSheet({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-                Pricing & Margin
+                {t.pricing}
               </span>
               {priceInCents > 0 && (
                 <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold">
-                  {grossMargin}% margin
+                  {interpolate(t.margin, { percent: formatPercent(grossMargin, locale) })}
                 </span>
               )}
             </div>
@@ -385,7 +395,7 @@ export function ProductFormSheet({
             <div className="grid grid-cols-2 gap-3">
               <Field
                 id="product-price"
-                label="Selling price (€)"
+                label={t.priceLabel}
                 required
                 error={fieldErrors.price?.[0]}
               >
@@ -400,7 +410,11 @@ export function ProductFormSheet({
                 />
               </Field>
 
-              <Field id="product-unit-cost" label="Unit cost (€)" error={fieldErrors.unitCost?.[0]}>
+              <Field
+                id="product-unit-cost"
+                label={t.unitCostLabel}
+                error={fieldErrors.unitCost?.[0]}
+              >
                 <Input
                   name="unitCost"
                   value={unitCostStr}
@@ -418,10 +432,10 @@ export function ProductFormSheet({
             <div className="flex items-center justify-between">
               <div>
                 <label htmlFor="product-stock" className="text-foreground text-xs font-semibold">
-                  {isEditing ? "Current Stock" : "Initial Stock"}
+                  {isEditing ? t.stockCurrent : t.stockInitial}
                 </label>
                 <p className="text-muted-foreground text-caption">
-                  Alert threshold set at {lowStockThreshold} units
+                  {interpolate(t.alertThreshold, { count: lowStockThreshold })}
                 </p>
               </div>
 
@@ -432,7 +446,7 @@ export function ProductFormSheet({
                   size="icon"
                   onClick={() => setStock((prev) => Math.max(0, prev - 1))}
                   className="text-foreground h-9 w-9"
-                  aria-label="Decrease stock"
+                  aria-label={t.decreaseStock}
                 >
                   -
                 </Button>
@@ -452,7 +466,7 @@ export function ProductFormSheet({
                   size="icon"
                   onClick={() => setStock((prev) => prev + 1)}
                   className="text-foreground h-9 w-9"
-                  aria-label="Increase stock"
+                  aria-label={t.increaseStock}
                 >
                   +
                 </Button>
@@ -463,15 +477,13 @@ export function ProductFormSheet({
           {/* Section 5: Visibility Toggle */}
           <div className="border-border bg-card flex items-center justify-between rounded-lg border p-3.5">
             <div>
-              <span className="text-foreground text-xs font-semibold">Visible on menu</span>
-              <p className="text-muted-foreground text-caption">
-                Customers can see and order this item on the storefront
-              </p>
+              <span className="text-foreground text-xs font-semibold">{t.visibleLabel}</span>
+              <p className="text-muted-foreground text-caption">{t.visibleHelper}</p>
             </div>
             <Switch
               checked={visible}
               onCheckedChange={setVisible}
-              aria-label="Visible on menu"
+              aria-label={t.visibleLabel}
               data-testid="product-visibility-switch"
             />
           </div>
@@ -517,7 +529,7 @@ export function ProductFormSheet({
               disabled={isPending}
               className="h-12 flex-1 font-semibold"
             >
-              Cancel
+              {t.cancel}
             </Button>
             <Button
               type="submit"
@@ -530,7 +542,7 @@ export function ProductFormSheet({
               ) : (
                 <Check className="mr-2 h-5 w-5" />
               )}
-              {isEditing ? "Save Changes" : "Save Product"}
+              {isEditing ? t.saveChanges : t.save}
             </Button>
           </div>
         </form>

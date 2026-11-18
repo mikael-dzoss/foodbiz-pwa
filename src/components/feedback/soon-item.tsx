@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FeatureKey, emitFeatureInterest, getFeature } from "@/domain/features";
+import { useManagerLocale } from "@/components/i18n";
 import { useToast } from "@/components/ui";
 import { SoonBadge } from "./soon-badge";
 
@@ -20,27 +21,31 @@ export function SoonItem({
   featureKey,
   title,
   description,
-  toastMessage = "Coming soon — we noted your interest",
+  toastMessage,
   leading,
   className,
   "data-testid": testId,
   ...props
 }: SoonItemProps) {
   const { showToast } = useToast();
+  const { manager } = useManagerLocale().dict;
   const def = getFeature(featureKey);
-  const displayTitle = title ?? def?.title ?? featureKey;
-  const displayDesc = description ?? def?.description;
+  const localized = (
+    manager.features as Partial<Record<FeatureKey, { title: string; description: string }>>
+  )[featureKey];
+  const displayTitle = title ?? localized?.title ?? def?.title ?? featureKey;
+  const displayDesc = description ?? localized?.description ?? def?.description;
 
   const handleClick = () => {
     emitFeatureInterest(featureKey, { timestamp: Date.now() });
-    showToast(toastMessage);
+    showToast(toastMessage ?? manager.comingSoonToast);
   };
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${displayTitle} (coming soon)`}
+      aria-label={`${displayTitle} (${manager.comingSoon})`}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
