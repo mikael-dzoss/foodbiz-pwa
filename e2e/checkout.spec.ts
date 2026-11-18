@@ -111,7 +111,9 @@ for (const [locale, method, recipient, phone] of [
       .click();
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
-      await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+      await page
+        .getByRole("button", { name: getDictionary(locale).common.increaseQuantity, exact: true })
+        .click();
     }
     await page.getByTestId("proceed-checkout-button").click();
     await page.getByTestId("checkout-name-input").fill(`E2E ${method} Guest`);
@@ -147,7 +149,9 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await page.goto("/en/cart");
   await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
   for (let i = 0; i < 3; i++) {
-    await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+    await page
+      .getByRole("button", { name: getDictionary(locale).common.increaseQuantity, exact: true })
+      .click();
   }
   await page.getByTestId("proceed-checkout-button").click();
   await page.getByTestId("checkout-name-input").fill("E2E Checkout Guest");
@@ -197,7 +201,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
       })
       .click();
     await manager.getByTestId("accept-order-button").click();
-    await expect(manager.getByTestId("order-detail-screen")).toContainText("CONFIRMED");
+    await expect(manager.getByTestId("order-detail-screen")).toContainText("Confirmed");
     await page.goto(trackingURL);
     await expect(page.getByTestId("tracking-status-badge")).toContainText("Confirmed");
     await expect(page.getByTestId("tracking-order-title")).toHaveText(ticket);
