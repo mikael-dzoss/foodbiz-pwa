@@ -148,9 +148,34 @@ What this suite proves (`src/lib/repositories/tests/supabase-live.contract.test.
 
 ### Browser and accessibility checks
 
-Install Chromium once with `npx playwright install --with-deps chromium`, then `npm run test:e2e` (or `test:e2e:ui`). Playwright starts its own mock-mode dev server at `http://127.0.0.1:3100` (stop other Next.js dev servers first); it never calls Supabase and mock auth is forbidden in production. The suite runs with one worker and no retries because the mock repositories are process-local; tests use unique names and do not depend on order.
+Install Chromium once with `npx playwright install --with-deps chromium`, then `npm run test:e2e` (or `test:e2e:ui`). Playwright starts its own mock-mode dev server at `http://127.0.0.1:3100` (stop other Next.js dev servers first); it never calls Supabase and mock auth is forbidden in production.
 
-Browser axe checks cover the storefront (EN/FR), manager sign-in, dashboard, products, orders, expenses and customers in light and dark. WCAG 2/2.1/2.2 A/AA violations, including contrast, fail the run; component axe tests in Vitest skip only the contrast rule (JSDOM cannot compute it). Automated checks supplement, but do not replace, keyboard and screen-reader testing. CI uploads `playwright-results` (report, screenshots, traces; seven days); locally use `npx playwright show-report`.
+#### Projects and tags
+
+| Project   | Viewport / device                | Runs                                                                 |
+| --------- | -------------------------------- | -------------------------------------------------------------------- |
+| `mobile`  | 390x844, Pixel 7 (touch, mobile) | the whole suite except tests tagged `@desktop-only`                  |
+| `desktop` | 1280x800, Desktop Chrome         | only tests tagged `@desktop` (also run on mobile) or `@desktop-only` |
+
+Mobile is the default; tag a test only where the layout really differs on a wide screen (sidebar vs bottom nav, action bar fixed vs static, centred storefront column, wide axe pass): `test("...", { tag: "@desktop" }, async ({ page, isMobile }) => ...)`. Use `@desktop-only` when the test cannot hold on a phone. A test that deliberately checks another width (360 px) keeps its own `test.use({ viewport })` or `setViewportSize`; do not set viewports for the two standard sizes.
+
+```bash
+npx playwright test --project=mobile            # phone suite
+npx playwright test --project=desktop           # wide-screen subset
+npx playwright test e2e/checkout.spec.ts --project=mobile
+npx playwright test -g "action bars" --project=desktop
+```
+
+#### Fixtures, state and waiting
+
+- Import `test`, `expect` and `signIn` from `e2e/fixtures.ts`, never from `@playwright/test` (types only). The auto fixture resets the mock data before every test with `POST /api/test/reset`, so tests start from the seed data and do not depend on order. `signIn(page)` signs in as the demo manager and retries the click until the redirect, since the first click can land before hydration on a cold dev server.
+- The hook (`src/app/api/test/reset/route.ts`, guard in `src/lib/test-hooks.ts`) answers only with `E2E_TEST_HOOKS=1` (set by the `webServer` env in `playwright.config.ts` and nowhere else), `DATA_SOURCE=mock`, and neither `NODE_ENV` nor `APP_ENV` equal to `production`; otherwise it is a plain 404. Mock data is already refused in production by `src/config/env.ts`, so the guard is a second lock. Never set `E2E_TEST_HOOKS` in `.env*` or on a deployment.
+- One worker, no `fullyParallel`: all tests share one dev server and one in-memory mock state, and the reset is global, so a second worker would wipe the first one's data mid-test. Parallelism needs per-test data (or one server per worker) first; until then, keep `workers: 1`.
+- No fixed sleeps (`waitForTimeout`): wait on web-first assertions, `expect.poll` or `toPass`.
+- In CI a failed test is retried once (`retries: 1`) and keeps its trace; a test that passes on retry is flaky: the job summary lists it and the report is uploaded. Fix it; never skip it.
+- A cold dev server compiles each route on first request, so a spec run on its own can time out where the full suite (which warms routes in file order) does not. Re-run it once before treating it as a regression.
+
+Browser axe checks cover the storefront (EN/FR), manager sign-in, dashboard, products, orders, expenses and customers in light and dark. WCAG 2/2.1/2.2 A/AA violations, including contrast, fail the run; component axe tests in Vitest skip only the contrast rule (JSDOM cannot compute it). Automated checks supplement, but do not replace, keyboard and screen-reader testing. CI uploads `playwright-results` (report, screenshots, traces; seven days) on failure or when a test was flaky; locally use `npx playwright show-report`.
 
 ### Coverage policy
 
