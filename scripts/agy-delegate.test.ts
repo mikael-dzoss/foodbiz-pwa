@@ -330,3 +330,16 @@ describe("reportFromText", () => {
     expect(classify({ status: 0, stdout, stderr: "" })).toMatchObject({ code: 0, reason: "done" });
   });
 });
+
+describe("classify: failing checks", () => {
+  it("does not accept 'done' when a reported check failed", () => {
+    const failing = {
+      ...report,
+      checks_run: [{ command: "npm run gate:quick", result: "fail", notes: "typecheck" }],
+    };
+    expect(classify({ status: 0, stdout: success(failing), stderr: "" })).toMatchObject({
+      code: 1,
+      reason: "reported done but failed: npm run gate:quick",
+    });
+  });
+});

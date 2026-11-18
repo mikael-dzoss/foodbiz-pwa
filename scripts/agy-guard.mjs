@@ -58,7 +58,11 @@ function checkWrite(file, root) {
   return deny(message.trim() || `guard-files.sh exited ${result.status} (failing closed).`);
 }
 
-/** Decides one agy PreToolUse payload. */
+/**
+ * Decides one agy PreToolUse payload.
+ * @param {any} payload
+ * @returns {{ decision: "allow" | "deny", reason?: string }}
+ */
 export function decide(payload) {
   const call = payload?.toolCall;
   if (!call?.name) return deny("unreadable hook payload (failing closed).");

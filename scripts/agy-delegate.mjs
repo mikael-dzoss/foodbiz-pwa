@@ -49,11 +49,24 @@ const UNAVAILABLE =
 
 export class UsageError extends Error {}
 
-/** Parses argv (without node and script) into options; throws UsageError. */
+/**
+ * @typedef {{ role: string, brief: string, cwd: string, tier: string, timeout: string, resume?: string }} Options
+ * @typedef {{ status: string, summary: string, branch: string, commits: string[], files_changed: string[],
+ *   pr_url: string, checks_run: { command: string, result: string, notes: string }[],
+ *   blockers: string[], follow_ups: string[] }} Report
+ */
+
+/**
+ * Parses argv (without node and script) into options; throws UsageError.
+ * @param {string[]} argv
+ * @returns {Options}
+ */
 export function parseArgs(argv) {
   const [role, ...rest] = argv;
   if (!role || !ROLES[role]) throw new UsageError(`unknown role '${role ?? ""}'.\n${USAGE}`);
+  /** @type {Record<string, string>} */
   const opts = { role, cwd: process.cwd(), timeout: "45m" };
+  /** @type {Record<string, string>} */
   const flags = {
     "--brief": "brief",
     "--cwd": "cwd",
@@ -77,7 +90,7 @@ export function parseArgs(argv) {
   if (!/^\d+[hms]$/.test(opts.timeout))
     throw new UsageError(`--timeout must look like 45m, 90s or 1h.`);
   opts.cwd = resolve(opts.cwd);
-  return opts;
+  return /** @type {Options} */ (opts);
 }
 
 /** Converts 45m / 90s / 1h to milliseconds. */
@@ -174,8 +187,10 @@ export function reportFromText(text) {
 }
 
 /**
- * Classifies one finished agy process.
- * @returns {{ code: 0 | 1 | 3, reason: string, result: object | null, report: object | null }}
+ * Classifies one finished agy process. A "done" report with a failing check is
+ * not done.
+ * @param {{ error?: Error, status?: number | null, stdout?: string, stderr?: string }} proc
+ * @returns {{ code: 0 | 1 | 3, reason: string, result: any, report: Report | null }}
  */
 export function classify({ error, status, stdout, stderr }) {
   if (error)
@@ -205,6 +220,9 @@ export function classify({ error, status, stdout, stderr }) {
   const report = result.structured_output ?? reportFromText(result.response);
   if (!report)
     return { code: 1, reason: "no structured report in agy output", result, report: null };
+  const failed = report.checks_run?.filter((c) => c.result === "fail").map((c) => c.command);
+  if (report.status === "done" && failed?.length)
+    return { code: 1, reason: `reported done but failed: ${failed.join(", ")}`, result, report };
   return report.status === "done"
     ? { code: 0, reason: "done", result, report }
     : { code: 1, reason: "blocked", result, report };
@@ -247,6 +265,10 @@ export function formatSummary(opts, outcome, rawPath) {
   return lines.join("\n");
 }
 
+/**
+ * @param {string[]} [argv]
+ * @param {Record<string, string | undefined>} [env]
+ */
 export function main(argv = process.argv.slice(2), env = process.env) {
   let opts;
   try {

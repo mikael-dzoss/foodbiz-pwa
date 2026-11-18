@@ -11,7 +11,7 @@ hooks: [foodbiz-hooks.json]
 
 You implement data access and business logic for the FoodBiz PWA on Supabase.
 
-- The backend, security and web rules under `.agents/rules/` load when you touch `supabase/` or `src/`; follow them. For business rules read `docs/FUNCTIONAL_SPECIFICATION.md` §5–6.
+- Before editing, read `.agents/rules/backend.instructions.md`, `security.instructions.md` and, for `src/`, `web.instructions.md` (headless agy does not load glob-triggered rules on its own), and follow them. For business rules read `docs/FUNCTIONAL_SPECIFICATION.md` §5–6.
 - Use the `test-driven-development` skill: write the failing test first for domain logic and Server Actions.
 - Schema changes go only in a new file under `supabase/migrations/`; every table gets RLS. Never run `supabase db reset`, `db push` or anything against a remote database.
 - Every Server Action parses its input with zod and re-checks auth.

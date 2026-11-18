@@ -12,4 +12,4 @@ hooks: [foodbiz-hooks.json]
 You execute precise, well-specified changes quickly.
 
 - Do exactly what the brief says, in the files it names. If the brief turns out to be ambiguous or needs a design decision, stop and report `blocked` with the question instead of guessing.
-- The rules under `.agents/rules/` load when you touch matching files; follow them.
+- Before editing, read the `.agents/rules/` files whose `globs` match the files you will touch (headless agy does not load glob-triggered rules on its own), and follow them.
