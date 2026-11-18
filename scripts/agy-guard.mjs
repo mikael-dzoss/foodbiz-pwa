@@ -7,7 +7,9 @@
 //   file writes -> .claude/hooks/guard-files.sh (payload reshaped)
 //   file reads  -> .env* only
 // A deny holds even under `agy -p --dangerously-skip-permissions`.
-// Prints {"decision":"deny","reason"} to block, {} to pass; fails closed.
+// Prints {"decision":"deny","reason"} to block, {"decision":"allow"} to pass (agy
+// treats a missing decision as a deny); fails closed. The foodbiz-* agents only
+// run headless with --dangerously-skip-permissions, so "allow" grants nothing new.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -21,6 +23,7 @@ const GUARD_FILES = resolve(here, "../.claude/hooks/guard-files.sh");
 const ENV_FILE = /(^|[\s'"=/<>:@])\.env(?!\.example(?![\w.-]))(\.[\w.-]+)?(?=$|[\s'";|&)<>])/;
 const WRITE_TOOL = /write|edit|replace|create|delete|move|rename|patch/i;
 
+const ALLOW = Object.freeze({ decision: "allow" });
 const deny = (reason) => ({
   decision: "deny",
   reason: `Blocked by scripts/agy-guard.mjs: ${reason}`,
@@ -63,7 +66,7 @@ export function decide(payload) {
   const cwd = resolve(payload.cwd || root);
 
   const command = call.args?.CommandLine;
-  if (typeof command === "string") return checkCommand(command, cwd) ?? {};
+  if (typeof command === "string") return checkCommand(command, cwd) ?? ALLOW;
 
   for (const raw of pathsOf(call.args)) {
     const file = isAbsolute(raw) ? raw : resolve(cwd, raw);
@@ -74,7 +77,7 @@ export function decide(payload) {
     const blocked = checkWrite(file, root);
     if (blocked) return blocked;
   }
-  return {};
+  return ALLOW;
 }
 
 function main() {

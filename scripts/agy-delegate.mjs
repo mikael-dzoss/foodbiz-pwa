@@ -135,6 +135,45 @@ function parseAgyError(stderr) {
 }
 
 /**
+ * agy drops `structured_output` when the model's JSON misses the schema; recover
+ * the last JSON object in the response text and coerce it to the report shape
+ * (anything but "done" counts as blocked).
+ */
+export function reportFromText(text) {
+  const candidates = [...(text ?? "").matchAll(/```(?:json)?\s*\n([\s\S]*?)\n```/g)].map(
+    (m) => m[1],
+  );
+  candidates.push((text ?? "").trim());
+  for (const candidate of candidates.toReversed()) {
+    let raw;
+    try {
+      raw = JSON.parse(candidate);
+    } catch {
+      continue;
+    }
+    if (!raw || typeof raw !== "object" || !("status" in raw)) continue;
+    const strings = (value) =>
+      Array.isArray(value) ? value.map((v) => (typeof v === "string" ? v : JSON.stringify(v))) : [];
+    return {
+      status: raw.status === "done" ? "done" : "blocked",
+      summary: String(raw.summary ?? ""),
+      branch: String(raw.branch ?? ""),
+      commits: strings(raw.commits),
+      files_changed: strings(raw.files_changed),
+      pr_url: String(raw.pr_url ?? ""),
+      checks_run: (Array.isArray(raw.checks_run) ? raw.checks_run : []).map((c) => ({
+        command: String(c?.command ?? ""),
+        result: ["pass", "fail", "skipped"].includes(c?.result) ? c.result : "fail",
+        notes: String(c?.notes ?? c?.status ?? ""),
+      })),
+      blockers: strings(raw.blockers),
+      follow_ups: strings(raw.follow_ups),
+    };
+  }
+  return null;
+}
+
+/**
  * Classifies one finished agy process.
  * @returns {{ code: 0 | 1 | 3, reason: string, result: object | null, report: object | null }}
  */
@@ -163,7 +202,7 @@ export function classify({ error, status, stdout, stderr }) {
       report: null,
     };
   }
-  const report = result.structured_output ?? null;
+  const report = result.structured_output ?? reportFromText(result.response);
   if (!report)
     return { code: 1, reason: "no structured report in agy output", result, report: null };
   return report.status === "done"

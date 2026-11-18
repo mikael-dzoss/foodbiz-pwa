@@ -12,6 +12,7 @@ import {
   formatSummary,
   main,
   parseArgs,
+  reportFromText,
 } from "./agy-delegate.mjs";
 
 const report = {
@@ -277,5 +278,55 @@ describe("main with a fake agy", () => {
     expect(err).toHaveBeenCalledWith(expect.stringMatching(/unknown role/));
     log.mockRestore();
     err.mockRestore();
+  });
+});
+
+describe("reportFromText", () => {
+  it("recovers the last fenced JSON block and coerces it to the report shape", () => {
+    const text = [
+      "Here is my report:",
+      "```json",
+      '{"status":"blocked","checks_run":[{"command":"npm run gate:quick","status":"denied"}],"pr_url":null}',
+      "```",
+      "```json",
+      '{"status":"denied","blockers":["hook denied"],"commits":[{"sha":"abc"}]}',
+      "```",
+    ].join("\n");
+    expect(reportFromText(text)).toEqual({
+      status: "blocked",
+      summary: "",
+      branch: "",
+      commits: ['{"sha":"abc"}'],
+      files_changed: [],
+      pr_url: "",
+      checks_run: [],
+      blockers: ["hook denied"],
+      follow_ups: [],
+    });
+  });
+
+  it("reads a bare JSON response and maps unknown check results to fail", () => {
+    const report = reportFromText(
+      '{"status":"done","summary":"s","checks_run":[{"command":"c","result":"ok"},{"command":"d","result":"pass","notes":"n"}]}',
+    );
+    expect(report?.status).toBe("done");
+    expect(report?.checks_run).toEqual([
+      { command: "c", result: "fail", notes: "" },
+      { command: "d", result: "pass", notes: "n" },
+    ]);
+  });
+
+  it("returns null without a JSON object that has a status", () => {
+    expect(reportFromText("no json here")).toBeNull();
+    expect(reportFromText('```json\n{"summary":"x"}\n```')).toBeNull();
+    expect(reportFromText(undefined)).toBeNull();
+  });
+
+  it("feeds classify when structured_output is missing", () => {
+    const stdout = JSON.stringify({
+      status: "SUCCESS",
+      response: '```json\n{"status":"done"}\n```',
+    });
+    expect(classify({ status: 0, stdout, stderr: "" })).toMatchObject({ code: 0, reason: "done" });
   });
 });

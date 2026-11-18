@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { decide } from "./agy-guard.mjs";
 
 const root = resolve(import.meta.dirname, "..");
+const ALLOW = { decision: "allow" };
 const base = { cwd: root, workspacePaths: [root] };
 const command = (CommandLine: string) => ({
   ...base,
@@ -23,7 +24,7 @@ describe("decide: run_command", () => {
     'node -e "console.log(process.env.HOME)"',
     "cat .envrc",
   ])("passes %s", (cmd) => {
-    expect(decide(command(cmd))).toEqual({});
+    expect(decide(command(cmd))).toEqual(ALLOW);
   });
 
   it.each([
@@ -42,10 +43,10 @@ describe("decide: run_command", () => {
 
 describe("decide: file tools", () => {
   it("passes ordinary reads and writes, including relative paths", () => {
-    expect(decide(file("read_file", join(root, "package.json")))).toEqual({});
-    expect(decide(file("write_file", join(root, "src/app/page.tsx")))).toEqual({});
-    expect(decide(file("edit_file", "src/app/page.tsx"))).toEqual({});
-    expect(decide(file("read_file", join(root, ".env.example")))).toEqual({});
+    expect(decide(file("read_file", join(root, "package.json")))).toEqual(ALLOW);
+    expect(decide(file("write_file", join(root, "src/app/page.tsx")))).toEqual(ALLOW);
+    expect(decide(file("edit_file", "src/app/page.tsx"))).toEqual(ALLOW);
+    expect(decide(file("read_file", join(root, ".env.example")))).toEqual(ALLOW);
   });
 
   it("denies .env reads and protected writes via guard-files.sh", () => {
@@ -64,7 +65,7 @@ describe("decide: file tools", () => {
   it("ignores calls without paths or commands", () => {
     expect(
       decide({ ...base, toolCall: { name: "search_web", args: { Query: "zod v4" } } }),
-    ).toEqual({});
+    ).toEqual(ALLOW);
   });
 });
 
@@ -80,7 +81,7 @@ describe("decide: payload", () => {
   it("falls back to cwd when workspacePaths is missing", () => {
     expect(
       decide({ cwd: root, toolCall: { name: "run_command", args: { CommandLine: "ls" } } }),
-    ).toEqual({});
+    ).toEqual(ALLOW);
   });
 });
 
@@ -92,7 +93,7 @@ describe("CLI", () => {
     expect(JSON.parse(run(JSON.stringify(command("git push origin main"))).stdout)).toMatchObject({
       decision: "deny",
     });
-    expect(JSON.parse(run(JSON.stringify(command("echo hi"))).stdout)).toEqual({});
+    expect(JSON.parse(run(JSON.stringify(command("echo hi"))).stdout)).toEqual(ALLOW);
     expect(JSON.parse(run("not json").stdout)).toMatchObject({ decision: "deny" });
   });
 });
