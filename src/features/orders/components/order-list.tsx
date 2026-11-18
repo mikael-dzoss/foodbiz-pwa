@@ -267,17 +267,16 @@ export function OrderList({
         <h1 className="text-title-lg text-foreground min-w-0">{t.title}</h1>
 
         {/* Single-line New Order action button */}
-        <Link href="/manage/orders/new">
-          <Button
-            type="button"
-            size="sm"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 gap-1 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shadow-none"
-            data-testid="create-order-button"
-          >
+        <Button
+          asChild
+          size="sm"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 gap-1 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shadow-none"
+        >
+          <Link href="/manage/orders/new" data-testid="create-order-button">
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>{t.newOrder}</span>
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       {/* Segmented Status Tabs (3 columns matching Stitch M-20) */}
@@ -413,6 +412,7 @@ export function OrderList({
         <TabsContent value={activeTab} className="mt-0">
           {filteredOrders.length === 0 ? (
             <EmptyState
+              headingLevel={2}
               icon={<ShoppingBag className="h-6 w-6" />}
               title={t.empty.title}
               description={

@@ -22,9 +22,13 @@ export interface NavigationDictionary {
   analytics: string;
   settings: string;
   more: string;
+  /** Label of the skip link at the top of every shell. */
+  skipToContent: string;
 }
 
 export interface StorefrontDictionary {
+  /** Label of the skip link at the top of the storefront shell. */
+  skipToContent: string;
   /** "{count} available" next to the in-stock label. */
   stockAvailable: string;
   /** "Currently in your cart: {count}". */

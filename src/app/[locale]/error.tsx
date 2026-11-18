@@ -20,6 +20,7 @@ export default function LocaleError({ error, retry }: { error: unknown; retry: (
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
       <ErrorState
+        headingLevel={1}
         title={dict.pageErrorTitle}
         message={dict.pageErrorMessage}
         onRetry={retry}

@@ -30,6 +30,7 @@ export function RootDocument({ lang, children }: RootDocumentProps) {
       suppressHydrationWarning
       className={`${inter.variable} h-full font-sans antialiased`}
     >
+      {/* eslint-disable-next-line @next/next/no-head-element -- App Router root layout; the pre-hydration theme script must sit in <head> */}
       <head>
         <ThemeScript />
       </head>

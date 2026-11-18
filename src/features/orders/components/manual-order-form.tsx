@@ -99,6 +99,12 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
   // Submission State
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  // Which control the current error is about, so it can be linked with aria-invalid/describedby.
+  const [errorField, setErrorField] = React.useState<"phone" | "name" | "address" | null>(null);
+  const fieldA11y = (field: "phone" | "name" | "address") =>
+    errorMessage && errorField === field
+      ? { "aria-invalid": true as const, "aria-describedby": "manual-order-error" }
+      : {};
 
   // Phone lookup handler
   const handlePhoneBlur = async () => {
@@ -179,21 +185,25 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
   const validateBeforePreviewOrSubmit = (): boolean => {
     if (selectedItems.length === 0) {
       setErrorMessage(t.errors.noItems);
+      setErrorField(null);
       return false;
     }
 
     if (!guestPhone.trim() || !isValidPhoneNumber(guestPhone)) {
       setErrorMessage(t.errors.invalidPhone);
+      setErrorField("phone");
       return false;
     }
 
     if (!guestName.trim() || !isValidGuestName(guestName)) {
       setErrorMessage(t.errors.invalidName);
+      setErrorField("name");
       return false;
     }
 
     if (serviceType === "delivery" && !deliveryAddress.trim()) {
       setErrorMessage(t.errors.noAddress);
+      setErrorField("address");
       return false;
     }
 
@@ -205,6 +215,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
     if (!validateBeforePreviewOrSubmit()) return;
 
     setErrorMessage(null);
+    setErrorField(null);
     setPreviewOpen(true);
   };
 
@@ -214,6 +225,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
     setIsSubmitting(true);
     setErrorMessage(null);
+    setErrorField(null);
 
     const normalizedSubmittedName = normalizeGuestName(guestName);
     const updateGuestName = Boolean(
@@ -246,6 +258,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       router.push(`/manage/orders/${res.data.id}`);
     } else {
       setErrorMessage(actionErrorMessage(res, locale));
+      setErrorField(null);
     }
   };
 
@@ -269,7 +282,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       <header className="flex items-center justify-between pt-1">
         <Link
           href="/manage/orders"
-          className="text-foreground hover:text-primary flex items-center gap-1 text-sm font-semibold transition-colors"
+          className="text-foreground hover:text-primary flex min-h-9 items-center gap-1 text-sm font-semibold transition-colors"
           data-testid="cancel-header-link"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -280,23 +293,23 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           <h1 className="text-title-md text-foreground">{t.title}</h1>
         </div>
 
-        <Link href="/manage/orders">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-border bg-card text-foreground hover:bg-muted h-8 rounded-lg px-3 text-xs font-semibold"
-            data-testid="cancel-header-button"
-          >
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="border-border bg-card text-foreground hover:bg-muted h-9 rounded-lg px-3 text-xs font-semibold"
+        >
+          <Link href="/manage/orders" data-testid="cancel-header-button">
             {t.cancel}
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </header>
 
       {errorMessage && (
         <div
           className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-xs"
           role="alert"
+          id="manual-order-error"
           data-testid="manual-order-error"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -338,6 +351,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               className="bg-card h-11 rounded-lg pr-9 pl-9 text-sm tabular-nums"
               required
               data-testid="guest-phone-input"
+              {...fieldA11y("phone")}
             />
             {matchedGuest && (
               <Check className="text-primary pointer-events-none absolute right-3 h-4 w-4" />
@@ -392,6 +406,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               )}
               required
               data-testid="guest-name-input"
+              {...fieldA11y("name")}
             />
             {matchedGuest && isNameLocked && (
               <Button
@@ -627,6 +642,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 className="min-h-16 resize-none rounded-lg pl-8 text-xs"
                 required
                 data-testid="delivery-address-input"
+                {...fieldA11y("address")}
               />
             </div>
           </div>

@@ -8,6 +8,7 @@ export default function CustomersError({ retry }: { retry: () => void }) {
   return (
     <div className="mx-auto max-w-xl">
       <ErrorState
+        headingLevel={1}
         title={text.title}
         message={text.loadFailed}
         onRetry={retry}

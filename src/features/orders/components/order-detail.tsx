@@ -34,6 +34,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatMoney,
@@ -437,7 +438,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
       <div className="flex items-center justify-between pt-1">
         <Link
           href="/manage/orders"
-          className="text-foreground hover:text-primary flex items-center gap-1.5 text-sm font-semibold transition-colors"
+          className="text-foreground hover:text-primary flex min-h-9 items-center gap-1.5 text-sm font-semibold transition-colors"
           data-testid="back-to-orders-link"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -1072,12 +1073,15 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             <DialogDescription>{t.reject.description}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-2 py-2">
-            <label htmlFor="reject-reason-input" className="text-foreground text-xs font-semibold">
-              {t.reject.reasonLabel} <span className="text-destructive">*</span>
-            </label>
+          <Field
+            id="reject-reason-input"
+            label={t.reject.reasonLabel}
+            required
+            error={rejectionError}
+            className="py-2"
+            data-testid="reject-reason"
+          >
             <Textarea
-              id="reject-reason-input"
               value={rejectionReason}
               onChange={(e) => {
                 setRejectionReason(e.target.value);
@@ -1089,12 +1093,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               className="text-xs"
               data-testid="reject-reason-input"
             />
-            {rejectionError && (
-              <p className="text-destructive text-xs" data-testid="reject-reason-error">
-                {rejectionError}
-              </p>
-            )}
-          </div>
+          </Field>
 
           <DialogFooter className="flex gap-2">
             <Button
@@ -1152,10 +1151,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             </div>
           )}
 
-          <div className="flex flex-col gap-2 py-2">
-            <label className="text-foreground text-xs font-semibold">
-              {t.cancelDialog.reasonLabel}
-            </label>
+          <Field id="cancel-reason-input" label={t.cancelDialog.reasonLabel} className="py-2">
             <Textarea
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
@@ -1163,7 +1159,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               className="text-xs"
               data-testid="cancel-reason-input"
             />
-          </div>
+          </Field>
 
           <DialogFooter className="flex gap-2">
             <Button
@@ -1271,10 +1267,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-2 py-2">
-            <label className="text-foreground text-xs font-semibold">
-              {t.refundDialog.reasonLabel}
-            </label>
+          <Field id="refund-reason-input" label={t.refundDialog.reasonLabel} className="py-2">
             <Textarea
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
@@ -1282,7 +1275,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               className="text-xs"
               data-testid="refund-reason-input"
             />
-          </div>
+          </Field>
 
           <DialogFooter className="flex gap-2">
             <Button

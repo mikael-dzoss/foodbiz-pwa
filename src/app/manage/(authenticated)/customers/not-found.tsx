@@ -8,7 +8,7 @@ export default async function CustomerNotFound() {
   const text = getDictionary(await getManagerLocale()).customers;
   return (
     <div className="mx-auto max-w-xl space-y-4" data-testid="customer-not-found">
-      <EmptyState title={text.notFound} />
+      <EmptyState headingLevel={1} title={text.notFound} />
       <Button asChild variant="outline">
         <Link href="/manage/customers" data-testid="not-found-back-to-customers">
           {text.back}

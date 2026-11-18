@@ -98,12 +98,11 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="bg-primary/10 text-primary text-micro rounded px-2 py-0.5 font-semibold tracking-wider uppercase">
-                  Bio &amp; Artisanal
-                </span>
-                <span className="text-muted-foreground text-micro font-medium">
-                  {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
-                </span>
+                {business.address?.split(",")[1]?.trim() && (
+                  <span className="text-muted-foreground text-micro font-medium">
+                    {business.address.split(",")[1].trim()}
+                  </span>
+                )}
               </div>
               <h1 id="overview-heading" className="text-title-lg text-foreground mt-0.5">
                 {business.name}
@@ -352,7 +351,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
               <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 via-transparent to-transparent p-3">
                 <span className="text-caption flex items-center gap-1.5 font-semibold text-white">
                   <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
-                  {business.address?.split(",")[1]?.trim() ?? "Paris 11e"}
+                  {business.address?.split(",")[1]?.trim() ?? business.name}
                 </span>
               </div>
             </div>
@@ -415,8 +414,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
             <span className="text-muted-foreground text-micro block uppercase">Delivery Fee</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              {formatMoney(settings?.deliveryFee ?? 250, locale)}{" "}
-              <span className="text-muted-foreground text-micro font-normal">(Free &gt; €40)</span>
+              {formatMoney(settings?.deliveryFee ?? 250, locale)}
             </span>
           </div>
 
@@ -424,13 +422,6 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             <span className="text-muted-foreground text-micro block uppercase">Est. Time</span>
             <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
               {leadTimeText}
-            </span>
-          </div>
-
-          <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground text-micro block uppercase">Coverage</span>
-            <span className="text-foreground mt-0.5 block truncate text-xs font-bold">
-              Paris 11e, 10e, 12e
             </span>
           </div>
         </div>

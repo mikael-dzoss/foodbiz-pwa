@@ -50,6 +50,20 @@ describe("Manager App Shell & Navigation (#29)", () => {
     expect(screen.getByRole("navigation", { name: /Manager mobile navigation/i })).toBeDefined();
   });
 
+  it("starts with a skip link that targets the focusable main landmark", () => {
+    render(
+      <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>
+        <div>Dashboard View</div>
+      </ManagerShell>,
+    );
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    expect(skip.getAttribute("href")).toBe("#main-content");
+    expect(document.querySelector("a[href], button")).toBe(skip);
+    const main = screen.getByRole("main");
+    expect(main.id).toBe("main-content");
+    expect(main.getAttribute("tabindex")).toBe("-1");
+  });
+
   it("renders both mobile bottom nav and desktop sidebar", () => {
     render(
       <ManagerShell navDict={enDictionary.nav} quickAddDict={enDictionary.quickAdd}>

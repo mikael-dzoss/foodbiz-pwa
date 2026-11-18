@@ -61,3 +61,5 @@ export { ListRow } from "./list-row";
 export type { ListRowProps } from "./list-row";
 export { QuantityStepper } from "./quantity-stepper";
 export type { QuantityStepperProps } from "./quantity-stepper";
+export { SkipLink } from "./skip-link";
+export type { SkipLinkProps } from "./skip-link";

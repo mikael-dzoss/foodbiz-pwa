@@ -126,7 +126,7 @@ export function OperationalWidgets({ triage, className }: OperationalWidgetsProp
               </span>
               <Link
                 href="/manage/orders?unpaid=true"
-                className="text-secondary text-xs font-semibold hover:underline"
+                className="text-secondary inline-flex min-h-9 items-center text-xs font-semibold hover:underline"
                 data-testid="link-review-unpaid-orders"
               >
                 {labels.reviewUnpaidOrders}

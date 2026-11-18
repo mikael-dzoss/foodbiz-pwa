@@ -24,6 +24,7 @@ export default function ManageError({ error, retry }: { error: unknown; retry: (
   return (
     <div className="mx-auto max-w-xl space-y-3" data-testid="manage-error">
       <ErrorState
+        headingLevel={1}
         title={pageError.title}
         message={pageError.message}
         onRetry={retry}

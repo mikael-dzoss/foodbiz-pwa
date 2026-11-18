@@ -10,12 +10,12 @@ export default function GlobalNotFound() {
   const { pageNotFound, backToHome } = getDictionary(DEFAULT_LOCALE).common;
   return (
     <RootDocument lang={DEFAULT_LOCALE}>
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="flex min-h-screen flex-col items-center justify-center p-4"
-      >
-        <EmptyState title={pageNotFound.title} description={pageNotFound.message} />
+      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <EmptyState
+          headingLevel={1}
+          title={pageNotFound.title}
+          description={pageNotFound.message}
+        />
         <div className="mt-4">
           <Button asChild>
             <Link href="/">{backToHome}</Link>

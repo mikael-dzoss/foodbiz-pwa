@@ -11,6 +11,8 @@ export interface EmptyStateProps {
     label: string;
     onClick: () => void;
   };
+  /** Level of the title heading: 1 when the state is the whole page, 3 (default) inside a section. */
+  headingLevel?: 1 | 2 | 3;
   className?: string;
   "data-testid"?: string;
 }
@@ -20,9 +22,11 @@ export function EmptyState({
   title,
   description,
   action,
+  headingLevel = 3,
   className,
   "data-testid": testId,
 }: EmptyStateProps) {
+  const Heading = `h${headingLevel}` as const;
   return (
     <div
       className={cn(
@@ -34,7 +38,7 @@ export function EmptyState({
       <div className="bg-muted text-muted-foreground mb-3 flex h-12 w-12 items-center justify-center rounded-full">
         {icon ?? <Inbox className="h-6 w-6" />}
       </div>
-      <h3 className="text-title-sm text-foreground">{title}</h3>
+      <Heading className="text-title-sm text-foreground">{title}</Heading>
       {description && (
         <p className="text-body-sm text-muted-foreground mt-1 max-w-sm">{description}</p>
       )}

@@ -84,6 +84,7 @@ export const enDictionary: Dictionary = {
     analytics: "Analytics",
     settings: "Settings",
     more: "More",
+    skipToContent: "Skip to content",
   },
   dashboard: {
     title: "Dashboard",
@@ -150,6 +151,7 @@ export const enDictionary: Dictionary = {
     },
   },
   storefront: {
+    skipToContent: "Skip to content",
     stockAvailable: "{count} available",
     inCartNow: "Currently in your cart: {count}",
     purchaseActions: "Purchase actions",

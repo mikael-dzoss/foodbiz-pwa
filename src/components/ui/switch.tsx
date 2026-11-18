@@ -13,7 +13,9 @@ export const Switch = React.forwardRef<
   <div className="inline-flex min-h-11 min-w-11 items-center justify-center">
     <SwitchPrimitives.Root
       className={cn(
-        "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
+        "peer relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
+        // Invisible extension: the 24px track keeps its look, the tap area reaches 44px.
+        "before:absolute before:inset-x-0 before:-inset-y-2.5",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted",

@@ -86,6 +86,7 @@ export const frDictionary: Dictionary = {
     analytics: "Analyses",
     settings: "Paramètres",
     more: "Plus",
+    skipToContent: "Aller au contenu",
   },
   dashboard: {
     title: "Tableau de bord",
@@ -158,6 +159,7 @@ export const frDictionary: Dictionary = {
     },
   },
   storefront: {
+    skipToContent: "Aller au contenu",
     stockAvailable: "{count} disponible(s)",
     inCartNow: "Actuellement dans votre panier : {count}",
     purchaseActions: "Actions d'achat",
