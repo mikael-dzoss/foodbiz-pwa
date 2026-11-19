@@ -71,6 +71,21 @@ export const managerFr: ManagerExtras = {
       product: "Ajouter un plat ou une boisson",
       expense: "Enregistrer un reçu ou un achat",
     },
+    meta: {
+      appDescription:
+        "Gérez votre activité culinaire : commandes, produits, dépenses et boutique en ligne.",
+      dashboardDescription:
+        "Vue d'ensemble de votre activité, indicateurs clés et suivi opérationnel.",
+      ordersDescription: "Triez et gérez les commandes entrantes par statut et heure demandée.",
+      newOrderDescription:
+        "Saisissez manuellement les commandes prises par téléphone, WhatsApp ou sur place.",
+      orderDetailTitle: "Détails de la commande",
+      orderDetailDescription:
+        "Consultez les articles, le paiement et l'avancement de cette commande.",
+      customerDetailTitle: "Détails du client",
+      customerDetailDescription:
+        "Historique des commandes, total dépensé et notes privées de ce client.",
+    },
   },
   login: {
     pageHeading: "Connexion gestionnaire",

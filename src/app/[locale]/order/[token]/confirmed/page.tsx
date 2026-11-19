@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DEFAULT_LOCALE, getDictionary, isSupportedLocale } from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
+import { resolveStorefrontLocale } from "@/features/storefront/metadata";
 import { getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { OrderConfirmationView } from "@/features/storefront/components/order-confirmation-view";
 
@@ -12,10 +13,11 @@ interface ConfirmationPageProps {
 export const instant = false;
 
 export async function generateMetadata({ params }: ConfirmationPageProps): Promise<Metadata> {
-  const { locale } = await params;
-  const dict = getDictionary(isSupportedLocale(locale) ? locale : DEFAULT_LOCALE);
+  const locale = resolveStorefrontLocale((await params).locale);
+  const dict = getDictionary(locale);
   return {
     title: dict.orderConfirmation.title,
+    description: dict.orderConfirmation.receivedHelp,
     robots: { index: false, follow: false },
     referrer: "no-referrer",
   };
@@ -23,7 +25,7 @@ export async function generateMetadata({ params }: ConfirmationPageProps): Promi
 
 export default async function ConfirmationPage({ params }: ConfirmationPageProps) {
   const { locale: requestedLocale, token } = await params;
-  const locale = isSupportedLocale(requestedLocale) ? requestedLocale : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale(requestedLocale);
   const repos = getStorefrontRepositories();
   const order = await repos.orders.findByTrackingToken(token);
   if (!order) return notFound();

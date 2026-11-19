@@ -239,6 +239,16 @@ export const frDictionary: Dictionary = {
     linkCopied: "Lien copié",
     trackTitle: "Suivre ma commande",
     metaDescription: "Commandez en ligne chez {business}.",
+    metaInfoDescription: "Horaires d'ouverture, adresse et coordonnées de {business}.",
+    metaCartDescription: "Vérifiez les articles de votre panier avant de passer commande.",
+    metaCheckoutDescription:
+      "Complétez les détails de votre commande et choisissez le retrait ou la livraison.",
+    metaTrackDescription: "Consultez le statut en direct de votre commande.",
+    metaOrderTrackingDescription: "Suivez l'avancement de votre commande.",
+    ogShopBadge: "Menu en ligne",
+    ogShopFooter: "Parcourez le menu et commandez en ligne",
+    ogProductBadge: "Au menu",
+    ogOrderFrom: "Commander en ligne chez {business}",
     trackIntro:
       "Saisissez le numéro de téléphone et le numéro de commande indiqués dans votre confirmation.",
     trackPhoneLabel: "Numéro de téléphone",

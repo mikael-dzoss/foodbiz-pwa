@@ -11,11 +11,11 @@ interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: OrderDetailPageProps): Promise<Metadata> {
-  const { id } = await params;
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale());
   return {
-    title: "Order Details",
-    description: `Details and status progression for order ${id}`,
+    title: dict.manager.meta.orderDetailTitle,
+    description: dict.manager.meta.orderDetailDescription,
   };
 }
 

@@ -96,18 +96,26 @@ describe("OrderTrackingPage Route", () => {
     expect(mockNotFound).toHaveBeenCalled();
   });
 
-  it("generates metadata with order number", async () => {
-    const meta = await generateMetadata({
-      params: Promise.resolve({ locale: "en", token: "token-99" }),
-    });
-    expect(meta.title).toBe("Order #99 Tracking");
-    expect(meta.robots).toEqual({ index: false, follow: false });
+  it("generates translated privacy-safe metadata without leaking order details", async () => {
+    for (const locale of ["en", "fr"] as const) {
+      const dict = getDictionary(locale);
+      const meta = await generateMetadata({
+        params: Promise.resolve({ locale, token: "token-99" }),
+      });
+      expect(meta.title).toBe(dict.orderTracking.title);
+      expect(meta.description).toBe(dict.storefront.metaOrderTrackingDescription);
+      expect(String(meta.title)).not.toContain("99");
+      expect(String(meta.description)).not.toContain("99");
+      expect(meta.robots).toEqual({ index: false, follow: false });
+      expect(meta.referrer).toBe("no-referrer");
+    }
   });
 
-  it("keeps unknown-token metadata non-indexable", async () => {
+  it("keeps unknown-token metadata non-indexable and translated", async () => {
     const meta = await generateMetadata({
-      params: Promise.resolve({ locale: "en", token: "unknown" }),
+      params: Promise.resolve({ locale: "fr", token: "unknown" }),
     });
+    expect(meta.title).toBe(getDictionary("fr").orderTracking.title);
     expect(meta.robots).toEqual({ index: false, follow: false });
     expect(meta.referrer).toBe("no-referrer");
   });
@@ -133,12 +141,15 @@ describe("OrderTrackingPage Route", () => {
     expect(mockNotFound).toHaveBeenCalledOnce();
   });
 
-  it("marks confirmation metadata noindex in both languages", async () => {
+  it("marks confirmation metadata noindex with translated title and description in both languages", async () => {
     for (const locale of ["en", "fr"] as const) {
       const meta = await confirmationMetadata({
         params: Promise.resolve({ locale, token: "token-99" }),
       });
       expect(meta.title).toBe(getDictionary(locale).orderConfirmation.title);
+      expect(meta.description).toBe(getDictionary(locale).orderConfirmation.receivedHelp);
+      expect(String(meta.title)).not.toContain("99");
+      expect(String(meta.description)).not.toContain("99");
       expect(meta.robots).toEqual({ index: false, follow: false });
       expect(meta.referrer).toBe("no-referrer");
     }

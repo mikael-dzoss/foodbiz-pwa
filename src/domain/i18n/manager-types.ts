@@ -51,6 +51,17 @@ export interface ManagerShellDictionary {
     product: string;
     expense: string;
   };
+  /** Page-level `<title>` and `<meta name="description">` strings for the manager area. */
+  meta: {
+    appDescription: string;
+    dashboardDescription: string;
+    ordersDescription: string;
+    newOrderDescription: string;
+    orderDetailTitle: string;
+    orderDetailDescription: string;
+    customerDetailTitle: string;
+    customerDetailDescription: string;
+  };
 }
 
 export interface LoginDictionary {

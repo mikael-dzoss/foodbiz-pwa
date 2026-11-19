@@ -6,10 +6,13 @@ import { BusinessProfileForm } from "@/features/settings";
 import { getBusinessProfile } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Business Profile",
-  description: "Configure your public store details, contact channels and web address.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).settings.business;
+  return {
+    title: dict.title,
+    description: dict.description,
+  };
+}
 
 export default async function BusinessProfilePage() {
   const session = await requireManagerSession();

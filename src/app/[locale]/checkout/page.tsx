@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import {
-  getDictionary,
-  isSupportedLocale,
-  DEFAULT_LOCALE,
-  SUPPORTED_LOCALES,
-  type SupportedLocale,
-} from "@/domain/i18n";
-import { storefrontAlternates } from "@/features/storefront/metadata";
+import { getDictionary, SUPPORTED_LOCALES } from "@/domain/i18n";
+import { resolveStorefrontLocale, storefrontAlternates } from "@/features/storefront/metadata";
 import { getStorefrontCatalog, CheckoutView } from "@/features/storefront";
 
 // Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
@@ -22,20 +16,18 @@ export interface CheckoutPageProps {
 }
 
 export async function generateMetadata({ params }: CheckoutPageProps): Promise<Metadata> {
-  const { locale: requested } = await params;
-  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
+  const dict = getDictionary(locale).storefront;
   return {
-    title: getDictionary(locale).storefront.checkoutTitle,
+    title: dict.checkoutTitle,
+    description: dict.metaCheckoutDescription,
     robots: { index: false },
     alternates: storefrontAlternates(locale, "/checkout"),
   };
 }
 
 export default async function CheckoutPage({ params }: CheckoutPageProps) {
-  const resolvedParams = await params;
-  const locale: SupportedLocale = isSupportedLocale(resolvedParams.locale)
-    ? resolvedParams.locale
-    : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
   const dict = getDictionary(locale);
 
   // Cached storefront catalog & settings query (#80, #86)

@@ -5,7 +5,13 @@ import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { getCustomer } from "@/features/customers/customer-data";
 import { CustomerDetail } from "@/features/customers/components/customer-detail";
 
-export const metadata: Metadata = { title: "Customer details" };
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).manager.meta;
+  return {
+    title: dict.customerDetailTitle,
+    description: dict.customerDetailDescription,
+  };
+}
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

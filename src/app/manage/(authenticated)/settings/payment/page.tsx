@@ -6,10 +6,13 @@ import { PaymentSettingsForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Payment Settings",
-  description: "Configure accepted payment methods, transfer identifiers, and instructions.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).settings.payment;
+  return {
+    title: dict.title,
+    description: dict.description,
+  };
+}
 
 export default async function PaymentSettingsPage() {
   const session = await requireManagerSession();

@@ -8,10 +8,13 @@ import { ArrowLeft } from "lucide-react";
 import { getDictionary } from "@/domain/i18n";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Category Management",
-  description: "Organise your menu and products.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).categories;
+  return {
+    title: dict.title,
+    description: dict.subtitle,
+  };
+}
 
 export default async function CategoriesPage() {
   await requireManagerSession();

@@ -5,10 +5,13 @@ import { NotificationsAppForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Notifications & App",
-  description: "Configure order alerts, sound chime, and PWA installation options.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).settings.notifications;
+  return {
+    title: dict.title,
+    description: dict.description,
+  };
+}
 
 export default async function NotificationsPage() {
   await requireManagerSession();

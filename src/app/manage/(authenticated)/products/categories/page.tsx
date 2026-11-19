@@ -1,5 +1,5 @@
-import CategoriesPage, { metadata } from "../../categories/page";
+import CategoriesPage, { generateMetadata } from "../../categories/page";
 
-export { metadata };
+export { generateMetadata };
 
 export default CategoriesPage;

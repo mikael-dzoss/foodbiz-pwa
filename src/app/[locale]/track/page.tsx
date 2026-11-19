@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
-import {
-  getDictionary,
-  isSupportedLocale,
-  DEFAULT_LOCALE,
-  SUPPORTED_LOCALES,
-  type SupportedLocale,
-} from "@/domain/i18n";
+import { getDictionary, SUPPORTED_LOCALES } from "@/domain/i18n";
+import { resolveStorefrontLocale, storefrontAlternates } from "@/features/storefront/metadata";
 import { OrderLookupForm } from "@/features/storefront/components/order-lookup-form";
 import { lookupOrderAction } from "@/features/storefront/order-lookup-action";
 
@@ -20,17 +15,19 @@ export interface TrackPageProps {
   params: Promise<{ locale: string }>;
 }
 
-function resolveLocale(raw: string): SupportedLocale {
-  return isSupportedLocale(raw) ? raw : DEFAULT_LOCALE;
-}
-
 export async function generateMetadata({ params }: TrackPageProps): Promise<Metadata> {
-  const locale = resolveLocale((await params).locale);
-  return { title: getDictionary(locale).storefront.trackTitle, robots: { index: false } };
+  const locale = resolveStorefrontLocale((await params).locale);
+  const dict = getDictionary(locale).storefront;
+  return {
+    title: dict.trackTitle,
+    description: dict.metaTrackDescription,
+    robots: { index: false },
+    alternates: storefrontAlternates(locale, "/track"),
+  };
 }
 
 export default async function TrackPage({ params }: TrackPageProps) {
-  const locale = resolveLocale((await params).locale);
+  const locale = resolveStorefrontLocale((await params).locale);
   const dict = getDictionary(locale).storefront;
   return <OrderLookupForm locale={locale} dict={dict} action={lookupOrderAction} />;
 }

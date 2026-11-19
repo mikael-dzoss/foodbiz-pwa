@@ -5,10 +5,13 @@ import { InventoryFinanceForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Inventory & Finance",
-  description: "Configure stock warning thresholds, currency, and sales tax rate.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).settings.inventoryFinance;
+  return {
+    title: dict.title,
+    description: dict.description,
+  };
+}
 
 export default async function InventoryFinancePage() {
   await requireManagerSession();

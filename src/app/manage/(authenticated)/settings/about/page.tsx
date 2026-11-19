@@ -7,10 +7,13 @@ import { SoonItem } from "@/components/feedback";
 import { APP_METADATA } from "@/config/app";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "About",
-  description: "Version, legal and support information.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale());
+  return {
+    title: dict.settings.about.title,
+    description: dict.settingsExtra.about.intro,
+  };
+}
 
 export default async function AboutPage() {
   await requireManagerSession();
