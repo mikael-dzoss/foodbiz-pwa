@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getDictionary, interpolate, SUPPORTED_LOCALES } from "@/domain/i18n";
 import {
-  getDictionary,
-  isSupportedLocale,
-  DEFAULT_LOCALE,
-  SUPPORTED_LOCALES,
-  type SupportedLocale,
-} from "@/domain/i18n";
-import { storefrontAlternates } from "@/features/storefront/metadata";
+  buildStorefrontPageSocialMetadata,
+  resolveStorefrontLocale,
+  storefrontAlternates,
+} from "@/features/storefront/metadata";
 import { getStorefrontCatalog, ShopInfoView } from "@/features/storefront";
 
 export async function generateStaticParams() {
@@ -22,19 +20,25 @@ export interface ShopInfoPageProps {
 }
 
 export async function generateMetadata({ params }: ShopInfoPageProps): Promise<Metadata> {
-  const { locale: requested } = await params;
-  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
+  const dict = getDictionary(locale).storefront;
+  const { business } = await getStorefrontCatalog();
+  const description = interpolate(dict.metaInfoDescription, { business: business.name });
   return {
-    title: getDictionary(locale).storefront.shopInfo,
+    title: dict.shopInfo,
+    description,
     alternates: storefrontAlternates(locale, "/info"),
+    ...buildStorefrontPageSocialMetadata({
+      title: dict.shopInfo,
+      description,
+      businessName: business.name,
+      locale,
+    }),
   };
 }
 
 export default async function ShopInfoPage({ params }: ShopInfoPageProps) {
-  const resolvedParams = await params;
-  const locale: SupportedLocale = isSupportedLocale(resolvedParams.locale)
-    ? resolvedParams.locale
-    : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
   const dict = getDictionary(locale);
 
   // Cached storefront business & settings query (#83)

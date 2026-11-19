@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  getDictionary,
-  isSupportedLocale,
-  DEFAULT_LOCALE,
-  type SupportedLocale,
-} from "@/domain/i18n";
+import { getDictionary } from "@/domain/i18n";
+import { resolveStorefrontLocale } from "@/features/storefront/metadata";
 import { getStorefrontRepositories } from "@/lib/repositories/storefront";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { toStorefrontBusiness } from "@/domain/storefront-business";
@@ -19,21 +15,13 @@ export interface OrderTrackingPageProps {
 export const instant = false;
 
 export async function generateMetadata({ params }: OrderTrackingPageProps): Promise<Metadata> {
-  const resolved = await params;
-  const repos = getStorefrontRepositories();
-  const order = await repos.orders.findByTrackingToken(resolved.token);
+  const locale = resolveStorefrontLocale((await params).locale);
+  const dict = getDictionary(locale);
 
-  if (!order) {
-    return {
-      title: "Order Tracking",
-      robots: { index: false, follow: false },
-      referrer: "no-referrer",
-    };
-  }
-
+  // Never include private order details (order number, items, guest info) in page metadata.
   return {
-    title: `Order #${order.orderNumber ?? "—"} Tracking`,
-    description: `Track status of order #${order.orderNumber ?? "—"}`,
+    title: dict.orderTracking.title,
+    description: dict.storefront.metaOrderTrackingDescription,
     robots: { index: false, follow: false },
     referrer: "no-referrer",
   };
@@ -41,9 +29,7 @@ export async function generateMetadata({ params }: OrderTrackingPageProps): Prom
 
 export default async function OrderTrackingPage({ params }: OrderTrackingPageProps) {
   const resolved = await params;
-  const locale: SupportedLocale = isSupportedLocale(resolved.locale)
-    ? resolved.locale
-    : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale(resolved.locale);
   const dict = getDictionary(locale);
 
   const repos = getStorefrontRepositories();

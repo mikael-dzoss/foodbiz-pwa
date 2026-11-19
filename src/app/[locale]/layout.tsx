@@ -5,11 +5,15 @@ import {
   isSupportedLocale,
   SUPPORTED_LOCALES,
   getDictionary,
-  DEFAULT_LOCALE,
+  interpolate,
   type SupportedLocale,
 } from "@/domain/i18n";
 import { getStorefrontCatalog, StorefrontShell } from "@/features/storefront";
-import { buildStorefrontRootMetadata, toMetaDescription } from "@/features/storefront/metadata";
+import {
+  buildStorefrontRootMetadata,
+  resolveStorefrontLocale,
+  toMetaDescription,
+} from "@/features/storefront/metadata";
 import { RootDocument, rootMetadata, rootViewport } from "@/components/root-document";
 
 export async function generateStaticParams() {
@@ -27,13 +31,11 @@ export interface LocaleLayoutProps {
 export const viewport = rootViewport;
 
 export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
-  const { locale: requested } = await params;
-  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
   const { business } = await getStorefrontCatalog();
-  const fallback = getDictionary(locale).storefront.metaDescription.replace(
-    "{business}",
-    business.name,
-  );
+  const fallback = interpolate(getDictionary(locale).storefront.metaDescription, {
+    business: business.name,
+  });
   return {
     ...rootMetadata,
     ...buildStorefrontRootMetadata({

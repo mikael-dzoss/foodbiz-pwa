@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
-import {
-  getDictionary,
-  isSupportedLocale,
-  DEFAULT_LOCALE,
-  SUPPORTED_LOCALES,
-  type SupportedLocale,
-} from "@/domain/i18n";
-import { storefrontAlternates } from "@/features/storefront/metadata";
+import { getDictionary, SUPPORTED_LOCALES } from "@/domain/i18n";
+import { resolveStorefrontLocale, storefrontAlternates } from "@/features/storefront/metadata";
 import { getStorefrontCatalog, StorefrontCatalogView } from "@/features/storefront";
 
 export async function generateStaticParams() {
@@ -21,16 +15,12 @@ export interface LocalePageProps {
 }
 
 export async function generateMetadata({ params }: LocalePageProps): Promise<Metadata> {
-  const { locale: requested } = await params;
-  const locale: SupportedLocale = isSupportedLocale(requested) ? requested : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
   return { alternates: storefrontAlternates(locale) };
 }
 
 export default async function LocaleHomePage({ params }: LocalePageProps) {
-  const resolvedParams = await params;
-  const locale: SupportedLocale = isSupportedLocale(resolvedParams.locale)
-    ? resolvedParams.locale
-    : DEFAULT_LOCALE;
+  const locale = resolveStorefrontLocale((await params).locale);
   const dict = getDictionary(locale);
 
   // Server-rendered, cached catalog query with 'use cache' (#80, #82)
