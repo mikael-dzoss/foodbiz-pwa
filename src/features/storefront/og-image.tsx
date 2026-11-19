@@ -76,6 +76,7 @@ export async function resolveOgImageSrc(
   const fetchImpl = options.fetchFn ?? fetch;
   try {
     const response = await fetchImpl(trimmed, {
+      redirect: "error",
       signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS),
     });
     if (!response.ok) return null;

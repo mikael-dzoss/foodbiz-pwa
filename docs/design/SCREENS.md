@@ -121,6 +121,8 @@ Only **Light mode** mobile Stitch screens are tracked and used as visual referen
 | C-12 Confirmation                    | `e23f423142a5463c9055b697bec49db2` | —                                                                                                                                              |
 | C-20 Order tracking                  | `2b5aa769f2f54703bc7f21206a36867e` | —                                                                                                                                              |
 
+Social share cards (1200×630, no canvas yet): shop `opengraph-image` and product `p/[id]/opengraph-image`. TODO(og): Stitch canvas for OG cards.
+
 Not on the Stitch canvas (reachable by ID via `get_screen` only): C-01b light, M-70 light. C-02b light uses a desktop frame around mobile-width content.
 
 ## Customer behaviour (#66)

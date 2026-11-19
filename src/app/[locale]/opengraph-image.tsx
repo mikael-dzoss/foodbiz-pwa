@@ -5,6 +5,7 @@ import { renderShopOgImage } from "@/features/storefront/og-image";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const alt = "Shop preview";
 
 export interface ShopOgImageProps {
   params: Promise<{ locale: string }>;

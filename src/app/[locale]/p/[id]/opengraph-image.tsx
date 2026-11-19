@@ -13,6 +13,7 @@ import {
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+export const alt = "Product preview";
 
 export interface ProductOgImageProps {
   params: Promise<{ locale: string; id: string }>;
