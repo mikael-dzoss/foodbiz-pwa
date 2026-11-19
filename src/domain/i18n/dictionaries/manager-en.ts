@@ -71,6 +71,17 @@ export const managerEn: ManagerExtras = {
       product: "Add food or beverage item",
       expense: "Log receipt or purchase",
     },
+    meta: {
+      appDescription:
+        "Run your food business: orders, products, expenses and an online storefront.",
+      dashboardDescription: "One-screen overview of business health, KPIs and operational triage.",
+      ordersDescription: "Triage and manage incoming orders by status and requested time.",
+      newOrderDescription: "Manually enter customer orders taken by phone, WhatsApp, or in person.",
+      orderDetailTitle: "Order details",
+      orderDetailDescription: "Review items, payment status and progress for this order.",
+      customerDetailTitle: "Customer details",
+      customerDetailDescription: "Order history, total spend and private notes for this customer.",
+    },
   },
   login: {
     pageHeading: "Manager Sign-in",

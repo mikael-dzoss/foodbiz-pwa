@@ -110,6 +110,15 @@ export interface StorefrontDictionary {
   linkCopied: string;
   trackTitle: string;
   metaDescription: string;
+  metaInfoDescription: string;
+  metaCartDescription: string;
+  metaCheckoutDescription: string;
+  metaTrackDescription: string;
+  metaOrderTrackingDescription: string;
+  ogShopBadge: string;
+  ogShopFooter: string;
+  ogProductBadge: string;
+  ogOrderFrom: string;
   trackIntro: string;
   trackPhoneLabel: string;
   trackOrderNumberLabel: string;
