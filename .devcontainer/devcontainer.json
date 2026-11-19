@@ -6,7 +6,10 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "runArgs": ["--shm-size=1gb"],
+  "runArgs": [
+    "--shm-size=1gb",
+    "--env-file=${localEnv:HOME}/.devcontainer-data/${localWorkspaceFolderBasename}/env"
+  ],
   "remoteUser": "node",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "forwardPorts": [3000, 54321, 54323],
@@ -19,13 +22,12 @@
     "NEXT_TELEMETRY_DISABLED": "1",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude"
   },
-  "remoteEnv": {
-    "STITCH_API_KEY": "${localEnv:STITCH_API_KEY}",
-    "VERCEL_API_TOKEN": "${localEnv:VERCEL_API_TOKEN}"
-  },
+  "initializeCommand": "sh \"${localWorkspaceFolder}/.devcontainer/init-host.sh\" \"${localEnv:HOME}\" \"${localWorkspaceFolderBasename}\"",
   "mounts": [
+    "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
     "source=foodbiz-pwa-claude-data,target=/home/node/.claude,type=volume",
-    "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+    "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=foodbiz-pwa-worktrees,target=${containerWorkspaceFolder}/.claude/worktrees,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
@@ -40,6 +42,7 @@
         "github.vscode-github-actions",
         "eamodio.gitlens",
         "redhat.vscode-yaml",
+        "google.google-antigravity",
         "anthropic.claude-code"
       ]
     }

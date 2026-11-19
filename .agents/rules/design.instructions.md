@@ -1,4 +1,6 @@
 ---
+trigger: glob
+globs: "**/src/app/**/*.tsx, **/src/features/**/components/**, **/src/components/**, **/docs/design/**"
 paths:
   - "src/app/**/*.tsx"
   - "src/features/**/components/**"
