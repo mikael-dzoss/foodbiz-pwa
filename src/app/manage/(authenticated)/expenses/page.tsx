@@ -7,10 +7,13 @@ import { ExpenseManager } from "@/features/expenses/components";
 import { getRequestNow } from "@/lib/request-time";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Expenses",
-  description: "Track operating costs, ingredient purchases and business expenses.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).expenses;
+  return {
+    title: dict.title,
+    description: dict.subtitle,
+  };
+}
 
 interface ExpensesPageProps {
   searchParams?: Promise<{ action?: string }>;

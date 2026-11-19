@@ -5,10 +5,13 @@ import { OrderingSettingsForm } from "@/features/settings";
 import { getBusinessSettings } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Ordering Settings",
-  description: "Configure order acceptance, fulfillment modes, and delivery rules.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).settings.ordering;
+  return {
+    title: dict.title,
+    description: dict.description,
+  };
+}
 
 export default async function OrderingSettingsPage() {
   await requireManagerSession();

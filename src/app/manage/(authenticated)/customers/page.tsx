@@ -4,7 +4,13 @@ import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { listCustomers } from "@/features/customers/customer-data";
 import { CustomerList } from "@/features/customers/components/customer-list";
 
-export const metadata: Metadata = { title: "Customers" };
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).customers;
+  return {
+    title: dict.title,
+    description: dict.subtitle,
+  };
+}
 
 export default async function CustomersPage() {
   const customers = await listCustomers();

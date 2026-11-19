@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
+import { getDictionary } from "@/domain/i18n";
 import { requireManagerSession } from "@/lib/auth";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { listOrders } from "@/features/orders/order-data";
 import { OrderList } from "@/features/orders/components/order-list";
 import { getRequestNow } from "@/lib/request-time";
 
-export const metadata: Metadata = {
-  title: "Orders",
-  description: "Triage and manage incoming orders by status and requested time.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale());
+  return {
+    title: dict.orders.title,
+    description: dict.manager.meta.ordersDescription,
+  };
+}
 
 interface OrdersPageProps {
   searchParams?: Promise<{ tab?: string; unpaid?: string; payment?: string }>;

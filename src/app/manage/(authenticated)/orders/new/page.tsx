@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
+import { getDictionary } from "@/domain/i18n";
 import { requireManagerSession } from "@/lib/auth";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { getRepositories } from "@/lib/repositories";
 import { ManualOrderForm } from "@/features/orders/components/manual-order-form";
 import { getBusinessToday } from "@/features/settings/settings-data";
 
-export const metadata: Metadata = {
-  title: "New Order",
-  description: "Manually enter customer orders taken by phone, WhatsApp, or in person.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale());
+  return {
+    title: dict.orders.manual.title,
+    description: dict.manager.meta.newOrderDescription,
+  };
+}
 
 // Needs the visible product list and the business date before the form can render, so it blocks.
 export const instant = false;

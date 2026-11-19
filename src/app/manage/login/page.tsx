@@ -5,20 +5,28 @@ import {
   sanitizeManagerRedirectPath,
   type AuthErrorCode,
 } from "@/domain/auth";
-import { isSupportedLocale, type SupportedLocale } from "@/domain/i18n";
+import { getDictionary, isSupportedLocale, type SupportedLocale } from "@/domain/i18n";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { LoginView } from "@/features/auth/components/login-view";
-
-export const metadata: Metadata = {
-  title: "Manager Sign-in",
-  description: "Sign in to access your FoodBiz manager dashboard and operations.",
-};
 
 export interface ManagerLoginPageProps {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
   error?: string;
   locale?: SupportedLocale;
   next?: string;
+}
+
+export async function generateMetadata(props: ManagerLoginPageProps = {}): Promise<Metadata> {
+  const resolvedParams = props.searchParams ? await props.searchParams : {};
+  const rawLocale =
+    typeof resolvedParams.locale === "string" ? resolvedParams.locale : props.locale;
+  const locale: SupportedLocale =
+    rawLocale && isSupportedLocale(rawLocale) ? rawLocale : await getManagerLocale();
+  const dict = getDictionary(locale).login;
+  return {
+    title: dict.pageHeading,
+    description: dict.intro,
+  };
 }
 
 // The page renders from searchParams (error/locale) and redirects signed-in managers, so it blocks.

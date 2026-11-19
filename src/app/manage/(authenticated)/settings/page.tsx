@@ -4,10 +4,13 @@ import { getDictionary } from "@/domain/i18n";
 import { SettingsHub } from "@/features/settings";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
-export const metadata: Metadata = {
-  title: "Settings",
-  description: "Account, store preferences and system configuration.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale()).settings;
+  return {
+    title: dict.title,
+    description: dict.subtitle,
+  };
+}
 
 export default async function SettingsPage() {
   const session = await requireManagerSession();

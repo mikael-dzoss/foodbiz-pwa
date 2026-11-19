@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import { requireManagerSession } from "@/lib/auth";
+import { getManagerLocale } from "@/lib/i18n/manager-locale";
 import { dashboardPeriodPresetSchema } from "@/domain";
+import { getDictionary } from "@/domain/i18n";
 import { DashboardView } from "@/features/dashboard";
 import { getDashboardData } from "@/features/dashboard/dashboard-data";
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "One-screen overview of business health, KPIs and operational triage.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getManagerLocale());
+  return {
+    title: dict.dashboard.title,
+    description: dict.manager.meta.dashboardDescription,
+  };
+}
 
 interface ManageDashboardPageProps {
   searchParams?: Promise<{ period?: string }>;
