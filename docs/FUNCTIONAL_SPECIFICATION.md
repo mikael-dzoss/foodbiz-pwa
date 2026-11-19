@@ -74,9 +74,9 @@ Open questions (undecided): customer accounts vs guest checkout, payment handlin
 ## 5. Core business rules
 
 1. **Negative inventory prevention:** checkout decrements stock; stock cannot go below zero. Orders exceeding stock must be blocked or flagged, not silently truncated.
-2. **Soft deletion:** products are hidden (`visible = false`), never permanently deleted, to protect historical order references.
-3. **Order lifecycle:** `Preparing → Ready → Completed/Delivered`; `Cancelled` allowed from any pre-delivery state, with validated transitions.
-4. **Cash-basis profit:** `Profit = Σ(order totals) − Σ(expenses)` over the selected time window.
+2. **Soft deletion:** products are hidden (`visible = false`), never hard-deleted through the app, to protect historical order references. Categories can be permanently deleted by any business member only when empty (`products.category_id` is `ON DELETE RESTRICT`, so assigned products must be reassigned first). Expenses can be permanently deleted by the business `owner` only.
+3. **Order lifecycle:** statuses are `NEW`, `CONFIRMED`, `PREPARING`, `READY`, `COMPLETED`, and `CANCELLED` (there is no `DELIVERED` status). Allowed transitions (`ALLOWED_ORDER_TRANSITIONS` and `transition_order_status`) are: `NEW → CONFIRMED | CANCELLED` (rejecting a `NEW` order requires a reason), `CONFIRMED → PREPARING | CANCELLED`, `PREPARING → READY | CANCELLED`, `READY → COMPLETED | CANCELLED`; `COMPLETED` and `CANCELLED` are terminal. Transitioning to `COMPLETED` requires `paid = "paid"` (blocked for `unpaid` or `refunded` orders). Transitioning to `CANCELLED` atomically restores item quantities to product stock. Manual orders transition `NEW → CONFIRMED` on creation, and `READY` orders can be marked paid and `COMPLETED` in one step.
+4. **Cash-basis profit:** `Profit = Σ(paid order totals) − Σ(expenses)` over the selected time window in the business timezone (`business_settings.timezone`). Orders carry a `paid` status of `unpaid`, `paid`, or `refunded`: only non-cancelled `paid` orders count toward revenue and profit, attributed to their `paidAt` date in the business timezone (falling back to `updatedAt`, `requestedDate`, or `createdAt`). `unpaid` non-cancelled orders count as pending revenue; `refunded` orders count as neither. Recording a refund (`paid = "refunded"`, setting `refundedAt`) is owner-only, and item contents of `paid`, `refunded`, `COMPLETED`, or `CANCELLED` orders cannot be edited.
 5. **Immutable state:** UI state updates use spread/map patterns.
 6. **Guest identity & name validation:**
    - **Single canonical name:** Guest names use a single field (`Name` / `Full name`), never split into first/last.
@@ -89,6 +89,11 @@ Open questions (undecided): customer accounts vs guest checkout, payment handlin
      - Anonymous visitors can _create_ guests and _link_ orders to them by normalised E.164 phone (unique per business), but they can never _read_ or _overwrite_ a canonical guest name (`guests.name`).
      - Only an authenticated manager can overwrite `guests.name`, and only with explicit intent (`updateGuestName: true` after unlocking the prefilled name field). When an unprivileged or unlocked submission supplies a differing name for an existing phone, the canonical `guests.name` is preserved and the differing name is recorded in `orders.submitted_name` for audit.
    - **Single source of truth on orders:** `Order` stores `guestId` (required) and never duplicates `guestName`; UI read-models resolve the guest's current name by joining on `guestId`.
+7. **Storefront order limits (`place_order`):**
+   - **Requested date & time:** `requestedDate` must fall within `[yesterday, today + 60 days]`; `requestedTime` (when provided) must be at whole minutes.
+   - **Item & quantity caps:** at most 50 lines per order, 50 units per product, and 100 total units per order (after merging duplicate lines).
+   - **Rate limits (anonymous callers):** at most 3 orders per 10 minutes per hashed phone number and 120 orders per 10 minutes per business.
+   - **Text & availability checks:** delivery address ≤ 300 characters (required for `delivery`), notes ≤ 500 characters, guest name 2–50 characters; business must have `accepting_orders = true` and the chosen service type, payment preference, and minimum order amount satisfied.
 
 Rules 1–3 were found not fully enforced in the legacy code (hard delete, no `CANCELLED` status, silent stock truncation, `customerId` not persisted). The PWA must implement them as specified.
 
@@ -96,17 +101,17 @@ Rules 1–3 were found not fully enforced in the legacy code (hard delete, no `C
 
 Carried over from the legacy app; the PWA database schema is defined in [`docs/database/schema.md`](database/schema.md).
 
-| Entity              | Fields                                                                                     | Notes                                                            |
-| ------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| **Product**         | id, name, price, unitCost, stock, visible, image, categoryId, creationDate, lastUpdateDate | `unitCost` defaults to 0 in v1; used for margins in v2           |
-| **ProductCategory** | id, name                                                                                   | Juice, Yogurt, Bakery (extensible)                               |
-| **Customer**        | id, name, phone?, email?, address?, notes?, creationDate                                   | Enables repeat-customer recognition and delivery contact         |
-| **Order**           | id, guestId, submittedName?, serviceType, channel, timestamp, status, items[], totalAmount | Name resolved via `guestId`; statuses: NEW..COMPLETED, CANCELLED |
-| **OrderItem**       | productId, productName, quantity, unitPrice                                                | Embedded in Order                                                |
-| **Expense**         | id, amount, date, description, tags[]                                                      | Tags: Ingredients, Transport, Equipment, Supplies, Utilities     |
-| **AppSettings**     | theme, currency, dateFormat, lowStockThreshold, taxPercentage, notifications               | Storage location in the PWA undecided                            |
+| Entity              | Fields                                                                                                                                                                                              | Notes                                                                                                                                                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Product**         | id, name, price, unitCost, stock, visible, image, categoryId, creationDate, lastUpdateDate                                                                                                          | `unitCost` defaults to 0 in v1; used for margins in v2                                                                                                                                                                                                 |
+| **ProductCategory** | id, name                                                                                                                                                                                            | Juice, Yogurt, Bakery (extensible)                                                                                                                                                                                                                     |
+| **Customer**        | id, name, phone?, email?, address?, notes?, creationDate                                                                                                                                            | Enables repeat-customer recognition and delivery contact                                                                                                                                                                                               |
+| **Order**           | id, guestId, submittedName?, serviceType, channel, status, paid, paymentPreference, paymentMethod?, paidAt?, refundedAt?, requestedDate, requestedTime?, items[], totalAmount, createdAt, updatedAt | Name resolved via `guestId`; statuses: `NEW`, `CONFIRMED`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED`; `paid`: `paid`, `unpaid`, `refunded`; `paymentMethod`: `cash`, `revolut`, `wero`; `channel`: `storefront`, `phone`, `whatsapp`, `in-person` |
+| **OrderItem**       | productId, productName, quantity, unitPrice                                                                                                                                                         | Embedded in Order                                                                                                                                                                                                                                      |
+| **Expense**         | id, amount, date, description, tags[]                                                                                                                                                               | Tags: Ingredients, Transport, Equipment, Supplies, Utilities                                                                                                                                                                                           |
+| **AppSettings**     | theme, currency, dateFormat, lowStockThreshold, taxPercentage, notifications                                                                                                                        | Storage location in the PWA undecided                                                                                                                                                                                                                  |
 
-Service types: Dine-in, Pickup, Takeaway, Delivery.
+Service types: `pickup` and `delivery` (`dine-in` exists only as a stored legacy value in `storedServiceTypeSchema` and the `business_settings.service_types.dineIn` flag).
 
 ## 7. Non-functional requirements
 
@@ -120,7 +125,6 @@ Service types: Dine-in, Pickup, Takeaway, Delivery.
 | Gap                               | Impact                                              | Plan                                          |
 | --------------------------------- | --------------------------------------------------- | --------------------------------------------- |
 | Per-product margins (v2)          | Cash-basis profit hides per-product profitability   | See FinOps strategy below                     |
-| No payment tracking               | No `paymentMethod` or `paidAt` on orders            | Add payment fields (cash/card/mobile)         |
 | Hardcoded reference date (legacy) | KPI engine used a fixed "now" for mock data         | Use the real current date with real data      |
 | Offline behaviour                 | Legacy was local-first; PWA offline scope undefined | Design with the service worker work (Planned) |
 
