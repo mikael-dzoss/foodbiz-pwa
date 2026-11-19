@@ -37,7 +37,7 @@ npm run db:provision-member -- --business-slug la-petite-boulangerie --email <em
 npm run gate         # runs the checks your change needs; see docs/CONTRIBUTING.md
 ```
 
-MCP servers (Stitch, Vercel): export `STITCH_API_KEY` / `VERCEL_API_TOKEN` on the host before opening the devcontainer. Copilot reads [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code reads [`.mcp.json`](.mcp.json).
+MCP servers (Stitch, Vercel) and `gh`: put `STITCH_API_KEY`, `VERCEL_API_TOKEN` and `GH_CLI_PAT` in the host env file `~/.devcontainer-data/foodbiz-pwa/env` (created on first open; see [`.devcontainer/README.md`](.devcontainer/README.md)). Copilot reads [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code reads [`.mcp.json`](.mcp.json).
 
 ## Documentation
 

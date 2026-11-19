@@ -45,6 +45,9 @@ RUN npx playwright install --with-deps chromium \
 ARG SUPABASE_CLI_VERSION=3.1.0
 RUN su node -c "npm install -g vercel@latest supabase@${SUPABASE_CLI_VERSION} @anthropic-ai/claude-code@latest"
 
+# 6. Install Antigravity CLI (agy)
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- --dir /usr/local/bin
+
 # Default container environment
 ENV NEXT_TELEMETRY_DISABLED=1
 
