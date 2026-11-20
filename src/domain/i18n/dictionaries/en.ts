@@ -301,6 +301,9 @@ export const enDictionary: Dictionary = {
     holidayScheduleNotice:
       "Holiday schedule: Open on national bank holidays except May 1st and December 25th.",
     deliveryPolicy: "Delivery & Ordering Policy",
+    policyMinOrder: "Min. Order",
+    policyDeliveryFee: "Delivery Fee",
+    policyEstTime: "Est. Time",
     acceptedPayments: "Accepted Payment Methods",
     cashOnPickup: "Cash on Pickup",
     today: "Today",
