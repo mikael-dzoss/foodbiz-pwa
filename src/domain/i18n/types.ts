@@ -446,7 +446,6 @@ export interface SettingsDictionary {
     descLabel: string;
     descPlaceholder: string;
     slugLabel: string;
-    slugHelper: string;
     contactSection: string;
     socialSection: string;
     instagramLabel: string;

@@ -447,7 +447,6 @@ export const enDictionary: Dictionary = {
       descLabel: "Description",
       descPlaceholder: "Artisanal organic sourdough bakery and French pastries in Paris.",
       slugLabel: "Storefront Web Address",
-      slugHelper: "foodbiz.app/s/",
       contactSection: "Contact Information",
       socialSection: "Social media",
       instagramLabel: "Instagram",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useSyncExternalStore } from "react";
 import {
   ChevronLeft,
   Phone,
@@ -18,8 +18,11 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonItem } from "@/components/feedback";
 import { ActionBar, Button, Field, Input, Textarea, useToast } from "@/components/ui";
 import { updateBusinessProfileAction } from "../actions";
+import { buildStorefrontUrl } from "../storefront-url";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { useManagerLocale } from "@/components/i18n";
+
+const noopSubscribe = () => () => {};
 
 export interface BusinessProfileFormProps {
   business: Business;
@@ -95,15 +98,31 @@ export function BusinessProfileForm({
     showToast(x.discarded);
   };
 
+  const clientOrigin = useSyncExternalStore(
+    noopSubscribe,
+    () => window.location.origin,
+    () => "",
+  );
+  const storefrontUrl = buildStorefrontUrl({
+    locale: managerLocale,
+    fallbackOrigin: clientOrigin,
+  });
+
   const handleCopyUrl = async () => {
-    const fullUrl = `https://foodbiz.app/s/${slug || business.slug}`;
+    const resolved =
+      storefrontUrl ??
+      buildStorefrontUrl({
+        locale: managerLocale,
+        fallbackOrigin: typeof window !== "undefined" ? window.location.origin : "",
+      });
+    if (!resolved) return;
     try {
-      await navigator.clipboard.writeText(fullUrl);
+      await navigator.clipboard.writeText(resolved.fullUrl);
       setCopied(true);
       showToast(x.urlCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast(fullUrl);
+      showToast(resolved.fullUrl);
     }
   };
 
@@ -219,9 +238,6 @@ export function BusinessProfileForm({
             {(control) => (
               <>
                 <div className="border-input bg-card focus-within:ring-ring flex min-h-12 w-full items-center rounded-xl border transition-colors focus-within:ring-2">
-                  <span className="bg-muted text-muted-foreground flex h-full items-center rounded-l-xl px-3 font-mono text-sm select-none">
-                    {dict.business.slugHelper}
-                  </span>
                   <Input
                     {...control}
                     aria-describedby={
@@ -237,7 +253,7 @@ export function BusinessProfileForm({
                     }
                     disabled={Boolean(slugLockedReason)}
                     placeholder={x.slugPlaceholder}
-                    className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 py-2.5 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-l-xl rounded-r-none border-0 bg-transparent px-3.5 py-2.5 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
                     data-testid="input-business-slug"
                   />
                   <Button
@@ -246,6 +262,7 @@ export function BusinessProfileForm({
                     type="button"
                     onClick={handleCopyUrl}
                     aria-label={x.copyUrl}
+                    data-testid="button-copy-storefront-url"
                     className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
                   >
                     {copied ? (
@@ -264,10 +281,13 @@ export function BusinessProfileForm({
                     {slugLockedReason}
                   </p>
                 )}
-                {!errors.slug && (
+                {!errors.slug && storefrontUrl && (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-muted-foreground truncate text-xs">
-                      {`foodbiz.app/s/${slug || "slug"}`}
+                    <span
+                      className="text-muted-foreground truncate text-xs"
+                      data-testid="storefront-url-preview"
+                    >
+                      {storefrontUrl.displayUrl}
                     </span>
                   </div>
                 )}

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BusinessProfileForm } from "../components/business-profile-form";
+import { ManagerLocaleProvider } from "@/components/i18n";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
 import type { Business } from "@/domain/business";
 import * as actions from "../actions";
@@ -38,6 +39,8 @@ vi.mock("../actions", () => ({
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe("BusinessProfileForm component", () => {
@@ -242,5 +245,56 @@ describe("BusinessProfileForm component", () => {
 
     expect((screen.getByTestId("input-business-slug") as HTMLInputElement).disabled).toBe(false);
     expect(screen.queryByTestId("slug-owner-only-notice")).toBeNull();
+  });
+
+  it("displays the storefront URL without protocol and without foodbiz.app or slug", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
+
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <BusinessProfileForm business={mockBusiness} dict={getDictionary("fr").settings} />
+      </ManagerLocaleProvider>,
+    );
+
+    const preview = screen.getByTestId("storefront-url-preview");
+    expect(preview.textContent).toBe("bakery.example.com/fr");
+    expect(screen.queryByText(/foodbiz\.app/)).toBeNull();
+  });
+
+  it("copies the full storefront URL to the clipboard using NEXT_PUBLIC_SITE_URL when set", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+
+    render(
+      <ManagerLocaleProvider locale="fr">
+        <BusinessProfileForm business={mockBusiness} dict={getDictionary("fr").settings} />
+      </ManagerLocaleProvider>,
+    );
+
+    const frCopyLabel = getDictionary("fr").settingsExtra.copyUrl;
+    fireEvent.click(screen.getByRole("button", { name: frCopyLabel }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://bakery.example.com/fr"));
+    expect(mockShowToast).toHaveBeenCalledWith(getDictionary("fr").settingsExtra.urlCopied);
+  });
+
+  it("falls back to window.location.origin when NEXT_PUBLIC_SITE_URL is unset and copies the full URL", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+
+    render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
+
+    const expectedOrigin = window.location.origin;
+    const expectedDisplay = `${expectedOrigin.replace(/^https?:\/\//, "")}/${DEFAULT_LOCALE}`;
+    expect(screen.getByTestId("storefront-url-preview").textContent).toBe(expectedDisplay);
+
+    const copyLabel = getDictionary(DEFAULT_LOCALE).settingsExtra.copyUrl;
+    fireEvent.click(screen.getByRole("button", { name: copyLabel }));
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(`${expectedOrigin}/${DEFAULT_LOCALE}`),
+    );
   });
 });

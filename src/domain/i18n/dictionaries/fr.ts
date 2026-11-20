@@ -462,7 +462,6 @@ export const frDictionary: Dictionary = {
       descLabel: "Description",
       descPlaceholder: "Boulangerie artisanale bio et pâtisseries françaises à Paris.",
       slugLabel: "Adresse web de la vitrine",
-      slugHelper: "foodbiz.app/s/",
       contactSection: "Coordonnées",
       socialSection: "Réseaux sociaux",
       instagramLabel: "Instagram",
