@@ -28,14 +28,20 @@ test("unknown locales return a real 404", async ({ request }) => {
   }
 });
 
-test("storefront unknown product shows the localized not-found inside the shell", async ({
+test("storefront unknown product returns 404 with localized not-found inside the shell", async ({
   page,
 }) => {
-  await page.goto("/fr/p/does-not-exist");
+  const frResponse = await page.goto("/fr/p/does-not-exist");
+  expect(frResponse?.status()).toBe(404);
   await expect(page.getByTestId("storefront-not-found")).toContainText("Page introuvable");
   await expect(page.getByTestId("storefront-not-found-home")).toHaveAttribute("href", "/fr");
-  await page.goto("/en/p/does-not-exist");
+  await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+
+  const enResponse = await page.goto("/en/p/00000000-0000-0000-0000-000000000000");
+  expect(enResponse?.status()).toBe(404);
   await expect(page.getByTestId("storefront-not-found")).toContainText("Page not found");
+  await expect(page.getByTestId("storefront-not-found-home")).toHaveAttribute("href", "/en");
+  await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
 });
 
 // The mobile bottom nav is hidden on order sub-routes by design; the desktop sidebar stays.

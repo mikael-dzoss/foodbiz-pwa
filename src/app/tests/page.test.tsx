@@ -1,9 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LocaleHomePage from "../[locale]/page";
-import ProductDetailPage from "../[locale]/p/[id]/page";
+import ProductDetailPage, {
+  ensureStatic as productEnsureStatic,
+  generateStaticParams as productStaticParams,
+} from "../[locale]/p/[id]/page";
 import ShopInfoPage from "../[locale]/info/page";
 import { CartProvider } from "@/features/storefront";
+import * as catalogData from "@/features/storefront/catalog-data";
+import { demoProducts } from "@/lib/repositories/mock/fixtures/products";
 
 const notFoundMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -20,6 +25,14 @@ vi.mock("next/cache", () => ({
 }));
 
 describe("Internationalized storefront pages", () => {
+  beforeEach(() => {
+    notFoundMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("LocaleHomePage renders English catalog with search and categories", async () => {
     const page = await LocaleHomePage({ params: Promise.resolve({ locale: "en" }) });
     render(<CartProvider>{page}</CartProvider>);
@@ -55,11 +68,42 @@ describe("Internationalized storefront pages", () => {
   });
 
   it("ProductDetailPage calls notFound() for invalid or non-existent product ID", async () => {
+    const fetchSpy = vi.spyOn(catalogData, "getStorefrontProduct");
     await ProductDetailPage({
       params: Promise.resolve({ locale: "en", id: "non-existent-product-id" }),
     });
 
-    expect(notFoundMock).toHaveBeenCalled();
+    expect(notFoundMock).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("ProductDetailPage calls notFound() for an unknown or hidden product UUID", async () => {
+    await ProductDetailPage({
+      params: Promise.resolve({ locale: "en", id: "00000000-0000-0000-0000-000000000000" }),
+    });
+    expect(notFoundMock).toHaveBeenCalledTimes(1);
+
+    // Hidden products return null from getStorefrontProduct (#81)
+    vi.spyOn(catalogData, "getStorefrontProduct").mockResolvedValueOnce(null);
+    await ProductDetailPage({
+      params: Promise.resolve({ locale: "fr", id: demoProducts[0].id }),
+    });
+    expect(notFoundMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ProductDetailPage exports ensureStatic = 'navigation' and visible product static params (#303)", async () => {
+    expect(productEnsureStatic).toBe("navigation");
+
+    const params = await productStaticParams();
+    expect(params).toEqual(demoProducts.map((p) => ({ id: p.id })));
+
+    // Empty catalog falls back to a valid nil UUID placeholder for Cache Components
+    const catalog = await catalogData.getStorefrontCatalog();
+    vi.spyOn(catalogData, "getStorefrontCatalog").mockResolvedValueOnce({
+      ...catalog,
+      groupedCategories: [],
+    });
+    expect(await productStaticParams()).toEqual([{ id: "00000000-0000-0000-0000-000000000000" }]);
   });
 
   it("ProductDetailPage renders a dish with its optional Drinks add-on group", async () => {
