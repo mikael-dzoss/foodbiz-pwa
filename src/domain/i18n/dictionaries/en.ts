@@ -446,7 +446,7 @@ export const enDictionary: Dictionary = {
       namePlaceholder: "e.g. La Petite Boulangerie",
       descLabel: "Description",
       descPlaceholder: "Artisanal organic sourdough bakery and French pastries in Paris.",
-      slugLabel: "Storefront Web Address",
+      slugLabel: "Shop identifier",
       contactSection: "Contact Information",
       socialSection: "Social media",
       instagramLabel: "Instagram",

@@ -461,7 +461,7 @@ export const frDictionary: Dictionary = {
       namePlaceholder: "ex. La Petite Boulangerie",
       descLabel: "Description",
       descPlaceholder: "Boulangerie artisanale bio et pâtisseries françaises à Paris.",
-      slugLabel: "Adresse web de la vitrine",
+      slugLabel: "Identifiant de la boutique",
       contactSection: "Coordonnées",
       socialSection: "Réseaux sociaux",
       instagramLabel: "Instagram",
