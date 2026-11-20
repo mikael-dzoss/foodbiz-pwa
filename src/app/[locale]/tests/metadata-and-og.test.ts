@@ -100,12 +100,14 @@ describe("storefront page metadata (EN & FR)", () => {
       });
 
       const dict = getDictionary(locale).storefront;
-      const missing = await productMetadata({
-        params: Promise.resolve({ locale, id: "does-not-exist" }),
-      });
-      expect(missing.title).toBe(dict.notFoundTitle);
-      expect(missing.description).toBe(dict.productNotFound);
-      expect(missing.robots).toEqual({ index: false });
+      for (const unknownId of ["does-not-exist", "00000000-0000-0000-0000-000000000000"]) {
+        const missing = await productMetadata({
+          params: Promise.resolve({ locale, id: unknownId }),
+        });
+        expect(missing.title).toBe(dict.notFoundTitle);
+        expect(missing.description).toBe(dict.productNotFound);
+        expect(missing.robots).toEqual({ index: false });
+      }
     }
   });
 
