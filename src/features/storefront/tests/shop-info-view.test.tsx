@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ShopInfoView } from "../components/shop-info-view";
 import { formatMoney } from "@/domain/formatting/money";
+import { DEFAULT_LEAD_TIME, formatLeadTime } from "@/domain/lead-time";
 import { enDictionary, frDictionary } from "@/domain/i18n";
 import type { Business, BusinessSettings } from "@/domain/business";
 
@@ -271,7 +272,7 @@ describe("ShopInfoView (#83)", () => {
   });
 
   describe("ordering policy card (#302)", () => {
-    it("hides the policy grid and never invents amounts when settings are null", () => {
+    it("never invents amounts when settings are null and shows the default lead time", () => {
       const { container } = render(
         <ShopInfoView
           business={mockBusiness}
@@ -289,12 +290,14 @@ describe("ShopInfoView (#83)", () => {
         policy.getByRole("heading", { level: 2, name: enDictionary.storefront.deliveryPolicy }),
       ).toBeDefined();
       expect(policy.getByText(enDictionary.storefront.acceptedPayments)).toBeDefined();
-      expect(policy.queryByTestId("ordering-policy-grid")).toBeNull();
+      expect(policy.getByTestId("ordering-policy-grid").className).toContain("grid-cols-1");
+      expect(policy.queryByTestId("policy-tile-min-order")).toBeNull();
+      expect(policy.queryByTestId("policy-tile-delivery-fee")).toBeNull();
       expect(policy.queryByText(formatMoney(1500, "en"))).toBeNull();
       expect(policy.queryByText(formatMoney(250, "en"))).toBeNull();
-      expect(policy.queryByText("Min. Order")).toBeNull();
-      expect(policy.queryByText("Delivery Fee")).toBeNull();
-      expect(policy.queryByText("Est. Time")).toBeNull();
+      expect(policy.getByTestId("policy-tile-est-time").textContent).toContain(
+        formatLeadTime(DEFAULT_LEAD_TIME, "en"),
+      );
     });
 
     it("hides individual unset tiles and adapts the grid cleanly for 1 or 2 tiles", () => {
@@ -414,9 +417,9 @@ describe("ShopInfoView (#83)", () => {
       const section = container.querySelector("section#ordering-policy") as HTMLElement;
       const policy = within(section);
 
-      expect(policy.getByText("Commande min.")).toBeDefined();
-      expect(policy.getByText("Frais de livraison")).toBeDefined();
-      expect(policy.getByText("Délai estimé")).toBeDefined();
+      expect(policy.getByText(frDictionary.storefront.policyMinOrder)).toBeDefined();
+      expect(policy.getByText(frDictionary.storefront.policyDeliveryFee)).toBeDefined();
+      expect(policy.getByText(frDictionary.storefront.policyEstTime)).toBeDefined();
       expect(policy.getByTestId("policy-tile-min-order").textContent).toContain(
         formatMoney(1500, "fr"),
       );
@@ -425,9 +428,9 @@ describe("ShopInfoView (#83)", () => {
       );
       expect(policy.getByTestId("policy-tile-est-time").textContent).toContain("~2 heures");
 
-      expect(policy.queryByText("Min. Order")).toBeNull();
-      expect(policy.queryByText("Delivery Fee")).toBeNull();
-      expect(policy.queryByText("Est. Time")).toBeNull();
+      expect(policy.queryByText(enDictionary.storefront.policyMinOrder)).toBeNull();
+      expect(policy.queryByText(enDictionary.storefront.policyDeliveryFee)).toBeNull();
+      expect(policy.queryByText(enDictionary.storefront.policyEstTime)).toBeNull();
     });
   });
 });

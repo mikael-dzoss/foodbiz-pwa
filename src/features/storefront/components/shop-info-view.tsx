@@ -84,7 +84,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
 
   const isOpen = settings?.acceptingOrders ?? true;
 
-  // Ordering policy tiles: only show configured settings, never invent defaults (#302)
+  // Ordering policy tiles: amounts only when configured, never invented (#302)
   const policyTiles = [
     settings?.minOrderAmount != null
       ? {
@@ -100,16 +100,8 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           value: formatMoney(settings.deliveryFee, locale),
         }
       : null,
-    settings?.leadTimeValue != null && settings?.leadTimeUnit != null
-      ? {
-          id: "est-time",
-          label: dict.policyEstTime,
-          value: formatLeadTime(
-            { value: settings.leadTimeValue, unit: settings.leadTimeUnit },
-            locale,
-          ),
-        }
-      : null,
+    // Lead time is a domain rule with a documented default (DEFAULT_LEAD_TIME), shown the same in checkout.
+    { id: "est-time", label: dict.policyEstTime, value: leadTimeText },
   ].filter((tile): tile is { id: string; label: string; value: string } => tile !== null);
 
   const policyGridClassName =
