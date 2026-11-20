@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useSyncExternalStore } from "react";
 import {
   ChevronLeft,
   Phone,
@@ -18,8 +18,11 @@ import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonItem } from "@/components/feedback";
 import { ActionBar, Button, Field, Input, Textarea, useToast } from "@/components/ui";
 import { updateBusinessProfileAction } from "../actions";
+import { buildStorefrontUrl } from "../storefront-url";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { useManagerLocale } from "@/components/i18n";
+
+const noopSubscribe = () => () => {};
 
 export interface BusinessProfileFormProps {
   business: Business;
@@ -95,15 +98,25 @@ export function BusinessProfileForm({
     showToast(x.discarded);
   };
 
+  const clientOrigin = useSyncExternalStore(
+    noopSubscribe,
+    () => window.location.origin,
+    () => "",
+  );
+  const storefrontUrl = buildStorefrontUrl({
+    locale: managerLocale,
+    fallbackOrigin: clientOrigin,
+  });
+
   const handleCopyUrl = async () => {
-    const fullUrl = `https://foodbiz.app/s/${slug || business.slug}`;
+    if (!storefrontUrl) return;
     try {
-      await navigator.clipboard.writeText(fullUrl);
+      await navigator.clipboard.writeText(storefrontUrl.fullUrl);
       setCopied(true);
       showToast(x.urlCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast(fullUrl);
+      showToast(storefrontUrl.fullUrl);
     }
   };
 
@@ -218,43 +231,22 @@ export function BusinessProfileForm({
           <Field id="biz-slug" label={dict.business.slugLabel} required error={errors.slug?.[0]}>
             {(control) => (
               <>
-                <div className="border-input bg-card focus-within:ring-ring flex min-h-12 w-full items-center rounded-xl border transition-colors focus-within:ring-2">
-                  <span className="bg-muted text-muted-foreground flex h-full items-center rounded-l-xl px-3 font-mono text-sm select-none">
-                    {dict.business.slugHelper}
-                  </span>
-                  <Input
-                    {...control}
-                    aria-describedby={
-                      [control["aria-describedby"], slugLockedReason ? "biz-slug-locked" : null]
-                        .filter(Boolean)
-                        .join(" ") || undefined
-                    }
-                    type="text"
-                    required
-                    value={slug}
-                    onChange={(e) =>
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-                    }
-                    disabled={Boolean(slugLockedReason)}
-                    placeholder={x.slugPlaceholder}
-                    className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 py-2.5 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
-                    data-testid="input-business-slug"
-                  />
-                  <Button
-                    variant="unstyled"
-                    size="none"
-                    type="button"
-                    onClick={handleCopyUrl}
-                    aria-label={x.copyUrl}
-                    className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
-                  >
-                    {copied ? (
-                      <Check className="text-primary h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Input
+                  {...control}
+                  aria-describedby={
+                    [control["aria-describedby"], slugLockedReason ? "biz-slug-locked" : null]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                  type="text"
+                  required
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  disabled={Boolean(slugLockedReason)}
+                  placeholder={x.slugPlaceholder}
+                  className="rounded-xl px-3.5 py-2.5 font-mono disabled:opacity-60"
+                  data-testid="input-business-slug"
+                />
                 {slugLockedReason && (
                   <p
                     id="biz-slug-locked"
@@ -264,16 +256,34 @@ export function BusinessProfileForm({
                     {slugLockedReason}
                   </p>
                 )}
-                {!errors.slug && (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-muted-foreground truncate text-xs">
-                      {`foodbiz.app/s/${slug || "slug"}`}
-                    </span>
-                  </div>
-                )}
               </>
             )}
           </Field>
+
+          {/* Storefront Link */}
+          <div
+            className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-xl border px-3.5 py-1.5"
+            data-testid="storefront-link-row"
+          >
+            <span
+              className="text-muted-foreground min-h-5 min-w-0 flex-1 truncate font-mono text-sm leading-5"
+              data-testid="storefront-url-preview"
+            >
+              {storefrontUrl?.displayUrl}
+            </span>
+            <Button
+              variant="unstyled"
+              size="none"
+              type="button"
+              onClick={handleCopyUrl}
+              disabled={!storefrontUrl}
+              aria-label={x.copyUrl}
+              data-testid="button-copy-storefront-url"
+              className="text-muted-foreground hover:text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-40"
+            >
+              {copied ? <Check className="text-primary h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </div>
 
