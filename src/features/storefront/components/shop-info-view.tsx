@@ -23,6 +23,7 @@ import { buildOpenStreetMapEmbedUrl, type BusinessSettings } from "@/domain/busi
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 import { SoonBadge } from "@/components/feedback";
 import { ActionBar } from "@/components/ui/action-bar";
+import { cn } from "@/lib/utils";
 
 export interface ShopInfoViewProps {
   business: StorefrontBusiness;
@@ -82,6 +83,41 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
   const currentMondayIndex = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
 
   const isOpen = settings?.acceptingOrders ?? true;
+
+  // Ordering policy tiles: only show configured settings, never invent defaults (#302)
+  const policyTiles = [
+    settings?.minOrderAmount != null
+      ? {
+          id: "min-order",
+          label: dict.policyMinOrder,
+          value: formatMoney(settings.minOrderAmount, locale),
+        }
+      : null,
+    settings?.deliveryFee != null
+      ? {
+          id: "delivery-fee",
+          label: dict.policyDeliveryFee,
+          value: formatMoney(settings.deliveryFee, locale),
+        }
+      : null,
+    settings?.leadTimeValue != null && settings?.leadTimeUnit != null
+      ? {
+          id: "est-time",
+          label: dict.policyEstTime,
+          value: formatLeadTime(
+            { value: settings.leadTimeValue, unit: settings.leadTimeUnit },
+            locale,
+          ),
+        }
+      : null,
+  ].filter((tile): tile is { id: string; label: string; value: string } => tile !== null);
+
+  const policyGridClassName =
+    policyTiles.length === 1
+      ? "grid grid-cols-1 gap-2 text-xs"
+      : policyTiles.length === 2
+        ? "grid grid-cols-2 gap-2 text-xs"
+        : "grid grid-cols-2 gap-2 text-xs sm:grid-cols-3";
 
   return (
     <div className="flex flex-col gap-6">
@@ -389,28 +425,27 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground text-micro block uppercase">Min. Order</span>
-            <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              {formatMoney(settings?.minOrderAmount ?? 1500, locale)}
-            </span>
+        {policyTiles.length > 0 && (
+          <div data-testid="ordering-policy-grid" className={policyGridClassName}>
+            {policyTiles.map((tile, index) => (
+              <div
+                key={tile.id}
+                data-testid={`policy-tile-${tile.id}`}
+                className={cn(
+                  "border-border/40 bg-muted/40 rounded-lg border p-2.5",
+                  policyTiles.length === 3 && index === 2 && "col-span-2 sm:col-span-1",
+                )}
+              >
+                <span className="text-muted-foreground text-micro block uppercase">
+                  {tile.label}
+                </span>
+                <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
+                  {tile.value}
+                </span>
+              </div>
+            ))}
           </div>
-
-          <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground text-micro block uppercase">Delivery Fee</span>
-            <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              {formatMoney(settings?.deliveryFee ?? 250, locale)}
-            </span>
-          </div>
-
-          <div className="border-border/40 bg-muted/40 rounded-lg border p-2.5">
-            <span className="text-muted-foreground text-micro block uppercase">Est. Time</span>
-            <span className="text-foreground mt-0.5 block text-xs font-bold tabular-nums">
-              {leadTimeText}
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Accepted Payment Methods */}
         <div className="border-border/50 border-t pt-2">

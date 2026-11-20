@@ -313,6 +313,9 @@ export const frDictionary: Dictionary = {
     holidayScheduleNotice:
       "Horaires jours fériés : Ouvert les jours fériés sauf le 1er mai et le 25 décembre.",
     deliveryPolicy: "Conditions de livraison & commande",
+    policyMinOrder: "Commande min.",
+    policyDeliveryFee: "Frais de livraison",
+    policyEstTime: "Délai estimé",
     acceptedPayments: "Moyens de paiement acceptés",
     cashOnPickup: "Espèces au retrait",
     today: "Aujourd'hui",

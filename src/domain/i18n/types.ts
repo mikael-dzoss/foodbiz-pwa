@@ -182,6 +182,9 @@ export interface StorefrontDictionary {
   holidayScheduleTitle: string;
   holidayScheduleNotice: string;
   deliveryPolicy: string;
+  policyMinOrder: string;
+  policyDeliveryFee: string;
+  policyEstTime: string;
   acceptedPayments: string;
   cashOnPickup: string;
   today: string;
