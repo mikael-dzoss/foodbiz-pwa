@@ -109,20 +109,14 @@ export function BusinessProfileForm({
   });
 
   const handleCopyUrl = async () => {
-    const resolved =
-      storefrontUrl ??
-      buildStorefrontUrl({
-        locale: managerLocale,
-        fallbackOrigin: typeof window !== "undefined" ? window.location.origin : "",
-      });
-    if (!resolved) return;
+    if (!storefrontUrl) return;
     try {
-      await navigator.clipboard.writeText(resolved.fullUrl);
+      await navigator.clipboard.writeText(storefrontUrl.fullUrl);
       setCopied(true);
       showToast(x.urlCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast(resolved.fullUrl);
+      showToast(storefrontUrl.fullUrl);
     }
   };
 
@@ -237,41 +231,22 @@ export function BusinessProfileForm({
           <Field id="biz-slug" label={dict.business.slugLabel} required error={errors.slug?.[0]}>
             {(control) => (
               <>
-                <div className="border-input bg-card focus-within:ring-ring flex min-h-12 w-full items-center rounded-xl border transition-colors focus-within:ring-2">
-                  <Input
-                    {...control}
-                    aria-describedby={
-                      [control["aria-describedby"], slugLockedReason ? "biz-slug-locked" : null]
-                        .filter(Boolean)
-                        .join(" ") || undefined
-                    }
-                    type="text"
-                    required
-                    value={slug}
-                    onChange={(e) =>
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-                    }
-                    disabled={Boolean(slugLockedReason)}
-                    placeholder={x.slugPlaceholder}
-                    className="min-w-0 flex-1 rounded-l-xl rounded-r-none border-0 bg-transparent px-3.5 py-2.5 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-60"
-                    data-testid="input-business-slug"
-                  />
-                  <Button
-                    variant="unstyled"
-                    size="none"
-                    type="button"
-                    onClick={handleCopyUrl}
-                    aria-label={x.copyUrl}
-                    data-testid="button-copy-storefront-url"
-                    className="text-muted-foreground hover:text-foreground mr-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
-                  >
-                    {copied ? (
-                      <Check className="text-primary h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Input
+                  {...control}
+                  aria-describedby={
+                    [control["aria-describedby"], slugLockedReason ? "biz-slug-locked" : null]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                  type="text"
+                  required
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  disabled={Boolean(slugLockedReason)}
+                  placeholder={x.slugPlaceholder}
+                  className="rounded-xl px-3.5 py-2.5 font-mono disabled:opacity-60"
+                  data-testid="input-business-slug"
+                />
                 {slugLockedReason && (
                   <p
                     id="biz-slug-locked"
@@ -281,19 +256,34 @@ export function BusinessProfileForm({
                     {slugLockedReason}
                   </p>
                 )}
-                {!errors.slug && storefrontUrl && (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span
-                      className="text-muted-foreground truncate text-xs"
-                      data-testid="storefront-url-preview"
-                    >
-                      {storefrontUrl.displayUrl}
-                    </span>
-                  </div>
-                )}
               </>
             )}
           </Field>
+
+          {/* Storefront Link */}
+          <div
+            className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-xl border px-3.5 py-1.5"
+            data-testid="storefront-link-row"
+          >
+            <span
+              className="text-muted-foreground min-h-5 min-w-0 flex-1 truncate font-mono text-sm leading-5"
+              data-testid="storefront-url-preview"
+            >
+              {storefrontUrl?.displayUrl}
+            </span>
+            <Button
+              variant="unstyled"
+              size="none"
+              type="button"
+              onClick={handleCopyUrl}
+              disabled={!storefrontUrl}
+              aria-label={x.copyUrl}
+              data-testid="button-copy-storefront-url"
+              className="text-muted-foreground hover:text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-40"
+            >
+              {copied ? <Check className="text-primary h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { BusinessProfileForm } from "../components/business-profile-form";
 import { ManagerLocaleProvider } from "@/components/i18n";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
@@ -37,10 +38,23 @@ vi.mock("../actions", () => ({
   })),
 }));
 
+const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+
+function stubClipboard(writeText: (text: string) => Promise<void>) {
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText },
+    configurable: true,
+  });
+}
+
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
-  vi.unstubAllGlobals();
+  if (originalClipboardDescriptor) {
+    Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
+  } else {
+    Reflect.deleteProperty(navigator, "clipboard");
+  }
 });
 
 describe("BusinessProfileForm component", () => {
@@ -247,7 +261,7 @@ describe("BusinessProfileForm component", () => {
     expect(screen.queryByTestId("slug-owner-only-notice")).toBeNull();
   });
 
-  it("displays the storefront URL without protocol and without foodbiz.app or slug", () => {
+  it("displays the storefront URL in a separate link row without foodbiz.app or slug", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
 
     render(
@@ -256,15 +270,39 @@ describe("BusinessProfileForm component", () => {
       </ManagerLocaleProvider>,
     );
 
+    const linkRow = screen.getByTestId("storefront-link-row");
     const preview = screen.getByTestId("storefront-url-preview");
+    const copyButton = screen.getByTestId("button-copy-storefront-url") as HTMLButtonElement;
+    const slugInput = screen.getByTestId("input-business-slug");
+
+    expect(linkRow.contains(preview)).toBe(true);
+    expect(linkRow.contains(copyButton)).toBe(true);
+    expect(linkRow.contains(slugInput)).toBe(false);
+    expect(copyButton.disabled).toBe(false);
     expect(preview.textContent).toBe("bakery.example.com/fr");
     expect(screen.queryByText(/foodbiz\.app/)).toBeNull();
+  });
+
+  it("keeps the storefront link row rendered with disabled copy button before hydration when site URL is unset", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+
+    const html = renderToString(<BusinessProfileForm business={mockBusiness} dict={dict} />);
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const linkRow = doc.querySelector('[data-testid="storefront-link-row"]');
+    const preview = doc.querySelector('[data-testid="storefront-url-preview"]');
+    const copyButton = doc.querySelector(
+      '[data-testid="button-copy-storefront-url"]',
+    ) as HTMLButtonElement | null;
+
+    expect(linkRow).not.toBeNull();
+    expect(preview?.textContent).toBe("");
+    expect(copyButton?.disabled).toBe(true);
   });
 
   it("copies the full storefront URL to the clipboard using NEXT_PUBLIC_SITE_URL when set", async () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
     const writeText = vi.fn(async () => undefined);
-    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    stubClipboard(writeText);
 
     render(
       <ManagerLocaleProvider locale="fr">
@@ -282,7 +320,7 @@ describe("BusinessProfileForm component", () => {
   it("falls back to window.location.origin when NEXT_PUBLIC_SITE_URL is unset and copies the full URL", async () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     const writeText = vi.fn(async () => undefined);
-    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    stubClipboard(writeText);
 
     render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
 
