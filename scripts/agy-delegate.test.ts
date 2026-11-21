@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  LOCK_STALE_MS,
   ROLES,
   UsageError,
   buildAgyArgs,
@@ -22,6 +23,7 @@ import {
   decide,
   durationMs,
   formatSummary,
+  gateDefiningFiles,
   gitFacts,
   main,
   parseArgs,
@@ -114,6 +116,11 @@ describe("parseArgs", () => {
     [["frontend"], /--brief is required/],
     [["frontend", "--brief"], /bad argument/],
     [["frontend", "--brief", "b", "--base"], /bad argument/],
+    [["frontend", "--brief", "b", "--base", "-x"], /--base/],
+    [["frontend", "--brief", "b", "--base", "--exec=evil"], /--base/],
+    [["frontend", "--brief", "b", "--base", "origin/dev;id"], /--base/],
+    [["frontend", "--brief", "b", "--base", "has space"], /--base/],
+    [["frontend", "--brief", "b", "--base", ""], /--base/],
     [["frontend", "--brief", "b", "--nope", "x"], /bad argument/],
     [["fast", "--brief", "b", "--tier", "xhigh"], /no tier 'xhigh'/],
     [["ops", "--brief", "b", "--timeout", "10"], /--timeout/],
@@ -450,6 +457,23 @@ describe("gitFacts", () => {
     expect(missingBase.files).toEqual([]);
     expect(missingBase.note).toMatch(/does-not-exist/);
   });
+
+  it("fails closed when git status --porcelain fails", () => {
+    const broken = join(root, "broken-status");
+    mkdirSync(broken);
+    const run = (args: string[]) => execFileSync("git", args, { cwd: broken, encoding: "utf8" });
+    run(["init", "-b", "base"]);
+    run(["config", "user.name", "Test"]);
+    run(["config", "user.email", "test@example.com"]);
+    writeFileSync(join(broken, "a.txt"), "a\n");
+    run(["add", "a.txt"]);
+    run(["commit", "-m", "chore: init"]);
+    // Corrupt the git index so `git status --porcelain` fails while `rev-parse` still works.
+    writeFileSync(join(broken, ".git", "index"), "not a valid git index");
+
+    const facts = gitFacts(broken, "base");
+    expect(facts.dirty).toEqual(["<git status failed>"]);
+  });
 });
 
 describe("decide", () => {
@@ -536,8 +560,25 @@ describe("decide", () => {
     ).toEqual({ code: 0, reason: "done", verify: false });
   });
 
-  it("ignores the receipt when scripts/gate.mjs or package.json changed", () => {
-    for (const file of ["scripts/gate.mjs", "package.json"]) {
+  it("ignores the receipt when gate-defining files changed", () => {
+    const gateFiles = [
+      "scripts/gate.mjs",
+      "scripts/ci-scope.mjs",
+      "scripts/supabase-status.mjs",
+      "package.json",
+      "vitest.config.mts",
+      "vitest.tooling.config.mts",
+      "eslint.config.mjs",
+      "tsconfig.json",
+      "tsconfig.build.json",
+      ".prettierrc",
+      ".prettierrc.json",
+      ".prettierignore",
+      "playwright.config.ts",
+      "playwright.supabase.config.ts",
+    ];
+    for (const file of gateFiles) {
+      expect(gateDefiningFiles([file, "src/app/page.tsx"]), file).toEqual([file]);
       const files = [file];
       const decision = decide({
         proc: successProc(),
@@ -548,6 +589,7 @@ describe("decide", () => {
       });
       expect(decision.verify, file).toBe(true);
     }
+    expect(gateDefiningFiles(["src/app/page.tsx", "scripts/agy-delegate.mjs"])).toEqual([]);
   });
 
   it("returns 1 on blocked report, dirty files, or no commits", () => {
@@ -740,20 +782,36 @@ describe("withGateLock", () => {
 
   afterAll(() => rmSync(repo, { recursive: true, force: true }));
 
-  it("acquires the lock and always releases it in finally", () => {
+  it("defaults LOCK_STALE_MS to 60 minutes (above worst-case gate time)", () => {
+    expect(LOCK_STALE_MS).toBe(60 * 60_000);
+  });
+
+  it("acquires the lock with a token and always releases it in finally", () => {
     const lockPath = join(repo, commonDir, "agy-gate.lock");
     expect(() =>
       withGateLock(repo, () => {
         expect(existsSync(lockPath)).toBe(true);
+        expect(readFileSync(join(lockPath, "token"), "utf8")).toMatch(/^[0-9a-f]{32}$/);
         throw new Error("boom");
       }),
     ).toThrow("boom");
     expect(existsSync(lockPath)).toBe(false);
   });
 
+  it("leaves the lock in place when the token no longer matches", () => {
+    const lockPath = join(repo, commonDir, "agy-gate.lock");
+    withGateLock(repo, () => {
+      writeFileSync(join(lockPath, "token"), "taken-over-by-another-process");
+    });
+    expect(existsSync(lockPath)).toBe(true);
+    expect(readFileSync(join(lockPath, "token"), "utf8")).toBe("taken-over-by-another-process");
+    rmSync(lockPath, { recursive: true, force: true });
+  });
+
   it("takes over a stale lock older than staleMs", () => {
     const lockPath = join(repo, commonDir, "agy-gate.lock");
     mkdirSync(lockPath);
+    writeFileSync(join(lockPath, "token"), "stale-token");
     const old = new Date(Date.now() - 60_000);
     utimesSync(lockPath, old, old);
 
@@ -791,6 +849,25 @@ describe("formatSummary", () => {
     expect(text).toContain("  - src/features/orders/filter.tsx");
     expect(text).toContain("blockers: -");
     expect(text).not.toContain("checks:");
+    expect(text).not.toContain("review:");
+  });
+
+  it("prints a review line when outcome.reviewFiles is non-empty", () => {
+    const text = formatSummary(
+      opts,
+      {
+        code: 0,
+        reason: "done",
+        result: parsedResult,
+        report: cleanReport,
+        facts: { ...cleanFacts, files: ["vitest.config.mts", "package.json"] },
+        verification: { kind: "ran", cmd: "npm run -s gate:quick", seconds: 10 },
+        recoveredError: "",
+        reviewFiles: ["vitest.config.mts", "package.json"],
+      },
+      null,
+    );
+    expect(text).toContain("review: gate-defining files changed: vitest.config.mts, package.json");
   });
 
   it("formats ran, FAILED (with tail), skipped and recovered error note", () => {
@@ -1012,6 +1089,78 @@ describe("main with a fake agy", () => {
     expect(summary).toContain("note: agy reported");
     expect(summary).toContain("but the report was recovered");
     expect(summary).toContain("verified: ran");
+  });
+
+  it("returns 1 when the tree changes during verification", () => {
+    rmSync(join(gitDir, "gate-receipt.json"), { force: true });
+    const bin = fakeAgy(`console.log(${JSON.stringify(agyResult())});`);
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((msg) => lines.push(String(msg)));
+    const code = main(
+      ["frontend", "--brief", join(dir, "brief.md"), "--cwd", repo, "--base", "base"],
+      {
+        AGY_BIN: bin,
+        AGY_STATE_DIR: join(dir, "state-mutated"),
+        AGY_GATE_CMD: "node -e \"require('fs').writeFileSync('created-by-gate.txt', 'x')\"",
+      },
+    );
+    log.mockRestore();
+    rmSync(join(repo, "created-by-gate.txt"), { force: true });
+
+    expect(code).toBe(1);
+    expect(lines.join("\n")).toContain("tree changed during verification");
+  });
+
+  it("ignores receipt, runs gate, keeps exit 0, and flags reviewFiles for gate-defining diffs", () => {
+    const gateRepo = join(dir, "repo-gate-defining");
+    mkdirSync(gateRepo);
+    const run = (args: string[]) =>
+      execFileSync("git", args, { cwd: gateRepo, encoding: "utf8" }).trim();
+    run(["init", "-b", "base"]);
+    run(["config", "user.name", "Test"]);
+    run(["config", "user.email", "test@example.com"]);
+    writeFileSync(join(gateRepo, "README.md"), "base\n");
+    run(["add", "README.md"]);
+    run(["commit", "-m", "chore: base"]);
+    run(["checkout", "-b", "feature/vitest-cfg"]);
+    writeFileSync(join(gateRepo, "vitest.config.mts"), "export default {};\n");
+    run(["add", "vitest.config.mts"]);
+    run(["commit", "-m", "chore: edit vitest config"]);
+
+    const head = run(["rev-parse", "HEAD"]);
+    const gDir = run(["rev-parse", "--absolute-git-dir"]);
+    writeFileSync(
+      join(gDir, "gate-receipt.json"),
+      JSON.stringify({
+        head,
+        steps: ["format:check", "lint", "typecheck", "test"],
+        mode: "quick",
+        at: new Date().toISOString(),
+      }),
+    );
+
+    const state = join(dir, "state-review-files");
+    const bin = fakeAgy(`console.log(${JSON.stringify(agyResult())});`);
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((msg) => lines.push(String(msg)));
+    const code = main(
+      ["frontend", "--brief", join(dir, "brief.md"), "--cwd", gateRepo, "--base", "base"],
+      {
+        AGY_BIN: bin,
+        AGY_STATE_DIR: state,
+        AGY_GATE_CMD: 'node -e "process.exit(0)"',
+      },
+    );
+    log.mockRestore();
+
+    expect(code).toBe(0);
+    const summary = lines.join("\n");
+    expect(summary).toContain("verified: ran");
+    expect(summary).toContain("review: gate-defining files changed: vitest.config.mts");
+    const [raw] = readdirSync(state);
+    expect(JSON.parse(readFileSync(join(state, raw), "utf8")).reviewFiles).toEqual([
+      "vitest.config.mts",
+    ]);
   });
 
   it("sends a resumed brief as-is and returns 1 on blocked", () => {

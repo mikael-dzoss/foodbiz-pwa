@@ -14,6 +14,7 @@
 // Exit codes: 0 done (gate verified on HEAD), 1 ran but blocked/failed/timed out
 //             (resumable), 2 usage error, 3 agy unavailable (fall back to Claude).
 import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,8 +24,20 @@ const CONTRACT = join(ROOT, "scripts/agy-contract.md");
 const SCHEMA = join(ROOT, "scripts/agy-report.schema.json");
 const GATE_TIMEOUT_MS = 15 * 60_000;
 const LOCK_RETRY_MS = 5_000;
-const LOCK_STALE_MS = 30 * 60_000;
-const RECEIPT_UNTRUSTED = new Set(["scripts/gate.mjs", "package.json"]);
+export const LOCK_STALE_MS = 60 * 60_000;
+
+const GATE_DEFINING = [
+  /^scripts\/gate\.mjs$/,
+  /^scripts\/ci-scope\.mjs$/,
+  /^scripts\/supabase-status\.mjs$/,
+  /^package\.json$/,
+  /^vitest[^/]*\.config\.[^/]+$/,
+  /^eslint\.config\.[^/]+$/,
+  /^tsconfig[^/]*\.json$/,
+  /^\.prettierrc[^/]*$/,
+  /^\.prettierignore$/,
+  /^playwright[^/]*\.config\.[^/]+$/,
+];
 
 /** role -> agy agent and model per tier; the first tier is the default. */
 export const ROLES = {
@@ -98,6 +111,8 @@ export function parseArgs(argv) {
     );
   if (!/^\d+[hms]$/.test(opts.timeout))
     throw new UsageError(`--timeout must look like 45m, 90s or 1h.`);
+  if (opts.base.startsWith("-") || !/^[\w./-]+$/.test(opts.base))
+    throw new UsageError(`--base '${opts.base}' must be a valid git ref.`);
   opts.cwd = resolve(opts.cwd);
   return /** @type {Options} */ (opts);
 }
@@ -281,7 +296,7 @@ export function gitFacts(cwd, base) {
   const head = runGit(cwd, ["rev-parse", "HEAD"]).out.trim();
   const branch = runGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]).out.trim();
   const dirtyRes = runGit(cwd, ["status", "--porcelain"]);
-  const dirty = dirtyRes.ok ? dirtyRes.out.split("\n").filter(Boolean) : [];
+  const dirty = dirtyRes.ok ? dirtyRes.out.split("\n").filter(Boolean) : ["<git status failed>"];
 
   const baseCheck = runGit(cwd, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
   if (!baseCheck.ok) {
@@ -317,10 +332,20 @@ export function requiredStepsFor(files) {
   return steps;
 }
 
+/**
+ * Returns the subset of changed files that define or configure the gate/checks.
+ * @param {string[]} files
+ * @returns {string[]}
+ */
+export const gateDefiningFiles = (files) =>
+  (files ?? []).filter((f) => GATE_DEFINING.some((pattern) => pattern.test(f)));
+
+// The receipt and the gate guard catch sloppy self-reports, not a malicious
+// agent, so Claude review of gate-defining changes and CI remain the real gates.
 function receiptMatches(receipt, facts, requiredSteps) {
   if (!receipt || typeof receipt !== "object") return false;
   if (!facts?.head || receipt.head !== facts.head) return false;
-  if ((facts.files ?? []).some((f) => RECEIPT_UNTRUSTED.has(f))) return false;
+  if (gateDefiningFiles(facts.files).length > 0) return false;
   const done = new Set(Array.isArray(receipt.steps) ? receipt.steps : []);
   return requiredSteps.every((step) =>
     step === "test" ? done.has("test") || done.has("test:coverage") : done.has(step),
@@ -421,8 +446,8 @@ function sleepSync(ms) {
 /**
  * Serialises gate runs across parallel wrapper processes with an atomic mkdir
  * lock at `<git-common-dir>/agy-gate.lock`. Retries every `retryMs` (default 5s),
- * takes over a lock older than `staleMs` (default 30 min), and always releases
- * in `finally`.
+ * takes over a lock older than `staleMs` (default 60 min), writes an owner token
+ * on acquire, and releases in `finally` only if the token still matches.
  * @template T
  * @param {string} cwd
  * @param {() => T} fn
@@ -435,17 +460,22 @@ export function withGateLock(cwd, fn, { retryMs = LOCK_RETRY_MS, staleMs = LOCK_
     commonRes.ok && commonRes.out.trim()
       ? join(resolve(cwd, commonRes.out.trim()), "agy-gate.lock")
       : join(cwd, ".agy-gate.lock");
+  const tokenPath = join(lockDir, "token");
+  const token = randomBytes(16).toString("hex");
+  const isStale = () => Date.now() - statSync(lockDir).mtimeMs > staleMs;
 
   let acquired = false;
   while (!acquired) {
     try {
       mkdirSync(lockDir);
+      writeFileSync(tokenPath, token);
       acquired = true;
     } catch (error) {
       if (/** @type {NodeJS.ErrnoException} */ (error)?.code !== "EEXIST") throw error;
       try {
-        if (Date.now() - statSync(lockDir).mtimeMs > staleMs) {
-          rmSync(lockDir, { recursive: true, force: true });
+        if (isStale()) {
+          // Re-check mtime right before removing to narrow the takeover window.
+          if (isStale()) rmSync(lockDir, { recursive: true, force: true });
           continue;
         }
       } catch {
@@ -457,7 +487,13 @@ export function withGateLock(cwd, fn, { retryMs = LOCK_RETRY_MS, staleMs = LOCK_
   try {
     return fn();
   } finally {
-    rmSync(lockDir, { recursive: true, force: true });
+    try {
+      if (readFileSync(tokenPath, "utf8") === token) {
+        rmSync(lockDir, { recursive: true, force: true });
+      }
+    } catch {
+      // Lock was already taken over or removed by another process.
+    }
   }
 }
 
@@ -553,6 +589,9 @@ export function formatSummary(opts, outcome, rawPath) {
   if (verification) {
     lines.push(`verified: ${formatVerification(verification)}`);
   }
+  if (outcome.reviewFiles?.length) {
+    lines.push(`review: gate-defining files changed: ${outcome.reviewFiles.join(", ")}`);
+  }
   if (report) {
     lines.push(`summary: ${report.summary}`);
   }
@@ -612,6 +651,7 @@ export function main(argv = process.argv.slice(2), env = process.env) {
 
   let code = decision.code;
   let reason = decision.reason;
+  let finalFacts = facts;
   /** @type {Verification} */
   let verification;
 
@@ -620,9 +660,19 @@ export function main(argv = process.argv.slice(2), env = process.env) {
       runGate(opts.cwd, { tooling: requiredSteps.includes("test:tooling"), env }),
     );
     if (gate.ok) {
-      code = 0;
-      reason = recoveredError ? `done (agy error: ${recoveredError})` : "done";
-      verification = { kind: "ran", cmd: gate.cmd, seconds: gate.seconds };
+      const afterFacts = gitFacts(opts.cwd, opts.base);
+      const changed =
+        !afterFacts.head || afterFacts.head !== facts?.head || afterFacts.dirty.length > 0;
+      if (changed) {
+        finalFacts = afterFacts;
+        code = 1;
+        reason = "tree changed during verification";
+        verification = { kind: "failed", cmd: gate.cmd, seconds: gate.seconds, tail: "" };
+      } else {
+        code = 0;
+        reason = recoveredError ? `done (agy error: ${recoveredError})` : "done";
+        verification = { kind: "ran", cmd: gate.cmd, seconds: gate.seconds };
+      }
     } else {
       code = 1;
       reason = `gate failed (${gate.cmd})`;
@@ -634,14 +684,32 @@ export function main(argv = process.argv.slice(2), env = process.env) {
     verification = { kind: "skipped", reason: decision.reason };
   }
 
-  const outcome = { code, reason, result, report, facts, verification, recoveredError };
+  const reviewFiles = gateDefiningFiles(finalFacts?.files ?? []);
+  const outcome = {
+    code,
+    reason,
+    result,
+    report,
+    facts: finalFacts,
+    verification,
+    recoveredError,
+    reviewFiles,
+  };
   const dir = env.AGY_STATE_DIR || join(ROOT, ".claude/state/agy");
   mkdirSync(dir, { recursive: true });
   const rawPath = join(dir, `${new Date().toISOString().replace(/[:.]/g, "-")}-${opts.role}.json`);
   writeFileSync(
     rawPath,
     JSON.stringify(
-      { opts, exit: proc.status, result, facts, verification, stderr: proc.stderr?.slice(-4000) },
+      {
+        opts,
+        exit: proc.status,
+        result,
+        facts: finalFacts,
+        verification,
+        reviewFiles,
+        stderr: proc.stderr?.slice(-4000),
+      },
       null,
       2,
     ),
