@@ -27,7 +27,8 @@
     "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
     "source=foodbiz-pwa-claude-data,target=/home/node/.claude,type=volume",
     "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
-    "source=foodbiz-pwa-worktrees,target=${containerWorkspaceFolder}/.claude/worktrees,type=volume"
+    "source=foodbiz-pwa-worktrees,target=${containerWorkspaceFolder}/.claude/worktrees,type=volume",
+    "source=foodbiz-pwa-next,target=${containerWorkspaceFolder}/.next,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
