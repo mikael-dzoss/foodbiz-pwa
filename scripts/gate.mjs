@@ -8,6 +8,8 @@
 // Stops at the first failure (CI instead reports every failure of a tier), prints the tail of
 // its output and a pass/fail table with timings.
 import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { changedFiles, defaultBase, needsIntegration, scopeFor } from "./ci-scope.mjs";
 import { readStatus } from "./supabase-status.mjs";
 
@@ -89,6 +91,38 @@ function runLive() {
 
 const seconds = (ms) => `${(ms / 1000).toFixed(1)}s`;
 
+/**
+ * Pure receipt builder: emits a receipt only when the gate passed against a
+ * clean working tree whose HEAD did not move during the run.
+ * @param {{ ok: boolean, headBefore: string | null, headAfter: string | null, dirtyBefore: boolean, dirtyAfter: boolean, steps: string[], mode: string }} input
+ * @returns {{ head: string, steps: string[], mode: string, at: string } | null}
+ */
+export function receiptFor({ ok, headBefore, headAfter, dirtyBefore, dirtyAfter, steps, mode }) {
+  if (!ok || !headBefore || headBefore !== headAfter || dirtyBefore || dirtyAfter) return null;
+  return { head: headAfter, steps: [...steps], mode, at: new Date().toISOString() };
+}
+
+function git(args) {
+  const result = spawnSync("git", args, { encoding: "utf8" });
+  return result.status === 0 ? (result.stdout ?? "") : null;
+}
+
+function gitSnapshot() {
+  const head = git(["rev-parse", "HEAD"])?.trim() || null;
+  const status = git(["status", "--porcelain"]);
+  return { head, dirty: status === null ? true : status.trim().length > 0 };
+}
+
+function writeReceipt(receipt) {
+  try {
+    const gitDir = git(["rev-parse", "--absolute-git-dir"])?.trim();
+    if (!gitDir) throw new Error("could not resolve git dir");
+    writeFileSync(join(gitDir, "gate-receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`);
+  } catch (error) {
+    console.error(`gate: warning: could not write gate-receipt.json: ${error.message}`);
+  }
+}
+
 function main(argv) {
   const mode = argv.includes("--quick") ? "quick" : argv.includes("--full") ? "full" : "auto";
   const baseAt = argv.indexOf("--base");
@@ -98,6 +132,7 @@ function main(argv) {
     s.map((step) => ({ tier, ...step })),
   );
 
+  const before = gitSnapshot();
   console.error(
     `gate ${mode}: ${scope.files.length} changed file(s) vs ${base.slice(0, 9)}; tiers: ${[...new Set(steps.map((s) => s.tier))].join(", ")}`,
   );
@@ -113,6 +148,17 @@ function main(argv) {
       break;
     }
   }
+  const after = gitSnapshot();
+  const receipt = receiptFor({
+    ok: !failure,
+    headBefore: before.head,
+    headAfter: after.head,
+    dirtyBefore: before.dirty,
+    dirtyAfter: after.dirty,
+    steps: rows.filter((r) => r.ok).map((r) => r.name),
+    mode,
+  });
+  if (receipt) writeReceipt(receipt);
 
   if (failure) {
     const tail = failure.output.trimEnd().split("\n").slice(-60).join("\n");
