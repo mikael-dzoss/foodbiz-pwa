@@ -4,23 +4,27 @@
 // agent (.claude/agents/gemini-orchestrator.md); nothing else depends on it.
 //
 //   node scripts/agy-delegate.mjs <role> --brief <file> [--cwd <worktree>]
-//        [--tier <tier>] [--resume <conversation_id>] [--timeout 45m]
+//        [--base <ref>] [--tier <tier>] [--resume <conversation_id>] [--timeout 45m]
 //
 // Roles map to .agents/agents/foodbiz-<role>.md; ROLES below is the single place
 // to change models. A new job gets scripts/agy-contract.md prepended to the brief;
 // a resumed one (--resume) sends the brief as-is into the same conversation.
 // The raw agy JSON is kept in .claude/state/agy/ (gitignored).
 //
-// Exit codes: 0 done, 1 ran but blocked/failed/timed out (resumable),
-//             2 usage error, 3 agy unavailable (fall back to Claude subagents).
+// Exit codes: 0 done (gate verified on HEAD), 1 ran but blocked/failed/timed out
+//             (resumable), 2 usage error, 3 agy unavailable (fall back to Claude).
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CONTRACT = join(ROOT, "scripts/agy-contract.md");
 const SCHEMA = join(ROOT, "scripts/agy-report.schema.json");
+const GATE_TIMEOUT_MS = 15 * 60_000;
+const LOCK_RETRY_MS = 5_000;
+const LOCK_STALE_MS = 30 * 60_000;
+const RECEIPT_UNTRUSTED = new Set(["scripts/gate.mjs", "package.json"]);
 
 /** role -> agy agent and model per tier; the first tier is the default. */
 export const ROLES = {
@@ -41,7 +45,7 @@ export const ROLES = {
 
 const USAGE =
   "usage: node scripts/agy-delegate.mjs <frontend|backend|fast|ops> --brief <file> " +
-  "[--cwd <dir>] [--tier <tier>] [--resume <conversation_id>] [--timeout 45m]";
+  "[--cwd <dir>] [--base <ref>] [--tier <tier>] [--resume <conversation_id>] [--timeout 45m]";
 
 // Errors that mean agy itself cannot serve the job right now.
 const UNAVAILABLE =
@@ -50,10 +54,14 @@ const UNAVAILABLE =
 export class UsageError extends Error {}
 
 /**
- * @typedef {{ role: string, brief: string, cwd: string, tier: string, timeout: string, resume?: string }} Options
- * @typedef {{ status: string, summary: string, branch: string, commits: string[], files_changed: string[],
- *   pr_url: string, checks_run: { command: string, result: string, notes: string }[],
- *   blockers: string[], follow_ups: string[] }} Report
+ * @typedef {{ role: string, brief: string, cwd: string, base: string, tier: string, timeout: string, resume?: string }} Options
+ * @typedef {{ status: "done" | "blocked", summary: string, blockers: string[], follow_ups: string[], pr_url: string }} Report
+ * @typedef {{ head: string, branch: string, commits: string[], files: string[], dirty: string[], note: string }} GitFacts
+ * @typedef {{ head: string, steps: string[], mode: string, at: string }} GateReceipt
+ * @typedef {{ kind: "receipt", head: string }
+ *   | { kind: "ran", cmd: string, seconds: number }
+ *   | { kind: "failed", cmd: string, seconds: number, tail: string }
+ *   | { kind: "skipped", reason: string }} Verification
  */
 
 /**
@@ -65,11 +73,12 @@ export function parseArgs(argv) {
   const [role, ...rest] = argv;
   if (!role || !ROLES[role]) throw new UsageError(`unknown role '${role ?? ""}'.\n${USAGE}`);
   /** @type {Record<string, string>} */
-  const opts = { role, cwd: process.cwd(), timeout: "45m" };
+  const opts = { role, cwd: process.cwd(), base: "origin/develop", timeout: "45m" };
   /** @type {Record<string, string>} */
   const flags = {
     "--brief": "brief",
     "--cwd": "cwd",
+    "--base": "base",
     "--tier": "tier",
     "--resume": "resume",
     "--timeout": "timeout",
@@ -147,92 +156,385 @@ function parseAgyError(stderr) {
   }
 }
 
-/**
- * agy drops `structured_output` when the model's JSON misses the schema; recover
- * the last JSON object in the response text and coerce it to the report shape
- * (anything but "done" counts as blocked).
- */
-export function reportFromText(text) {
-  const candidates = [...(text ?? "").matchAll(/```(?:json)?\s*\n([\s\S]*?)\n```/g)].map(
-    (m) => m[1],
+function errorDetailOf(result, stderr) {
+  const agyError = parseAgyError(stderr);
+  return (
+    [agyError?.status, agyError?.reason, result?.error].filter(Boolean).join(": ") || "agy failed"
   );
-  candidates.push((text ?? "").trim());
-  for (const candidate of candidates.toReversed()) {
-    let raw;
-    try {
-      raw = JSON.parse(candidate);
-    } catch {
-      continue;
-    }
-    if (!raw || typeof raw !== "object" || !("status" in raw)) continue;
-    const strings = (value) =>
-      Array.isArray(value) ? value.map((v) => (typeof v === "string" ? v : JSON.stringify(v))) : [];
-    return {
-      status: raw.status === "done" ? "done" : "blocked",
-      summary: String(raw.summary ?? ""),
-      branch: String(raw.branch ?? ""),
-      commits: strings(raw.commits),
-      files_changed: strings(raw.files_changed),
-      pr_url: String(raw.pr_url ?? ""),
-      checks_run: (Array.isArray(raw.checks_run) ? raw.checks_run : []).map((c) => ({
-        command: String(c?.command ?? ""),
-        result: ["pass", "fail", "skipped"].includes(c?.result) ? c.result : "fail",
-        notes: String(c?.notes ?? c?.status ?? ""),
-      })),
-      blockers: strings(raw.blockers),
-      follow_ups: strings(raw.follow_ups),
-    };
-  }
-  return null;
 }
 
 /**
- * Classifies one finished agy process. A "done" report with a failing check is
- * not done.
- * @param {{ error?: Error, status?: number | null, stdout?: string, stderr?: string }} proc
- * @returns {{ code: 0 | 1 | 3, reason: string, result: any, report: Report | null }}
+ * Coerces a raw report object (from structured_output or response text) to the
+ * canonical report shape, dropping legacy keys (commit, commits, checks_run,
+ * files_changed, branch). Anything other than "done" counts as "blocked".
+ * @param {unknown} raw
+ * @returns {Report | null}
  */
-export function classify({ error, status, stdout, stderr }) {
-  if (error)
-    return { code: 3, reason: `agy could not start: ${error.message}`, result: null, report: null };
-  const result = parseJsonOutput(stdout);
+export function coerceReport(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw) || !("status" in raw)) return null;
+  const obj = /** @type {Record<string, unknown>} */ (raw);
+  const strings = (value) =>
+    Array.isArray(value) ? value.map((v) => (typeof v === "string" ? v : JSON.stringify(v))) : [];
+  return {
+    status: obj.status === "done" ? "done" : "blocked",
+    summary: String(obj.summary ?? ""),
+    blockers: strings(obj.blockers),
+    follow_ups: strings(obj.follow_ups),
+    pr_url: String(obj.pr_url ?? ""),
+  };
+}
+
+function tryParseReport(candidate) {
+  try {
+    return coerceReport(JSON.parse(candidate));
+  } catch {
+    return null;
+  }
+}
+
+/** Returns the exclusive end index of the balanced JSON object starting at `start`, or -1. */
+function balancedObjectEnd(text, start) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i + 1;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Recovers the last JSON report object in response text: checks fenced blocks,
+ * then the whole text, then scans backwards over `{` positions for the last
+ * balanced JSON object with a `status` property (preferring an enclosing outer
+ * object over an inner nested object).
+ * @param {string | undefined | null} text
+ * @returns {Report | null}
+ */
+export function reportFromText(text) {
+  const source = text ?? "";
+  const fenced = [...source.matchAll(/```(?:json)?\s*\n([\s\S]*?)\n```/g)].map((m) => m[1]);
+  for (const candidate of fenced.toReversed()) {
+    const report = tryParseReport(candidate);
+    if (report) return report;
+  }
+
+  const whole = tryParseReport(source.trim());
+  if (whole) return whole;
+
+  /** @type {{ report: Report, end: number } | null} */
+  let best = null;
+  for (let i = source.lastIndexOf("{"); i !== -1; i = i > 0 ? source.lastIndexOf("{", i - 1) : -1) {
+    const end = balancedObjectEnd(source, i);
+    if (end === -1) continue;
+    if (best && end <= best.end) continue;
+    const report = tryParseReport(source.slice(i, end));
+    if (report) {
+      best = { report, end };
+      // If no closing brace exists after `end`, no earlier `{` can enclose `best`.
+      if (source.indexOf("}", end) === -1) break;
+    }
+  }
+  return best?.report ?? null;
+}
+
+function runGit(cwd, args) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  if (result.error || result.status !== 0) {
+    return { ok: false, out: "", err: result.error?.message || (result.stderr ?? "").trim() };
+  }
+  return { ok: true, out: result.stdout ?? "", err: "" };
+}
+
+/**
+ * Reads branch, HEAD, commits, changed files and dirty status from git.
+ * Never throws; returns empty arrays and a note when cwd isn't a git repo or
+ * base is missing.
+ * @param {string} cwd
+ * @param {string} base
+ * @returns {GitFacts}
+ */
+export function gitFacts(cwd, base) {
+  const inside = runGit(cwd, ["rev-parse", "--is-inside-work-tree"]);
+  if (!inside.ok || inside.out.trim() !== "true") {
+    return {
+      head: "",
+      branch: "",
+      commits: [],
+      files: [],
+      dirty: [],
+      note: "not a git repository",
+    };
+  }
+  const head = runGit(cwd, ["rev-parse", "HEAD"]).out.trim();
+  const branch = runGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]).out.trim();
+  const dirtyRes = runGit(cwd, ["status", "--porcelain"]);
+  const dirty = dirtyRes.ok ? dirtyRes.out.split("\n").filter(Boolean) : [];
+
+  const baseCheck = runGit(cwd, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
+  if (!baseCheck.ok) {
+    return {
+      head,
+      branch,
+      commits: [],
+      files: [],
+      dirty,
+      note: `base ref '${base}' not found`,
+    };
+  }
+
+  const commitsRes = runGit(cwd, ["log", "--oneline", `${base}..HEAD`]);
+  const filesRes = runGit(cwd, ["diff", "--name-only", `${base}...HEAD`]);
+  const commits = commitsRes.ok ? commitsRes.out.trim().split("\n").filter(Boolean) : [];
+  const files = filesRes.ok ? filesRes.out.trim().split("\n").filter(Boolean) : [];
+  return { head, branch, commits, files, dirty, note: "" };
+}
+
+/**
+ * Required gate steps for the changed files: format:check, lint, typecheck,
+ * one of test / test:coverage, plus test:tooling for scripts/ or .github/.scripts/.
+ * @param {string[]} files
+ * @returns {string[]}
+ */
+export function requiredStepsFor(files) {
+  const steps = ["format:check", "lint", "typecheck", "test"];
+  const tooling = (files ?? []).some(
+    (f) => f.startsWith("scripts/") || f.startsWith(".github/.scripts/"),
+  );
+  if (tooling) steps.push("test:tooling");
+  return steps;
+}
+
+function receiptMatches(receipt, facts, requiredSteps) {
+  if (!receipt || typeof receipt !== "object") return false;
+  if (!facts?.head || receipt.head !== facts.head) return false;
+  if ((facts.files ?? []).some((f) => RECEIPT_UNTRUSTED.has(f))) return false;
+  const done = new Set(Array.isArray(receipt.steps) ? receipt.steps : []);
+  return requiredSteps.every((step) =>
+    step === "test" ? done.has("test") || done.has("test:coverage") : done.has(step),
+  );
+}
+
+/**
+ * Pure decision function for one completed agy process. Never returns exit 0
+ * unless a trusted receipt already proves every required step passed on HEAD;
+ * otherwise sets `verify: true` so `main` runs the gate before returning 0.
+ * @param {{
+ *   proc: { error?: Error, status?: number | null, stdout?: string, stderr?: string },
+ *   report?: Report | null,
+ *   facts?: GitFacts | null,
+ *   receipt?: GateReceipt | null,
+ *   requiredSteps?: string[],
+ * }} input
+ * @returns {{ code: 0 | 1 | 3, reason: string, verify: boolean }}
+ */
+export function decide({ proc, report, facts, receipt, requiredSteps }) {
+  if (proc?.error) {
+    return { code: 3, reason: `agy could not start: ${proc.error.message}`, verify: false };
+  }
+  const result = parseJsonOutput(proc?.stdout);
   if (!result) {
-    const tail = `${stderr ?? ""}${stdout ?? ""}`.trim().split("\n").slice(-3).join(" | ");
+    const tail = `${proc?.stderr ?? ""}${proc?.stdout ?? ""}`
+      .trim()
+      .split("\n")
+      .slice(-3)
+      .join(" | ");
     return {
       code: 3,
-      reason: `agy printed no JSON result (exit ${status}): ${tail}`,
-      result: null,
-      report: null,
+      reason: `agy printed no JSON result (exit ${proc?.status}): ${tail}`,
+      verify: false,
     };
   }
-  if (result.status !== "SUCCESS") {
-    const agyError = parseAgyError(stderr);
-    const detail = [agyError?.status, agyError?.reason, result.error].filter(Boolean).join(": ");
-    if (result.finished_reason === "print_timeout" || agyError?.reason === "print_timeout")
-      return { code: 1, reason: `timed out; resume to continue (${detail})`, result, report: null };
+
+  const isAgyError = result.status !== "SUCCESS";
+  const agyError = isAgyError ? parseAgyError(proc?.stderr) : null;
+  const detail = isAgyError ? errorDetailOf(result, proc?.stderr) : "";
+  const effectiveReport =
+    report !== undefined
+      ? report
+      : (coerceReport(result.structured_output) ?? reportFromText(result.response));
+
+  if (!effectiveReport) {
+    if (
+      isAgyError &&
+      (result.finished_reason === "print_timeout" || agyError?.reason === "print_timeout")
+    ) {
+      return { code: 1, reason: `timed out; resume to continue (${detail})`, verify: false };
+    }
+    if ((facts?.commits?.length ?? 0) > 0) {
+      return {
+        code: 1,
+        reason: "no report; resume and ask for the JSON report",
+        verify: false,
+      };
+    }
+    if (isAgyError) {
+      return { code: UNAVAILABLE.test(detail) ? 3 : 1, reason: detail, verify: false };
+    }
+    return { code: 1, reason: "no structured report in agy output", verify: false };
+  }
+
+  const note = isAgyError ? ` (agy error: ${detail})` : "";
+  if (effectiveReport.status !== "done") {
+    return { code: 1, reason: `blocked${note}`, verify: false };
+  }
+  if ((facts?.dirty?.length ?? 0) > 0) {
+    return { code: 1, reason: `uncommitted changes${note}`, verify: false };
+  }
+  if ((facts?.commits?.length ?? 0) === 0) {
+    return { code: 1, reason: `no commits${note}`, verify: false };
+  }
+
+  const needed = requiredSteps ?? requiredStepsFor(facts?.files ?? []);
+  if (receiptMatches(receipt, facts, needed)) {
+    return { code: 0, reason: `done${note}`, verify: false };
+  }
+  return { code: 1, reason: `needs verification${note}`, verify: true };
+}
+
+function readReceipt(cwd) {
+  const dirRes = runGit(cwd, ["rev-parse", "--absolute-git-dir"]);
+  if (!dirRes.ok || !dirRes.out.trim()) return null;
+  try {
+    return JSON.parse(readFileSync(join(dirRes.out.trim(), "gate-receipt.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Serialises gate runs across parallel wrapper processes with an atomic mkdir
+ * lock at `<git-common-dir>/agy-gate.lock`. Retries every `retryMs` (default 5s),
+ * takes over a lock older than `staleMs` (default 30 min), and always releases
+ * in `finally`.
+ * @template T
+ * @param {string} cwd
+ * @param {() => T} fn
+ * @param {{ retryMs?: number, staleMs?: number }} [options]
+ * @returns {T}
+ */
+export function withGateLock(cwd, fn, { retryMs = LOCK_RETRY_MS, staleMs = LOCK_STALE_MS } = {}) {
+  const commonRes = runGit(cwd, ["rev-parse", "--git-common-dir"]);
+  const lockDir =
+    commonRes.ok && commonRes.out.trim()
+      ? join(resolve(cwd, commonRes.out.trim()), "agy-gate.lock")
+      : join(cwd, ".agy-gate.lock");
+
+  let acquired = false;
+  while (!acquired) {
+    try {
+      mkdirSync(lockDir);
+      acquired = true;
+    } catch (error) {
+      if (/** @type {NodeJS.ErrnoException} */ (error)?.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - statSync(lockDir).mtimeMs > staleMs) {
+          rmSync(lockDir, { recursive: true, force: true });
+          continue;
+        }
+      } catch {
+        continue;
+      }
+      sleepSync(retryMs);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    rmSync(lockDir, { recursive: true, force: true });
+  }
+}
+
+const tailLines = (text, count = 40) => {
+  const trimmed = (text ?? "").trimEnd();
+  return trimmed ? trimmed.split("\n").slice(-count).join("\n") : "";
+};
+
+function runGate(cwd, { tooling, env }) {
+  const started = Date.now();
+  if (env.AGY_GATE_CMD) {
+    const res = spawnSync(env.AGY_GATE_CMD, {
+      cwd,
+      shell: true,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: GATE_TIMEOUT_MS,
+    });
+    const output = `${res.stdout ?? ""}${res.stderr ?? ""}${res.error ? `\n${res.error.message}` : ""}`;
+    const seconds = Math.round((Date.now() - started) / 1000);
     return {
-      code: UNAVAILABLE.test(detail) ? 3 : 1,
-      reason: detail || "agy failed",
-      result,
-      report: null,
+      ok: !res.error && res.status === 0,
+      cmd: env.AGY_GATE_CMD,
+      seconds,
+      tail: tailLines(output),
     };
   }
-  const report = result.structured_output ?? reportFromText(result.response);
-  if (!report)
-    return { code: 1, reason: "no structured report in agy output", result, report: null };
-  const failed = report.checks_run?.filter((c) => c.result === "fail").map((c) => c.command);
-  if (report.status === "done" && failed?.length)
-    return { code: 1, reason: `reported done but failed: ${failed.join(", ")}`, result, report };
-  return report.status === "done"
-    ? { code: 0, reason: "done", result, report }
-    : { code: 1, reason: "blocked", result, report };
+
+  const commands = [
+    { label: "npm run -s gate:quick", args: ["run", "-s", "gate:quick"] },
+    ...(tooling ? [{ label: "npm run -s test:tooling", args: ["run", "-s", "test:tooling"] }] : []),
+  ];
+  for (const step of commands) {
+    const res = spawnSync("npm", step.args, {
+      cwd,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: GATE_TIMEOUT_MS,
+    });
+    if (res.error || res.status !== 0) {
+      const output = `${res.stdout ?? ""}${res.stderr ?? ""}${res.error ? `\n${res.error.message}` : ""}`;
+      return {
+        ok: false,
+        cmd: step.label,
+        seconds: Math.round((Date.now() - started) / 1000),
+        tail: tailLines(output),
+      };
+    }
+  }
+  return {
+    ok: true,
+    cmd: commands.map((c) => c.label).join(" && "),
+    seconds: Math.round((Date.now() - started) / 1000),
+    tail: "",
+  };
 }
 
 const list = (items) => (items?.length ? items.map((i) => `\n  - ${i}`).join("") : " -");
 
+function formatVerification(verification) {
+  switch (verification.kind) {
+    case "receipt":
+      return `receipt ${verification.head.slice(0, 7)}`;
+    case "ran":
+      return `ran ${verification.cmd} ${verification.seconds}s pass`;
+    case "failed":
+      return `FAILED ${verification.cmd}`;
+    case "skipped":
+      return `skipped (${verification.reason})`;
+    default:
+      return "skipped (unknown)";
+  }
+}
+
 /** Compact text the orchestrator reads instead of the raw transcript. */
 export function formatSummary(opts, outcome, rawPath) {
-  const { result, report } = outcome;
+  const { result, report, facts, verification, recoveredError } = outcome;
   const model = ROLES[opts.role].tiers[opts.tier];
   const usage = result?.usage ?? {};
   const lines = [
@@ -245,21 +547,31 @@ export function formatSummary(opts, outcome, rawPath) {
         `(cache ${usage.cache_read_tokens ?? 0}) out ${usage.output_tokens ?? "?"}`,
     );
   }
+  if (recoveredError) {
+    lines.push(`note: agy reported ${recoveredError} but the report was recovered`);
+  }
+  if (verification) {
+    lines.push(`verified: ${formatVerification(verification)}`);
+  }
   if (report) {
-    const checks = report.checks_run?.map(
-      (c) => `${c.command}: ${c.result}${c.notes ? ` (${c.notes})` : ""}`,
-    );
+    lines.push(`summary: ${report.summary}`);
+  }
+  if (facts) {
     lines.push(
-      `summary: ${report.summary}`,
-      `branch: ${report.branch || "-"} | pr: ${report.pr_url || "-"}`,
-      `commits:${list(report.commits)}`,
-      `files:${list(report.files_changed)}`,
-      `checks:${list(checks)}`,
-      `blockers:${list(report.blockers)}`,
-      `follow_ups:${list(report.follow_ups)}`,
+      `branch: ${facts.branch || "-"} | pr: ${report?.pr_url || "-"}`,
+      `commits:${list(facts.commits)}`,
+      `files:${list(facts.files)}`,
     );
+    if (facts.dirty?.length) lines.push(`dirty:${list(facts.dirty)}`);
+    if (facts.note) lines.push(`git note: ${facts.note}`);
+  }
+  if (report) {
+    lines.push(`blockers:${list(report.blockers)}`, `follow_ups:${list(report.follow_ups)}`);
   } else if (result?.response) {
     lines.push(`response (no report): ${result.response.slice(0, 1500)}`);
+  }
+  if (verification?.kind === "failed" && verification.tail) {
+    lines.push(`gate output (last 40 lines):\n${verification.tail}`);
   }
   if (rawPath) lines.push(`raw: ${relative(ROOT, rawPath)}`);
   return lines.join("\n");
@@ -286,21 +598,56 @@ export function main(argv = process.argv.slice(2), env = process.env) {
     maxBuffer: 64 * 1024 * 1024,
     timeout: durationMs(opts.timeout) + 120_000,
   });
-  const outcome = classify(proc);
 
+  const result = proc.error ? null : parseJsonOutput(proc.stdout);
+  const report = result
+    ? (coerceReport(result.structured_output) ?? reportFromText(result.response))
+    : null;
+  const facts = result ? gitFacts(opts.cwd, opts.base) : null;
+  const receipt = result ? readReceipt(opts.cwd) : null;
+  const requiredSteps = requiredStepsFor(facts?.files ?? []);
+  const decision = decide({ proc, report, facts, receipt, requiredSteps });
+  const recoveredError =
+    report && result && result.status !== "SUCCESS" ? errorDetailOf(result, proc.stderr) : "";
+
+  let code = decision.code;
+  let reason = decision.reason;
+  /** @type {Verification} */
+  let verification;
+
+  if (decision.verify) {
+    const gate = withGateLock(opts.cwd, () =>
+      runGate(opts.cwd, { tooling: requiredSteps.includes("test:tooling"), env }),
+    );
+    if (gate.ok) {
+      code = 0;
+      reason = recoveredError ? `done (agy error: ${recoveredError})` : "done";
+      verification = { kind: "ran", cmd: gate.cmd, seconds: gate.seconds };
+    } else {
+      code = 1;
+      reason = `gate failed (${gate.cmd})`;
+      verification = { kind: "failed", cmd: gate.cmd, seconds: gate.seconds, tail: gate.tail };
+    }
+  } else if (decision.code === 0 && receipt) {
+    verification = { kind: "receipt", head: receipt.head };
+  } else {
+    verification = { kind: "skipped", reason: decision.reason };
+  }
+
+  const outcome = { code, reason, result, report, facts, verification, recoveredError };
   const dir = env.AGY_STATE_DIR || join(ROOT, ".claude/state/agy");
   mkdirSync(dir, { recursive: true });
   const rawPath = join(dir, `${new Date().toISOString().replace(/[:.]/g, "-")}-${opts.role}.json`);
   writeFileSync(
     rawPath,
     JSON.stringify(
-      { opts, exit: proc.status, result: outcome.result, stderr: proc.stderr?.slice(-4000) },
+      { opts, exit: proc.status, result, facts, verification, stderr: proc.stderr?.slice(-4000) },
       null,
       2,
     ),
   );
   console.log(formatSummary(opts, outcome, rawPath));
-  return outcome.code;
+  return code;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) process.exitCode = main();
