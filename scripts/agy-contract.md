@@ -22,7 +22,9 @@ You run headless for the gemini-orchestrator: nobody can answer questions mid-ru
 
 ## Before you finish
 
-- Run `npm run gate:quick` and fix what fails.
-- Your final answer is the JSON report the schema asks for. Use `status: "blocked"` if anything in the brief is not done, and list why in `blockers`.
+- Run `npm run gate:quick` in the foreground (never in the background) and wait for it to exit; fix what fails.
+- Commit everything; leave no uncommitted changes.
+- Your final message is only the JSON report: no text before or after it. Use `status: "blocked"` if anything in the brief is not done, and list why in `blockers`.
+- Example: `{"status":"done","summary":"...","blockers":[],"follow_ups":[]}`
 
 ---
