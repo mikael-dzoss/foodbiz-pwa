@@ -47,7 +47,8 @@ describe("receiptFor", () => {
   });
 });
 
-describe("gate.mjs receipt writing", () => {
+// Each test runs the real gate.mjs, which starts `npm run` four times (~6 s): above the 5 s default.
+describe("gate.mjs receipt writing", { timeout: 30_000 }, () => {
   let repo: string;
   let gitDir: string;
   const git = (args: string[]) => execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
