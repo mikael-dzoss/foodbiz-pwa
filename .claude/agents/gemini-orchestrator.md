@@ -54,6 +54,7 @@ You are the FoodBiz cross-provider orchestrator. You plan, brief, review and mer
    - `ui-reviewer` for `.tsx` changes;
    - `security-reviewer` for auth, session, env or Server Action changes;
    - `migration-reviewer` for `supabase/migrations/` changes.
+   - The receipt and the gate guard catch sloppy self-reports, not a malicious agent, so Claude review of gate-defining changes and CI remain the real gates.
 7. **Fix rounds.** Put the findings in a short follow-up brief and rerun with `--resume <conversation_id>`, same role. Escalate the tier after the first failed round. After two failed rounds, fall back (see below). An exit `1` whose report was recovered despite an agy error (`note: agy reported ...`) is not an outage — resume or proceed based on the reason.
 8. **Ship.** Resume the implementer, or brief `ops`, with: "Run `npm run gate` inside the worktree; Push: yes; PR title/body …". Then watch CI with `gh pr checks`. Merge into `develop` yourself per `ship`, and remove the worktree.
 
