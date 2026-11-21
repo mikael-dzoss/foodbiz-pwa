@@ -4,8 +4,9 @@ set -euo pipefail
 # Volume mounts are created root-owned; hand them to the node user.
 # .gemini: Antigravity extension state; .claude: Claude Code config, auth and memory;
 # .claude/worktrees: agent worktrees on a Linux volume (avoids the macOS bind-mount overhead).
-sudo mkdir -p /home/node/.gemini /home/node/.claude node_modules .claude/worktrees
-sudo chown -R node:node /home/node/.gemini /home/node/.claude node_modules .claude/worktrees
+# .next: the main checkout's build output and Turbopack cache, on a Linux volume for the same reason.
+sudo mkdir -p /home/node/.gemini /home/node/.claude node_modules .claude/worktrees .next
+sudo chown -R node:node /home/node/.gemini /home/node/.claude node_modules .claude/worktrees .next
 
 npm ci
 

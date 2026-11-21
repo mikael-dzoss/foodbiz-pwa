@@ -1,3 +1,5 @@
+import { lstatSync, realpathSync } from "node:fs";
+import { dirname } from "node:path";
 import type { NextConfig } from "next";
 import { DEFAULT_LOCALE } from "./src/domain/i18n/types";
 import { buildSecurityHeaders } from "./src/config/security-headers";
@@ -31,6 +33,20 @@ const isLocalSupabase = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(
 
 const appEnv = process.env.APP_ENV;
 
+/**
+ * Agent worktrees (.claude/worktrees/*) symlink the main checkout's node_modules. Turbopack won't
+ * resolve outside its root (by default the worktree), so widen the root to the main checkout,
+ * which holds both. Unset elsewhere (main checkout, CI).
+ */
+function linkedCheckoutRoot(): string | undefined {
+  try {
+    if (!lstatSync("node_modules").isSymbolicLink()) return undefined;
+    return dirname(realpathSync("node_modules"));
+  } catch {
+    return undefined;
+  }
+}
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   headers() {
@@ -62,6 +78,7 @@ const nextConfig: NextConfig = {
     dangerouslyAllowLocalIP: isLocalSupabase && process.env.NODE_ENV !== "production",
   },
   turbopack: {
+    root: linkedCheckoutRoot(),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
