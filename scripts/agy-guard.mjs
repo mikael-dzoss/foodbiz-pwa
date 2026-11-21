@@ -38,6 +38,8 @@ function pathsOf(args) {
 
 function checkCommand(command, cwd) {
   if (ENV_FILE.test(command)) return deny("secrets file (.env*); only .env.example is readable.");
+  if (/gate-receipt/i.test(command))
+    return deny("gate-receipt is written only by scripts/gate.mjs.");
   if (/\bgh\s+pr\s+merge\b/.test(command))
     return deny("the orchestrator merges PRs; push and report the PR URL instead.");
   const reason = evaluate(command, cwd);
@@ -78,6 +80,8 @@ export function decide(payload) {
       if (ENV_FILE.test(file)) return deny("secrets file (.env*); only .env.example is readable.");
       continue;
     }
+    if (/gate-receipt/i.test(file))
+      return deny("gate-receipt is written only by scripts/gate.mjs.");
     const blocked = checkWrite(file, root);
     if (blocked) return blocked;
   }
