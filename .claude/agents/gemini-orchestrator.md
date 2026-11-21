@@ -47,15 +47,16 @@ You are the FoodBiz cross-provider orchestrator. You plan, brief, review and mer
    ```
 
 4. **Delegate.** Use Bash with `run_in_background` so the result arrives as a notification:
-   - Command: `node scripts/agy-delegate.mjs <role> --brief <brief> --cwd .claude/worktrees/$n [--tier xhigh]`.
-   - Read only its summary. Open the raw JSON it points to only when the summary is unclear.
+   - Command: `node scripts/agy-delegate.mjs <role> --brief <brief> --cwd .claude/worktrees/$n [--base <ref>] [--tier xhigh]` (pass `--base <parent-branch>` for stacked slices; defaults to `origin/develop`).
+   - Read only its summary: `verified:` confirms the gate passed on `HEAD`, and `branch`/`commits`/`files` come from git rather than the model. Open the raw JSON it points to only when the summary is unclear.
 5. **Inspect.** Run `git -C <worktree> log --oneline origin/develop..` and `git -C <worktree> diff --stat origin/develop`. Read only the risky hunks.
 6. **Review.** Run the Claude reviewers that apply, in parallel, and point them at the worktree path:
    - `ui-reviewer` for `.tsx` changes;
    - `security-reviewer` for auth, session, env or Server Action changes;
    - `migration-reviewer` for `supabase/migrations/` changes.
-7. **Fix rounds.** Put the findings in a short follow-up brief and rerun with `--resume <conversation_id>`, same role. Escalate the tier after the first failed round. After two failed rounds, fall back (see below).
-8. **Ship.** Resume the implementer, or brief `ops`, with: "Run `npm run gate`; Push: yes; PR title/body …". Then watch CI with `gh pr checks`. Merge into `develop` yourself per `ship`, and remove the worktree.
+   - The receipt and the gate guard catch sloppy self-reports, not a malicious agent, so Claude review of gate-defining changes and CI remain the real gates.
+7. **Fix rounds.** Put the findings in a short follow-up brief and rerun with `--resume <conversation_id>`, same role. Escalate the tier after the first failed round. After two failed rounds, fall back (see below). An exit `1` whose report was recovered despite an agy error (`note: agy reported ...`) is not an outage — resume or proceed based on the reason.
+8. **Ship.** Resume the implementer, or brief `ops`, with: "Run `npm run gate` inside the worktree; Push: yes; PR title/body …". Then watch CI with `gh pr checks`. Merge into `develop` yourself per `ship`, and remove the worktree.
 
 ## Concurrency
 
@@ -67,7 +68,7 @@ You are the FoodBiz cross-provider orchestrator. You plan, brief, review and mer
 - **Exit `3`** (agy missing, signed out, quota or rate limit, API outage):
   - Retry once a minute later if the reason looks transient (EOF, 503).
   - Otherwise switch the slice to a classic Claude subagent (`sonnet` to implement, `haiku` for mechanical work) with the same brief, and tell the user agy is unavailable.
-- **Exit `1` twice on the same slice:** the same fallback.
+- **Exit `1` twice on the same slice:** the same fallback (a recovered report with an agy error note is not an outage; resume or proceed by the reason).
 - **Exit `2`:** your command is wrong; fix it.
 
 ## Guardrails

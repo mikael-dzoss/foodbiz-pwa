@@ -1,41 +1,11 @@
 {
   "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "status",
-    "summary",
-    "branch",
-    "commits",
-    "files_changed",
-    "pr_url",
-    "checks_run",
-    "blockers",
-    "follow_ups"
-  ],
+  "additionalProperties": true,
+  "required": ["status", "summary"],
   "properties": {
     "status": { "type": "string", "enum": ["done", "blocked"] },
     "summary": { "type": "string", "description": "What was done, in at most five sentences." },
-    "branch": { "type": "string" },
-    "commits": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "short SHA + subject"
-    },
-    "files_changed": { "type": "array", "items": { "type": "string" } },
     "pr_url": { "type": "string", "description": "Empty string when no PR was opened." },
-    "checks_run": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["command", "result", "notes"],
-        "properties": {
-          "command": { "type": "string" },
-          "result": { "type": "string", "enum": ["pass", "fail", "skipped"] },
-          "notes": { "type": "string" }
-        }
-      }
-    },
     "blockers": { "type": "array", "items": { "type": "string" } },
     "follow_ups": { "type": "array", "items": { "type": "string" } }
   }

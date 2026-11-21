@@ -34,6 +34,8 @@ describe("decide: run_command", () => {
     ["cat .env", /secrets file/],
     ["cp .env.local /tmp/x", /secrets file/],
     ["gh pr merge 12 --squash", /orchestrator merges/],
+    ["echo '{}' > .git/gate-receipt.json", /gate-receipt/],
+    ["cat .git/worktrees/x/gate-receipt.json", /gate-receipt/],
   ])("denies %s", (cmd, reason) => {
     const result = decide(command(cmd));
     expect(result).toMatchObject({ decision: "deny", reason: expect.stringMatching(reason) });
@@ -59,6 +61,10 @@ describe("decide: file tools", () => {
     });
     expect(decide(file("edit_file", join(root, "src/middleware.ts")))).toMatchObject({
       decision: "deny",
+    });
+    expect(decide(file("write_file", join(root, ".git/gate-receipt.json")))).toMatchObject({
+      decision: "deny",
+      reason: expect.stringMatching(/gate-receipt/),
     });
   });
 
