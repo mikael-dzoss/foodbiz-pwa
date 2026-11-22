@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
 import { expect, test, signIn } from "./fixtures";
+import { DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 async function expectAccessible(page: Page) {
   const results = await new AxeBuilder({ page })
@@ -31,7 +32,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       "/en",
       "/en/cart",
       "/en/checkout",
-      "/en/p/33333333-3333-4333-8333-333333333301",
+      "/en/p/" + DEMO_PRODUCT.chaudChaudNoyaux.id,
       "/en/order/tk-36",
       "/en/order/tk-36/confirmed",
       "/en/info",
@@ -40,7 +41,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       "/fr",
       "/fr/cart",
       "/fr/checkout",
-      "/fr/p/33333333-3333-4333-8333-333333333301",
+      "/fr/p/" + DEMO_PRODUCT.chaudChaudNoyaux.id,
       "/fr/order/tk-36",
       "/fr/order/tk-36/confirmed",
       "/fr/info",
@@ -78,8 +79,8 @@ for (const colorScheme of ["light", "dark"] as const) {
             const locale = path.startsWith("/fr") ? "fr" : "en";
             await page.goto(`/${locale}`);
             await page
-              .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
-              .getByRole("button", { name: /: Country Sourdough Loaf$/ })
+              .getByTestId(`product-row-${DEMO_PRODUCT.boulettes.id}`)
+              .getByRole("button", { name: new RegExp(`: ${DEMO_PRODUCT.boulettes.name}$`) })
               .click();
             await page.goto(`/${locale}/cart`);
             for (let i = 0; i < 3; i++) {

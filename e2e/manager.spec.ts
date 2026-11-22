@@ -1,18 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, signIn } from "./fixtures";
+import { DEMO_CATEGORY_IDS, DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 test.beforeEach(async ({ page }) => {
   await signIn(page);
 });
 
 test("product CRUD persists edits and soft deletion", async ({ page }) => {
-  const name = `E2E bread ${randomUUID()}`;
+  const name = `E2E dish ${randomUUID()}`;
   await page.goto("/manage/products");
   await expect(page.getByTestId("manager-category-nav")).toBeVisible();
-  await page.getByTestId("category-nav-tab-22222222-2222-4222-8222-222222222202").click();
-  await expect(
-    page.locator("#category-heading-22222222-2222-4222-8222-222222222202"),
-  ).toBeFocused();
+  await page.getByTestId(`category-nav-tab-${DEMO_CATEGORY_IDS.traditional}`).click();
+  await expect(page.locator(`#category-heading-${DEMO_CATEGORY_IDS.traditional}`)).toBeFocused();
   await page.getByRole("button", { name: /add product/i }).click();
   await page.getByTestId("product-name-input").fill(name);
   await page.getByTestId("product-price-input").fill("8.50");
@@ -47,7 +46,7 @@ test("manual order requires payment before completion", async ({ page }) => {
   await page.getByTestId("guest-phone-input").fill("+33600000104");
   await page.getByTestId("guest-name-input").fill("E2E Manual Guest");
   await page
-    .getByTestId("product-row-33333333-3333-4333-8333-333333333301")
+    .getByTestId(`product-row-${DEMO_PRODUCT.chaudChaudNoyaux.id}`)
     .getByRole("button", { name: "Increase quantity" })
     .click();
   await page.getByTestId("create-order-submit-button").click();
@@ -74,7 +73,7 @@ test("manual order requires payment before completion", async ({ page }) => {
 });
 
 test("adds an expense and retains it after reload", async ({ page }) => {
-  const description = `E2E flour ${randomUUID()}`;
+  const description = `E2E spices ${randomUUID()}`;
   await page.goto("/manage/expenses");
   await page.getByTestId("add-expense-button").click();
   await page.getByTestId("expense-amount-input").fill("24.50");

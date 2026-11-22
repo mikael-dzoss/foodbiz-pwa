@@ -1,5 +1,6 @@
 import { type Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
+import { DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 async function expectBarAboveFooter(page: Page, barTestId: string) {
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -16,13 +17,15 @@ test(
   "storefront action bars never cover the footer (#237, #249)",
   { tag: "@desktop" },
   async ({ page }) => {
+    const product = DEMO_PRODUCT.boulettes;
     await page.goto("/en");
     await page
-      .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
+      .getByTestId(`product-row-${product.id}`)
+      .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
       .click();
 
     await page.goto("/en/cart");
-    await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
+    await expect(page.getByTestId("cart-items-list")).toContainText(product.name);
     await expectBarAboveFooter(page, "cart-action-bar");
 
     await page.goto("/en/checkout");

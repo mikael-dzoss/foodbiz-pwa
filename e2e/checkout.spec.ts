@@ -1,6 +1,11 @@
 import { expect, test, signIn } from "./fixtures";
 import { getDictionary } from "../src/domain/i18n";
 import { formatMoney } from "../src/domain/formatting";
+import {
+  DEMO_CATEGORY_IDS,
+  DEMO_PRODUCT,
+  demoSettings,
+} from "../src/lib/repositories/mock/fixtures";
 
 test("storefront sticky category bar appears after scrolling past first category and Menu sheet navigates", async ({
   page,
@@ -29,11 +34,9 @@ test("storefront sticky category bar appears after scrolling past first category
   await expect(page.getByTestId("sticky-category-nav")).toBeVisible();
   await page.getByTestId("category-nav-menu-button").click();
 
-  await page.getByTestId("category-nav-sheet-item-22222222-2222-4222-8222-222222222202").click();
+  await page.getByTestId(`category-nav-sheet-item-${DEMO_CATEGORY_IDS.traditional}`).click();
   await expect(sheet).toBeHidden();
-  await expect(
-    page.locator("#category-heading-22222222-2222-4222-8222-222222222202"),
-  ).toBeFocused();
+  await expect(page.locator(`#category-heading-${DEMO_CATEGORY_IDS.traditional}`)).toBeFocused();
 
   const searchLauncher = page.getByTestId("catalog-search-launcher");
   await expect(searchLauncher).toBeVisible();
@@ -44,9 +47,11 @@ test("storefront sticky category bar appears after scrolling past first category
   const searchInput = page.getByTestId("menu-search-input");
   await expect(searchInput).toBeFocused();
 
-  await searchInput.fill("crois");
+  await searchInput.fill("beign");
   await expect(page.getByTestId("menu-search-results-count")).toContainText(/result/i);
-  await expect(page.getByTestId("menu-search-results")).toContainText("Croissant");
+  await expect(page.getByTestId("menu-search-results")).toContainText(
+    DEMO_PRODUCT.beignetsSouffles.name,
+  );
 
   await page.getByTestId("menu-search-back-button").click();
   await expect(searchDialog).toBeHidden();
@@ -57,7 +62,9 @@ test("storefront dish detail adds selected drink as a separate cart line", async
   page,
   browser,
 }) => {
-  await page.goto("/en/p/33333333-3333-4333-8333-333333333301");
+  const dish = DEMO_PRODUCT.chaudChaudNoyaux;
+  const drink = DEMO_PRODUCT.folere;
+  await page.goto(`/en/p/${dish.id}`);
   const addButton = page.getByTestId("product-add-button");
   if (await addButton.isDisabled()) {
     const managerContext = await browser.newContext();
@@ -80,32 +87,36 @@ test("storefront dish detail adds selected drink as a separate cart line", async
   await expect(addOnsGroup).toBeVisible();
   await expect(addOnsGroup).toContainText("Drinks");
 
-  const espressoCheckbox = addOnsGroup.getByRole("checkbox", { name: /Double Espresso/i });
-  await espressoCheckbox.click();
-  await expect(espressoCheckbox).toBeChecked();
+  const drinkCheckbox = addOnsGroup.getByRole("checkbox", { name: new RegExp(drink.name, "i") });
+  await drinkCheckbox.click();
+  await expect(drinkCheckbox).toBeChecked();
 
-  await expect(addButton).toContainText(`Add 1 to cart • ${formatMoney(350, "en")}`);
+  await expect(addButton).toContainText(
+    `Add 1 to cart • ${formatMoney(dish.price + drink.price, "en")}`,
+  );
   await addButton.click();
-  await expect(espressoCheckbox).not.toBeChecked();
+  await expect(drinkCheckbox).not.toBeChecked();
 
   await page.goto("/en/cart");
   const cartList = page.getByTestId("cart-items-list");
-  await expect(cartList).toContainText("Traditional Baguette");
-  await expect(cartList).toContainText("Double Espresso");
+  await expect(cartList).toContainText(dish.name);
+  await expect(cartList).toContainText(drink.name);
 });
 
 for (const [locale, method, recipient, phone] of [
-  ["en", "revolut", "@boulangerie", "+33600000106"],
-  ["fr", "wero", "+33612345678", "+33600000107"],
+  ["en", "revolut", demoSettings.revolutRevtag!, "+33600000106"],
+  ["fr", "wero", demoSettings.weroIdentifier!, "+33600000107"],
 ] as const) {
   test(`${locale} ${method} confirmation shows payment values and preserves the token`, async ({
     page,
   }) => {
+    const product = DEMO_PRODUCT.boulettes;
+    const expectedTotal = product.price * 4;
     await page.goto(`/${locale}`);
     await page.getByTestId("service-mode-pickup").click();
     await page
-      .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
-      .getByRole("button", { name: /: Country Sourdough Loaf$/ })
+      .getByTestId(`product-row-${product.id}`)
+      .getByRole("button", { name: new RegExp(`: ${product.name}$`) })
       .click();
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
@@ -122,7 +133,7 @@ for (const [locale, method, recipient, phone] of [
     const token = page.url().split("/").at(-2);
     const payment = page.getByTestId("confirmation-payment");
     await expect(payment).toContainText(recipient);
-    await expect(payment).toContainText(formatMoney(1800, locale));
+    await expect(payment).toContainText(formatMoney(expectedTotal, locale));
     await expect(payment).toContainText(getDictionary(locale).orderTracking.unpaidBadge);
     await page.getByTestId("confirmation-track-link").click();
     await expect(page).toHaveURL(`/${locale}/order/${token}`);
@@ -130,7 +141,7 @@ for (const [locale, method, recipient, phone] of [
       getDictionary(locale).orderTracking.statuses.NEW,
     );
     await expect(page.getByTestId("tracking-summary-card")).toContainText(
-      formatMoney(1800, locale),
+      formatMoney(expectedTotal, locale),
     );
   });
 }
@@ -139,13 +150,14 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   page,
   browser,
 }) => {
+  const product = DEMO_PRODUCT.boulettes;
   await page.goto("/en");
   await page
-    .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
-    .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
+    .getByTestId(`product-row-${product.id}`)
+    .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
     .click();
   await page.goto("/en/cart");
-  await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
+  await expect(page.getByTestId("cart-items-list")).toContainText(product.name);
   for (let i = 0; i < 3; i++) {
     await page
       .getByRole("button", { name: getDictionary("en").common.increaseQuantity, exact: true })

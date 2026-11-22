@@ -1,4 +1,5 @@
 import { expect, test, signIn } from "./fixtures";
+import { DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 // Layout that really differs between a phone and a wide screen. Each test runs in both projects
 // (@desktop) and asserts the layout of the project's own viewport.
@@ -59,13 +60,15 @@ test(
   "the storefront header and cart bar stay inside the centred content column",
   { tag: "@desktop" },
   async ({ page, isMobile }) => {
+    const product = DEMO_PRODUCT.boulettes;
     await page.goto("/en");
     await expect(page.getByRole("banner")).toBeVisible();
     await page
-      .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
+      .getByTestId(`product-row-${product.id}`)
+      .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
       .click();
     await page.goto("/en/cart");
-    await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
+    await expect(page.getByTestId("cart-items-list")).toContainText(product.name);
     await expect(page.getByTestId("cart-action-bar")).toBeVisible();
     const main = await page.getByRole("main").boundingBox();
     expect(main).toBeTruthy();
