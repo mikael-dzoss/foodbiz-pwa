@@ -161,7 +161,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
               <span>{dict.storeInfo}</span>
             </div>
             <span className="text-primary text-caption flex shrink-0 items-center gap-1 font-semibold">
-              {dict.shopInfoCta ?? "Shop Info"} →
+              {dict.shopInfoCta} →
             </span>
           </Link>
         </div>

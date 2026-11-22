@@ -85,6 +85,39 @@ describe("CheckoutView & CheckoutForm", () => {
     localStorage.clear();
   });
 
+  it.each([
+    ["@saveurscontinent", "@saveurscontinent"],
+    ["saveurscontinent", "@saveurscontinent"],
+  ])("shows the Revolut tag %s with a single leading @", (revtag, shown) => {
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView
+          business={mockBusiness}
+          settings={{ ...mockSettings, revolutRevtag: revtag }}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
+      </CartProvider>,
+    );
+    expect(screen.getByTestId("checkout-revolut-tag").textContent).toBe(shown);
+  });
+
+  it("hides the Revolut tag line when no tag is configured", () => {
+    render(
+      <CartProvider initialItems={mockCartItems}>
+        <CheckoutView
+          business={mockBusiness}
+          settings={{ ...mockSettings, revolutRevtag: "" }}
+          locale="en"
+          dict={dict}
+          redirectDelayMs={50}
+        />
+      </CartProvider>,
+    );
+    expect(screen.queryByTestId("checkout-revolut-tag")).toBeNull();
+  });
+
   it("renders empty cart notice when items are empty", () => {
     render(
       <CartProvider initialItems={[]}>

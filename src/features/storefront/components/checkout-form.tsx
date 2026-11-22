@@ -813,9 +813,14 @@ export function CheckoutForm({
                       {dict.revolutSubtext}
                     </span>
                   </div>
-                  <p className="text-muted-foreground text-caption font-mono">
-                    @{(settings?.revolutRevtag || "saveurscontinent").replace(/^@/, "")}
-                  </p>
+                  {settings?.revolutRevtag ? (
+                    <p
+                      className="text-muted-foreground text-caption font-mono"
+                      data-testid="checkout-revolut-tag"
+                    >
+                      @{settings.revolutRevtag.replace(/^@/, "")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <Wallet className="text-muted-foreground h-4 w-4 opacity-60" />
