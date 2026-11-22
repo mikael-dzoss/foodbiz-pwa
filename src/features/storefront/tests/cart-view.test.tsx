@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT } from "@/lib/repositories/mock/fixtures";
 import { ToastProvider } from "@/components/ui";
 import { CartProvider, resetCartStore } from "../context/cart-context";
 import { CartView } from "../components/cart-view";
@@ -32,7 +33,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Pain au Chocolat",
+        name: DEMO_PRODUCT.pouletBraise.name,
         price: 220,
         quantity: 2,
         maxStock: 5,
@@ -40,7 +41,7 @@ describe("CartView", () => {
       },
       {
         productId: "p2",
-        name: "Baguette Tradition",
+        name: DEMO_PRODUCT.chaudChaudNoyaux.name,
         price: 140,
         quantity: 1,
         maxStock: 10,
@@ -54,8 +55,8 @@ describe("CartView", () => {
       </CartProvider>,
     );
 
-    expect(screen.getByText("Pain au Chocolat")).toBeDefined();
-    expect(screen.getByText("Baguette Tradition")).toBeDefined();
+    expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
+    expect(screen.getByText(DEMO_PRODUCT.chaudChaudNoyaux.name)).toBeDefined();
     expect(screen.getByTestId("cart-count-badge").textContent).toContain("3");
     // Subtotal: 2 * 220 + 140 = 580 cents = €5.80 >= 500
     expect(screen.getByText(enDict.minimumOrderReached)).toBeDefined();
@@ -71,7 +72,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Croissant",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         price: 200,
         quantity: 1,
         maxStock: 5,
@@ -86,7 +87,7 @@ describe("CartView", () => {
     );
 
     expect(screen.getByTestId("minimum-order-banner")).toBeDefined();
-    expect(screen.getByText(/Add €8.00 more fresh items/i)).toBeDefined();
+    expect(screen.getByText(/Add €8.00 more items/i)).toBeDefined();
 
     const proceedButton = screen.getByTestId("proceed-checkout-button") as HTMLButtonElement;
     expect(proceedButton.disabled).toBe(true);
@@ -96,7 +97,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Croissant",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         price: 200,
         quantity: 5,
         maxStock: 10,
@@ -120,7 +121,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Croissant",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         price: 200,
         quantity: 2,
         maxStock: 3,
@@ -149,7 +150,7 @@ describe("CartView", () => {
     expect(screen.queryByText(/Max stock reached/i)).toBeNull();
 
     // Remove item
-    const removeBtn = screen.getByLabelText("Remove Croissant");
+    const removeBtn = screen.getByLabelText(`Remove ${DEMO_PRODUCT.beignetsSouffles.name}`);
     fireEvent.click(removeBtn);
     expect(screen.getByText(enDict.emptyCartTitle)).toBeDefined();
   });
@@ -158,7 +159,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Croissant",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         price: 200,
         quantity: 1,
         maxStock: 5,
@@ -181,7 +182,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Croissant",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         price: 200,
         quantity: 1,
         maxStock: 5,
@@ -212,7 +213,7 @@ describe("CartView", () => {
     const initialItems = [
       {
         productId: "p1",
-        name: "Croissant",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         price: 200,
         quantity: 1,
         maxStock: 5,
@@ -242,7 +243,7 @@ describe("CartView", () => {
     expect(textarea).toBeDefined();
 
     // Type notes
-    fireEvent.change(textarea, { target: { value: "Please pack croissants separately" } });
-    expect(textarea.value).toBe("Please pack croissants separately");
+    fireEvent.change(textarea, { target: { value: "Please pack fritters separately" } });
+    expect(textarea.value).toBe("Please pack fritters separately");
   });
 });

@@ -15,7 +15,7 @@ describe("domain: auth", () => {
   it("validates valid manager user schema", () => {
     const validUser = {
       id: "00000000-0000-4000-8000-000000000002",
-      email: "manager@lapetiteboulangerie.fr",
+      email: "manager@example.com",
       name: "Marie Dupont",
       role: "manager",
       businessId: "11111111-1111-4111-8111-111111111111",

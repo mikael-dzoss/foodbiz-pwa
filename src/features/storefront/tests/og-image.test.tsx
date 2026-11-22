@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
+import { DEMO_PRODUCT, demoBusiness, demoCategories } from "@/lib/repositories/mock/fixtures";
 import { buildProductOgContent, buildShopOgContent } from "../metadata";
 import { renderProductOgImage, renderShopOgImage, resolveOgImageSrc } from "../og-image";
 
@@ -98,9 +99,9 @@ describe("storefront OG image helpers", () => {
   it("renders valid PNG Open Graph images for shop and product (with and without photo)", async () => {
     const shopRes = renderShopOgImage(
       buildShopOgContent({
-        businessName: "La Petite Boulangerie",
-        description: "Boulangerie artisanale à Paris.",
-        address: "12 Rue de la Roquette, Paris",
+        businessName: demoBusiness.name,
+        description: demoBusiness.description,
+        address: demoBusiness.address,
         locale: "fr",
       }),
     );
@@ -108,11 +109,11 @@ describe("storefront OG image helpers", () => {
 
     const productWithPhotoRes = renderProductOgImage(
       buildProductOgContent({
-        productName: "Baguette Tradition",
-        productDescription: "Croûte croustillante et mie aérée.",
-        priceCents: 130,
-        categoryName: "Pains",
-        businessName: "La Petite Boulangerie",
+        productName: DEMO_PRODUCT.pouletBraise.name,
+        productDescription: DEMO_PRODUCT.pouletBraise.description,
+        priceCents: DEMO_PRODUCT.pouletBraise.price,
+        categoryName: demoCategories[0].name,
+        businessName: demoBusiness.name,
         locale: "fr",
       }),
       TINY_PNG_DATA_URL,
@@ -121,11 +122,11 @@ describe("storefront OG image helpers", () => {
 
     const productTextOnlyRes = renderProductOgImage(
       buildProductOgContent({
-        productName: "Traditional Baguette",
+        productName: DEMO_PRODUCT.chaudChaudNoyaux.name,
         productDescription: null,
-        priceCents: 130,
-        categoryName: "Breads",
-        businessName: "La Petite Boulangerie",
+        priceCents: DEMO_PRODUCT.chaudChaudNoyaux.price,
+        categoryName: demoCategories[0].name,
+        businessName: demoBusiness.name,
         locale: "en",
       }),
       null,

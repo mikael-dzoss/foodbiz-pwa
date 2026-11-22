@@ -16,7 +16,7 @@ import { DEMO_CATEGORY_IDS, demoCategories } from "./categories";
 import { demoExpenses } from "./expenses";
 import { demoGuests } from "./guests";
 import { demoOrders } from "./orders";
-import { demoProducts } from "./products";
+import { DEMO_PRODUCT, demoProducts, type DemoProductKey } from "./products";
 
 export interface MockFixtures {
   business: Business;
@@ -67,6 +67,7 @@ export {
   DEMO_CATEGORY_IDS,
   DEMO_MANAGER_USER_ID,
   DEMO_OWNER_USER_ID,
+  DEMO_PRODUCT,
   demoBusiness,
   demoCategories,
   demoExpenses,
@@ -76,3 +77,4 @@ export {
   demoProducts,
   demoSettings,
 };
+export type { DemoProductKey };

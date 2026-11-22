@@ -25,9 +25,9 @@ describe("lib: auth access", () => {
     });
 
     it("parses comma-separated emails, trims whitespace, and lowercases values", () => {
-      const raw = " Dev@Example.COM , QA@lapetiteboulangerie.fr , Marie@FoodBiz.APP ";
+      const raw = " Dev@Example.COM , QA@Shop.Example.COM , Marie@FoodBiz.APP ";
       const result = parseAllowedManagerEmails(raw);
-      expect(result).toEqual(["dev@example.com", "qa@lapetiteboulangerie.fr", "marie@foodbiz.app"]);
+      expect(result).toEqual(["dev@example.com", "qa@shop.example.com", "marie@foodbiz.app"]);
     });
 
     it("filters out empty or whitespace-only elements", () => {
@@ -114,7 +114,7 @@ describe("lib: auth access", () => {
     });
 
     it("returns true when email matches case-insensitively in development or test", () => {
-      const allowed = "dev@example.com,qa@lapetiteboulangerie.fr";
+      const allowed = "dev@example.com,qa@shop.example.com";
       expect(
         isEmailInAllowedManagerList("DEV@example.COM", {
           allowedEmailsRaw: allowed,
@@ -124,7 +124,7 @@ describe("lib: auth access", () => {
       ).toBe(true);
 
       expect(
-        isEmailInAllowedManagerList("  QA@lapetiteboulangerie.fr  ", {
+        isEmailInAllowedManagerList("  QA@shop.example.com  ", {
           allowedEmailsRaw: allowed,
           nodeEnv: "test",
           appEnv: "test",
@@ -143,7 +143,7 @@ describe("lib: auth access", () => {
     });
 
     it("proves ALLOWED_MANAGER_EMAILS is unconditionally ignored when NODE_ENV is production", () => {
-      const allowed = "dev@example.com,ceo@lapetiteboulangerie.fr";
+      const allowed = "dev@example.com,ceo@shop.example.com";
       expect(
         isEmailInAllowedManagerList("dev@example.com", {
           allowedEmailsRaw: allowed,
@@ -154,7 +154,7 @@ describe("lib: auth access", () => {
     });
 
     it("proves ALLOWED_MANAGER_EMAILS is unconditionally ignored when APP_ENV is production", () => {
-      const allowed = "dev@example.com,ceo@lapetiteboulangerie.fr";
+      const allowed = "dev@example.com,ceo@shop.example.com";
       expect(
         isEmailInAllowedManagerList("dev@example.com", {
           allowedEmailsRaw: allowed,

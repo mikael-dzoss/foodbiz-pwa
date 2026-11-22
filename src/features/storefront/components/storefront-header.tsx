@@ -20,7 +20,7 @@ export interface StorefrontHeaderProps {
 export function StorefrontHeader({
   locale,
   dict,
-  businessName = "La Petite Boulangerie",
+  businessName = "Les Saveurs du Continent",
   cartCount,
 }: StorefrontHeaderProps) {
   const pathname = usePathname() || `/${locale}`;

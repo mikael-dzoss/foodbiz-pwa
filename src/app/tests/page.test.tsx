@@ -8,7 +8,7 @@ import ProductDetailPage, {
 import ShopInfoPage from "../[locale]/info/page";
 import { CartProvider } from "@/features/storefront";
 import * as catalogData from "@/features/storefront/catalog-data";
-import { demoProducts } from "@/lib/repositories/mock/fixtures/products";
+import { DEMO_PRODUCT, demoProducts } from "@/lib/repositories/mock/fixtures/products";
 
 const notFoundMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -108,32 +108,40 @@ describe("Internationalized storefront pages", () => {
 
   it("ProductDetailPage renders a dish with its optional Drinks add-on group", async () => {
     const page = await ProductDetailPage({
-      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333301" }),
+      params: Promise.resolve({ locale: "en", id: DEMO_PRODUCT.chaudChaudNoyaux.id }),
     });
     render(<CartProvider>{page}</CartProvider>);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Traditional Baguette" })).toBeDefined();
+    expect(
+      screen.getByRole("heading", { level: 1, name: DEMO_PRODUCT.chaudChaudNoyaux.name }),
+    ).toBeDefined();
     expect(screen.getByTestId("product-addons-group")).toBeDefined();
-    expect(screen.getByRole("checkbox", { name: /Double Espresso/i })).toBeDefined();
+    expect(
+      screen.getByRole("checkbox", { name: new RegExp(DEMO_PRODUCT.kossam.name, "i") }),
+    ).toBeDefined();
   });
 
   it("ProductDetailPage renders a drink with Accompaniments and a snack with no add-on group (#207)", async () => {
     const drinkPage = await ProductDetailPage({
-      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333313" }),
+      params: Promise.resolve({ locale: "en", id: DEMO_PRODUCT.kossam.id }),
     });
     const { unmount } = render(<CartProvider>{drinkPage}</CartProvider>);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Double Espresso" })).toBeDefined();
+    expect(screen.getByRole("heading", { level: 1, name: DEMO_PRODUCT.kossam.name })).toBeDefined();
     expect(screen.getByText("Accompaniments")).toBeDefined();
-    expect(screen.getByRole("checkbox", { name: /Madeleines x3/i })).toBeDefined();
+    expect(
+      screen.getByRole("checkbox", { name: new RegExp(DEMO_PRODUCT.beignetsMais.name, "i") }),
+    ).toBeDefined();
     unmount();
 
     const snackPage = await ProductDetailPage({
-      params: Promise.resolve({ locale: "en", id: "33333333-3333-4333-8333-333333333316" }),
+      params: Promise.resolve({ locale: "en", id: DEMO_PRODUCT.beignetsMais.id }),
     });
     render(<CartProvider>{snackPage}</CartProvider>);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Madeleines x3" })).toBeDefined();
+    expect(
+      screen.getByRole("heading", { level: 1, name: DEMO_PRODUCT.beignetsMais.name }),
+    ).toBeDefined();
     expect(screen.queryByTestId("product-addons-group")).toBeNull();
   });
 });

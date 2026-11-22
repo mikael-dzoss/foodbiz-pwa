@@ -2,23 +2,14 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SettingsHub } from "../components/settings-hub";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
-import type { ManagerSession } from "@/domain/auth";
+import { MOCK_MANAGER_SESSION, type ManagerSession } from "@/domain/auth";
 
 const mockSession: ManagerSession = {
+  ...MOCK_MANAGER_SESSION,
   user: {
-    id: "00000000-0000-4000-8000-000000000002",
-    email: "manager@lapetiteboulangerie.fr",
-    name: "Marie Dupont",
+    ...MOCK_MANAGER_SESSION.user,
     role: "manager",
-    businessId: "11111111-1111-4111-8111-111111111111",
   },
-  business: {
-    id: "11111111-1111-4111-8111-111111111111",
-    name: "La Petite Boulangerie",
-    slug: "la-petite-boulangerie",
-    currency: "EUR",
-  },
-  expiresAt: "2099-01-01T00:00:00.000Z",
 };
 
 const dict = getDictionary(DEFAULT_LOCALE).settings;
@@ -42,8 +33,8 @@ describe("SettingsHub component", () => {
     render(<SettingsHub session={mockSession} dict={dict} />);
 
     expect(screen.getByRole("heading", { name: dict.title, level: 1 })).toBeDefined();
-    expect(screen.getByText("Marie Dupont")).toBeDefined();
-    expect(screen.getByText("manager@lapetiteboulangerie.fr")).toBeDefined();
+    expect(screen.getByText(mockSession.user.name)).toBeDefined();
+    expect(screen.getByText(mockSession.user.email)).toBeDefined();
     expect(screen.getByText("manager")).toBeDefined();
   });
 

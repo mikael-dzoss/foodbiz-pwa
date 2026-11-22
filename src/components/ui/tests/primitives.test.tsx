@@ -224,17 +224,17 @@ describe("Base UI Primitives (#28)", () => {
       render(
         <ListRow
           data-testid="row"
-          title="Croissant"
+          title="Poulet Braisé"
           subtitle="Stock: 14"
-          trailing="€2.50"
+          trailing="€15.00"
           onClick={handleClick}
         />,
       );
 
       const row = screen.getByTestId("row");
-      expect(screen.getByText("Croissant")).toBeDefined();
+      expect(screen.getByText("Poulet Braisé")).toBeDefined();
       expect(screen.getByText("Stock: 14")).toBeDefined();
-      expect(screen.getByText("€2.50")).toBeDefined();
+      expect(screen.getByText("€15.00")).toBeDefined();
 
       fireEvent.click(row);
       expect(handleClick).toHaveBeenCalledTimes(1);

@@ -9,38 +9,18 @@ import PaymentSettingsPage from "../(authenticated)/settings/payment/page";
 import InventoryFinanceSettingsPage from "../(authenticated)/settings/inventory-finance/page";
 import NotificationsSettingsPage from "../(authenticated)/settings/notifications/page";
 import * as auth from "@/lib/auth";
+import { MOCK_MANAGER_SESSION } from "@/domain/auth";
+import { demoBusiness } from "@/lib/repositories/mock/fixtures";
 
 const mockSession = {
+  ...MOCK_MANAGER_SESSION,
   user: {
-    id: "00000000-0000-4000-8000-000000000002",
-    email: "manager@lapetiteboulangerie.fr",
-    name: "Marie Dupont",
+    ...MOCK_MANAGER_SESSION.user,
     role: "manager" as const,
-    businessId: "11111111-1111-4111-8111-111111111111",
   },
-  business: {
-    id: "11111111-1111-4111-8111-111111111111",
-    name: "La Petite Boulangerie",
-    slug: "la-petite-boulangerie",
-    currency: "EUR" as const,
-  },
-  expiresAt: "2099-01-01T00:00:00.000Z",
 };
 
-const mockBusiness = {
-  id: "11111111-1111-4111-8111-111111111111",
-  name: "La Petite Boulangerie",
-  slug: "la-petite-boulangerie",
-  currency: "EUR" as const,
-  description: "Artisanal organic sourdough bakery",
-  phone: "+33 1 43 55 67 89",
-  email: "bonjour@lapetiteboulangerie.fr",
-  whatsappNumber: "+33 6 12 34 56 78",
-  address: "12 Rue de la Roquette, 75011 Paris",
-  logoUrl: null,
-  createdAt: "2026-08-01T08:00:00.000Z",
-  updatedAt: "2026-08-01T08:00:00.000Z",
-};
+const mockBusiness = { ...demoBusiness };
 
 afterEach(() => {
   vi.clearAllMocks();

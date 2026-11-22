@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getRepositories } from "@/lib/repositories";
 import { getMockRepositories } from "@/lib/repositories/mock";
-import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { DEMO_BUSINESS_ID, DEMO_PRODUCT, demoGuests } from "@/lib/repositories/mock/fixtures";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { OrderRepoError } from "@/domain/order";
 import { placeOrderAction } from "../storefront-actions";
@@ -35,8 +35,10 @@ function idem(label: string): string {
 
 describe("placeOrderAction", () => {
   const bId = DEMO_BUSINESS_ID;
-  const baguetteId = "33333333-3333-4333-8333-333333333301"; // price 130, stock 45
-  const sourdoughId = "33333333-3333-4333-8333-333333333302"; // price 450, stock 20
+  const firstProduct = DEMO_PRODUCT.beignetsSouffles; // price 1000, stock 30
+  const secondProduct = DEMO_PRODUCT.pouletBraise; // price 1500, stock 20
+  const firstProductId = firstProduct.id;
+  const secondProductId = secondProduct.id;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,8 +49,8 @@ describe("placeOrderAction", () => {
 
   const validOrderPayload = {
     items: [
-      { productId: baguetteId, quantity: 2 },
-      { productId: sourdoughId, quantity: 3 },
+      { productId: firstProductId, quantity: 2 },
+      { productId: secondProductId, quantity: 3 },
     ],
     name: "Camille Claudel",
     phone: "+33699887766",
@@ -70,8 +72,8 @@ describe("placeOrderAction", () => {
 
   it("places an order successfully and reserves stock atomically", async () => {
     const repos = getRepositories("mock");
-    const initialBaguette = await repos.products.findById(bId, baguetteId);
-    const initialSourdough = await repos.products.findById(bId, sourdoughId);
+    const initialFirst = await repos.products.findById(bId, firstProductId);
+    const initialSecond = await repos.products.findById(bId, secondProductId);
 
     const result = await placeOrderAction(validOrderPayload);
 
@@ -80,14 +82,13 @@ describe("placeOrderAction", () => {
       expect(result.data.status).toBe("NEW");
       expect(result.data.orderNumber).toBeGreaterThan(0);
       expect(result.data.trackingToken).toBeDefined();
-      // Server-side calculation: (2 * 130) + (3 * 450) = 260 + 1350 = 1610 cents
-      expect(result.data.totalAmount).toBe(1610);
+      expect(result.data.totalAmount).toBe(2 * firstProduct.price + 3 * secondProduct.price);
 
       // Verify stock was decremented in repository
-      const updatedBaguette = await repos.products.findById(bId, baguetteId);
-      const updatedSourdough = await repos.products.findById(bId, sourdoughId);
-      expect(updatedBaguette?.stock).toBe((initialBaguette?.stock ?? 45) - 2);
-      expect(updatedSourdough?.stock).toBe((initialSourdough?.stock ?? 20) - 3);
+      const updatedFirst = await repos.products.findById(bId, firstProductId);
+      const updatedSecond = await repos.products.findById(bId, secondProductId);
+      expect(updatedFirst?.stock).toBe((initialFirst?.stock ?? firstProduct.stock) - 2);
+      expect(updatedSecond?.stock).toBe((initialSecond?.stock ?? secondProduct.stock) - 3);
 
       // Verify order record in repo
       const createdOrder = await repos.orders.findById(bId, result.data.orderId);
@@ -102,22 +103,21 @@ describe("placeOrderAction", () => {
   it("ignores client-supplied prices and uses authoritative DB product prices", async () => {
     const result = await placeOrderAction({
       ...validOrderPayload,
-      items: [
-        { productId: sourdoughId, quantity: 4, price: 1 }, // 4 * 450 = 1800 (> 1500 min order)
-      ],
+      items: [{ productId: secondProductId, quantity: 4, price: 1 }],
       idempotencyKey: idem("test-idem-tampered-price"),
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      // Must be DB price 1800 cents, not 4 cents
-      expect(result.data.totalAmount).toBe(1800);
+      expect(result.data.totalAmount).toBe(4 * secondProduct.price);
     }
   });
 
   describe("Blind Guest Find-or-Create & Zero PII Leakage", () => {
     it("returns identical response shape for new guest, returning guest, and name mismatch", async () => {
       const repos = getRepositories("mock");
+      const returningGuest = demoGuests[0];
+      const returningPhone = returningGuest.phone!;
 
       // 1. New guest
       const resNew = await placeOrderAction({
@@ -127,19 +127,19 @@ describe("placeOrderAction", () => {
         idempotencyKey: idem("idem-new-guest"),
       });
 
-      // 2. Returning guest (matches demo guest Jean Dupont with phone +33612345671)
+      // 2. Returning guest (matches demo guest)
       const resReturning = await placeOrderAction({
         ...validOrderPayload,
-        phone: "+33612345671",
-        name: "Jean Dupont",
+        phone: returningPhone,
+        name: returningGuest.name,
         idempotencyKey: idem("idem-returning-guest"),
       });
 
-      // 3. Name mismatch (phone +33612345671 but differing submitted name)
+      // 3. Name mismatch (returning phone but differing submitted name)
       const resMismatch = await placeOrderAction({
         ...validOrderPayload,
-        phone: "+33612345671",
-        name: "Jean D. Secondaire",
+        phone: returningPhone,
+        name: "Aïcha M. Secondaire",
         idempotencyKey: idem("idem-mismatch-guest"),
       });
 
@@ -164,12 +164,12 @@ describe("placeOrderAction", () => {
         expect(mismatchKeys).toEqual(newKeys);
 
         // Verify stored guest name was NOT overwritten on mismatch
-        const storedGuest = await repos.guests.findByPhone(bId, "+33612345671");
-        expect(storedGuest?.name).toBe("Jean Dupont");
+        const storedGuest = await repos.guests.findByPhone(bId, returningPhone);
+        expect(storedGuest?.name).toBe(returningGuest.name);
 
         // Verify submittedName is set on Order for manager audit only
         const mismatchOrder = await repos.orders.findById(bId, resMismatch.data.orderId);
-        expect(mismatchOrder?.submittedName).toBe("Jean D. Secondaire");
+        expect(mismatchOrder?.submittedName).toBe("Aïcha M. Secondaire");
 
         const normalOrder = await repos.orders.findById(bId, resReturning.data.orderId);
         expect(normalOrder?.submittedName).toBeNull();
@@ -180,13 +180,13 @@ describe("placeOrderAction", () => {
   describe("Idempotency", () => {
     it("returns cached result without duplicating order or re-decrementing stock on double submit", async () => {
       const repos = getRepositories("mock");
-      const initialBaguette = await repos.products.findById(bId, baguetteId);
+      const initialFirst = await repos.products.findById(bId, firstProductId);
 
       const firstCall = await placeOrderAction(validOrderPayload);
       expect(firstCall.ok).toBe(true);
 
-      const stockAfterFirst = (await repos.products.findById(bId, baguetteId))?.stock;
-      expect(stockAfterFirst).toBe((initialBaguette?.stock ?? 45) - 2);
+      const stockAfterFirst = (await repos.products.findById(bId, firstProductId))?.stock;
+      expect(stockAfterFirst).toBe((initialFirst?.stock ?? firstProduct.stock) - 2);
 
       // Replay with identical idempotencyKey
       const secondCall = await placeOrderAction(validOrderPayload);
@@ -198,7 +198,7 @@ describe("placeOrderAction", () => {
         expect(secondCall.data.trackingToken).toBe(firstCall.data.trackingToken);
 
         // Stock was NOT decremented a second time
-        const stockAfterSecond = (await repos.products.findById(bId, baguetteId))?.stock;
+        const stockAfterSecond = (await repos.products.findById(bId, firstProductId))?.stock;
         expect(stockAfterSecond).toBe(stockAfterFirst);
 
         // Only 1 order exists in repository
@@ -226,14 +226,14 @@ describe("placeOrderAction", () => {
     it("rejects when an item exceeds maximum quantity per line", async () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
-        items: [{ productId: baguetteId, quantity: 51 }],
+        items: [{ productId: firstProductId, quantity: 51 }],
         idempotencyKey: idem("idem-max-line"),
       });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.reason).toBe("ANTI_ABUSE_REJECTION");
-        expect(result.lineErrors?.[baguetteId]).toBeDefined();
+        expect(result.lineErrors?.[firstProductId]).toBeDefined();
       }
     });
 
@@ -241,9 +241,9 @@ describe("placeOrderAction", () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
         items: [
-          { productId: baguetteId, quantity: 45 },
-          { productId: sourdoughId, quantity: 45 },
-          { productId: baguetteId, quantity: 20 },
+          { productId: firstProductId, quantity: 45 },
+          { productId: secondProductId, quantity: 45 },
+          { productId: firstProductId, quantity: 20 },
         ],
         idempotencyKey: idem("idem-max-order"),
       });
@@ -313,14 +313,14 @@ describe("placeOrderAction", () => {
     it("rejects order when product stock is insufficient and returns typed lineErrors", async () => {
       const result = await placeOrderAction({
         ...validOrderPayload,
-        items: [{ productId: sourdoughId, quantity: 25 }], // sourdough only has 20 in stock (25 * 450 > 1500)
+        items: [{ productId: secondProductId, quantity: secondProduct.stock + 5 }],
         idempotencyKey: idem("idem-insufficient-stock"),
       });
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.reason).toBe("STOCK_ERROR");
-        expect(result.lineErrors?.[sourdoughId]).toContain("Insufficient stock");
+        expect(result.lineErrors?.[secondProductId]).toContain("Insufficient stock");
       }
     });
 
@@ -331,7 +331,7 @@ describe("placeOrderAction", () => {
 
       const result = await placeOrderAction({
         ...validOrderPayload,
-        items: [{ productId: baguetteId, quantity: 1 }], // 130 cents
+        items: [{ productId: firstProductId, quantity: 1 }],
         idempotencyKey: idem("idem-under-min-order"),
       });
 
@@ -378,13 +378,13 @@ describe("placeOrderAction", () => {
   describe("Stock integrity & retry safety", () => {
     it("merges duplicate product lines before validating stock", async () => {
       const repos = getRepositories("mock");
-      const before = (await repos.products.findById(bId, sourdoughId))!.stock;
+      const before = (await repos.products.findById(bId, secondProductId))!.stock;
 
       const result = await placeOrderAction({
         ...validOrderPayload,
         items: [
-          { productId: sourdoughId, quantity: before - 4 },
-          { productId: sourdoughId, quantity: 5 }, // each line fits alone, the sum does not
+          { productId: secondProductId, quantity: before - 4 },
+          { productId: secondProductId, quantity: 5 }, // each line fits alone, the sum does not
         ],
         idempotencyKey: idem("idem-duplicate-lines-oversell"),
       });
@@ -392,37 +392,37 @@ describe("placeOrderAction", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.reason).toBe("STOCK_ERROR");
-        expect(result.lineErrors?.[sourdoughId]).toContain("Insufficient stock");
+        expect(result.lineErrors?.[secondProductId]).toContain("Insufficient stock");
       }
-      expect((await repos.products.findById(bId, sourdoughId))?.stock).toBe(before);
+      expect((await repos.products.findById(bId, secondProductId))?.stock).toBe(before);
     });
 
     it("decrements stock once per summed quantity and creates a single order line", async () => {
       const repos = getRepositories("mock");
-      const before = (await repos.products.findById(bId, sourdoughId))!.stock;
+      const before = (await repos.products.findById(bId, secondProductId))!.stock;
 
       const result = await placeOrderAction({
         ...validOrderPayload,
         items: [
-          { productId: sourdoughId, quantity: 2 },
-          { productId: sourdoughId, quantity: 2 },
+          { productId: secondProductId, quantity: 2 },
+          { productId: secondProductId, quantity: 2 },
         ],
         idempotencyKey: idem("idem-duplicate-lines-ok"),
       });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.data.totalAmount).toBe(4 * 450);
+        expect(result.data.totalAmount).toBe(4 * secondProduct.price);
         const order = await repos.orders.findById(bId, result.data.orderId);
         expect(order?.items).toHaveLength(1);
         expect(order?.items[0].quantity).toBe(4);
       }
-      expect((await repos.products.findById(bId, sourdoughId))?.stock).toBe(before - 4);
+      expect((await repos.products.findById(bId, secondProductId))?.stock).toBe(before - 4);
     });
 
     it("releases reserved stock when order creation fails and allows a clean retry", async () => {
       const repos = getRepositories("mock");
-      const before = (await repos.products.findById(bId, baguetteId))!.stock;
+      const before = (await repos.products.findById(bId, firstProductId))!.stock;
       vi.spyOn(repos.orders, "place").mockRejectedValueOnce(new Error("db down"));
 
       const failed = await placeOrderAction({
@@ -435,14 +435,14 @@ describe("placeOrderAction", () => {
         expect(failed.code).toBe("INTERNAL");
         expect(failed.message).not.toContain("db down");
       }
-      expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before);
+      expect((await repos.products.findById(bId, firstProductId))?.stock).toBe(before);
 
       const retry = await placeOrderAction({
         ...validOrderPayload,
         idempotencyKey: idem("idem-create-failure"),
       });
       expect(retry.ok).toBe(true);
-      expect((await repos.products.findById(bId, baguetteId))?.stock).toBe(before - 2);
+      expect((await repos.products.findById(bId, firstProductId))?.stock).toBe(before - 2);
     });
 
     it("maps OrderRepoError from orders.place to typed action failure", async () => {
@@ -462,7 +462,7 @@ describe("placeOrderAction", () => {
     it("replays a retry of the order that took the last units instead of reporting out of stock", async () => {
       const payload = {
         ...validOrderPayload,
-        items: [{ productId: sourdoughId, quantity: 20 }], // all remaining units
+        items: [{ productId: secondProductId, quantity: secondProduct.stock }], // all remaining units
         idempotencyKey: idem("idem-last-units"),
       };
       const first = await placeOrderAction(payload);
@@ -500,8 +500,8 @@ describe("placeOrderAction", () => {
         const res = await placeOrderAction({
           ...validOrderPayload,
           items: [
-            { productId: baguetteId, quantity: 3 },
-            { productId: sourdoughId, quantity: 3 }, // 390 + 1350 cents (> min order)
+            { productId: firstProductId, quantity: 3 },
+            { productId: secondProductId, quantity: 3 },
           ],
           phone: `+3360000010${i}`,
           idempotencyKey: idem(`idem-no-ip-${i}`),
@@ -514,7 +514,7 @@ describe("placeOrderAction", () => {
 
 describe("placeOrderAction failure handling", () => {
   const payload = {
-    items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 20 }],
+    items: [{ productId: DEMO_PRODUCT.beignetsSouffles.id, quantity: 2 }],
     name: "Camille Claudel",
     phone: "+33699887766",
     serviceType: "pickup" as const,
@@ -590,7 +590,7 @@ describe("placeOrderAction business resolution", () => {
     const placeSpy = vi.spyOn(getMockRepositories().orders, "place");
     const result = await placeOrderAction({
       businessId: "99999999-9999-4999-8999-999999999999",
-      items: [{ productId: "33333333-3333-4333-8333-333333333302", quantity: 4 }],
+      items: [{ productId: DEMO_PRODUCT.boulettes.id, quantity: 2 }],
       name: "Camille Claudel",
       phone: "+33699887766",
       serviceType: "pickup",

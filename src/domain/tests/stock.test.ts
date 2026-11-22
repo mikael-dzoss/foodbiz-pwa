@@ -15,14 +15,14 @@ const validUuid2 = "22222222-2222-4111-8111-222222222222";
 describe("Stock rules and negative inventory prevention", () => {
   const inStockProduct: StockProduct = {
     id: validUuid1,
-    name: "Croissant",
+    name: "Poulet Braisé",
     stock: 5,
     visible: true,
   };
 
   const hiddenProduct: StockProduct = {
     id: validUuid2,
-    name: "Secret Recipe Pastry",
+    name: "Secret Recipe Dish",
     stock: 10,
     visible: false,
   };
@@ -33,7 +33,7 @@ describe("Stock rules and negative inventory prevention", () => {
       expect(result).toEqual({
         ok: true,
         productId: validUuid1,
-        productName: "Croissant",
+        productName: "Poulet Braisé",
         requestedQuantity: 3,
         availableStock: 5,
         remainingStock: 2,
@@ -46,7 +46,7 @@ describe("Stock rules and negative inventory prevention", () => {
       if (!result.ok) {
         expect(result.error.code).toBe("INSUFFICIENT_STOCK");
         expect(result.error.productId).toBe(validUuid1);
-        expect(result.error.productName).toBe("Croissant");
+        expect(result.error.productName).toBe("Poulet Braisé");
         expect(result.error.requestedQuantity).toBe(6);
         expect(result.error.availableStock).toBe(5);
         expect(result.error.message).toMatch(/insufficient stock/i);
@@ -74,7 +74,7 @@ describe("Stock rules and negative inventory prevention", () => {
     it("returns ok when all items have sufficient stock", () => {
       const items = [
         { product: inStockProduct, quantity: 2 },
-        { product: { ...inStockProduct, id: validUuid2, name: "Baguette", stock: 3 }, quantity: 3 },
+        { product: { ...inStockProduct, id: validUuid2, name: "Koki", stock: 3 }, quantity: 3 },
       ];
       const result = validateOrderStock(items);
       expect(result).toEqual({ ok: true });

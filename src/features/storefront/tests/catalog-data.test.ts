@@ -6,7 +6,7 @@ import {
   getStorefrontProduct,
   revalidateStorefrontCatalog,
 } from "../catalog-data";
-import { DEMO_BUSINESS_ID } from "@/lib/repositories/mock/fixtures/business";
+import { DEMO_BUSINESS_ID, demoBusiness } from "@/lib/repositories/mock/fixtures/business";
 import { getMockRepositories } from "@/lib/repositories/mock";
 import { createDefaultFixtures } from "@/lib/repositories/mock/fixtures";
 import { toStorefrontProduct } from "@/domain/storefront-product";
@@ -175,7 +175,7 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
     );
     it("returns grouped categories with visible products for the demo business", async () => {
       const catalog = await getStorefrontCatalog();
-      expect(catalog.business.name).toBe("La Petite Boulangerie");
+      expect(catalog.business.name).toBe(demoBusiness.name);
       expect(catalog.groupedCategories.length).toBeGreaterThan(0);
       expect(catalog.totalVisibleProducts).toBeGreaterThan(0);
 

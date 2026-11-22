@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { getAddOnCandidates } from "../add-ons";
 import type { Product, ProductCategory } from "../product";
-import { demoCategories, demoProducts } from "@/lib/repositories/mock/fixtures";
+import {
+  DEMO_CATEGORY_IDS,
+  DEMO_PRODUCT,
+  demoCategories,
+  demoProducts,
+} from "@/lib/repositories/mock/fixtures";
 
-const baseProduct = demoProducts[0]; // Traditional Baguette (breads, regular)
+const baseProduct = DEMO_PRODUCT.chaudChaudNoyaux; // meatFish, regular
 
 function makeCategory(id: string, patch: Partial<ProductCategory> = {}): ProductCategory {
   return {
@@ -85,7 +90,7 @@ describe("getAddOnCandidates (#206, #207)", () => {
     });
     const validDrink = makeProduct("drink-valid", {
       categoryId: "cat-drinks",
-      name: "Espresso",
+      name: DEMO_PRODUCT.folere.name,
       stock: 3,
       visible: true,
     });
@@ -142,13 +147,13 @@ describe("getAddOnCandidates (#206, #207)", () => {
       }),
       makeProduct("snack-early-z", {
         categoryId: "cat-snacks-early",
-        name: "Mini Cookies",
+        name: DEMO_PRODUCT.beignetsSouffles.name,
         stock: 5,
         visible: true,
       }),
       makeProduct("snack-early-a", {
         categoryId: "cat-snacks-early",
-        name: "Madeleines x3",
+        name: DEMO_PRODUCT.beignetsFarine.name,
         stock: 5,
         visible: true,
       }),
@@ -173,15 +178,9 @@ describe("getAddOnCandidates (#206, #207)", () => {
   });
 
   it("returns null for a drink product when suggestAddOns is false or no snacks are available, and null for snacks products", () => {
-    const drinkProduct = demoProducts.find(
-      (p) => p.categoryId === "22222222-2222-4222-8222-222222222203",
-    )!;
-    const snackProduct = demoProducts.find(
-      (p) => p.categoryId === "22222222-2222-4222-8222-222222222204",
-    )!;
-    const noSnacks = demoProducts.filter(
-      (p) => p.categoryId !== "22222222-2222-4222-8222-222222222204",
-    );
+    const drinkProduct = demoProducts.find((p) => p.categoryId === DEMO_CATEGORY_IDS.drinks)!;
+    const snackProduct = demoProducts.find((p) => p.categoryId === DEMO_CATEGORY_IDS.fritters)!;
+    const noSnacks = demoProducts.filter((p) => p.categoryId !== DEMO_CATEGORY_IDS.fritters);
 
     expect(
       getAddOnCandidates({ ...drinkProduct, suggestAddOns: false }, demoCategories, demoProducts),
@@ -192,9 +191,7 @@ describe("getAddOnCandidates (#206, #207)", () => {
 
   it("returns null when no eligible drink candidates are available", () => {
     const dish = demoProducts[0];
-    const noDrinks = demoProducts.filter(
-      (p) => p.categoryId !== "22222222-2222-4222-8222-222222222203",
-    );
+    const noDrinks = demoProducts.filter((p) => p.categoryId !== DEMO_CATEGORY_IDS.drinks);
     expect(getAddOnCandidates(dish, demoCategories, noDrinks)).toBeNull();
   });
 

@@ -19,23 +19,23 @@ export function describeBusinessRepositoryContract(
 
       const notFound = await repos.business.findById("00000000-0000-4000-8000-000000000099");
       expect(notFound).toBeNull();
-      const notFoundSlug = await repos.business.findBySlug("non-existent-bakery");
+      const notFoundSlug = await repos.business.findBySlug("non-existent-shop");
       expect(notFoundSlug).toBeNull();
     });
 
     it("create adds a new business", async () => {
       const repos = await getRepositories();
       const created = await repos.business.create({
-        name: "Artisan Bakery Paris",
-        slug: "artisan-bakery-paris",
+        name: "Artisan Kitchen Paris",
+        slug: "artisan-kitchen-paris",
         instagramUrl: "https://instagram.com/artisan",
         facebookUrl: "https://facebook.com/artisan",
         tiktokUrl: "https://tiktok.com/@artisan",
       });
       expect(created.id).toBeDefined();
-      expect(created.name).toBe("Artisan Bakery Paris");
+      expect(created.name).toBe("Artisan Kitchen Paris");
 
-      const found = await repos.business.findBySlug("artisan-bakery-paris");
+      const found = await repos.business.findBySlug("artisan-kitchen-paris");
       expect(found?.id).toBe(created.id);
       expect(found?.instagramUrl).toBe("https://instagram.com/artisan");
       expect(found?.facebookUrl).toBe("https://facebook.com/artisan");
@@ -51,12 +51,12 @@ export function describeBusinessRepositoryContract(
     it("update modifies business name and updatedAt, and throws on unknown id", async () => {
       const repos = await getRepositories();
       const updated = await repos.business.update(businessId, {
-        name: "La Grande Boulangerie",
+        name: "Les Grandes Saveurs",
       });
-      expect(updated.name).toBe("La Grande Boulangerie");
+      expect(updated.name).toBe("Les Grandes Saveurs");
 
       const fetched = await repos.business.findById(businessId);
-      expect(fetched?.name).toBe("La Grande Boulangerie");
+      expect(fetched?.name).toBe("Les Grandes Saveurs");
 
       await expect(
         repos.business.update("00000000-0000-4000-8000-000000000099", {
@@ -68,15 +68,15 @@ export function describeBusinessRepositoryContract(
     it("update modifies profile contact and details", async () => {
       const repos = await getRepositories();
       const updated = await repos.business.update(businessId, {
-        description: "New updated bakery description",
+        description: "New updated kitchen description",
         phone: "+33 1 99 88 77 66",
-        email: "contact@lapetiteboulangerie.fr",
+        email: "contact@example.com",
         whatsappNumber: "+33 6 99 88 77 66",
         address: "50 Boulevard Voltaire, 75011 Paris",
       });
-      expect(updated.description).toBe("New updated bakery description");
+      expect(updated.description).toBe("New updated kitchen description");
       expect(updated.phone).toBe("+33 1 99 88 77 66");
-      expect(updated.email).toBe("contact@lapetiteboulangerie.fr");
+      expect(updated.email).toBe("contact@example.com");
       expect(updated.whatsappNumber).toBe("+33 6 99 88 77 66");
       expect(updated.address).toBe("50 Boulevard Voltaire, 75011 Paris");
     });

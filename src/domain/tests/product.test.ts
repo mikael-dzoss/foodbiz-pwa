@@ -255,11 +255,11 @@ describe("Product Domain & Schemas", () => {
       },
       {
         id: "cat-2",
-        name: "Boulangerie",
+        name: "Grillades",
         products: [
           {
             id: "p-3",
-            name: "Fougasse aux Olives",
+            name: "Poulet Braisé",
             description: null,
           },
         ],
@@ -290,7 +290,7 @@ describe("Product Domain & Schemas", () => {
       expect(byCategory.map((r) => r.product.id)).toEqual(["p-1", "p-2"]);
 
       // Non-matching query
-      expect(searchMenuProducts(sampleGroups, "croissant")).toEqual([]);
+      expect(searchMenuProducts(sampleGroups, "pizza")).toEqual([]);
     });
   });
 });

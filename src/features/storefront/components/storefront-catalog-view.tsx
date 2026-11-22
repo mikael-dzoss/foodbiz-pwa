@@ -151,7 +151,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
             </section>
           ))}
 
-          {/* Store Hours & Bakery Info Box (Stitch C-01) */}
+          {/* Store Hours & Shop Info Box (Stitch C-01) */}
           <Link
             href={`/${locale}/info`}
             className="border-border/60 bg-muted/40 hover:bg-muted/70 text-muted-foreground mt-2 flex items-center justify-between rounded-lg border p-3 text-xs transition-colors"
@@ -161,7 +161,7 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
               <span>{dict.storeInfo}</span>
             </div>
             <span className="text-primary text-caption flex shrink-0 items-center gap-1 font-semibold">
-              {dict.bakeryInfo ?? "Bakery Info"} →
+              {dict.shopInfoCta} →
             </span>
           </Link>
         </div>
