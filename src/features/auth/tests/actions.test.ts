@@ -38,6 +38,8 @@ describe("features: auth actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+    mockSignInWithOAuth.mockReset();
+    mockSignOut.mockReset();
     mockHeadersGet.mockReturnValue(null);
   });
 
@@ -222,6 +224,168 @@ describe("features: auth actions", () => {
           if (header === "x-forwarded-host") return "forwarded.foodbiz.app";
           if (header === "host") return "forwarded.foodbiz.app";
           if (header === "origin") return "https://forwarded.foodbiz.app";
+          return null;
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:/manage/login?error=auth_failed",
+        );
+        expect(mockRedirect).toHaveBeenCalledWith("/manage/login?error=auth_failed");
+        expect(mockSignInWithOAuth).not.toHaveBeenCalled();
+      });
+
+      it("on Vercel preview (VERCEL_ENV=preview), prefers NEXT_PUBLIC_SITE_URL when set (staging branch override)", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "preview");
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://foodbiz-pwa-git-staging-team.vercel.app");
+        vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc123-team.vercel.app");
+        vi.stubEnv("VERCEL_BRANCH_URL", "foodbiz-pwa-git-other-team.vercel.app");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://foodbiz-pwa-abc123-team.vercel.app";
+          return null;
+        });
+        mockSignInWithOAuth.mockResolvedValueOnce({
+          data: { url: "https://accounts.google.com/oauth-staging" },
+          error: null,
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:https://accounts.google.com/oauth-staging",
+        );
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: {
+            redirectTo:
+              "https://foodbiz-pwa-git-staging-team.vercel.app/auth/callback?next=%2Fmanage",
+          },
+        });
+      });
+
+      it("on Vercel preview (VERCEL_ENV=preview), accepts origin matching VERCEL_URL", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "preview");
+        vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc123-team.vercel.app");
+        vi.stubEnv("VERCEL_BRANCH_URL", "foodbiz-pwa-git-feat-team.vercel.app");
+
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://foodbiz-pwa-abc123-team.vercel.app";
+          return null;
+        });
+        mockSignInWithOAuth.mockResolvedValueOnce({
+          data: { url: "https://accounts.google.com/oauth-preview-1" },
+          error: null,
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:https://accounts.google.com/oauth-preview-1",
+        );
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: {
+            redirectTo: "https://foodbiz-pwa-abc123-team.vercel.app/auth/callback?next=%2Fmanage",
+          },
+        });
+      });
+
+      it("on Vercel preview (VERCEL_ENV=preview), accepts origin matching VERCEL_BRANCH_URL", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "preview");
+        vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc123-team.vercel.app");
+        vi.stubEnv("VERCEL_BRANCH_URL", "foodbiz-pwa-git-feat-team.vercel.app");
+
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://foodbiz-pwa-git-feat-team.vercel.app";
+          return null;
+        });
+        mockSignInWithOAuth.mockResolvedValueOnce({
+          data: { url: "https://accounts.google.com/oauth-preview-2" },
+          error: null,
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:https://accounts.google.com/oauth-preview-2",
+        );
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: {
+            redirectTo: "https://foodbiz-pwa-git-feat-team.vercel.app/auth/callback?next=%2Fmanage",
+          },
+        });
+      });
+
+      it("on Vercel preview with spoofed origin, falls back to VERCEL_BRANCH_URL", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "preview");
+        vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc123-team.vercel.app");
+        vi.stubEnv("VERCEL_BRANCH_URL", "foodbiz-pwa-git-feat-team.vercel.app");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "x-forwarded-host") return "evil.example.com";
+          if (header === "host") return "evil.example.com";
+          if (header === "origin") return "https://evil.example.com";
+          return null;
+        });
+        mockSignInWithOAuth.mockResolvedValueOnce({
+          data: { url: "https://accounts.google.com/oauth-branch" },
+          error: null,
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:https://accounts.google.com/oauth-branch",
+        );
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: {
+            redirectTo: "https://foodbiz-pwa-git-feat-team.vercel.app/auth/callback?next=%2Fmanage",
+          },
+        });
+      });
+
+      it("on Vercel preview without VERCEL_BRANCH_URL, falls back to VERCEL_URL when origin is spoofed", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "preview");
+        vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc123-team.vercel.app");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://evil.example.com";
+          return null;
+        });
+        mockSignInWithOAuth.mockResolvedValueOnce({
+          data: { url: "https://accounts.google.com/oauth-deploy" },
+          error: null,
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:https://accounts.google.com/oauth-deploy",
+        );
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+          provider: "google",
+          options: {
+            redirectTo: "https://foodbiz-pwa-abc123-team.vercel.app/auth/callback?next=%2Fmanage",
+          },
+        });
+      });
+
+      it("on Vercel preview without VERCEL_URL or VERCEL_BRANCH_URL, redirects to auth_failed", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "preview");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://evil.example.com";
+          return null;
+        });
+
+        await expect(signInWithGoogleAction()).rejects.toThrow(
+          "REDIRECT:/manage/login?error=auth_failed",
+        );
+        expect(mockRedirect).toHaveBeenCalledWith("/manage/login?error=auth_failed");
+        expect(mockSignInWithOAuth).not.toHaveBeenCalled();
+      });
+
+      it("on Vercel production (VERCEL_ENV=production) without site URL, refuses preview fallback and fails closed", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        vi.stubEnv("VERCEL_ENV", "production");
+        vi.stubEnv("VERCEL_URL", "foodbiz-pwa-prod.vercel.app");
+        vi.stubEnv("VERCEL_BRANCH_URL", "foodbiz-pwa-git-main.vercel.app");
+        mockHeadersGet.mockImplementation((header: string) => {
+          if (header === "origin") return "https://foodbiz-pwa-prod.vercel.app";
           return null;
         });
 
