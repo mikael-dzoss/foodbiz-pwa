@@ -15,7 +15,7 @@ do $seed$
 declare
   v_days integer;
 begin
-  v_days := greatest(0, current_date - date '2026-10-09');
+  v_days := greatest(0, (now() at time zone 'Europe/Paris')::date - date '2026-10-09');
 
   -- 0. Replace demo business rows (FK-safe order; keeps businesses & business_members)
   delete from public.order_items where business_id = '11111111-1111-4111-8111-111111111111'::uuid;
@@ -535,7 +535,8 @@ begin
     notes,
     delivery_address,
     status_history,
-    created_at
+    created_at,
+    updated_at
   ) values
     (
       '66666666-6666-4666-8666-666666666601'::uuid,
@@ -564,7 +565,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-12T09:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-12T10:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-12T09:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-12T09:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-12T10:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666602'::uuid,
@@ -593,7 +595,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-13T11:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-13T11:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-13T10:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-13T10:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-13T11:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666603'::uuid,
@@ -622,7 +625,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-15T12:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-15T12:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-15T11:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-15T11:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-15T12:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666604'::uuid,
@@ -651,7 +655,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-16T12:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-16T12:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-16T12:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-16T12:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-16T12:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666605'::uuid,
@@ -678,7 +683,8 @@ begin
         jsonb_build_object('status', 'CANCELLED', 'timestamp', to_char(('2026-08-18T13:23:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Customer requested cancellation'),
         jsonb_build_object('status', 'CANCELLED', 'timestamp', to_char(('2026-08-18T13:30:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Refund issued to customer')
       ),
-      '2026-08-18T13:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-18T13:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-18T13:30:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666606'::uuid,
@@ -707,7 +713,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-19T15:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-19T15:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-19T14:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-19T14:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-19T15:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666607'::uuid,
@@ -737,7 +744,8 @@ begin
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-21T16:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-21T16:45:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Post-delivery refund issued for dispute')
       ),
-      '2026-08-21T15:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-21T15:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-21T16:45:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666608'::uuid,
@@ -766,7 +774,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-22T16:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-22T16:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-22T16:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-22T16:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-22T16:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666609'::uuid,
@@ -795,7 +804,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-24T17:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-24T18:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-24T17:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-24T17:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-24T18:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666610'::uuid,
@@ -824,7 +834,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-25T09:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-25T09:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-25T08:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-25T08:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-25T09:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666611'::uuid,
@@ -853,7 +864,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-27T10:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-27T10:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-27T09:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-27T09:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-27T10:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666612'::uuid,
@@ -879,7 +891,8 @@ begin
         jsonb_build_object('status', 'NEW', 'timestamp', to_char(('2026-08-28T10:00:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order placed via in-person'),
         jsonb_build_object('status', 'CANCELLED', 'timestamp', to_char(('2026-08-28T10:08:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Customer requested cancellation')
       ),
-      '2026-08-28T10:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-28T10:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-28T10:08:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666613'::uuid,
@@ -908,7 +921,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-30T11:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-30T12:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-30T11:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-30T11:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-30T12:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666614'::uuid,
@@ -937,7 +951,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-08-31T13:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-08-31T13:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-08-31T12:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-08-31T12:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-08-31T13:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666615'::uuid,
@@ -966,7 +981,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-02T14:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-02T14:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-02T13:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-02T13:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-02T14:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666616'::uuid,
@@ -995,7 +1011,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-03T14:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-03T14:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-03T14:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-03T14:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-03T14:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666617'::uuid,
@@ -1024,7 +1041,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-05T15:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-05T16:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-05T15:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-05T15:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-05T16:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666618'::uuid,
@@ -1053,7 +1071,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-06T17:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-06T17:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-06T16:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-06T16:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-06T17:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666619'::uuid,
@@ -1079,7 +1098,8 @@ begin
         jsonb_build_object('status', 'NEW', 'timestamp', to_char(('2026-09-08T17:45:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order placed via whatsapp'),
         jsonb_build_object('status', 'CANCELLED', 'timestamp', to_char(('2026-09-08T17:53:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Customer requested cancellation')
       ),
-      '2026-09-08T17:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-08T17:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-08T17:53:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666620'::uuid,
@@ -1108,7 +1128,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-09T08:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-09T08:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-09T08:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-09T08:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-09T08:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666621'::uuid,
@@ -1137,7 +1158,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-11T09:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-11T10:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-11T09:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-11T09:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-11T10:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666622'::uuid,
@@ -1166,7 +1188,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-12T11:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-12T11:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-12T10:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-12T10:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-12T11:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666623'::uuid,
@@ -1195,7 +1218,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-14T12:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-14T12:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-14T11:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-14T11:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-14T12:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666624'::uuid,
@@ -1224,7 +1248,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-15T12:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-15T12:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-15T12:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-15T12:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-15T12:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666625'::uuid,
@@ -1253,7 +1278,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-17T13:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-17T14:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-17T13:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-17T13:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-17T14:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666626'::uuid,
@@ -1280,7 +1306,8 @@ begin
         jsonb_build_object('status', 'CANCELLED', 'timestamp', to_char(('2026-09-18T14:38:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Customer requested cancellation'),
         jsonb_build_object('status', 'CANCELLED', 'timestamp', to_char(('2026-09-18T14:45:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Refund issued to customer')
       ),
-      '2026-09-18T14:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-18T14:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-18T14:45:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666627'::uuid,
@@ -1309,7 +1336,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-20T16:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-20T16:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-20T15:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-20T15:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-20T16:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666628'::uuid,
@@ -1338,7 +1366,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-21T16:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-21T16:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-21T16:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-21T16:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-21T16:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666629'::uuid,
@@ -1367,7 +1396,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-23T17:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-23T18:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-23T17:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-23T17:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-23T18:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666630'::uuid,
@@ -1396,7 +1426,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-24T09:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-24T09:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-24T08:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-24T08:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-24T09:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666631'::uuid,
@@ -1425,7 +1456,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-26T10:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-26T10:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-26T09:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-26T09:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-26T10:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666632'::uuid,
@@ -1454,7 +1486,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-27T10:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-09-27T10:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-09-27T10:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-27T10:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-27T10:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666633'::uuid,
@@ -1482,7 +1515,8 @@ begin
         jsonb_build_object('status', 'PREPARING', 'timestamp', to_char(('2026-09-29T11:30:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Kitchen started preparation'),
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-09-29T11:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup')
       ),
-      '2026-09-29T11:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-29T11:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-29T11:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666634'::uuid,
@@ -1509,7 +1543,8 @@ begin
         jsonb_build_object('status', 'CONFIRMED', 'timestamp', to_char(('2026-09-30T12:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order confirmed by kitchen'),
         jsonb_build_object('status', 'PREPARING', 'timestamp', to_char(('2026-09-30T12:45:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Kitchen started preparation')
       ),
-      '2026-09-30T12:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-09-30T12:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-09-30T12:45:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666635'::uuid,
@@ -1535,7 +1570,8 @@ begin
         jsonb_build_object('status', 'NEW', 'timestamp', to_char(('2026-10-02T13:45:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order placed via whatsapp'),
         jsonb_build_object('status', 'CONFIRMED', 'timestamp', to_char(('2026-10-02T13:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order confirmed by kitchen')
       ),
-      '2026-10-02T13:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-10-02T13:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-10-02T13:50:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666636'::uuid,
@@ -1560,6 +1596,7 @@ begin
       jsonb_build_array(
         jsonb_build_object('status', 'NEW', 'timestamp', to_char(('2026-10-03T14:00:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order placed via storefront')
       ),
+      '2026-10-03T14:00:00.000Z'::timestamptz + make_interval(days => v_days),
       '2026-10-03T14:00:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
@@ -1589,7 +1626,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-10-05T15:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-10-05T16:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-10-05T15:15:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-10-05T15:15:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-10-05T16:05:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666638'::uuid,
@@ -1618,7 +1656,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-10-06T17:05:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-10-06T17:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-10-06T16:30:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-10-06T16:30:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-10-06T17:20:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666639'::uuid,
@@ -1647,7 +1686,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-10-08T18:20:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for pickup'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-10-08T18:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-10-08T17:45:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-10-08T17:45:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-10-08T18:35:00.000Z'::timestamptz + make_interval(days => v_days)
     ),
     (
       '66666666-6666-4666-8666-666666666640'::uuid,
@@ -1676,7 +1716,8 @@ begin
         jsonb_build_object('status', 'READY', 'timestamp', to_char(('2026-10-09T08:35:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order packed and ready for delivery'),
         jsonb_build_object('status', 'COMPLETED', 'timestamp', to_char(('2026-10-09T08:50:00.000Z'::timestamptz + make_interval(days => v_days)) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'note', 'Order handed over to customer')
       ),
-      '2026-10-09T08:00:00.000Z'::timestamptz + make_interval(days => v_days)
+      '2026-10-09T08:00:00.000Z'::timestamptz + make_interval(days => v_days),
+      '2026-10-09T08:50:00.000Z'::timestamptz + make_interval(days => v_days)
     );
 
   -- 7. Order Items

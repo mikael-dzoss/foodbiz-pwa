@@ -30,10 +30,9 @@ jobs:
         env:
           PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
           ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
-          DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
           missing=0
-          for name in PROJECT_REF ACCESS_TOKEN DB_PASSWORD; do
+          for name in PROJECT_REF ACCESS_TOKEN; do
             if [ -z "${!name}" ]; then
               echo "::error::Missing repository secret STAGING_SUPABASE_${name}."
               missing=1

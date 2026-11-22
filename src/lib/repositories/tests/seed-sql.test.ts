@@ -63,7 +63,9 @@ describe("buildSeedSql", () => {
     expect(sql.match(/\bdo \$seed\$/g)).toHaveLength(1);
     expect(sql.match(/\bend\s+\$seed\$;/g)).toHaveLength(1);
     expect(sql).toContain("declare\n  v_days integer;");
-    expect(sql).toMatch(/v_days := greatest\(0, current_date - date '\d{4}-\d{2}-\d{2}'\);/);
+    expect(sql).toMatch(
+      /v_days := greatest\(0, \(now\(\) at time zone 'Europe\/Paris'\)::date - date '\d{4}-\d{2}-\d{2}'\);/,
+    );
   });
 
   it("deletes demo business child rows in FK-safe order before any inserts and never touches businesses, business_members, auth.*, or rate_limit_attempts", () => {
@@ -149,10 +151,13 @@ describe("buildSeedSql", () => {
     }
   });
 
-  it("never emits tracking_token or updated_at columns", () => {
+  it("never emits tracking_token and sets updated_at only on orders", () => {
     const sql = buildSeedSql();
     expect(sql).not.toMatch(/\btracking_token\b/);
-    expect(sql).not.toMatch(/\bupdated_at\b/);
+    expect(extractTableInsert(sql, "orders")).toMatch(/\bupdated_at\b/);
+    for (const table of ["businesses", "business_settings", "products", "expenses"]) {
+      expect(extractTableInsert(sql, table)).not.toMatch(/\bupdated_at\b/);
+    }
   });
 
   it("upserts all non-id columns for businesses on conflict (id)", () => {
@@ -354,10 +359,6 @@ describe("buildSeedSql edge cases", () => {
             },
           ],
         },
-        {
-          ...demoOrders[1],
-          statusHistory: [],
-        },
       ],
       expenses: [
         {
@@ -379,11 +380,32 @@ describe("buildSeedSql edge cases", () => {
     expect(sql).toContain("'Customer''s request'");
     expect(sql).toContain("'Baker''s yeast'");
     expect(sql).toContain("array['Ingredients', 'Chef''s Supplies']::text[]");
-    expect(sql).toContain("'[]'::jsonb");
     expect(sql).toContain("https://tiktok.com/@latelier");
     // business_settings without id omits the id column so DB default applies
     const settingsStmt = extractTableInsert(sql, "business_settings");
     expect(settingsStmt).not.toMatch(/insert into public\.business_settings \(\s*id,/);
+  });
+
+  it("rejects orders without status history and text containing the $seed$ tag", () => {
+    const base: SeedFixtures = {
+      business: demoBusiness,
+      settings: demoSettings,
+      categories: demoCategories,
+      products: demoProducts,
+      guests: demoGuests,
+      orders: demoOrders,
+      expenses: demoExpenses,
+    };
+    expect(() =>
+      buildSeedSql({ ...base, orders: [{ ...demoOrders[0], statusHistory: [] }] }),
+    ).toThrow(/statusHistory/);
+    expect(() =>
+      buildSeedSql({ ...base, business: { ...base.business, name: "x $seed$ y" } }),
+    ).toThrow(/\$seed\$/);
+  });
+
+  it("anchors the date shift on today in the shop time zone", () => {
+    expect(buildSeedSql()).toContain("(now() at time zone 'Europe/Paris')::date");
   });
 
   it("handles empty collections gracefully", () => {

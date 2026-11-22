@@ -59,6 +59,10 @@ const DELETE_TABLES_FK_ORDER = [
 ] as const;
 
 export function sqlText(value: string): string {
+  // The whole seed runs inside a `do $seed$ ... $seed$` block; this tag would end it early.
+  if (value.includes("$seed$")) {
+    throw new Error("Seed fixture text must not contain the $seed$ dollar-quote tag");
+  }
   return `'${value.replace(/'/g, "''")}'`;
 }
 
@@ -118,7 +122,8 @@ function sqlNullableTime(timeStr: string | null | undefined): string {
 
 function sqlStatusHistory(events: readonly OrderStatusEvent[] | undefined): string {
   if (!events || events.length === 0) {
-    return "'[]'::jsonb";
+    // An empty history would be filled by the 0024 trigger with the unshifted run time.
+    throw new Error("Seed orders must have a non-empty statusHistory");
   }
 
   const entries = events.map((event) => {
@@ -391,6 +396,7 @@ function renderOrdersInsert(orders: readonly Order[]): string | null {
     "delivery_address",
     "status_history",
     "created_at",
+    "updated_at",
   ] as const;
 
   const rows = orders.map((order) => {
@@ -419,6 +425,7 @@ function renderOrdersInsert(orders: readonly Order[]): string | null {
       sqlNullableText(order.deliveryAddress),
       sqlStatusHistory(order.statusHistory),
       sqlShiftedTimestamp(order.createdAt),
+      sqlShiftedTimestamp(order.updatedAt),
     ];
     return `    (\n      ${vals.join(",\n      ")}\n    )`;
   });
@@ -521,7 +528,8 @@ export function buildSeedSql(fixtures: SeedFixtures = DEFAULT_FIXTURES): string 
   const shiftAssignment =
     anchorDate === null
       ? "  v_days := 0;"
-      : `  v_days := greatest(0, current_date - date ${sqlText(anchorDate)});`;
+      : // "Today" in the shop's time zone, not the session's (UTC on hosted Supabase).
+        `  v_days := greatest(0, (now() at time zone ${sqlText(fixtures.settings.timezone)})::date - date ${sqlText(anchorDate)});`;
 
   const statements = [
     renderDemoDeletes(fixtures.business.id),
