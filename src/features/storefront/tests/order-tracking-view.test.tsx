@@ -2,18 +2,12 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { OrderTrackingView } from "../components/order-tracking-view";
 import { getDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT, demoBusiness } from "@/lib/repositories/mock/fixtures";
 import type { Order, Business } from "@/domain";
 
 const mockBusiness: Business = {
+  ...demoBusiness,
   id: "biz-1",
-  name: "La Petite Boulangerie",
-  slug: "la-petite-boulangerie",
-  phone: "+33 1 43 55 67 89",
-  email: "contact@boulangerie.fr",
-  address: "14 Rue de la Paix, 75002 Paris",
-  currency: "EUR",
-  createdAt: "2026-10-01T00:00:00.000Z",
-  updatedAt: "2026-10-01T00:00:00.000Z",
 };
 
 const mockActiveOrder: Order = {
@@ -34,21 +28,21 @@ const mockActiveOrder: Order = {
     {
       id: "it-1",
       productId: "prod-1",
-      productName: "Croissant aux Amandes",
+      productName: DEMO_PRODUCT.pouletBraise.name,
       quantity: 2,
-      unitPrice: 350,
-      totalPrice: 700,
+      unitPrice: DEMO_PRODUCT.pouletBraise.price,
+      totalPrice: DEMO_PRODUCT.pouletBraise.price * 2,
     },
     {
       id: "it-2",
       productId: "prod-2",
-      productName: "Café Latte",
+      productName: DEMO_PRODUCT.folere.name,
       quantity: 1,
-      unitPrice: 450,
-      totalPrice: 450,
+      unitPrice: DEMO_PRODUCT.folere.price,
+      totalPrice: DEMO_PRODUCT.folere.price,
     },
   ],
-  totalAmount: 1150,
+  totalAmount: DEMO_PRODUCT.pouletBraise.price * 2 + DEMO_PRODUCT.folere.price,
   trackingToken: "tk-42",
   cancellationReason: null,
   notes: null,
@@ -66,13 +60,13 @@ const mockCancelledOrder: Order = {
   id: "ord-43",
   orderNumber: 43,
   status: "CANCELLED",
-  cancellationReason: "Kitchen out of ingredients for Almond Croissants",
+  cancellationReason: `Kitchen out of ingredients for ${DEMO_PRODUCT.pouletBraise.name}`,
   statusHistory: [
     { status: "NEW", timestamp: "2026-10-17T12:00:00.000Z", note: "Online order" },
     {
       status: "CANCELLED",
       timestamp: "2026-10-17T12:06:00.000Z",
-      note: "Kitchen out of ingredients for Almond Croissants",
+      note: `Kitchen out of ingredients for ${DEMO_PRODUCT.pouletBraise.name}`,
     },
   ],
   updatedAt: "2026-10-17T12:06:00.000Z",
@@ -97,11 +91,11 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     expect(screen.getByTestId("tracking-status-badge").textContent).toContain(
       "Confirmed by kitchen",
     );
-    expect(screen.getByText("Croissant aux Amandes")).toBeDefined();
-    expect(screen.getByText("Café Latte")).toBeDefined();
-    expect(screen.getByText("14 Rue de la Paix, 75002 Paris")).toBeDefined();
+    expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
+    expect(screen.getByText(DEMO_PRODUCT.folere.name)).toBeDefined();
+    expect(screen.getByText(demoBusiness.address!)).toBeDefined();
     expect(screen.getByTestId("tracking-contact-button").getAttribute("href")).toContain(
-      "tel:33143556789",
+      `tel:${demoBusiness.phone!.replace(/\D/g, "")}`,
     );
     expect(screen.getByTestId("tracking-back-button").getAttribute("href")).toBe("/en");
   });
@@ -127,7 +121,9 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     // Rejection reason
     const reason = screen.getByTestId("tracking-cancellation-reason");
-    expect(reason.textContent).toContain("Kitchen out of ingredients for Almond Croissants");
+    expect(reason.textContent).toContain(
+      `Kitchen out of ingredients for ${DEMO_PRODUCT.pouletBraise.name}`,
+    );
   });
 
   it("renders French localization cleanly", () => {

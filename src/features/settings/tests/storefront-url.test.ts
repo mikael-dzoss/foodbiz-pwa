@@ -8,7 +8,7 @@ afterEach(() => {
 
 describe("buildStorefrontUrl", () => {
   it("uses NEXT_PUBLIC_SITE_URL when set and strips protocol for displayUrl", () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://shop.example.com");
 
     const result = buildStorefrontUrl({
       locale: "fr",
@@ -16,13 +16,13 @@ describe("buildStorefrontUrl", () => {
     });
 
     expect(result).toEqual({
-      fullUrl: "https://bakery.example.com/fr",
-      displayUrl: "bakery.example.com/fr",
+      fullUrl: "https://shop.example.com/fr",
+      displayUrl: "shop.example.com/fr",
     });
   });
 
   it("strips trailing slashes from NEXT_PUBLIC_SITE_URL", () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://shop.example.com/");
 
     const result = buildStorefrontUrl({
       locale: "en",
@@ -30,8 +30,8 @@ describe("buildStorefrontUrl", () => {
     });
 
     expect(result).toEqual({
-      fullUrl: "https://bakery.example.com/en",
-      displayUrl: "bakery.example.com/en",
+      fullUrl: "https://shop.example.com/en",
+      displayUrl: "shop.example.com/en",
     });
   });
 
@@ -71,15 +71,15 @@ describe("buildStorefrontUrl", () => {
   });
 
   it("falls back to DEFAULT_LOCALE when locale is unsupported or omitted", () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://shop.example.com");
 
     expect(buildStorefrontUrl({ locale: "es" })).toEqual({
-      fullUrl: `https://bakery.example.com/${DEFAULT_LOCALE}`,
-      displayUrl: `bakery.example.com/${DEFAULT_LOCALE}`,
+      fullUrl: `https://shop.example.com/${DEFAULT_LOCALE}`,
+      displayUrl: `shop.example.com/${DEFAULT_LOCALE}`,
     });
     expect(buildStorefrontUrl({})).toEqual({
-      fullUrl: `https://bakery.example.com/${DEFAULT_LOCALE}`,
-      displayUrl: `bakery.example.com/${DEFAULT_LOCALE}`,
+      fullUrl: `https://shop.example.com/${DEFAULT_LOCALE}`,
+      displayUrl: `shop.example.com/${DEFAULT_LOCALE}`,
     });
   });
 });

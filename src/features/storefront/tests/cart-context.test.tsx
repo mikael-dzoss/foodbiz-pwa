@@ -1,14 +1,15 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
+import { DEMO_PRODUCT } from "@/lib/repositories/mock/fixtures";
 import type { Product } from "@/domain/product";
 
 const mockProduct: Product = {
   id: "prod-1",
   businessId: "biz-1",
   categoryId: "cat-1",
-  name: "Classic Croissant",
-  description: "Flaky butter pastry",
+  name: DEMO_PRODUCT.beignetsSouffles.name,
+  description: DEMO_PRODUCT.beignetsSouffles.description,
   price: 250,
   unitCost: 100,
   stock: 5,
@@ -22,7 +23,7 @@ const mockProduct: Product = {
 const mockOutOfStockProduct: Product = {
   ...mockProduct,
   id: "prod-out",
-  name: "Sold Out Croissant",
+  name: "Sold Out Dish",
   stock: 0,
 };
 
@@ -208,7 +209,7 @@ describe("CartContext (#81, #82)", () => {
       </CartProvider>,
     );
 
-    // Add 5 croissants at price 250
+    // Add 5 items at price 250
     fireEvent.click(screen.getByTestId("add-overstock-btn"));
     expect(screen.getByTestId("total-count").textContent).toBe("5");
     expect(screen.getByTestId("total-amount").textContent).toBe("1250");

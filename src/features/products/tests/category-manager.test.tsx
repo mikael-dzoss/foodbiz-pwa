@@ -1,4 +1,5 @@
 import { getDictionary } from "@/domain/i18n";
+import { demoCategories } from "@/lib/repositories/mock/fixtures";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CategoryManager } from "../components/category-manager";
@@ -8,49 +9,32 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const mockCategories = [
-  {
-    id: "22222222-2222-4222-8222-222222222201",
-    businessId: "11111111-1111-4111-8111-111111111111",
-    name: "Breads",
-    sortOrder: 1,
-    role: "regular" as const,
-    createdAt: "2026-08-01T08:00:00.000Z",
-  },
-  {
-    id: "22222222-2222-4222-8222-222222222202",
-    businessId: "11111111-1111-4111-8111-111111111111",
-    name: "Pastries",
-    sortOrder: 2,
-    role: "regular" as const,
-    createdAt: "2026-08-01T08:00:00.000Z",
-  },
-];
+const mockCategories = [demoCategories[0], demoCategories[1]];
 
 describe("CategoryManager component", () => {
   it("creates and edits roles and shows the saved role", async () => {
     vi.spyOn(categoryActions, "createCategoryAction").mockResolvedValueOnce({
       ok: true,
-      data: { ...mockCategories[0], id: "new", name: "Coffee", role: "drinks" },
+      data: { ...mockCategories[0], id: "new", name: "Juices", role: "drinks" },
     });
     vi.spyOn(categoryActions, "renameCategoryAction").mockResolvedValueOnce({
       ok: true,
       data: { ...mockCategories[0], role: "snacks" },
     });
     render(<CategoryManager initialCategories={mockCategories} />);
-    fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "Coffee" } });
+    fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "Juices" } });
     fireEvent.change(screen.getByLabelText("Category role"), { target: { value: "drinks" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Category" }));
     await waitFor(() =>
       expect(categoryActions.createCategoryAction).toHaveBeenCalledWith({
-        name: "Coffee",
+        name: "Juices",
         role: "drinks",
       }),
     );
     await waitFor(() =>
       expect((screen.getByLabelText("Category role") as HTMLSelectElement).value).toBe("regular"),
     );
-    fireEvent.click(screen.getByLabelText("Rename Breads"));
+    fireEvent.click(screen.getByLabelText(`Rename ${mockCategories[0].name}`));
     fireEvent.change(screen.getByTestId(`edit-category-role-select-${mockCategories[0].id}`), {
       target: { value: "snacks" },
     });
@@ -58,12 +42,12 @@ describe("CategoryManager component", () => {
     await waitFor(() =>
       expect(categoryActions.renameCategoryAction).toHaveBeenCalledWith({
         id: mockCategories[0].id,
-        name: "Breads",
+        name: mockCategories[0].name,
         role: "snacks",
       }),
     );
     await waitFor(() => expect(screen.getByText("Snacks", { selector: "span" })).toBeDefined());
-    fireEvent.click(screen.getByLabelText("Rename Breads"));
+    fireEvent.click(screen.getByLabelText(`Rename ${mockCategories[0].name}`));
     expect(
       (screen.getByTestId(`edit-category-role-select-${mockCategories[0].id}`) as HTMLSelectElement)
         .value,
@@ -81,8 +65,8 @@ describe("CategoryManager component", () => {
   it("renders initial categories list", () => {
     render(<CategoryManager initialCategories={mockCategories} />);
 
-    expect(screen.getByText("Breads")).toBeDefined();
-    expect(screen.getByText("Pastries")).toBeDefined();
+    expect(screen.getByText(mockCategories[0].name)).toBeDefined();
+    expect(screen.getByText(mockCategories[1].name)).toBeDefined();
     expect(screen.getByText("Categories (2)")).toBeDefined();
   });
 
@@ -92,7 +76,7 @@ describe("CategoryManager component", () => {
       data: {
         id: "22222222-2222-4222-8222-222222222203",
         businessId: "11111111-1111-4111-8111-111111111111",
-        name: "Beverages",
+        name: "Boissons",
         sortOrder: 3,
         role: "regular" as const,
         createdAt: "2026-08-01T08:00:00.000Z",
@@ -102,13 +86,13 @@ describe("CategoryManager component", () => {
     render(<CategoryManager initialCategories={mockCategories} />);
 
     const input = screen.getByLabelText("New category name");
-    fireEvent.change(input, { target: { value: "Beverages" } });
+    fireEvent.change(input, { target: { value: "Boissons" } });
 
     const submitBtn = screen.getByRole("button", { name: /add category/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Beverages")).toBeDefined();
+      expect(screen.getByText("Boissons")).toBeDefined();
     });
   });
 
@@ -122,7 +106,7 @@ describe("CategoryManager component", () => {
     render(<CategoryManager initialCategories={mockCategories} />);
 
     const input = screen.getByLabelText("New category name");
-    fireEvent.change(input, { target: { value: "Breads" } });
+    fireEvent.change(input, { target: { value: mockCategories[0].name } });
 
     const submitBtn = screen.getByRole("button", { name: /add category/i });
     fireEvent.click(submitBtn);
@@ -138,7 +122,7 @@ describe("CategoryManager component", () => {
       data: {
         id: "22222222-2222-4222-8222-222222222201",
         businessId: "11111111-1111-4111-8111-111111111111",
-        name: "Artisan Breads",
+        name: "Grillades",
         sortOrder: 1,
         role: "regular" as const,
         createdAt: "2026-08-01T08:00:00.000Z",
@@ -147,17 +131,17 @@ describe("CategoryManager component", () => {
 
     render(<CategoryManager initialCategories={mockCategories} />);
 
-    const renameBtn = screen.getByLabelText("Rename Breads");
+    const renameBtn = screen.getByLabelText(`Rename ${mockCategories[0].name}`);
     fireEvent.click(renameBtn);
 
     const editInput = screen.getByLabelText("Edit category name");
-    fireEvent.change(editInput, { target: { value: "Artisan Breads" } });
+    fireEvent.change(editInput, { target: { value: "Grillades" } });
 
     const saveBtn = screen.getByLabelText("Save category name");
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Artisan Breads")).toBeDefined();
+      expect(screen.getByText("Grillades")).toBeDefined();
     });
   });
 
@@ -170,7 +154,7 @@ describe("CategoryManager component", () => {
 
     render(<CategoryManager initialCategories={mockCategories} />);
 
-    const deleteBtn = screen.getByLabelText("Delete Breads");
+    const deleteBtn = screen.getByLabelText(`Delete ${mockCategories[0].name}`);
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
@@ -182,7 +166,6 @@ describe("CategoryManager component", () => {
     const categoriesWithCounts = [
       {
         ...mockCategories[0],
-        name: "Breads",
         productCount: 4,
       },
       {
@@ -194,11 +177,13 @@ describe("CategoryManager component", () => {
 
     render(<CategoryManager initialCategories={categoriesWithCounts} />);
 
-    // Breads: in catalog, disabled delete
+    // First category: in catalog, disabled delete
     expect(screen.getByText("4 products")).toBeDefined();
     expect(screen.getByText("In catalog")).toBeDefined();
-    const breadsDeleteBtn = screen.getByLabelText(/delete breads/i);
-    expect(breadsDeleteBtn.hasAttribute("disabled")).toBe(true);
+    const firstDeleteBtn = screen.getByLabelText(
+      new RegExp(`delete ${mockCategories[0].name}`, "i"),
+    );
+    expect(firstDeleteBtn.hasAttribute("disabled")).toBe(true);
 
     // Drinks: unassigned, enabled delete
     expect(screen.getByText("0 products")).toBeDefined();

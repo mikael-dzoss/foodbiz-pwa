@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT, demoBusiness } from "@/lib/repositories/mock/fixtures";
 import { ToastProvider } from "@/components/ui";
 import { StorefrontMenuDrawer } from "../components/storefront-menu-drawer";
 import { CartProvider, resetCartStore } from "../context/cart-context";
@@ -11,10 +12,16 @@ function renderDrawer(locale: "en" | "fr" = "en") {
     <ToastProvider>
       <CartProvider
         initialItems={[
-          { productId: "p1", name: "Baguette", price: 130, quantity: 2, maxStock: 10 },
+          {
+            productId: "p1",
+            name: DEMO_PRODUCT.pouletBraise.name,
+            price: DEMO_PRODUCT.pouletBraise.price,
+            quantity: 2,
+            maxStock: 10,
+          },
         ]}
       >
-        <StorefrontMenuDrawer locale={locale} dict={dict} businessName="La Boulangerie" />
+        <StorefrontMenuDrawer locale={locale} dict={dict} businessName={demoBusiness.name} />
       </CartProvider>
     </ToastProvider>,
   );
@@ -32,11 +39,11 @@ describe("StorefrontMenuDrawer (#231)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
 
     const drawer = screen.getByTestId("storefront-menu-drawer");
-    expect(screen.getByRole("dialog", { name: "La Boulangerie" })).toBe(drawer);
+    expect(screen.getByRole("dialog", { name: demoBusiness.name })).toBe(drawer);
     expect(screen.getByTestId("menu-track-order").getAttribute("href")).toBe("/en/track");
     expect(screen.getByTestId("menu-view-cart").getAttribute("href")).toBe("/en/cart");
     expect(screen.getByTestId("menu-cart-count").textContent).toContain("2");
-    expect(screen.getByTestId("menu-about").textContent).toContain("About La Boulangerie");
+    expect(screen.getByTestId("menu-about").textContent).toContain(`About ${demoBusiness.name}`);
     expect(screen.getByTestId("menu-about").getAttribute("href")).toBe("/en/info");
 
     const history = screen.getByTestId("menu-order-history") as HTMLButtonElement;
@@ -59,7 +66,7 @@ describe("StorefrontMenuDrawer (#231)", () => {
     fireEvent.click(screen.getByTestId("menu-share"));
     await waitFor(() =>
       expect(share).toHaveBeenCalledWith({
-        title: "La Boulangerie",
+        title: demoBusiness.name,
         url: `${window.location.origin}/en`,
       }),
     );

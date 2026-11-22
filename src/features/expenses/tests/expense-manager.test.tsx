@@ -35,7 +35,7 @@ const mockExpenses: Expense[] = [
     businessId: "biz-1",
     amount: 21500, // €215.00
     date: "2026-08-15",
-    description: "Bakery boxes and cups",
+    description: "Takeaway boxes and bottles",
     tags: ["Supplies"],
     createdAt: "2026-08-15T10:00:00.000Z",
   },
@@ -67,7 +67,7 @@ describe("ExpenseManager Component", () => {
     expect(screen.getByText("Organic vegetables")).toBeDefined();
     expect(screen.getByText("Van fuel refill")).toBeDefined();
     // Item from August is not in "this-month"
-    expect(screen.queryByText("Bakery boxes and cups")).toBeNull();
+    expect(screen.queryByText("Takeaway boxes and bottles")).toBeNull();
   });
 
   it("filters expenses when selecting 'All time'", () => {
@@ -76,7 +76,7 @@ describe("ExpenseManager Component", () => {
     fireEvent.click(screen.getByTestId("period-filter-all"));
 
     // Now August item is visible
-    expect(screen.getByText("Bakery boxes and cups")).toBeDefined();
+    expect(screen.getByText("Takeaway boxes and bottles")).toBeDefined();
     expect(screen.getByText("Organic vegetables")).toBeDefined();
     expect(screen.getByText("Van fuel refill")).toBeDefined();
   });

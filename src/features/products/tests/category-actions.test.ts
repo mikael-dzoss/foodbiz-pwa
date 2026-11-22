@@ -1,5 +1,6 @@
 import { requireAuthenticatedAction } from "@/features/auth";
 import type { CreateCategoryInput, UpdateCategoryInput } from "@/domain/repositories/types";
+import { DEMO_PRODUCT, demoCategories } from "@/lib/repositories/mock/fixtures";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { listCategories } from "../category-data";
 import {
@@ -20,14 +21,14 @@ const mockCategories = [
   {
     id: "22222222-2222-4222-8222-222222222201",
     businessId: "11111111-1111-4111-8111-111111111111",
-    name: "Breads",
+    name: demoCategories[0].name,
     sortOrder: 1,
     createdAt: "2026-08-01T08:00:00.000Z",
   },
   {
     id: "22222222-2222-4222-8222-222222222202",
     businessId: "11111111-1111-4111-8111-111111111111",
-    name: "Pastries",
+    name: demoCategories[1].name,
     sortOrder: 2,
     createdAt: "2026-08-01T08:00:00.000Z",
   },
@@ -80,8 +81,8 @@ vi.mock("@/features/auth", () => ({
       },
       business: {
         id: "11111111-1111-4111-8111-111111111111",
-        name: "Test Bakery",
-        slug: "test-bakery",
+        name: "Test Shop",
+        slug: "test-shop",
         currency: "EUR",
       },
       expiresAt: "2099-01-01T00:00:00.000Z",
@@ -99,7 +100,7 @@ describe("features: category actions", () => {
     it("returns list of categories", async () => {
       const res = await listCategories();
       expect(res).toHaveLength(2);
-      expect(res[0].name).toBe("Breads");
+      expect(res[0].name).toBe(demoCategories[0].name);
     });
 
     it("returns list of categories with computed product counts", async () => {
@@ -121,32 +122,40 @@ describe("features: category actions", () => {
 
   describe("createCategoryAction", () => {
     it("creates and edits category roles with validation", async () => {
-      expect(await createCategoryAction({ name: "Coffee", role: "drinks" })).toMatchObject({
+      expect(await createCategoryAction({ name: "Juices", role: "drinks" })).toMatchObject({
         ok: true,
         data: { role: "drinks" },
       });
       expect(
-        await renameCategoryAction({ id: mockCategories[0].id, name: "Breads", role: "snacks" }),
+        await renameCategoryAction({
+          id: mockCategories[0].id,
+          name: demoCategories[0].name,
+          role: "snacks",
+        }),
       ).toMatchObject({ ok: true, data: { role: "snacks" } });
-      expect(await createCategoryAction({ name: "Coffee", role: "invalid" })).toMatchObject({
+      expect(await createCategoryAction({ name: "Juices", role: "invalid" })).toMatchObject({
         ok: false,
       });
       expect(
-        await renameCategoryAction({ id: mockCategories[0].id, name: "Breads", role: "invalid" }),
+        await renameCategoryAction({
+          id: mockCategories[0].id,
+          name: demoCategories[0].name,
+          role: "invalid",
+        }),
       ).toMatchObject({ ok: false });
     });
     it("requires authentication before changing roles", async () => {
       vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
-      await expect(createCategoryAction({ name: "Coffee", role: "drinks" })).rejects.toThrow(
+      await expect(createCategoryAction({ name: "Juices", role: "drinks" })).rejects.toThrow(
         "Unauthorized",
       );
       expect(mockCategoryRepo.create).not.toHaveBeenCalled();
     });
     it("creates a new category when name is valid and unique", async () => {
-      const res = await createCategoryAction({ name: "Sandwiches" });
+      const res = await createCategoryAction({ name: "Sides" });
       expect(res.ok).toBe(true);
       if (res.ok) {
-        expect(res.data.name).toBe("Sandwiches");
+        expect(res.data.name).toBe("Sides");
         expect(mockCategoryRepo.create).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/categories");
         expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
@@ -155,7 +164,7 @@ describe("features: category actions", () => {
     });
 
     it("rejects duplicate category name (case-insensitive)", async () => {
-      const res = await createCategoryAction({ name: "breads" });
+      const res = await createCategoryAction({ name: demoCategories[0].name.toLowerCase() });
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.message).toMatch(/already exists/i);
@@ -174,11 +183,11 @@ describe("features: category actions", () => {
     it("renames category when valid and unique", async () => {
       const res = await renameCategoryAction({
         id: "22222222-2222-4222-8222-222222222201",
-        name: "Artisan Breads",
+        name: "Grillades",
       });
       expect(res.ok).toBe(true);
       if (res.ok) {
-        expect(res.data.name).toBe("Artisan Breads");
+        expect(res.data.name).toBe("Grillades");
         expect(mockCategoryRepo.update).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/categories");
       }
@@ -187,7 +196,7 @@ describe("features: category actions", () => {
     it("allows keeping the same name for itself", async () => {
       const res = await renameCategoryAction({
         id: "22222222-2222-4222-8222-222222222201",
-        name: "Breads",
+        name: demoCategories[0].name,
       });
       expect(res.ok).toBe(true);
     });
@@ -195,7 +204,7 @@ describe("features: category actions", () => {
     it("rejects renaming to an existing name of another category", async () => {
       const res = await renameCategoryAction({
         id: "22222222-2222-4222-8222-222222222201",
-        name: "Pastries",
+        name: demoCategories[1].name,
       });
       expect(res.ok).toBe(false);
       if (!res.ok) {
@@ -221,7 +230,9 @@ describe("features: category actions", () => {
     });
 
     it("rejects deletion when category has products, explaining reason", async () => {
-      mockProductRepo.list.mockResolvedValueOnce([{ id: "p1", name: "Croissant" } as never]);
+      mockProductRepo.list.mockResolvedValueOnce([
+        { id: "p1", name: DEMO_PRODUCT.pouletBraise.name } as never,
+      ]);
 
       const res = await deleteCategoryAction({
         id: "22222222-2222-4222-8222-222222222202",

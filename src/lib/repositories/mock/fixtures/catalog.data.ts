@@ -226,8 +226,7 @@ export const DEMO_CATALOG_PRODUCTS = [
     nameEn: "Meatballs",
     description:
       "Boulettes de bœuf mijotées dans une sauce tomate épicée accompagnées de frites de plantains.",
-    descriptionEn:
-      "Beef meatballs simmered in a spiced tomato sauce, served with plantain fries.",
+    descriptionEn: "Beef meatballs simmered in a spiced tomato sauce, served with plantain fries.",
     price: 1500,
     unitCost: 450,
     stock: 15,
@@ -262,8 +261,7 @@ export const DEMO_CATALOG_PRODUCTS = [
     nameEn: "Roasted Pork",
     description:
       "Morceaux de porc marinés aux épices, grillés sur la braise, servis avec frites de plantain.",
-    descriptionEn:
-      "Spice-marinated pork pieces grilled over embers, served with plantain fries.",
+    descriptionEn: "Spice-marinated pork pieces grilled over embers, served with plantain fries.",
     price: 1400,
     unitCost: 420,
     stock: 15,

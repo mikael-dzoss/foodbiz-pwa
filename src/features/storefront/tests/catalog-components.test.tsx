@@ -6,6 +6,7 @@ import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
 import { MenuSearchProvider } from "../context/menu-search-context";
 import { StorefrontHeader } from "../components/storefront-header";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT, demoBusiness, demoCategories } from "@/lib/repositories/mock/fixtures";
 import type { StorefrontCatalogData } from "../catalog-data";
 
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -56,8 +57,8 @@ class MockIntersectionObserver {
 
 const mockCatalog: StorefrontCatalogData = {
   business: {
-    name: "La Boulangerie",
-    description: "Artisan sourdough and pastries",
+    name: demoBusiness.name,
+    description: demoBusiness.description,
   },
   settings: {
     businessId: "biz-1",
@@ -88,28 +89,28 @@ const mockCatalog: StorefrontCatalogData = {
   categories: [
     {
       id: "cat-1",
-      name: "Breads",
+      name: demoCategories[0].name,
       sortOrder: 1,
       role: "regular" as const,
     },
     {
       id: "cat-2",
-      name: "Pastries",
+      name: demoCategories[2].name,
       sortOrder: 2,
-      role: "regular" as const,
+      role: "snacks" as const,
     },
   ],
   groupedCategories: [
     {
       id: "cat-1",
-      name: "Breads",
+      name: demoCategories[0].name,
       sortOrder: 1,
       products: [
         {
           id: "prod-1",
           categoryId: "cat-1",
-          name: "Sourdough Loaf",
-          description: "Country sourdough loaf",
+          name: DEMO_PRODUCT.pouletBraise.name,
+          description: DEMO_PRODUCT.pouletBraise.description,
           price: 500,
           stock: 10,
           allergens: [],
@@ -119,14 +120,14 @@ const mockCatalog: StorefrontCatalogData = {
     },
     {
       id: "cat-2",
-      name: "Pastries",
+      name: demoCategories[2].name,
       sortOrder: 2,
       products: [
         {
           id: "prod-2",
           categoryId: "cat-2",
-          name: "Croissant",
-          description: "Butter croissant",
+          name: DEMO_PRODUCT.beignetsSouffles.name,
+          description: DEMO_PRODUCT.beignetsSouffles.description,
           price: 250,
           stock: 15,
           allergens: [],
@@ -149,7 +150,7 @@ function CartBarConsumer() {
       onClick={() =>
         addItem({
           id: "prod-1",
-          name: "Sourdough Loaf",
+          name: DEMO_PRODUCT.pouletBraise.name,
           price: 500,
           stock: 10,
         })
@@ -282,11 +283,11 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
         </CartProvider>,
       );
 
-      expect(screen.getByRole("heading", { level: 1, name: "La Boulangerie" })).toBeDefined();
-      expect(screen.getByRole("heading", { level: 2, name: "Breads" })).toBeDefined();
-      expect(screen.getByRole("heading", { level: 2, name: "Pastries" })).toBeDefined();
-      expect(screen.getByText("Sourdough Loaf")).toBeDefined();
-      expect(screen.getByText("Croissant")).toBeDefined();
+      expect(screen.getByRole("heading", { level: 1, name: demoBusiness.name })).toBeDefined();
+      expect(screen.getByRole("heading", { level: 2, name: demoCategories[0].name })).toBeDefined();
+      expect(screen.getByRole("heading", { level: 2, name: demoCategories[2].name })).toBeDefined();
+      expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
+      expect(screen.getByText(DEMO_PRODUCT.beignetsSouffles.name)).toBeDefined();
 
       // Inline search input is removed; the only launcher sits in the header (#229)
       expect(screen.queryByTestId("catalog-search-input")).toBeNull();
@@ -310,18 +311,24 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       expect(screen.queryByTestId("menu-search-clear-button")).toBeNull();
 
       // Typing filters products across categories and shows results count + clear button
-      fireEvent.change(searchInput, { target: { value: "o" } });
+      fireEvent.change(searchInput, { target: { value: "e" } });
       expect(screen.getByTestId("menu-search-results-count").textContent).toContain("2 results");
 
-      fireEvent.change(searchInput, { target: { value: "Croissant" } });
+      fireEvent.change(searchInput, { target: { value: DEMO_PRODUCT.beignetsSouffles.name } });
       expect(screen.getByTestId("menu-search-results-count").textContent).toContain("1 result");
-      expect(screen.getByTestId("menu-search-results").textContent).toContain("Croissant");
-      expect(screen.getByTestId("menu-search-results").textContent).not.toContain("Sourdough Loaf");
+      expect(screen.getByTestId("menu-search-results").textContent).toContain(
+        DEMO_PRODUCT.beignetsSouffles.name,
+      );
+      expect(screen.getByTestId("menu-search-results").textContent).not.toContain(
+        DEMO_PRODUCT.pouletBraise.name,
+      );
 
       // Matching category name shows all products in that category
-      fireEvent.change(searchInput, { target: { value: "breads" } });
+      fireEvent.change(searchInput, { target: { value: "viandes" } });
       expect(screen.getByTestId("menu-search-results-count").textContent).toContain("1 result");
-      expect(screen.getByTestId("menu-search-results").textContent).toContain("Sourdough Loaf");
+      expect(screen.getByTestId("menu-search-results").textContent).toContain(
+        DEMO_PRODUCT.pouletBraise.name,
+      );
 
       // Search for non-existent product shows empty state with query
       fireEvent.change(searchInput, { target: { value: "Donut" } });
@@ -429,14 +436,14 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       scrollIntoViewMock.mockClear();
       fireEvent.click(screen.getByTestId("category-nav-tab-cat-2"));
 
-      const pastriesHeading = screen.getByRole("heading", { level: 2, name: "Pastries" });
-      expect(pastriesHeading.getAttribute("tabindex")).toBe("-1");
-      expect(pastriesHeading.className).toContain("scroll-mt-28");
+      const secondHeading = screen.getByRole("heading", { level: 2, name: demoCategories[2].name });
+      expect(secondHeading.getAttribute("tabindex")).toBe("-1");
+      expect(secondHeading.className).toContain("scroll-mt-28");
       expect(scrollIntoViewMock).toHaveBeenCalledWith({
         behavior: "smooth",
         block: "start",
       });
-      expect(document.activeElement).toBe(pastriesHeading);
+      expect(document.activeElement).toBe(secondHeading);
 
       // Opening Menu sheet and selecting a category also scrolls and moves focus to heading
       fireEvent.click(screen.getByTestId("category-nav-menu-button"));
@@ -446,25 +453,25 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
       scrollIntoViewMock.mockClear();
       fireEvent.click(screen.getByTestId("category-nav-sheet-item-cat-1"));
 
-      const breadsHeading = screen.getByRole("heading", { level: 2, name: "Breads" });
+      const firstHeading = screen.getByRole("heading", { level: 2, name: demoCategories[0].name });
       expect(scrollIntoViewMock).toHaveBeenCalledWith({
         behavior: "smooth",
         block: "start",
       });
-      expect(document.activeElement).toBe(breadsHeading);
+      expect(document.activeElement).toBe(firstHeading);
     });
 
-    it("renders Bakery Info link directing to the shop info page", () => {
+    it("renders Shop Info link directing to the shop info page", () => {
       render(
         <CartProvider>
           <StorefrontCatalogView catalog={mockCatalog} locale="en" dict={enDictionary.storefront} />
         </CartProvider>,
       );
 
-      const bakeryInfoLink = screen.getByRole("link", {
+      const shopInfoLink = screen.getByRole("link", {
         name: /Store Info/i,
       });
-      expect(bakeryInfoLink.getAttribute("href")).toBe("/en/info");
+      expect(shopInfoLink.getAttribute("href")).toBe("/en/info");
 
       const categoryGroup = screen.getByTestId("category-group-cat-1");
       expect(categoryGroup.className).toContain("divide-y");

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getMockRepositories } from "@/lib/repositories/mock";
+import { demoGuests } from "@/lib/repositories/mock/fixtures";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { INITIAL_ORDER_LOOKUP_STATE } from "@/domain/order-lookup";
 import { lookupOrderAction } from "../order-lookup-action";
@@ -28,8 +29,11 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
-// Demo order #36 belongs to the first demo guest (+33612345671).
-const VALID = { locale: "fr", phone: "06 12 34 56 71", orderNumber: "36" };
+// Demo order #36 belongs to the first demo guest.
+const firstGuestLocalPhone = demoGuests[0]
+  .phone!.replace(/^\+33/, "0")
+  .replace(/(\d{2})(?=\d)/g, "$1 ");
+const VALID = { locale: "fr", phone: firstGuestLocalPhone, orderNumber: "36" };
 
 describe("lookupOrderAction (#230)", () => {
   beforeEach(() => {

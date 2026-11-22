@@ -19,8 +19,8 @@ vi.mock("@/lib/auth", () => ({
     },
     business: {
       id: "11111111-1111-4111-8111-111111111111",
-      name: "Test Bakery",
-      slug: "test-bakery",
+      name: "Test Shop",
+      slug: "test-shop",
       currency: "EUR",
     },
     expiresAt: "2099-01-01T00:00:00.000Z",

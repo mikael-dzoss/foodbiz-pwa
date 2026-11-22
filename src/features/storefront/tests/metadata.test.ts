@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { getDictionary } from "@/domain/i18n";
-import { demoBusiness, demoSettings } from "@/lib/repositories/mock/fixtures/business";
-import { demoProducts } from "@/lib/repositories/mock/fixtures/products";
+import {
+  DEMO_PRODUCT,
+  demoBusiness,
+  demoCategories,
+  demoProducts,
+  demoSettings,
+} from "@/lib/repositories/mock/fixtures";
 import { toStorefrontBusiness } from "@/domain/storefront-business";
 import { toStorefrontProduct } from "@/domain/storefront-product";
 import {
@@ -77,7 +82,7 @@ describe("storefront metadata helpers", () => {
   it("builds product page metadata for found products (with and without description) and unknown products", () => {
     const sample = {
       product: toStorefrontProduct(demoProducts[0]),
-      categoryName: "Breads",
+      categoryName: demoCategories[0].name,
       business: toStorefrontBusiness(demoBusiness),
       settings: demoSettings,
       isAcceptingOrders: true,
@@ -136,19 +141,19 @@ describe("storefront metadata helpers", () => {
 
   it("builds translated shop and product OG card content", () => {
     const shopEn = buildShopOgContent({
-      businessName: "La Petite Boulangerie",
+      businessName: demoBusiness.name,
       description: null,
-      address: "12 Rue de la Roquette, Paris",
+      address: demoBusiness.address,
       locale: "en",
     });
     expect(shopEn.badge).toBe(getDictionary("en").storefront.ogShopBadge);
-    expect(shopEn.description).toBe("Order online from La Petite Boulangerie.");
-    expect(shopEn.footer).toContain("12 Rue de la Roquette, Paris");
+    expect(shopEn.description).toBe(`Order online from ${demoBusiness.name}.`);
+    expect(shopEn.footer).toContain(demoBusiness.address);
     expect(shopEn.monogram).toBe("L");
 
     const shopFr = buildShopOgContent({
-      businessName: "La Petite Boulangerie",
-      description: "Boulangerie artisanale",
+      businessName: demoBusiness.name,
+      description: demoBusiness.description,
       address: null,
       locale: "fr",
     });
@@ -156,33 +161,33 @@ describe("storefront metadata helpers", () => {
     expect(shopFr.footer).toBe(getDictionary("fr").storefront.ogShopFooter);
 
     const prodFr = buildProductOgContent({
-      productName: "Baguette Tradition",
-      productDescription: "Croûte dorée",
-      priceCents: 130,
+      productName: DEMO_PRODUCT.pouletBraise.name,
+      productDescription: DEMO_PRODUCT.pouletBraise.description,
+      priceCents: DEMO_PRODUCT.pouletBraise.price,
       categoryName: null,
-      businessName: "La Petite Boulangerie",
+      businessName: demoBusiness.name,
       locale: "fr",
     });
     expect(prodFr.badge).toBe(getDictionary("fr").storefront.ogProductBadge);
-    expect(prodFr.price.replace(/\s/g, " ")).toBe("1,30 €");
-    expect(prodFr.footer).toBe("Commander en ligne chez La Petite Boulangerie");
+    expect(prodFr.price.replace(/\s/g, " ")).toBe("15,00 €");
+    expect(prodFr.footer).toBe(`Commander en ligne chez ${demoBusiness.name}`);
 
     const prodEn = buildProductOgContent({
-      productName: "Traditional Baguette",
+      productName: DEMO_PRODUCT.chaudChaudNoyaux.name,
       productDescription: null,
-      priceCents: 130,
-      categoryName: "Breads",
-      businessName: "La Petite Boulangerie",
+      priceCents: DEMO_PRODUCT.chaudChaudNoyaux.price,
+      categoryName: demoCategories[0].name,
+      businessName: demoBusiness.name,
       locale: "en",
     });
-    expect(prodEn.badge).toBe("Breads");
-    expect(prodEn.price).toBe("€1.30");
-    expect(prodEn.footer).toBe("Order online from La Petite Boulangerie");
+    expect(prodEn.badge).toBe(demoCategories[0].name);
+    expect(prodEn.price).toBe("€10.00");
+    expect(prodEn.footer).toBe(`Order online from ${demoBusiness.name}`);
   });
 
   it("validates local public paths, data URLs and Supabase remote URLs safely", () => {
-    expect(parseLocalPublicImagePath("/images/baguette.jpg")).toEqual({
-      relativePath: "images/baguette.jpg",
+    expect(parseLocalPublicImagePath("/images/dish.jpg")).toEqual({
+      relativePath: "images/dish.jpg",
       mimeType: "image/jpeg",
     });
     expect(parseLocalPublicImagePath("/images/cake.png?v=1")).toEqual({

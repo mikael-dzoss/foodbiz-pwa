@@ -7,7 +7,7 @@ import { demoProducts } from "@/lib/repositories/mock/fixtures";
 
 const products = demoProducts
   .slice(0, 4)
-  .map((p, i) => ({ ...p, stock: 1, imageUrl: i === 0 ? null : p.imageUrl }));
+  .map((p, i) => ({ ...p, stock: 1, imageUrl: i === 0 ? null : `/images/featured-${i}.jpg` }));
 afterEach(() => {
   resetCartStore();
   vi.useRealTimers();

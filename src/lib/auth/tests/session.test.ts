@@ -58,8 +58,8 @@ const mockSupabaseClient = {
             maybeSingle: vi.fn(async () => ({
               data: {
                 id: "11111111-1111-4111-8111-111111111111",
-                name: "La Petite Boulangerie",
-                slug: "la-petite-boulangerie",
+                name: "Les Saveurs du Continent",
+                slug: "les-saveurs-du-continent",
                 currency: "EUR",
               },
               error: null,
@@ -183,8 +183,8 @@ describe("lib: auth session", () => {
         role: "manager",
         businesses: {
           id: "11111111-1111-4111-8111-111111111111",
-          name: "La Petite Boulangerie",
-          slug: "la-petite-boulangerie",
+          name: "Les Saveurs du Continent",
+          slug: "les-saveurs-du-continent",
           currency: "EUR",
         },
       };
@@ -196,7 +196,7 @@ describe("lib: auth session", () => {
       expect(session?.user.id).toBe("00000000-0000-4000-8000-000000000001");
       expect(session?.user.role).toBe("manager");
       expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
-      expect(session?.business.name).toBe("La Petite Boulangerie");
+      expect(session?.business.name).toBe("Les Saveurs du Continent");
       expect(session?.expiresAt).toBe(new Date(1893456000 * 1000).toISOString());
       expect(spyProvision).not.toHaveBeenCalled();
     });
@@ -220,8 +220,8 @@ describe("lib: auth session", () => {
         role: "manager",
         businesses: {
           id: "11111111-1111-4111-8111-111111111111",
-          name: "La Petite Boulangerie",
-          slug: "la-petite-boulangerie",
+          name: "Les Saveurs du Continent",
+          slug: "les-saveurs-du-continent",
           currency: "EUR",
         },
       };
@@ -258,15 +258,15 @@ describe("lib: auth session", () => {
         businesses: [
           {
             id: "11111111-1111-4111-8111-111111111111",
-            name: "La Petite Boulangerie",
-            slug: "la-petite-boulangerie",
+            name: "Les Saveurs du Continent",
+            slug: "les-saveurs-du-continent",
             currency: "EUR",
           },
         ],
       };
 
       let session = await getManagerSession();
-      expect(session?.business.name).toBe("La Petite Boulangerie");
+      expect(session?.business.name).toBe("Les Saveurs du Continent");
       expect(session?.user.role).toBe("owner");
 
       // 2. Direct business fallback when businesses join is null
@@ -279,7 +279,7 @@ describe("lib: auth session", () => {
 
       session = await getManagerSession();
       expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
-      expect(session?.business.name).toBe("La Petite Boulangerie");
+      expect(session?.business.name).toBe("Les Saveurs du Continent");
       expect(session?.user.role).toBe("staff");
     });
 
@@ -311,8 +311,8 @@ describe("lib: auth session", () => {
             role: "manager",
             businesses: {
               id: "11111111-1111-4111-8111-111111111111",
-              name: "La Petite Boulangerie",
-              slug: "la-petite-boulangerie",
+              name: "Les Saveurs du Continent",
+              slug: "les-saveurs-du-continent",
               currency: "EUR",
             },
           };
@@ -326,7 +326,7 @@ describe("lib: auth session", () => {
       expect(session?.user.name).toBe("Dev Marie");
       expect(session?.user.role).toBe("manager");
       expect(session?.business.id).toBe("11111111-1111-4111-8111-111111111111");
-      expect(session?.business.slug).toBe("la-petite-boulangerie");
+      expect(session?.business.slug).toBe("les-saveurs-du-continent");
       expect(devProvisioningModule.maybeAutoProvisionDevManager).toHaveBeenCalled();
     });
 
@@ -357,8 +357,8 @@ describe("lib: auth session", () => {
             role: "manager",
             businesses: {
               id: "11111111-1111-4111-8111-111111111111",
-              name: "La Petite Boulangerie",
-              slug: "la-petite-boulangerie",
+              name: "Les Saveurs du Continent",
+              slug: "les-saveurs-du-continent",
               currency: "EUR",
             },
           };
@@ -443,7 +443,7 @@ describe("lib: auth session", () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "development");
       vi.stubEnv("ALLOWED_MANAGER_EMAILS", "dev@example.com");
-      vi.stubEnv("DEV_BUSINESS_SLUG", "non-existent-bakery");
+      vi.stubEnv("DEV_BUSINESS_SLUG", "non-existent-shop");
 
       mockGetUser.mockResolvedValue({
         data: {
@@ -608,8 +608,8 @@ describe("lib: auth session", () => {
         role: "manager",
         businesses: {
           id: "11111111-1111-4111-8111-111111111111",
-          name: "Verified Bakery",
-          slug: "verified-bakery",
+          name: "Verified Shop",
+          slug: "verified-shop",
           currency: "EUR",
         },
       };

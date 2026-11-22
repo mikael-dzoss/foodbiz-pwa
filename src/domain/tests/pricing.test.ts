@@ -23,7 +23,7 @@ describe("Order pricing and totals", () => {
     const items: PricingLineItem[] = [
       {
         productId: validUuid1,
-        productName: "Croissant",
+        productName: "Poulet Braisé",
         quantity: 2,
         unitPrice: 250, // 2 * 250 = 500 cents (€5.00)
       },

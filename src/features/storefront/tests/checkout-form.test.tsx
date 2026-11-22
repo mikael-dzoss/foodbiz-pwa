@@ -5,6 +5,7 @@ import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../conte
 import { CheckoutView } from "../components/checkout-view";
 import { resetGuestContactCache } from "../components/checkout-form";
 import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
+import { DEMO_PRODUCT, demoBusiness } from "@/lib/repositories/mock/fixtures";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 
@@ -17,12 +18,12 @@ vi.mock("next/navigation", () => ({
 const dict = getDictionary("en").storefront;
 
 const mockBusiness: StorefrontBusiness = {
-  name: "La Petite Boulangerie",
-  description: "Artisanal Parisian bakery",
-  phone: "+33 1 23 45 67 89",
-  email: "contact@petiteboulangerie.fr",
-  whatsappNumber: "33123456789",
-  address: "12 Rue de la Paix, 75002 Paris",
+  name: demoBusiness.name,
+  description: demoBusiness.description,
+  phone: demoBusiness.phone,
+  email: demoBusiness.email,
+  whatsappNumber: demoBusiness.whatsappNumber,
+  address: demoBusiness.address,
 };
 
 const mockSettings: BusinessSettings = {
@@ -46,8 +47,8 @@ const mockSettings: BusinessSettings = {
   minOrderAmount: 0,
   leadTimeValue: 1,
   leadTimeUnit: "business_days",
-  revolutRevtag: "petiteboulangerie",
-  weroIdentifier: "wero@petiteboulangerie.fr",
+  revolutRevtag: "saveurscontinent",
+  weroIdentifier: "wero@example.com",
   paymentMethods: {
     cash: true,
     revolut: true,
@@ -63,7 +64,7 @@ const mockSettings: BusinessSettings = {
 const mockCartItems = [
   {
     productId: "p1",
-    name: "Pain au Chocolat",
+    name: DEMO_PRODUCT.pouletBraise.name,
     price: 220,
     quantity: 2,
     maxStock: 5,

@@ -25,8 +25,8 @@ beforeEach(() => {
 
 describe("settings data", () => {
   it("returns the business profile", async () => {
-    repo.findById.mockResolvedValue({ id: businessId, name: "Bakery" });
-    expect(await getBusinessProfile()).toMatchObject({ name: "Bakery" });
+    repo.findById.mockResolvedValue({ id: businessId, name: "Demo Kitchen" });
+    expect(await getBusinessProfile()).toMatchObject({ name: "Demo Kitchen" });
     expect(repo.findById).toHaveBeenCalledWith(businessId);
   });
 

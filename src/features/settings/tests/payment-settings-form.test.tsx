@@ -27,8 +27,8 @@ const mockSettings: BusinessSettings = {
   minOrderAmount: 1500,
   leadTimeValue: 1,
   leadTimeUnit: "business_days",
-  revolutRevtag: "lapetiteboulangerie",
-  weroIdentifier: "+33612345678",
+  revolutRevtag: "saveurscontinent",
+  weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
     revolut: true,
@@ -75,10 +75,10 @@ describe("PaymentSettingsForm component (M-64)", () => {
     expect(screen.getByRole("heading", { name: dict.payment.title, level: 1 })).toBeDefined();
 
     expect((screen.getByTestId("input-revolut-revtag") as HTMLInputElement).value).toBe(
-      "lapetiteboulangerie",
+      "saveurscontinent",
     );
     expect((screen.getByTestId("input-wero-identifier") as HTMLInputElement).value).toBe(
-      "+33612345678",
+      "+33639980001",
     );
 
     expect(screen.getByTestId("switch-payment-cash")).toBeDefined();
@@ -127,7 +127,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     const discardBtn = screen.getByTestId("discard-button");
     fireEvent.click(discardBtn);
 
-    expect(revtagInput.value).toBe("lapetiteboulangerie");
+    expect(revtagInput.value).toBe("saveurscontinent");
     expect(mockShowToast).toHaveBeenCalledWith("Changes discarded");
   });
 
@@ -154,7 +154,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
     render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
 
     const revtagInput = screen.getByTestId("input-revolut-revtag");
-    fireEvent.change(revtagInput, { target: { value: "newboulangerietag" } });
+    fireEvent.change(revtagInput, { target: { value: "newshoptag" } });
 
     const submitBtn = screen.getByTestId("save-payment-button");
     fireEvent.click(submitBtn);
@@ -162,8 +162,8 @@ describe("PaymentSettingsForm component (M-64)", () => {
     await waitFor(() => {
       expect(actions.updatePaymentSettingsAction).toHaveBeenCalledWith(
         expect.objectContaining({
-          revolutRevtag: "newboulangerietag",
-          weroIdentifier: "+33612345678",
+          revolutRevtag: "newshoptag",
+          weroIdentifier: "+33639980001",
           paymentMethods: {
             cash: true,
             revolut: true,

@@ -460,7 +460,8 @@ export const frDictionary: Dictionary = {
       nameLabel: "Nom du commerce",
       namePlaceholder: "ex. Les Saveurs du Continent",
       descLabel: "Description",
-      descPlaceholder: "Cuisine faite maison : grillades braisées, mets traditionnels et jus naturels.",
+      descPlaceholder:
+        "Cuisine faite maison : grillades braisées, mets traditionnels et jus naturels.",
       slugLabel: "Identifiant de la boutique",
       contactSection: "Coordonnées",
       socialSection: "Réseaux sociaux",

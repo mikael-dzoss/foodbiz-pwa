@@ -4,55 +4,24 @@ import { ShopInfoView } from "../components/shop-info-view";
 import { formatMoney } from "@/domain/formatting/money";
 import { DEFAULT_LEAD_TIME, formatLeadTime } from "@/domain/lead-time";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import { demoBusiness, demoSettings } from "@/lib/repositories/mock/fixtures";
 import type { Business, BusinessSettings } from "@/domain/business";
 
 const mockBusiness: Business = {
+  ...demoBusiness,
   id: "biz-1",
-  name: "La Boulangerie",
-  slug: "la-boulangerie",
-  description: "Traditional sourdough and pastries",
-  phone: "+33 1 23 45 67 89",
-  email: "bonjour@boulangerie.fr",
-  whatsappNumber: "+33 6 12 34 56 78",
-  address: "15 Rue Oberkampf, 75011 Paris",
-  currency: "EUR",
-  createdAt: "2026-01-01T00:00:00Z",
-  updatedAt: "2026-01-01T00:00:00Z",
+  latitude: null,
+  longitude: null,
 };
 
 const mockSettings: BusinessSettings = {
+  ...demoSettings,
   businessId: "biz-1",
-  currency: "EUR",
-  dateFormat: "DD/MM/YYYY",
-  lowStockThreshold: 5,
-  taxPercentage: 10,
-  notifications: true,
-  acceptingOrders: true,
-  serviceTypes: {
-    pickup: true,
-    delivery: true,
-    dineIn: false,
-  },
-  openingHours: "Tue-Sat: 07:30 - 19:30",
-  orderTimingAsap: true,
-  orderTimingScheduled: true,
-  orderTimingTimeOptional: true,
-  deliveryFee: 350,
   minOrderAmount: 0,
   leadTimeValue: 1,
   leadTimeUnit: "business_days",
   revolutRevtag: "",
   weroIdentifier: "",
-  paymentMethods: {
-    cash: true,
-    revolut: true,
-    wero: true,
-  },
-  paymentInstructionsEn: "",
-  paymentInstructionsFr: "",
-  inAppAlerts: true,
-  soundAlerts: true,
-  timezone: "Europe/Paris",
 };
 
 describe("ShopInfoView (#83)", () => {
@@ -66,8 +35,8 @@ describe("ShopInfoView (#83)", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: "La Boulangerie" })).toBeDefined();
-    expect(screen.getByText("Traditional sourdough and pastries")).toBeDefined();
+    expect(screen.getByRole("heading", { level: 1, name: demoBusiness.name })).toBeDefined();
+    expect(screen.getByText(demoBusiness.description!)).toBeDefined();
     expect(screen.getByText("Pickup ready in ~1 business day")).toBeDefined();
     expect(screen.getAllByText("~1 business day").length).toBeGreaterThan(0);
 
@@ -78,19 +47,21 @@ describe("ShopInfoView (#83)", () => {
     const waLink = screen.getByRole("link", {
       name: new RegExp(enDictionary.storefront.chatOnWhatsApp),
     });
-    expect(waLink.getAttribute("href")).toBe("https://wa.me/33612345678");
+    expect(waLink.getAttribute("href")).toBe(
+      `https://wa.me/${demoBusiness.whatsappNumber!.replace(/\D/g, "")}`,
+    );
 
     // Phone link
     const phoneLink = screen.getByRole("link", {
       name: new RegExp(enDictionary.storefront.callShop),
     });
-    expect(phoneLink.getAttribute("href")).toBe("tel:+33 1 23 45 67 89");
+    expect(phoneLink.getAttribute("href")).toBe(`tel:${demoBusiness.phone}`);
 
     // Email link
     const emailLink = screen.getByRole("link", {
       name: new RegExp(enDictionary.storefront.emailShop),
     });
-    expect(emailLink.getAttribute("href")).toBe("mailto:bonjour@boulangerie.fr");
+    expect(emailLink.getAttribute("href")).toBe(`mailto:${demoBusiness.email}`);
 
     // Weekly Opening hours & Fulfillment badges
     expect(screen.getByText(enDictionary.storefront.weeklyOpeningHours)).toBeDefined();
@@ -98,7 +69,7 @@ describe("ShopInfoView (#83)", () => {
     expect(screen.getByText("PAID")).toBeDefined();
 
     // Address & Directions
-    expect(screen.getByText("15 Rue Oberkampf, 75011 Paris")).toBeDefined();
+    expect(screen.getByText(demoBusiness.address!)).toBeDefined();
     const directionsLink = screen.getByRole("link", {
       name: new RegExp(enDictionary.storefront.getDirections),
     });
@@ -210,7 +181,7 @@ describe("ShopInfoView (#83)", () => {
     );
     expect(iframe.getAttribute("loading")).toBe("lazy");
     expect(iframe.getAttribute("referrerpolicy")).toBe("no-referrer");
-    expect(iframe.getAttribute("title")).toBe("Map showing La Boulangerie location");
+    expect(iframe.getAttribute("title")).toBe(`Map showing ${demoBusiness.name} location`);
 
     const attrLink = screen.getByTestId("osm-attribution-link");
     expect(attrLink.getAttribute("href")).toBe("https://www.openstreetmap.org/copyright");

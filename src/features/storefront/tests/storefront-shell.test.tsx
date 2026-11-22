@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StorefrontShell } from "../components/storefront-shell";
 import { useCart, resetCartStore } from "../context/cart-context";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT, demoBusiness } from "@/lib/repositories/mock/fixtures";
 
 let mockPathname = "/en";
 vi.mock("next/navigation", () => ({
@@ -15,21 +16,21 @@ function AddItemTestButton() {
     <button
       onClick={() =>
         addItem({
-          id: "prod-baguette",
-          name: "Tradition Baguette",
-          price: 150,
+          id: "prod-dish",
+          name: DEMO_PRODUCT.pouletBraise.name,
+          price: DEMO_PRODUCT.pouletBraise.price,
           stock: 10,
         })
       }
     >
-      Add Baguette
+      Add Dish
     </button>
   );
 }
 
 beforeEach(() => {
   resetCartStore();
-  mockPathname = "/en/p/prod-baguette";
+  mockPathname = "/en/p/prod-dish";
 });
 
 afterEach(() => {
@@ -98,25 +99,21 @@ describe("Storefront Shell (#30)", () => {
       <StorefrontShell
         locale="en"
         dict={enDictionary.storefront}
-        businessName="La Petite Boulangerie"
+        businessName={demoBusiness.name}
         cartCount={0}
       >
         <div>Content</div>
       </StorefrontShell>,
     );
 
-    expect(screen.getAllByText("La Petite Boulangerie").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(demoBusiness.name).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("EN")).toBeDefined();
     expect(screen.getByText("FR")).toBeDefined();
   });
 
   it("dynamically updates header cart badge from CartContext when cartCount is not provided", () => {
     render(
-      <StorefrontShell
-        locale="en"
-        dict={enDictionary.storefront}
-        businessName="La Petite Boulangerie"
-      >
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName={demoBusiness.name}>
         <AddItemTestButton />
       </StorefrontShell>,
     );
@@ -125,7 +122,7 @@ describe("Storefront Shell (#30)", () => {
     expect(screen.queryByTestId("header-cart-badge")).toBeNull();
 
     // Click to add item to cart
-    fireEvent.click(screen.getByRole("button", { name: "Add Baguette" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Dish" }));
 
     // Header badge now shows count "1"
     const badge = screen.getByTestId("header-cart-badge");
@@ -145,7 +142,7 @@ describe("Storefront Shell (#30)", () => {
   ])("shows the right header action on %s (#229)", (path, action) => {
     mockPathname = path;
     render(
-      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName={demoBusiness.name}>
         <div>Content</div>
       </StorefrontShell>,
     );
@@ -159,13 +156,13 @@ describe("Storefront Shell (#30)", () => {
   it("never links the business name (#229)", () => {
     mockPathname = "/en/cart";
     render(
-      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName={demoBusiness.name}>
         <div>Content</div>
       </StorefrontShell>,
     );
     const brand = screen.getByTestId("header-brand");
     expect(brand.closest("a")).toBeNull();
-    expect(brand.textContent).toContain("La Boulangerie");
+    expect(brand.textContent).toContain(demoBusiness.name);
   });
 
   it.each([
@@ -178,7 +175,7 @@ describe("Storefront Shell (#30)", () => {
   ])("shows the menu button on %s: %s (#231)", (path, hasMenu) => {
     mockPathname = path;
     render(
-      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName="La Boulangerie">
+      <StorefrontShell locale="en" dict={enDictionary.storefront} businessName={demoBusiness.name}>
         <div>Content</div>
       </StorefrontShell>,
     );

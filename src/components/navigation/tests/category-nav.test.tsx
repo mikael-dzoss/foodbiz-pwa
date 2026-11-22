@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CategoryNav, useScrollPastSentinel, useScrollSpy } from "../index";
 
 const sampleItems = [
-  { id: "breads", label: "Breads" },
-  { id: "viennoiseries", label: "Viennoiseries" },
-  { id: "pastries", label: "Pastries" },
+  { id: "grills", label: "Grills" },
+  { id: "traditional", label: "Traditional" },
+  { id: "fritters", label: "Fritters" },
 ];
 
 type ObserverCallback = IntersectionObserverCallback;
@@ -69,10 +69,10 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
       render(
         <CategoryNav
           items={sampleItems}
-          activeId="viennoiseries"
+          activeId="traditional"
           onSelect={onSelect}
           menuTitle="Menu"
-          menuSubtitle="07:30 – 19:30"
+          menuSubtitle="11:00 – 21:00"
           menuLabel="Browse categories"
           dismissLabel="Dismiss"
           trailing={<button data-testid="search-launcher">Search</button>}
@@ -83,14 +83,14 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
       expect(screen.getByRole("button", { name: "Browse categories" })).toBeDefined();
       expect(screen.getByTestId("search-launcher")).toBeDefined();
 
-      const breadsTab = screen.getByTestId("category-nav-tab-breads");
-      const activeTab = screen.getByTestId("category-nav-tab-viennoiseries");
+      const grillsTab = screen.getByTestId("category-nav-tab-grills");
+      const activeTab = screen.getByTestId("category-nav-tab-traditional");
 
-      expect(breadsTab.getAttribute("aria-current")).toBeNull();
+      expect(grillsTab.getAttribute("aria-current")).toBeNull();
       expect(activeTab.getAttribute("aria-current")).toBe("true");
 
-      fireEvent.click(breadsTab);
-      expect(onSelect).toHaveBeenCalledWith("breads");
+      fireEvent.click(grillsTab);
+      expect(onSelect).toHaveBeenCalledWith("grills");
     });
 
     it("auto-scrolls active tab into view respecting prefers-reduced-motion", () => {
@@ -110,7 +110,7 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
       const { rerender } = render(
         <CategoryNav
           items={sampleItems}
-          activeId="breads"
+          activeId="grills"
           onSelect={vi.fn()}
           menuTitle="Menu"
           menuLabel="Browse categories"
@@ -138,7 +138,7 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
       rerender(
         <CategoryNav
           items={sampleItems}
-          activeId="pastries"
+          activeId="fritters"
           onSelect={vi.fn()}
           menuTitle="Menu"
           menuLabel="Browse categories"
@@ -158,10 +158,10 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
       render(
         <CategoryNav
           items={sampleItems}
-          activeId="viennoiseries"
+          activeId="traditional"
           onSelect={onSelect}
           menuTitle="Menu"
-          menuSubtitle="07:30 – 19:30"
+          menuSubtitle="11:00 – 21:00"
           menuLabel="Browse categories"
           dismissLabel="Dismiss"
         />,
@@ -171,13 +171,13 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
 
       expect(screen.getByTestId("category-nav-sheet")).toBeDefined();
       expect(screen.getByRole("heading", { name: "Menu" })).toBeDefined();
-      expect(screen.getByText("07:30 – 19:30")).toBeDefined();
+      expect(screen.getByText("11:00 – 21:00")).toBeDefined();
 
-      const sheetActiveItem = screen.getByTestId("category-nav-sheet-item-viennoiseries");
-      const sheetPastriesItem = screen.getByTestId("category-nav-sheet-item-pastries");
+      const sheetActiveItem = screen.getByTestId("category-nav-sheet-item-traditional");
+      const sheetFrittersItem = screen.getByTestId("category-nav-sheet-item-fritters");
 
       expect(sheetActiveItem.getAttribute("aria-current")).toBe("true");
-      expect(sheetPastriesItem.getAttribute("aria-current")).toBeNull();
+      expect(sheetFrittersItem.getAttribute("aria-current")).toBeNull();
 
       // Dismiss without selecting
       fireEvent.click(screen.getByTestId("category-nav-sheet-dismiss"));
@@ -186,9 +186,9 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
 
       // Re-open and select an item
       fireEvent.click(screen.getByTestId("category-nav-menu-button"));
-      fireEvent.click(screen.getByTestId("category-nav-sheet-item-pastries"));
+      fireEvent.click(screen.getByTestId("category-nav-sheet-item-fritters"));
 
-      expect(onSelect).toHaveBeenCalledWith("pastries");
+      expect(onSelect).toHaveBeenCalledWith("fritters");
       expect(screen.queryByTestId("category-nav-sheet")).toBeNull();
     });
   });
@@ -196,14 +196,14 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
   describe("useScrollSpy hook", () => {
     it("computes active section from IntersectionObserver entries and cleans up", () => {
       const s1 = document.createElement("section");
-      s1.id = "category-section-breads";
+      s1.id = "category-section-grills";
       const s2 = document.createElement("section");
-      s2.id = "category-section-viennoiseries";
+      s2.id = "category-section-traditional";
       document.body.append(s1, s2);
 
-      const { result, unmount } = renderHook(() => useScrollSpy(["breads", "viennoiseries"]));
+      const { result, unmount } = renderHook(() => useScrollSpy(["grills", "traditional"]));
 
-      expect(result.current.activeId).toBe("breads");
+      expect(result.current.activeId).toBe("grills");
       expect(MockIntersectionObserver.instances.length).toBe(1);
       const observer = MockIntersectionObserver.instances[0];
       expect(observer.observedElements).toEqual([s1, s2]);
@@ -215,7 +215,7 @@ describe("CategoryNav & useScrollSpy (#200)", () => {
         ]);
       });
 
-      expect(result.current.activeId).toBe("viennoiseries");
+      expect(result.current.activeId).toBe("traditional");
 
       unmount();
       expect(observer.disconnected).toBe(true);

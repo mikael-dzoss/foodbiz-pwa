@@ -67,7 +67,7 @@ vi.mock("@/lib/repositories", () => ({
 const mockRequireAuthenticatedAction = vi.fn(async () => ({
   session: {
     user: { id: "user-1", email: "manager@test.com" },
-    business: { id: testBusinessId, name: "Test Bakery", slug: "test-bakery" },
+    business: { id: testBusinessId, name: "Test Shop", slug: "test-shop" },
     role: "manager" as const,
   },
   businessId: testBusinessId,
