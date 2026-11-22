@@ -12,12 +12,16 @@
   ],
   "remoteUser": "node",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "forwardPorts": [3000, 54321, 54323],
+  "forwardPorts": [3000, 54321, 54322, 54323],
   "portsAttributes": {
     "3000": { "label": "Next.js", "onAutoForward": "notify" },
     "54321": { "label": "Supabase API", "onAutoForward": "silent" },
-    "54323": { "label": "Supabase Studio", "onAutoForward": "notify" }
+    "54322": { "label": "Supabase Postgres", "onAutoForward": "silent" },
+    "54323": { "label": "Supabase Studio", "onAutoForward": "notify" },
+    "4173": { "label": "Vite preview (unused)", "onAutoForward": "ignore" },
+    "5173": { "label": "Vite dev (unused)", "onAutoForward": "ignore" }
   },
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
   "containerEnv": {
     "NEXT_TELEMETRY_DISABLED": "1",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude"
