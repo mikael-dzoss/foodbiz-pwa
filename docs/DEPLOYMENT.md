@@ -300,7 +300,7 @@ Migrations to staging run exclusively through [`.github/workflows/db-migrate-sta
 
 Run the "Seed staging database" workflow ([`.github/workflows/db-seed-staging.yml`](../.github/workflows/db-seed-staging.yml), manual, `staging` ref only) after "Migrate staging database". The seed is `supabase/seed.sql`, generated from the mock fixtures by `npm run db:seed:gen` (never edit by hand).
 
-- **Idempotency:** business, categories and products are upserted (re-running restores catalog values and stock), settings, guests, orders and expenses are only inserted once. Products removed from the fixtures are NOT deleted on staging.
+- **Re-runs replace the demo data:** each run deletes and re-inserts the demo business's categories, products, guests, orders, order items and expenses, and upserts the business and its settings. `business_members` rows (from `db:provision-member`) are kept. Re-running therefore wipes any orders placed on staging since the last seed.
 - **Date shifting:** demo order dates are shifted so the newest order lands on the seed day.
 - **Verification:** the job logs `current_user` and fails if the business or its products are missing.
 - **Target restriction:** never run it against production.
