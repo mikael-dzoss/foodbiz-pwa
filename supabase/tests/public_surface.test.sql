@@ -648,9 +648,10 @@ reset role;
 -- Section H: order lookup limiting (5 failed lookups / 10 minutes / phone)
 -- ----------------------------------------------------------------------------
 select is(
-  (select count(*)::int from public.rate_limit_attempts where bucket = 'lookup_phone'),
+  (select count(*)::int from public.rate_limit_attempts
+   where bucket = 'lookup_phone' and key_hash = public.rate_limit_key('b1000000-0000-0000-0000-000000000001'::uuid, '+33699000002')),
   0,
-  'precondition: no lookup attempts recorded yet'
+  'precondition: no lookup attempts recorded yet for this key'
 );
 
 set local role anon;
