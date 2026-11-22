@@ -205,7 +205,7 @@ export default function PatternsPage() {
               <label className="text-label-md text-foreground mb-1 block font-medium">
                 Product name
               </label>
-              <Input placeholder="e.g. Traditional Baguette" />
+              <Input placeholder="e.g. Poulet Braisé" />
             </div>
 
             <div>
@@ -220,14 +220,14 @@ export default function PatternsPage() {
               <label className="text-label-md text-foreground mb-1 block font-medium">
                 Category
               </label>
-              <Select defaultValue="bakery">
+              <Select defaultValue="meat-fish">
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="bakery">Bakery & Bread</SelectItem>
-                  <SelectItem value="pastry">Pastry & Viennoiserie</SelectItem>
-                  <SelectItem value="beverages">Beverages</SelectItem>
+                  <SelectItem value="meat-fish">Viandes & Poissons</SelectItem>
+                  <SelectItem value="traditional">Mets traditionnels</SelectItem>
+                  <SelectItem value="drinks">Boissons</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -324,9 +324,9 @@ export default function PatternsPage() {
                   <ShoppingBag className="h-5 w-5" />
                 </div>
               }
-              title="Artisan Sourdough"
-              subtitle="Stock: 18 loaves"
-              trailing="€4.50"
+              title="Poulet Braisé"
+              subtitle="Stock: 20 portions"
+              trailing="€15.00"
               onClick={() => showToast("Opening item details...")}
             />
             <ListRow
@@ -383,8 +383,8 @@ export default function PatternsPage() {
           </div>
           <Card className="flex items-center justify-between p-4">
             <div>
-              <span className="text-body-md block">Croissants</span>
-              <span className="text-body-sm text-muted-foreground block">€2.20 each</span>
+              <span className="text-body-md block">Beignets soufflés</span>
+              <span className="text-body-sm text-muted-foreground block">€10.00 each</span>
             </div>
             <QuantityStepper
               value={stepperVal}
@@ -570,7 +570,7 @@ export default function PatternsPage() {
               <Input
                 value={fieldValue}
                 onChange={(e) => setFieldValue(e.target.value)}
-                placeholder="e.g. Country Sourdough"
+                placeholder="e.g. Poisson Braisé"
                 data-testid="pattern-field-input"
               />
             </Field>

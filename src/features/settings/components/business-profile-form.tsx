@@ -303,7 +303,7 @@ export function BusinessProfileForm({
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+33 1 43 55 67 89"
+                  placeholder="+33 6 39 98 00 01"
                   data-testid="input-business-phone"
                   className="rounded-xl py-2.5 pr-3.5 pl-11"
                 />
@@ -339,7 +339,7 @@ export function BusinessProfileForm({
                   type="tel"
                   value={whatsappNumber}
                   onChange={(e) => setWhatsappNumber(e.target.value)}
-                  placeholder="+33 6 12 34 56 78"
+                  placeholder="+33 6 39 98 00 01"
                   data-testid="input-business-whatsapp"
                   className="rounded-xl py-2.5 pr-3.5 pl-11"
                 />

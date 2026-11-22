@@ -814,7 +814,7 @@ export function CheckoutForm({
                     </span>
                   </div>
                   <p className="text-muted-foreground text-caption font-mono">
-                    @{settings?.revolutRevtag || "petiteboulangerie"}
+                    @{(settings?.revolutRevtag || "saveurscontinent").replace(/^@/, "")}
                   </p>
                 </div>
               </div>

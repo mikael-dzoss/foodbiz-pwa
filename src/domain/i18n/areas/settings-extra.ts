@@ -79,9 +79,9 @@ const en: SettingsExtraDictionary = {
   hoursEmptyHint: "Leave empty for continuous dark kitchen or on-demand delivery operations.",
   euro: "Euro (€)",
   isoLine: "ISO 4217: EUR",
-  slugPlaceholder: "la-petite-boulangerie",
-  emailPlaceholder: "bonjour@lapetiteboulangerie.fr",
-  addressPlaceholder: "12 Rue de la Roquette, 75011 Paris, France",
+  slugPlaceholder: "les-saveurs-du-continent",
+  emailPlaceholder: "commandes@example.com",
+  addressPlaceholder: "52 Quai de la Rapée, 75012 Paris, France",
   instructionsPlaceholderEn:
     "e.g. Please show your order confirmation on pickup. Revolut or cash accepted.",
   instructionsPlaceholderFr:
@@ -139,9 +139,9 @@ const fr: SettingsExtraDictionary = {
   hoursEmptyHint: "Laissez vide pour une cuisine ouverte en continu ou une livraison à la demande.",
   euro: "Euro (€)",
   isoLine: "ISO 4217 : EUR",
-  slugPlaceholder: "la-petite-boulangerie",
-  emailPlaceholder: "bonjour@lapetiteboulangerie.fr",
-  addressPlaceholder: "12 Rue de la Roquette, 75011 Paris, France",
+  slugPlaceholder: "les-saveurs-du-continent",
+  emailPlaceholder: "commandes@example.com",
+  addressPlaceholder: "52 Quai de la Rapée, 75012 Paris, France",
   instructionsPlaceholderEn:
     "e.g. Please show your order confirmation on pickup. Revolut or cash accepted.",
   instructionsPlaceholderFr:
