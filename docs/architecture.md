@@ -6,15 +6,15 @@ One Next.js codebase serves two audiences: the **customer storefront** (public, 
 
 Versions come from [`package.json`](../package.json).
 
-| Layer      | Technology                                                                             |
-| ---------- | -------------------------------------------------------------------------------------- |
-| Framework  | Next.js 16.4 (App Router, Cache Components, Turbopack), React 19.3                     |
-| Language   | TypeScript 5 (strict), Node 22 or later                                                |
-| Styling    | Tailwind CSS 4, Radix UI primitives, `lucide-react` icons, Inter font (`next/font`)    |
-| Backend    | Supabase (Postgres, Auth, Storage, Realtime) through `@supabase/ssr` and `supabase-js` |
-| Validation | zod 4                                                                                  |
-| Testing    | Vitest 5 and React Testing Library, Playwright with axe, pgTAP                         |
-| Hosting    | Vercel is the intended host; no project exists yet                                     |
+| Layer      | Technology                                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js 16.4 (App Router, Cache Components, Turbopack), React 19.3                                                                                   |
+| Language   | TypeScript 5 (strict), Node 22 or later                                                                                                              |
+| Styling    | Tailwind CSS 4, Radix UI primitives, `lucide-react` icons, Inter font (`next/font`)                                                                  |
+| Backend    | Supabase (Postgres, Auth, Storage, Realtime) through `@supabase/ssr` and `supabase-js`                                                               |
+| Validation | zod 4                                                                                                                                                |
+| Testing    | Vitest 5 and React Testing Library, Playwright with axe, pgTAP                                                                                       |
+| Hosting    | Vercel Hobby for v0.9; Netlify Free for v1 production if the spike passes ([ADR 0001](decisions/0001-hosting-and-backups.md)); no project exists yet |
 
 `next.config.ts` enables `cacheComponents` and `partialPrefetching`, and allows `next/image` to load only the project's public `product-images` Storage bucket. This Next.js version differs from older ones; read `node_modules/next/dist/docs/` before using an API.
 
