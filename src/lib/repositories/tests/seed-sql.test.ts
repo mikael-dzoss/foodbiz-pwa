@@ -48,20 +48,82 @@ describe("buildSeedSql", () => {
     }
   });
 
-  it("includes the generated-file header comment and atomic do $seed$ block", () => {
+  it("includes the replace-semantics header comment and atomic do $seed$ block", () => {
     const sql = buildSeedSql();
 
     expect(sql).toContain("npm run db:seed:gen");
     expect(sql).toContain("src/lib/repositories/mock/fixtures");
     expect(sql.toLowerCase()).toContain("do not edit by hand");
+    expect(sql).toContain("Re-runnable:");
+    expect(sql).toContain("business_members (provisioned by scripts/provision-member.mjs)");
+    expect(sql).toContain("Never run against production.");
     expect(sql).toContain("supabase db reset");
     expect(sql).toContain("db-seed-staging.yml");
-    expect(sql).toContain("scripts/provision-member.mjs");
 
     expect(sql.match(/\bdo \$seed\$/g)).toHaveLength(1);
     expect(sql.match(/\bend\s+\$seed\$;/g)).toHaveLength(1);
     expect(sql).toContain("declare\n  v_days integer;");
     expect(sql).toMatch(/v_days := greatest\(0, current_date - date '\d{4}-\d{2}-\d{2}'\);/);
+  });
+
+  it("deletes demo business child rows in FK-safe order before any inserts and never touches businesses, business_members, auth.*, or rate_limit_attempts", () => {
+    const sql = buildSeedSql();
+    const firstInsertPos = sql.indexOf("insert into public.");
+    expect(firstInsertPos).toBeGreaterThan(-1);
+
+    const deleteTables = [
+      "order_items",
+      "orders",
+      "guests",
+      "expenses",
+      "products",
+      "product_categories",
+    ] as const;
+
+    let prevPos = -1;
+    for (const table of deleteTables) {
+      const stmt = `delete from public.${table} where business_id = '${demoBusiness.id}'::uuid;`;
+      const pos = sql.indexOf(stmt);
+      expect(pos, `missing scoped delete for public.${table}`).toBeGreaterThan(prevPos);
+      expect(pos, `delete for public.${table} must appear before inserts`).toBeLessThan(
+        firstInsertPos,
+      );
+      prevPos = pos;
+    }
+
+    // Must never delete businesses (cascades to business_members) or touch auth/membership/rate_limit tables
+    expect(sql).not.toMatch(/delete\s+from\s+(?:public\.)?businesses\b/i);
+    expect(sql).not.toMatch(/delete\s+from\s+(?:public\.)?business_members\b/i);
+    expect(sql).not.toMatch(/delete\s+from\s+(?:public\.)?business_settings\b/i);
+    expect(sql).not.toMatch(/\bauth\./i);
+    expect(sql).not.toMatch(/\brate_limit_attempts\b/i);
+  });
+
+  it("derives the delete scope from fixtures.business.id instead of hard-coding it", () => {
+    const customBusinessId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const sql = buildSeedSql({
+      business: { ...demoBusiness, id: customBusinessId },
+      settings: { ...demoSettings, businessId: customBusinessId },
+      categories: [],
+      products: [],
+      guests: [],
+      orders: [],
+      expenses: [],
+    });
+
+    for (const table of [
+      "order_items",
+      "orders",
+      "guests",
+      "expenses",
+      "products",
+      "product_categories",
+    ] as const) {
+      expect(sql).toContain(
+        `delete from public.${table} where business_id = '${customBusinessId}'::uuid;`,
+      );
+    }
+    expect(sql).not.toContain(demoBusiness.id);
   });
 
   it("inserts tables in strict FK order", () => {
@@ -93,49 +155,63 @@ describe("buildSeedSql", () => {
     expect(sql).not.toMatch(/\bupdated_at\b/);
   });
 
-  it("includes timezone in business_settings and uses on conflict (business_id) do nothing", () => {
+  it("upserts all non-id columns for businesses on conflict (id)", () => {
+    const stmt = extractTableInsert(buildSeedSql(), "businesses");
+    const colMatch = stmt.match(/insert into public\.businesses \(([\s\S]*?)\)\s*values/);
+    expect(colMatch).not.toBeNull();
+    const columns = colMatch![1]
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const nonIdColumns = columns.filter((c) => c !== "id");
+
+    expect(stmt).toContain("on conflict (id) do update set");
+    expect(stmt).not.toContain("id = excluded.id");
+    for (const col of nonIdColumns) {
+      expect(stmt, `businesses must update ${col} on conflict`).toContain(
+        `${col} = excluded.${col}`,
+      );
+    }
+  });
+
+  it("includes timezone in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
     const stmt = extractTableInsert(buildSeedSql(), "business_settings");
     expect(stmt).toMatch(/\btimezone\b/);
     expect(stmt).toContain(sqlText(demoSettings.timezone));
-    expect(stmt).toMatch(/on conflict \(business_id\) do nothing;$/);
-  });
 
-  it("upserts all non-id columns for businesses, product_categories, and products", () => {
-    const sql = buildSeedSql();
+    const colMatch = stmt.match(/insert into public\.business_settings \(([\s\S]*?)\)\s*values/);
+    expect(colMatch).not.toBeNull();
+    const columns = colMatch![1]
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const updatableColumns = columns.filter((c) => c !== "id" && c !== "business_id");
 
-    for (const table of ["businesses", "product_categories", "products"] as const) {
-      const stmt = extractTableInsert(sql, table);
-      const colMatch = stmt.match(/insert into public\.\w+ \(([\s\S]*?)\)\s*values/);
-      expect(colMatch, `column list missing for ${table}`).not.toBeNull();
-      const columns = colMatch![1]
-        .split(",")
-        .map((c) => c.trim())
-        .filter(Boolean);
-      const nonIdColumns = columns.filter((c) => c !== "id");
-
-      expect(stmt).toContain("on conflict (id) do update set");
-      for (const col of nonIdColumns) {
-        expect(stmt, `${table} must update ${col} on conflict`).toContain(
-          `${col} = excluded.${col}`,
-        );
-      }
+    expect(stmt).toContain("on conflict (business_id) do update set");
+    expect(stmt).not.toContain("id = excluded.id");
+    expect(stmt).not.toContain("business_id = excluded.business_id");
+    for (const col of updatableColumns) {
+      expect(stmt, `business_settings must update ${col} on conflict`).toContain(
+        `${col} = excluded.${col}`,
+      );
     }
   });
 
-  it("uses targetless on conflict do nothing for guests, orders, and expenses", () => {
+  it("uses plain inserts without on conflict or where exists for replaced child tables", () => {
     const sql = buildSeedSql();
 
-    for (const table of ["guests", "orders", "expenses"] as const) {
+    for (const table of [
+      "product_categories",
+      "products",
+      "guests",
+      "orders",
+      "order_items",
+      "expenses",
+    ] as const) {
       const stmt = extractTableInsert(sql, table);
-      expect(stmt).toMatch(/on conflict do nothing;$/);
+      expect(stmt, `${table} should not have on conflict`).not.toMatch(/\bon conflict\b/i);
+      expect(stmt, `${table} should not have where exists`).not.toMatch(/\bwhere exists\b/i);
     }
-  });
-
-  it("guards order_items with where exists against public.orders and on conflict (id) do nothing", () => {
-    const stmt = extractTableInsert(buildSeedSql(), "order_items");
-    expect(stmt).toContain("select");
-    expect(stmt).toContain("where exists (select 1 from public.orders where id =");
-    expect(stmt).toMatch(/on conflict \(id\) do nothing;$/);
   });
 
   it("shifts temporal values by v_days and formats status_history timestamps back to UTC ISO", () => {
