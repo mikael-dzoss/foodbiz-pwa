@@ -3,6 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPublicEnv, getServerEnv } from "@/config/env";
+import { resolveAuthBaseUrl } from "@/config/site-url";
 import { MOCK_AUTH_COOKIE_NAME, sanitizeManagerRedirectPath } from "@/domain/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -51,19 +52,20 @@ export async function signInWithGoogleAction(formData?: FormData): Promise<never
   }
 
   const publicEnv = getPublicEnv();
-  let baseUrl: string | null = null;
+  const needsOriginHeader =
+    !publicEnv.NEXT_PUBLIC_SITE_URL &&
+    (env.VERCEL_ENV === "preview" ||
+      (env.NODE_ENV !== "production" && env.VERCEL_ENV !== "production"));
+  const requestOrigin = needsOriginHeader ? (await headers()).get("origin") : null;
 
-  if (publicEnv.NEXT_PUBLIC_SITE_URL) {
-    baseUrl = publicEnv.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, "");
-  } else if (env.NODE_ENV !== "production") {
-    const headerStore = await headers();
-    const originHeader = headerStore.get("origin");
-    if (originHeader) {
-      baseUrl = originHeader.replace(/\/+$/, "");
-    } else {
-      baseUrl = "http://localhost:3000";
-    }
-  }
+  const baseUrl = resolveAuthBaseUrl({
+    siteUrl: publicEnv.NEXT_PUBLIC_SITE_URL,
+    nodeEnv: env.NODE_ENV,
+    vercelEnv: env.VERCEL_ENV,
+    vercelUrl: env.VERCEL_URL,
+    vercelBranchUrl: env.VERCEL_BRANCH_URL,
+    requestOrigin,
+  });
 
   if (!baseUrl) {
     redirect("/manage/login?error=auth_failed");

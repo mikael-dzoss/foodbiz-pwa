@@ -141,6 +141,51 @@ describe("parseServerEnv", () => {
     ).toThrow(/Invalid server environment variables/);
   });
 
+  it("accepts valid Vercel system environment variables", () => {
+    for (const vercelEnv of ["production", "preview", "development"] as const) {
+      const env = parseServerEnv({
+        DATA_SOURCE: "supabase",
+        NODE_ENV: "production",
+        STOREFRONT_BUSINESS_ID: BUSINESS_ID,
+        VERCEL_ENV: vercelEnv,
+        VERCEL_URL: "foodbiz-pwa-abc123-team.vercel.app",
+        VERCEL_BRANCH_URL: "foodbiz-pwa-git-staging-team.vercel.app",
+      });
+      expect(env.VERCEL_ENV).toBe(vercelEnv);
+      expect(env.VERCEL_URL).toBe("foodbiz-pwa-abc123-team.vercel.app");
+      expect(env.VERCEL_BRANCH_URL).toBe("foodbiz-pwa-git-staging-team.vercel.app");
+    }
+  });
+
+  it("treats omitted or blank Vercel system variables as undefined", () => {
+    const omitted = parseServerEnv({ DATA_SOURCE: "mock", NODE_ENV: "development" });
+    expect(omitted.VERCEL_ENV).toBeUndefined();
+    expect(omitted.VERCEL_URL).toBeUndefined();
+    expect(omitted.VERCEL_BRANCH_URL).toBeUndefined();
+
+    const blank = parseServerEnv({
+      DATA_SOURCE: "mock",
+      NODE_ENV: "development",
+      VERCEL_ENV: "   ",
+      VERCEL_URL: "",
+      VERCEL_BRANCH_URL: "  ",
+    });
+    expect(blank.VERCEL_ENV).toBeUndefined();
+    expect(blank.VERCEL_URL).toBeUndefined();
+    expect(blank.VERCEL_BRANCH_URL).toBeUndefined();
+  });
+
+  it("rejects invalid VERCEL_ENV values", () => {
+    expect(() =>
+      parseServerEnv({
+        DATA_SOURCE: "supabase",
+        NODE_ENV: "production",
+        STOREFRONT_BUSINESS_ID: BUSINESS_ID,
+        VERCEL_ENV: "staging" as never,
+      }),
+    ).toThrow(/VERCEL_ENV/);
+  });
+
   it("reads from process.env via getServerEnv", () => {
     vi.stubEnv("DATA_SOURCE", "mock");
     vi.stubEnv("NODE_ENV", "development");
@@ -148,6 +193,9 @@ describe("parseServerEnv", () => {
     vi.stubEnv("ALLOWED_MANAGER_EMAILS", "qa@example.com");
     vi.stubEnv("DEV_BUSINESS_SLUG", "la-petite-boulangerie");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb-service-secret");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc-team.vercel.app");
+    vi.stubEnv("VERCEL_BRANCH_URL", "foodbiz-pwa-git-feat-team.vercel.app");
     try {
       const env = getServerEnv();
       expect(env.DATA_SOURCE).toBe("mock");
@@ -155,6 +203,9 @@ describe("parseServerEnv", () => {
       expect(env.ALLOWED_MANAGER_EMAILS).toBe("qa@example.com");
       expect(env.DEV_BUSINESS_SLUG).toBe("la-petite-boulangerie");
       expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("sb-service-secret");
+      expect(env.VERCEL_ENV).toBe("preview");
+      expect(env.VERCEL_URL).toBe("foodbiz-pwa-abc-team.vercel.app");
+      expect(env.VERCEL_BRANCH_URL).toBe("foodbiz-pwa-git-feat-team.vercel.app");
     } finally {
       vi.unstubAllEnvs();
     }
