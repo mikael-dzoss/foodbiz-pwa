@@ -9,7 +9,7 @@
 --   assumed those defaults existed and only revoked exceptions, leaving hosted
 --   staging unreachable with `42501 permission denied for table ...`.
 --
---   What this migration does (in a single transaction so there is no window
+--   What this migration does (inside the CLI's per-file transaction, so there is no window
 --   where tables lack grants):
 --     1. Revokes default table and sequence privileges for role `postgres` in
 --        schema `public` from anon, authenticated and service_role so local
@@ -33,10 +33,8 @@
 --   Table grants themselves are required on hosted projects and should not be removed.
 -- ============================================================================
 
-begin;
-
 -- Fail fast instead of queueing behind a long transaction while holding the lock request.
-set local lock_timeout = '5s';
+set lock_timeout = '5s';
 
 -- ----------------------------------------------------------------------------
 -- 1. Align default privileges with hosted Supabase (>= 2026-05-30)
@@ -138,4 +136,4 @@ grant select, insert, update, delete on table public.order_items to service_role
 revoke all on table public.rate_limit_attempts from anon, authenticated, service_role;
 revoke all on sequence public.rate_limit_attempts_id_seq from anon, authenticated, service_role;
 
-commit;
+reset lock_timeout;
