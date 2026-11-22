@@ -3,29 +3,30 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ProductDetailView } from "../components/product-detail-view";
 import { CartProvider, resetCartStore, useCart } from "../context/cart-context";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT, demoBusiness, demoCategories } from "@/lib/repositories/mock/fixtures";
 import type { AddOnCandidates } from "@/domain/add-ons";
 import type { StorefrontProduct } from "@/domain/storefront-product";
 import type { StorefrontProductData } from "../catalog-data";
 
 const sampleProductData: StorefrontProductData = {
   product: {
-    id: "prod-pastry-1",
+    id: "prod-dish-1",
     categoryId: "cat-1",
-    name: "Artisan Sourdough Loaf",
-    description: "Slow-fermented artisan sourdough bread with crispy crust",
+    name: DEMO_PRODUCT.pouletBraise.name,
+    description: DEMO_PRODUCT.pouletBraise.description,
     price: 650,
     stock: 8,
     allergens: [],
     suggestAddOns: true,
   },
-  categoryName: "Artisan Breads",
+  categoryName: demoCategories[0].name,
   business: {
-    name: "The Rustic Baker",
-    description: "Traditional sourdough and pastries",
-    phone: "+33 6 12 34 56 78",
-    email: "contact@rusticbaker.fr",
-    whatsappNumber: "33612345678",
-    address: "12 Rue de la Paix, Paris",
+    name: demoBusiness.name,
+    description: demoBusiness.description,
+    phone: demoBusiness.phone,
+    email: demoBusiness.email,
+    whatsappNumber: demoBusiness.whatsappNumber,
+    address: demoBusiness.address,
   },
   settings: {
     businessId: "biz-1",
@@ -82,18 +83,18 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       </CartProvider>,
     );
 
-    expect(screen.getByRole("heading", { level: 1, name: "Artisan Sourdough Loaf" })).toBeDefined();
     expect(
-      screen.getByText("Slow-fermented artisan sourdough bread with crispy crust"),
+      screen.getByRole("heading", { level: 1, name: DEMO_PRODUCT.pouletBraise.name }),
     ).toBeDefined();
-    expect(screen.getByText("Artisan Breads")).toBeDefined();
+    expect(screen.getByText(DEMO_PRODUCT.pouletBraise.description!)).toBeDefined();
+    expect(screen.getByText(demoCategories[0].name)).toBeDefined();
     expect(screen.getAllByText(/6,50\s*€|€6\.50|6\.50\s*€/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(enDictionary.storefront.inStock)).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.cooksRecommendation)).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.cooksTip)).toBeDefined();
 
     // Removed sections (#202): logistics/address card, ingredients card, Soon allergens card
-    expect(screen.queryByText("12 Rue de la Paix, Paris")).toBeNull();
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
     expect(screen.queryByText(/Ingredients & Sourcing/i)).toBeNull();
     expect(screen.queryByText(/Allergen Notice/i)).toBeNull();
     expect(screen.queryByText("Soon")).toBeNull();
@@ -137,7 +138,7 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     expect(screen.getByTestId("product-allergen-nuts").textContent).toBe("Nuts");
 
     // Verify DOM order: description -> allergens list -> Cook's Recommendation
-    const descEl = screen.getByText("Slow-fermented artisan sourdough bread with crispy crust");
+    const descEl = screen.getByText(DEMO_PRODUCT.pouletBraise.description!);
     const cooksEl = screen.getByText(enDictionary.storefront.cooksRecommendation);
     expect(descEl.compareDocumentPosition(listEn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(listEn.compareDocumentPosition(cooksEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -188,16 +189,16 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       products: [
         {
           ...sampleProductData.product,
-          id: "drink-espresso",
-          name: "Double Espresso",
+          id: "drink-folere",
+          name: DEMO_PRODUCT.folere.name,
           price: 220,
           stock: 10,
-          imageUrl: "/images/espresso.jpg",
+          imageUrl: "/images/drink-1.jpg",
         },
         {
           ...sampleProductData.product,
-          id: "drink-juice",
-          name: "Fresh Orange Juice",
+          id: "drink-ginger",
+          name: DEMO_PRODUCT.jusGingembre.name,
           price: 400,
           stock: 5,
           imageUrl: null,
@@ -234,9 +235,13 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     expect(screen.getByText("Drinks")).toBeDefined();
     expect(screen.getByText("Choose any")).toBeDefined();
     expect(screen.getByTestId("product-addons-optional-badge").textContent).toBe("Optional");
-    expect(screen.getByRole("checkbox", { name: /Double Espresso/i })).toBeDefined();
-    expect(screen.getByRole("checkbox", { name: /Fresh Orange Juice/i })).toBeDefined();
-    expect(screen.getByTestId("product-addon-placeholder-drink-juice")).toBeDefined();
+    expect(
+      screen.getByRole("checkbox", { name: new RegExp(DEMO_PRODUCT.folere.name, "i") }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole("checkbox", { name: new RegExp(DEMO_PRODUCT.jusGingembre.name, "i") }),
+    ).toBeDefined();
+    expect(screen.getByTestId("product-addon-placeholder-drink-ginger")).toBeDefined();
     expect(screen.getByText(/\+€2\.20|\+2,20\s*€/)).toBeDefined();
 
     const cooksEl = screen.getByText(enDictionary.storefront.cooksRecommendation);
@@ -269,19 +274,19 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       products: [
         {
           ...sampleProductData.product,
-          id: "drink-espresso",
-          name: "Double Espresso",
+          id: "drink-folere",
+          name: DEMO_PRODUCT.folere.name,
           price: 220,
           stock: 10,
-          imageUrl: "/images/espresso.jpg",
+          imageUrl: "/images/drink-1.jpg",
         },
         {
           ...sampleProductData.product,
-          id: "drink-juice",
-          name: "Fresh Orange Juice",
+          id: "drink-ginger",
+          name: DEMO_PRODUCT.jusGingembre.name,
           price: 400,
           stock: 3,
-          imageUrl: "/images/orange-juice.jpg",
+          imageUrl: "/images/drink-2.jpg",
         },
       ],
     };
@@ -315,14 +320,18 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     expect(addButton.textContent).toContain("Add 1 to cart • €6.50");
 
     // Tick both drinks: (650 + 220 + 400) * 1 = 1270 (€12.70)
-    const espressoCheckbox = screen.getByRole("checkbox", { name: /Double Espresso/i });
-    const juiceCheckbox = screen.getByRole("checkbox", { name: /Fresh Orange Juice/i });
-    fireEvent.click(espressoCheckbox);
-    fireEvent.click(juiceCheckbox);
+    const firstDrinkCheckbox = screen.getByRole("checkbox", {
+      name: new RegExp(DEMO_PRODUCT.folere.name, "i"),
+    });
+    const secondDrinkCheckbox = screen.getByRole("checkbox", {
+      name: new RegExp(DEMO_PRODUCT.jusGingembre.name, "i"),
+    });
+    fireEvent.click(firstDrinkCheckbox);
+    fireEvent.click(secondDrinkCheckbox);
     expect(addButton.textContent).toContain("Add 1 to cart • €12.70");
 
-    // Untick juice: (650 + 220) * 1 = 870 (€8.70)
-    fireEvent.click(juiceCheckbox);
+    // Untick second drink: (650 + 220) * 1 = 870 (€8.70)
+    fireEvent.click(secondDrinkCheckbox);
     expect(addButton.textContent).toContain("Add 1 to cart • €8.70");
 
     // Increase quantity to 2: (650 + 220) * 2 = 1740 (€17.40)
@@ -330,16 +339,16 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     fireEvent.click(incButton);
     expect(addButton.textContent).toContain("Add 2 to cart • €17.40");
 
-    // Add to cart -> creates main line (qty 2) + espresso line (qty 2) and resets selection
+    // Add to cart -> creates main line (qty 2) + drink line (qty 2) and resets selection
     fireEvent.click(addButton);
 
-    expect(screen.getByTestId("cart-line-prod-pastry-1").textContent).toBe(
-      "Artisan Sourdough Loaf:2:650",
+    expect(screen.getByTestId("cart-line-prod-dish-1").textContent).toBe(
+      `${DEMO_PRODUCT.pouletBraise.name}:2:650`,
     );
-    expect(screen.getByTestId("cart-line-drink-espresso").textContent).toBe(
-      "Double Espresso:2:220",
+    expect(screen.getByTestId("cart-line-drink-folere").textContent).toBe(
+      `${DEMO_PRODUCT.folere.name}:2:220`,
     );
-    expect(espressoCheckbox.getAttribute("aria-checked")).toBe("false");
+    expect(firstDrinkCheckbox.getAttribute("aria-checked")).toBe("false");
   });
 
   it("disables add-on checkboxes when the store is not accepting orders", () => {
@@ -348,11 +357,11 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       products: [
         {
           ...sampleProductData.product,
-          id: "drink-espresso",
-          name: "Double Espresso",
+          id: "drink-folere",
+          name: DEMO_PRODUCT.folere.name,
           price: 220,
           stock: 10,
-          imageUrl: "/images/espresso.jpg",
+          imageUrl: "/images/drink-1.jpg",
         },
       ],
     };
@@ -370,7 +379,9 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
 
     const group = screen.getByTestId("product-addons-group") as HTMLFieldSetElement;
     expect(group.disabled).toBe(true);
-    const checkbox = screen.getByRole("checkbox", { name: /Double Espresso/i });
+    const checkbox = screen.getByRole("checkbox", {
+      name: new RegExp(DEMO_PRODUCT.folere.name, "i"),
+    });
     expect(checkbox).toHaveProperty("disabled", true);
   });
 
@@ -380,26 +391,26 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       product: {
         ...sampleProductData.product,
         id: "prod-drink-1",
-        name: "Double Espresso",
+        name: DEMO_PRODUCT.folere.name,
         price: 220,
       },
-      categoryName: "Hot & Cold Beverages",
+      categoryName: demoCategories[3].name,
     };
     const sampleAccompaniments: AddOnCandidates<StorefrontProduct> = {
       kind: "accompaniments",
       products: [
         {
           ...sampleProductData.product,
-          id: "snack-madeleines",
-          name: "Madeleines x3",
+          id: "snack-fritters-1",
+          name: DEMO_PRODUCT.beignetsMais.name,
           price: 300,
           stock: 20,
           imageUrl: null,
         },
         {
           ...sampleProductData.product,
-          id: "snack-cookies",
-          name: "Mini Cookies",
+          id: "snack-fritters-2",
+          name: DEMO_PRODUCT.beignetsSouffles.name,
           price: 250,
           stock: 15,
           imageUrl: null,
@@ -449,18 +460,22 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     );
 
     expect(screen.getByText("Accompaniments")).toBeDefined();
-    const madeleinesCheckbox = screen.getByRole("checkbox", { name: /Madeleines x3/i });
-    fireEvent.click(madeleinesCheckbox);
+    const snackCheckbox = screen.getByRole("checkbox", {
+      name: new RegExp(DEMO_PRODUCT.beignetsMais.name, "i"),
+    });
+    fireEvent.click(snackCheckbox);
 
     const addButton = screen.getByTestId("product-add-button");
     expect(addButton.textContent).toContain("Add 1 to cart • €5.20");
     fireEvent.click(addButton);
 
-    expect(screen.getByTestId("cart-line-prod-drink-1").textContent).toBe("Double Espresso:1:220");
-    expect(screen.getByTestId("cart-line-snack-madeleines").textContent).toBe(
-      "Madeleines x3:1:300",
+    expect(screen.getByTestId("cart-line-prod-drink-1").textContent).toBe(
+      `${DEMO_PRODUCT.folere.name}:1:220`,
     );
-    expect(madeleinesCheckbox.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByTestId("cart-line-snack-fritters-1").textContent).toBe(
+      `${DEMO_PRODUCT.beignetsMais.name}:1:300`,
+    );
+    expect(snackCheckbox.getAttribute("aria-checked")).toBe("false");
   });
 
   it("disables add button and renders out-of-stock badge when stock is 0", () => {

@@ -30,7 +30,7 @@ function createMockOrder(overrides?: Partial<Order>): Order {
     items: [
       {
         productId: validUuid,
-        productName: "Croissant",
+        productName: "Poulet Braisé",
         quantity: 2,
         unitPrice: 150,
         totalPrice: 300,

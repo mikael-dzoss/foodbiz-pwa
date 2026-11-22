@@ -31,7 +31,7 @@ export function StorefrontFooter({
   locale,
   dict,
   business,
-  businessName = "La Petite Boulangerie",
+  businessName = "Les Saveurs du Continent",
   currentYear = new Date().getFullYear(),
   legalPagesAvailable = LEGAL_PAGES_AVAILABLE,
 }: StorefrontFooterProps) {

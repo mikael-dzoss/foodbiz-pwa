@@ -175,7 +175,14 @@ describe("storefront Open Graph image routes", () => {
   }, 15_000);
 
   it("renders product OG image with photo, without photo, and falls back cleanly for unknown products", async () => {
-    const productWithPhoto = demoProducts[0];
+    const baseProduct = demoProducts[0];
+    const testImageUrl = "/images/baguette.jpg";
+    const baseData = await catalogData.getStorefrontProduct(baseProduct.id);
+    expect(baseData).not.toBeNull();
+    vi.spyOn(catalogData, "getStorefrontProduct").mockResolvedValueOnce({
+      ...baseData!,
+      product: { ...baseData!.product, imageUrl: testImageUrl },
+    });
     const resolveSpy = vi
       .spyOn(ogImage, "resolveOgImageSrc")
       .mockResolvedValueOnce(TINY_PNG_DATA_URL)
@@ -184,15 +191,15 @@ describe("storefront Open Graph image routes", () => {
     // Known product with photo
     await expectPngResponse(
       await ProductOpenGraphImage({
-        params: Promise.resolve({ locale: "en", id: productWithPhoto.id }),
+        params: Promise.resolve({ locale: "en", id: baseProduct.id }),
       }),
     );
-    expect(resolveSpy).toHaveBeenCalledWith(productWithPhoto.imageUrl);
+    expect(resolveSpy).toHaveBeenCalledWith(testImageUrl);
 
     // Known product when photo is absent/unreadable (FR)
     await expectPngResponse(
       await ProductOpenGraphImage({
-        params: Promise.resolve({ locale: "fr", id: productWithPhoto.id }),
+        params: Promise.resolve({ locale: "fr", id: baseProduct.id }),
       }),
     );
 
@@ -207,7 +214,7 @@ describe("storefront Open Graph image routes", () => {
     vi.spyOn(catalogData, "getStorefrontProduct").mockRejectedValueOnce(new Error("DB offline"));
     await expectPngResponse(
       await ProductOpenGraphImage({
-        params: Promise.resolve({ locale: "en", id: productWithPhoto.id }),
+        params: Promise.resolve({ locale: "en", id: baseProduct.id }),
       }),
     );
   }, 15_000);

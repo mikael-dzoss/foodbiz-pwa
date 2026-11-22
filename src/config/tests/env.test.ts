@@ -121,13 +121,13 @@ describe("parseServerEnv", () => {
       NODE_ENV: "production",
       APP_ENV: "staging",
       ALLOWED_MANAGER_EMAILS: "dev@example.com",
-      DEV_BUSINESS_SLUG: "custom-bakery",
+      DEV_BUSINESS_SLUG: "custom-shop",
       SUPABASE_SERVICE_ROLE_KEY: "service-role-secret-token",
       STOREFRONT_BUSINESS_ID: BUSINESS_ID,
     });
     expect(env.APP_ENV).toBe("staging");
     expect(env.ALLOWED_MANAGER_EMAILS).toBe("dev@example.com");
-    expect(env.DEV_BUSINESS_SLUG).toBe("custom-bakery");
+    expect(env.DEV_BUSINESS_SLUG).toBe("custom-shop");
     expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("service-role-secret-token");
   });
 
@@ -191,7 +191,7 @@ describe("parseServerEnv", () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("APP_ENV", "test");
     vi.stubEnv("ALLOWED_MANAGER_EMAILS", "qa@example.com");
-    vi.stubEnv("DEV_BUSINESS_SLUG", "la-petite-boulangerie");
+    vi.stubEnv("DEV_BUSINESS_SLUG", "les-saveurs-du-continent");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb-service-secret");
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("VERCEL_URL", "foodbiz-pwa-abc-team.vercel.app");
@@ -201,7 +201,7 @@ describe("parseServerEnv", () => {
       expect(env.DATA_SOURCE).toBe("mock");
       expect(env.APP_ENV).toBe("test");
       expect(env.ALLOWED_MANAGER_EMAILS).toBe("qa@example.com");
-      expect(env.DEV_BUSINESS_SLUG).toBe("la-petite-boulangerie");
+      expect(env.DEV_BUSINESS_SLUG).toBe("les-saveurs-du-continent");
       expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("sb-service-secret");
       expect(env.VERCEL_ENV).toBe("preview");
       expect(env.VERCEL_URL).toBe("foodbiz-pwa-abc-team.vercel.app");

@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
+import {
+  DEMO_BUSINESS_ID,
+  DEMO_PRODUCT,
+  demoBusiness,
+} from "../src/lib/repositories/mock/fixtures";
 
-const BUSINESS_ID = "11111111-1111-4111-8111-111111111111";
+const BUSINESS_ID = DEMO_BUSINESS_ID;
 const url = process.env.E2E_SUPABASE_URL ?? "";
 const serviceKey = process.env.E2E_SUPABASE_SERVICE_KEY ?? "";
 
@@ -45,14 +50,15 @@ test("anonymous visitor orders from the Supabase catalog and tracks the order", 
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
+  const product = DEMO_PRODUCT.boulettes;
   await page.goto("/en");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("La Petite Boulangerie");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(demoBusiness.name);
   await expect(page.locator("html")).not.toHaveClass(/dark/);
 
   await page.getByTestId("service-mode-pickup").click();
   await page
-    .getByTestId("product-row-33333333-3333-4333-8333-333333333302")
-    .getByRole("button", { name: "Add to cart: Country Sourdough Loaf", exact: true })
+    .getByTestId(`product-row-${product.id}`)
+    .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
     .click();
   // The cart bar only renders after hydration with the item in client state, so waiting for it
   // proves the add worked. Navigate by its href rather than a client-side click so a slow
@@ -62,7 +68,7 @@ test("anonymous visitor orders from the Supabase catalog and tracks the order", 
   const cartHref = await viewCart.getAttribute("href");
   expect(cartHref).toBe("/en/cart");
   await page.goto(cartHref!);
-  await expect(page.getByTestId("cart-items-list")).toContainText("Country Sourdough Loaf");
+  await expect(page.getByTestId("cart-items-list")).toContainText(product.name);
 
   await page.getByTestId("proceed-checkout-button").click();
   await page.getByTestId("checkout-name-input").fill("E2E Supabase Guest");
@@ -76,7 +82,7 @@ test("anonymous visitor orders from the Supabase catalog and tracks the order", 
   await page.getByTestId("confirmation-track-link").click();
   await expect(page).toHaveURL(`/en/order/${token}`);
   await expect(page.getByTestId("tracking-status-badge")).toBeVisible();
-  await expect(page.getByTestId("tracking-summary-card")).toContainText("Country Sourdough Loaf");
+  await expect(page.getByTestId("tracking-summary-card")).toContainText(product.name);
 
   expect(pageErrors).toEqual([]);
 });

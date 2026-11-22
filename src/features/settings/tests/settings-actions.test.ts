@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { requireAuthenticatedAction } from "@/features/auth";
 import type { Business, BusinessSettings } from "@/domain";
+import { demoBusiness, demoSettings } from "@/lib/repositories/mock/fixtures";
 import {
   updateBusinessProfileAction,
   updateOrderingSettingsAction,
@@ -28,56 +29,9 @@ vi.mock("next/headers", () => ({
 const testBusinessId = "11111111-1111-4111-8111-111111111111";
 const otherBusinessId = "99999999-9999-4999-8999-999999999999";
 
-let mockBusiness: Business = {
-  id: testBusinessId,
-  name: "La Petite Boulangerie",
-  slug: "la-petite-boulangerie",
-  currency: "EUR",
-  description: "Artisanal bakery",
-  phone: "+33 1 43 55 67 89",
-  email: "bonjour@lapetiteboulangerie.fr",
-  whatsappNumber: "+33 6 12 34 56 78",
-  address: "12 Rue de la Roquette, Paris",
-  logoUrl: null,
-  createdAt: "2026-08-01T08:00:00.000Z",
-  updatedAt: "2026-08-01T08:00:00.000Z",
-};
+let mockBusiness: Business = structuredClone(demoBusiness);
 
-let mockSettings: BusinessSettings = {
-  id: "11111111-1111-4111-8111-111111111112",
-  businessId: testBusinessId,
-  currency: "EUR",
-  dateFormat: "DD/MM/YYYY",
-  lowStockThreshold: 5,
-  taxPercentage: 5.5,
-  notifications: true,
-  acceptingOrders: true,
-  serviceTypes: {
-    pickup: true,
-    delivery: true,
-    dineIn: true,
-  },
-  openingHours: "08:00 - 19:00",
-  orderTimingAsap: true,
-  orderTimingScheduled: true,
-  orderTimingTimeOptional: true,
-  deliveryFee: 350,
-  minOrderAmount: 1500,
-  leadTimeValue: 1,
-  leadTimeUnit: "business_days",
-  revolutRevtag: "@boulangerie",
-  weroIdentifier: "+33612345678",
-  paymentMethods: {
-    cash: true,
-    revolut: true,
-    wero: true,
-  },
-  paymentInstructionsEn: "Pay on pickup",
-  paymentInstructionsFr: "Paiement au retrait",
-  inAppAlerts: true,
-  soundAlerts: true,
-  timezone: "Europe/Paris",
-};
+let mockSettings: BusinessSettings = structuredClone(demoSettings);
 
 const mockBusinessRepo = {
   findById: vi.fn(async (id: string) =>
@@ -130,8 +84,8 @@ vi.mock("@/features/auth", async () => {
       },
       business: {
         id: testBusinessId,
-        name: "La Petite Boulangerie",
-        slug: "la-petite-boulangerie",
+        name: "Les Saveurs du Continent",
+        slug: "les-saveurs-du-continent",
         currency: "EUR",
       },
       expiresAt: "2099-01-01T00:00:00.000Z",
@@ -159,26 +113,26 @@ describe("Settings Server Actions", () => {
       vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
       await expect(
         updateBusinessProfileAction({
-          name: "Bakery",
-          slug: "bakery",
-          instagramUrl: "https://instagram.com/bakery",
+          name: "Demo Shop",
+          slug: "demo-shop",
+          instagramUrl: "https://instagram.com/demoshop",
         }),
       ).rejects.toThrow("Unauthorized");
       expect(mockBusinessRepo.update).not.toHaveBeenCalled();
     });
     it("validates and persists all social links, including clearing them", async () => {
       const links = {
-        instagramUrl: "https://instagram.com/bakery",
-        facebookUrl: "https://facebook.com/bakery",
-        tiktokUrl: "https://tiktok.com/@bakery",
+        instagramUrl: "https://instagram.com/demoshop",
+        facebookUrl: "https://facebook.com/demoshop",
+        tiktokUrl: "https://tiktok.com/@demoshop",
       };
       expect(
-        await updateBusinessProfileAction({ name: "Bakery", slug: "bakery", ...links }),
+        await updateBusinessProfileAction({ name: "Demo Shop", slug: "demo-shop", ...links }),
       ).toMatchObject({ ok: true, data: links });
       expect(
         await updateBusinessProfileAction({
-          name: "Bakery",
-          slug: "bakery",
+          name: "Demo Shop",
+          slug: "demo-shop",
           instagramUrl: "",
           facebookUrl: "",
           tiktokUrl: "",
@@ -190,8 +144,8 @@ describe("Settings Server Actions", () => {
       mockBusinessRepo.update.mockClear();
       expect(
         await updateBusinessProfileAction({
-          name: "Bakery",
-          slug: "bakery",
+          name: "Demo Shop",
+          slug: "demo-shop",
           instagramUrl: "http://example.com",
         }),
       ).toMatchObject({ ok: false, fieldErrors: { instagramUrl: expect.any(Array) } });
@@ -199,11 +153,11 @@ describe("Settings Server Actions", () => {
     });
     it("successfully updates business profile and revalidates paths", async () => {
       const updateData = {
-        name: "La Grande Boulangerie",
-        slug: "la-grande-boulangerie",
+        name: "Les Grandes Saveurs",
+        slug: "les-grandes-saveurs",
         description: "New updated description",
         phone: "+33 1 99 88 77 66",
-        email: "contact@lagrande.fr",
+        email: "contact@example.com",
         whatsappNumber: "+33 6 99 88 77 66",
         address: "10 Rue Oberkampf, 75011 Paris",
         logoUrl: "https://example.com/new-logo.png",
@@ -212,8 +166,8 @@ describe("Settings Server Actions", () => {
       const res = await updateBusinessProfileAction(updateData);
       expect(res.ok).toBe(true);
       if (res.ok) {
-        expect(res.data.name).toBe("La Grande Boulangerie");
-        expect(res.data.slug).toBe("la-grande-boulangerie");
+        expect(res.data.name).toBe("Les Grandes Saveurs");
+        expect(res.data.slug).toBe("les-grandes-saveurs");
         expect(res.data.description).toBe("New updated description");
       }
 
@@ -449,7 +403,7 @@ describe("Settings Server Actions", () => {
   describe("updatePaymentSettingsAction", () => {
     it("updates payment settings and revalidates paths", async () => {
       const res = await updatePaymentSettingsAction({
-        revolutRevtag: "@parisboulangerie",
+        revolutRevtag: "@pariskitchen",
         weroIdentifier: "+33698765432",
         paymentMethods: {
           cash: true,
@@ -462,7 +416,7 @@ describe("Settings Server Actions", () => {
 
       expect(res.ok).toBe(true);
       if (res.ok) {
-        expect(res.data.revolutRevtag).toBe("@parisboulangerie");
+        expect(res.data.revolutRevtag).toBe("@pariskitchen");
         expect(res.data.paymentMethods?.wero).toBe(false);
       }
 
@@ -677,14 +631,14 @@ describe("Settings Server Actions", () => {
       it(`refuses a slug change to a ${role} but lets them edit the rest of the profile`, async () => {
         authState.role = role;
         const changed = await updateBusinessProfileAction({
-          name: "La Petite Boulangerie",
+          name: demoBusiness.name,
           slug: "another-address",
         });
         expect(changed).toMatchObject({ ok: false, code: "FORBIDDEN" });
         expect(mockBusinessRepo.update).not.toHaveBeenCalled();
 
         const unchanged = await updateBusinessProfileAction({
-          name: "Renamed Bakery",
+          name: "Renamed Shop",
           slug: mockBusiness.slug,
         });
         expect(unchanged.ok).toBe(true);

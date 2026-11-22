@@ -25,7 +25,7 @@ const isoNow = "2026-10-09T14:00:00.000Z";
 
 describe("Business schemas", () => {
   it.each(["instagramUrl", "facebookUrl", "tiktokUrl"])("validates optional HTTPS %s", (field) => {
-    const profile = { name: "Bakery", slug: "bakery" };
+    const profile = { name: "Demo Shop", slug: "demo-shop" };
     const business = { ...profile, id: validUuid, createdAt: isoNow, updatedAt: isoNow };
     for (const schema of [businessSchema, updateBusinessProfileSchema]) {
       const base = schema === businessSchema ? business : profile;
@@ -40,14 +40,14 @@ describe("Business schemas", () => {
   it("validates a valid Business", () => {
     const valid = {
       id: validUuid,
-      name: "La Petite Boulangerie",
-      slug: "la-petite-boulangerie",
+      name: "Les Saveurs du Continent",
+      slug: "les-saveurs-du-continent",
       currency: "EUR" as const,
-      description: "Artisanal organic sourdough bakery",
-      phone: "+33 1 43 55 67 89",
-      email: "bonjour@lapetiteboulangerie.fr",
-      whatsappNumber: "+33 6 12 34 56 78",
-      address: "12 Rue de la Roquette, 75011 Paris",
+      description: "Home-made Cameroonian cooking in Paris",
+      phone: "+33 6 39 98 00 01",
+      email: "commandes@example.com",
+      whatsappNumber: "+33 6 39 98 00 01",
+      address: "52 Quai de la Rapée, 75012 Paris",
       logoUrl: "https://example.com/logo.png",
       createdAt: isoNow,
       updatedAt: isoNow,
@@ -58,12 +58,12 @@ describe("Business schemas", () => {
 
   it("validates updateBusinessProfileSchema and rejects invalid slug or email", () => {
     const validProfile = {
-      name: "La Petite Boulangerie",
-      slug: "la-petite-boulangerie",
-      description: "Fresh baguettes daily",
-      phone: "+33 1 43 55 67 89",
-      email: "info@bakery.com",
-      whatsappNumber: "+33 6 12 34 56 78",
+      name: "Les Saveurs du Continent",
+      slug: "les-saveurs-du-continent",
+      description: "Fresh grilled dishes daily",
+      phone: "+33 6 39 98 00 01",
+      email: "info@example.com",
+      whatsappNumber: "+33 6 39 98 00 01",
       address: "Paris, France",
       logoUrl: null,
     };
@@ -87,7 +87,7 @@ describe("Business schemas", () => {
   });
 
   it("validates latitude/longitude ranges (-90..90, -180..180) and builds OpenStreetMap embed URL (#195)", () => {
-    const profile = { name: "Bakery", slug: "bakery" };
+    const profile = { name: "Demo Shop", slug: "demo-shop" };
     expect(
       updateBusinessProfileSchema.safeParse({
         ...profile,
@@ -260,7 +260,7 @@ describe("Order and OrderItem schemas", () => {
   it("validates OrderItem with integer cents and positive quantity", () => {
     const validItem = {
       productId: validUuid,
-      productName: "Croissant",
+      productName: "Poulet Braisé",
       quantity: 3,
       unitPrice: 150,
       totalPrice: 450,
@@ -292,7 +292,7 @@ describe("Order and OrderItem schemas", () => {
       items: [
         {
           productId: validUuid,
-          productName: "Croissant",
+          productName: "Poulet Braisé",
           quantity: 2,
           unitPrice: 150,
           totalPrice: 300,
@@ -350,7 +350,7 @@ describe("Order and OrderItem schemas", () => {
       items: [
         {
           productId: validUuid,
-          productName: "Croissant",
+          productName: "Poulet Braisé",
           quantity: 1,
           unitPrice: 150,
           totalPrice: 150,
@@ -513,7 +513,7 @@ describe("Order and OrderItem schemas", () => {
       items: [
         {
           productId: validUuid,
-          productName: "Croissant",
+          productName: "Poulet Braisé",
           quantity: 2,
           unitPrice: 150,
           totalPrice: 300,
@@ -552,8 +552,8 @@ describe("Expense schema", () => {
       businessId: validUuid,
       amount: 15000, // 150.00 EUR
       date: "2026-10-09",
-      description: "Butter & Flour wholesale",
-      tags: ["Ingredients", "Bakery"],
+      description: "Plantains & spices wholesale",
+      tags: ["Ingredients", "Kitchen"],
       createdAt: isoNow,
     };
     expect(expenseSchema.safeParse(valid).success).toBe(true);

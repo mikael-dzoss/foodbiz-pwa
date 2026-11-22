@@ -14,18 +14,23 @@ afterEach(() => {
 });
 const summaries = summarizeCustomers(demoGuests, demoOrders);
 const guest = demoGuests[0];
+const guestFirstWord = guest.name.split(" ")[0];
+const guestLocalPhone = guest.phone!.replace(/^\+33/, "0").replace(/(\d{2})(?=\d)/g, "$1 ");
 const orders = demoOrders.filter((o) => o.guestId === guest.id);
 
 describe("customer list", () => {
   it("shows metrics and searches names and formatted national phone numbers", () => {
     render(<CustomerList customers={summaries} locale="en" dict={getDictionary().customers} />);
-    expect(screen.getByRole("link", { name: /Jean Dupont/ }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: new RegExp(guest.name) }).getAttribute("href")).toBe(
       `/manage/customers/${guest.id}`,
     );
     expect(screen.getAllByText("Total spent").length).toBe(demoGuests.length);
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "jEaN" } });
+    const mixedCaseQuery = [...guestFirstWord]
+      .map((ch, idx) => (idx % 2 === 0 ? ch.toLowerCase() : ch.toUpperCase()))
+      .join("");
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: mixedCaseQuery } });
     expect(screen.getAllByRole("link")).toHaveLength(1);
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "06 12 34 56 71" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: guestLocalPhone } });
     expect(screen.getAllByRole("link")).toHaveLength(1);
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "no match" } });
     expect(screen.getByRole("status").textContent).toContain("No customers match");
@@ -41,7 +46,7 @@ describe("customer list", () => {
     render(<CustomerList customers={summaries} locale="en" dict={getDictionary().customers} />);
     expect(screen.getByText(`${summaries.length} customers listed`)).toBeDefined();
     expect(screen.getByText("Sorted by recent orders")).toBeDefined();
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Jean" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: guestFirstWord } });
     expect(screen.getByText("1 customer listed")).toBeDefined();
   });
 

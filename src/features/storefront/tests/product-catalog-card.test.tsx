@@ -3,14 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProductCatalogCard } from "../components/product-catalog-card";
 import { CartProvider } from "../context/cart-context";
 import { enDictionary, frDictionary } from "@/domain/i18n";
+import { DEMO_PRODUCT, demoCategories } from "@/lib/repositories/mock/fixtures";
 import type { Product } from "@/domain/product";
 
 const sampleProduct: Product = {
-  id: "prod-pastry-1",
+  id: "prod-dish-1",
   businessId: "biz-1",
   categoryId: "cat-1",
-  name: "Almond Croissant",
-  description: "Filled with rich frangipane and toasted almond flakes",
+  name: DEMO_PRODUCT.pouletBraise.name,
+  description: DEMO_PRODUCT.pouletBraise.description,
   price: 380,
   unitCost: 150,
   stock: 12,
@@ -31,15 +32,15 @@ describe("ProductCatalogCard (#80, #81, #82)", () => {
       <CartProvider>
         <ProductCatalogCard
           product={sampleProduct}
-          categoryName="Pastries"
+          categoryName={demoCategories[0].name}
           locale="en"
           dict={enDictionary.storefront}
         />
       </CartProvider>,
     );
 
-    expect(screen.getByText("Almond Croissant")).toBeDefined();
-    const desc = screen.getByText("Filled with rich frangipane and toasted almond flakes");
+    expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
+    const desc = screen.getByText(DEMO_PRODUCT.pouletBraise.description!);
     expect(desc.className).toContain("line-clamp-2");
     expect(screen.getByText(/3,80\s*€|€3\.80|3\.80\s*€/)).toBeDefined();
     expect(screen.getByTestId(`product-image-placeholder-${sampleProduct.id}`)).toBeDefined();
@@ -58,7 +59,7 @@ describe("ProductCatalogCard (#80, #81, #82)", () => {
   it("links both the product name and image container to the product detail page", () => {
     const productWithImg: Product = {
       ...sampleProduct,
-      imageUrl: "https://example.com/croissant.jpg",
+      imageUrl: "https://example.com/dish.jpg",
     };
 
     render(

@@ -197,7 +197,7 @@ export const demoOrders: Order[] = Array.from({ length: 40 }, (_, idx) => {
     cancellationReason: status === "CANCELLED" ? "Customer requested cancellation" : null,
     notes: idx % 5 === 0 ? "Special handling requested" : null,
     deliveryAddress:
-      serviceType === "delivery" ? (guest.address ?? "123 Rue de la Paix, Paris") : null,
+      serviceType === "delivery" ? (guest.address ?? "52 Quai de la Rapée, 75012 Paris") : null,
     statusHistory,
     createdAt,
     updatedAt: statusHistory[statusHistory.length - 1]?.timestamp ?? createdAt,

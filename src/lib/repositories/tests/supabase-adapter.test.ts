@@ -48,8 +48,8 @@ function createFakeSupabaseClient(
       },
       {
         id: "99999999-9999-4999-8999-999999999999",
-        name: "Secondary Test Bakery",
-        slug: "secondary-test-bakery",
+        name: "Secondary Test Shop",
+        slug: "secondary-test-shop",
         currency: "EUR",
         description: null,
         phone: null,
@@ -1192,9 +1192,9 @@ describe("Supabase Repository Adapter", () => {
         id: "33333333-3333-4333-8333-333333333301",
         business_id: DEMO_BUSINESS_ID,
         category_id: "22222222-2222-4222-8222-222222222201",
-        name: "Baguette",
+        name: "Poulet Braisé",
         description: null,
-        price: 130,
+        price: 1500,
         stock: 3,
         visible: true,
         suggest_add_ons: true,
@@ -1215,8 +1215,8 @@ describe("Supabase Repository Adapter", () => {
         expect(columns).toBe(PUBLIC_PRODUCT_COLUMNS);
         expect(columns).not.toContain("unit_cost");
       }
-      expect(listed[0]).toMatchObject({ id: row.id, price: 130, stock: 3, unitCost: 0 });
-      expect(found?.name).toBe("Baguette");
+      expect(listed[0]).toMatchObject({ id: row.id, price: 1500, stock: 3, unitCost: 0 });
+      expect(found?.name).toBe("Poulet Braisé");
     });
 
     it("maps cancel_order errors accurately", async () => {

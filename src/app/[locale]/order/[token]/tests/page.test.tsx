@@ -45,11 +45,11 @@ const mockOrder: Order = {
 
 const mockBusiness: Business = {
   id: "biz-1",
-  name: "Boulangerie Test",
-  slug: "boulangerie-test",
-  phone: "+33123456789",
+  name: "Boutique Test",
+  slug: "boutique-test",
+  phone: "+33639980001",
   email: "test@example.com",
-  address: "10 Rue du Four",
+  address: "52 Quai de la Rapée, 75012 Paris",
   currency: "EUR",
   createdAt: "2026-10-01T00:00:00.000Z",
   updatedAt: "2026-10-01T00:00:00.000Z",

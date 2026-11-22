@@ -31,6 +31,7 @@
     "db:test": "supabase test db",
     "db:types": "node scripts/db-types.mjs",
     "db:types:check": "node scripts/db-types.mjs --check",
+    "db:seed:gen": "vitest run src/lib/repositories/tests/seed-sql.test.ts -u",
     "db:provision-member": "node scripts/provision-member.mjs"
   },
   "lint-staged": {

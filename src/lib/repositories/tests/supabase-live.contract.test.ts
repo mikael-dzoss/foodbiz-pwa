@@ -143,7 +143,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     const { error: errBiz } = await adminClient.from("businesses").insert([
       {
         id: businessAId,
-        name: `Tenant A Bakery ${runId}`,
+        name: `Tenant A Kitchen ${runId}`,
         slug: slugA,
         currency: "EUR",
       },
@@ -251,8 +251,8 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         id: prodAVisibleId,
         business_id: businessAId,
         category_id: catAId,
-        name: "Baguette Tradition",
-        description: "Classic sourdough baguette",
+        name: "Poulet Braisé",
+        description: "Charcoal-grilled chicken",
         price: 1000,
         unit_cost: 200,
         stock: 20,
@@ -738,7 +738,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       await expect(
         memberARepos.products.create(businessBId, {
           categoryId: catBId,
-          name: "Intruder Baguette",
+          name: "Intruder Dish",
           price: 100,
           unitCost: 10,
           stock: 1,

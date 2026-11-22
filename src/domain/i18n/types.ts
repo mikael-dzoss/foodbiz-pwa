@@ -194,7 +194,7 @@ export interface StorefrontDictionary {
   socialOnInstagram: string;
   socialOnFacebook: string;
   socialOnTikTok: string;
-  bakeryInfo: string;
+  shopInfoCta: string;
   mapEmbedTitle: string;
   osmAttribution: string;
 

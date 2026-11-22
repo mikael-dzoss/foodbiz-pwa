@@ -154,15 +154,15 @@ export type ManagerSession = z.infer<typeof managerSessionSchema>;
 export const MOCK_MANAGER_SESSION: ManagerSession = {
   user: {
     id: "00000000-0000-4000-8000-000000000002",
-    email: "manager@lapetiteboulangerie.fr",
+    email: "manager@example.com",
     name: "Marie Dupont",
     role: "owner",
     businessId: "11111111-1111-4111-8111-111111111111",
   },
   business: {
     id: "11111111-1111-4111-8111-111111111111",
-    name: "La Petite Boulangerie",
-    slug: "la-petite-boulangerie",
+    name: "Les Saveurs du Continent",
+    slug: "les-saveurs-du-continent",
     currency: "EUR",
   },
   expiresAt: "2099-01-01T00:00:00.000Z",

@@ -4,23 +4,11 @@ import { renderToString } from "react-dom/server";
 import { BusinessProfileForm } from "../components/business-profile-form";
 import { ManagerLocaleProvider } from "@/components/i18n";
 import { getDictionary, DEFAULT_LOCALE } from "@/domain/i18n";
+import { demoBusiness } from "@/lib/repositories/mock/fixtures";
 import type { Business } from "@/domain/business";
 import * as actions from "../actions";
 
-const mockBusiness: Business = {
-  id: "11111111-1111-4111-8111-111111111111",
-  name: "La Petite Boulangerie",
-  slug: "la-petite-boulangerie",
-  currency: "EUR",
-  description: "Artisanal organic sourdough bakery and French pastries in Paris.",
-  phone: "+33 1 43 55 67 89",
-  email: "bonjour@lapetiteboulangerie.fr",
-  whatsappNumber: "+33 6 12 34 56 78",
-  address: "12 Rue de la Roquette, 75011 Paris, France",
-  logoUrl: null,
-  createdAt: "2026-08-01T08:00:00.000Z",
-  updatedAt: "2026-08-01T08:00:00.000Z",
-};
+const mockBusiness: Business = { ...demoBusiness };
 
 const dict = getDictionary(DEFAULT_LOCALE).settings;
 
@@ -111,25 +99,25 @@ describe("BusinessProfileForm component", () => {
 
     expect(screen.getByRole("heading", { name: dict.business.title, level: 1 })).toBeDefined();
     expect((screen.getByTestId("input-business-name") as HTMLInputElement).value).toBe(
-      "La Petite Boulangerie",
+      demoBusiness.name,
     );
     expect((screen.getByTestId("input-business-slug") as HTMLInputElement).value).toBe(
-      "la-petite-boulangerie",
+      demoBusiness.slug,
     );
-    expect(
-      (screen.getByTestId("input-business-description") as HTMLTextAreaElement).value,
-    ).toContain("Artisanal organic sourdough bakery");
+    expect((screen.getByTestId("input-business-description") as HTMLTextAreaElement).value).toBe(
+      demoBusiness.description,
+    );
     expect((screen.getByTestId("input-business-phone") as HTMLInputElement).value).toBe(
-      "+33 1 43 55 67 89",
+      demoBusiness.phone,
     );
     expect((screen.getByTestId("input-business-email") as HTMLInputElement).value).toBe(
-      "bonjour@lapetiteboulangerie.fr",
+      demoBusiness.email,
     );
     expect((screen.getByTestId("input-business-whatsapp") as HTMLInputElement).value).toBe(
-      "+33 6 12 34 56 78",
+      demoBusiness.whatsappNumber,
     );
-    expect((screen.getByTestId("input-business-address") as HTMLTextAreaElement).value).toContain(
-      "12 Rue de la Roquette",
+    expect((screen.getByTestId("input-business-address") as HTMLTextAreaElement).value).toBe(
+      demoBusiness.address,
     );
 
     expect(screen.getByTestId("soon-business-logo")).toBeDefined();
@@ -141,13 +129,13 @@ describe("BusinessProfileForm component", () => {
     render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
 
     const nameInput = screen.getByTestId("input-business-name") as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: "Modified Bakery Name" } });
-    expect(nameInput.value).toBe("Modified Bakery Name");
+    fireEvent.change(nameInput, { target: { value: "Modified Shop Name" } });
+    expect(nameInput.value).toBe("Modified Shop Name");
 
     const discardBtn = screen.getByTestId("button-discard");
     fireEvent.click(discardBtn);
 
-    expect(nameInput.value).toBe("La Petite Boulangerie");
+    expect(nameInput.value).toBe(demoBusiness.name);
     expect(mockShowToast).toHaveBeenCalledWith("Changes discarded");
   });
 
@@ -155,7 +143,7 @@ describe("BusinessProfileForm component", () => {
     render(<BusinessProfileForm business={mockBusiness} dict={dict} />);
 
     const nameInput = screen.getByTestId("input-business-name") as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: "La Grande Boulangerie" } });
+    fireEvent.change(nameInput, { target: { value: "Les Nouvelles Saveurs" } });
 
     const submitBtn = screen.getByTestId("button-save-profile");
     fireEvent.click(submitBtn);
@@ -163,8 +151,8 @@ describe("BusinessProfileForm component", () => {
     await waitFor(() => {
       expect(actions.updateBusinessProfileAction).toHaveBeenCalledWith(
         expect.objectContaining({
-          name: "La Grande Boulangerie",
-          slug: "la-petite-boulangerie",
+          name: "Les Nouvelles Saveurs",
+          slug: demoBusiness.slug,
         }),
       );
     });
@@ -262,7 +250,7 @@ describe("BusinessProfileForm component", () => {
   });
 
   it("displays the storefront URL in a separate link row without foodbiz.app or slug", () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://shop.example.com/");
 
     render(
       <ManagerLocaleProvider locale="fr">
@@ -279,7 +267,7 @@ describe("BusinessProfileForm component", () => {
     expect(linkRow.contains(copyButton)).toBe(true);
     expect(linkRow.contains(slugInput)).toBe(false);
     expect(copyButton.disabled).toBe(false);
-    expect(preview.textContent).toBe("bakery.example.com/fr");
+    expect(preview.textContent).toBe("shop.example.com/fr");
     expect(screen.queryByText(/foodbiz\.app/)).toBeNull();
   });
 
@@ -300,7 +288,7 @@ describe("BusinessProfileForm component", () => {
   });
 
   it("copies the full storefront URL to the clipboard using NEXT_PUBLIC_SITE_URL when set", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://bakery.example.com/");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://shop.example.com/");
     const writeText = vi.fn(async () => undefined);
     stubClipboard(writeText);
 
@@ -313,7 +301,7 @@ describe("BusinessProfileForm component", () => {
     const frCopyLabel = getDictionary("fr").settingsExtra.copyUrl;
     fireEvent.click(screen.getByRole("button", { name: frCopyLabel }));
 
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://bakery.example.com/fr"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://shop.example.com/fr"));
     expect(mockShowToast).toHaveBeenCalledWith(getDictionary("fr").settingsExtra.urlCopied);
   });
 

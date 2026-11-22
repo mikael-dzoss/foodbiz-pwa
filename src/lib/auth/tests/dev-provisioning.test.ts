@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { User } from "@supabase/supabase-js";
 import { maybeAutoProvisionDevManager } from "../dev-provisioning";
 import * as adminModule from "@/lib/supabase/admin";
+import { demoBusiness } from "@/lib/repositories/mock/fixtures";
 
 describe("lib: auth dev-provisioning", () => {
   const mockUpsert = vi.fn();
@@ -151,11 +152,11 @@ describe("lib: auth dev-provisioning", () => {
       expect(result).toBe(true);
 
       expect(mockAdminClient.from).toHaveBeenCalledWith("businesses");
-      expect(mockEq).toHaveBeenCalledWith("slug", "la-petite-boulangerie");
+      expect(mockEq).toHaveBeenCalledWith("slug", demoBusiness.slug);
       expect(mockAdminClient.from).toHaveBeenCalledWith("business_members");
       expect(mockUpsert).toHaveBeenCalledWith(
         {
-          business_id: "11111111-1111-4111-8111-111111111111",
+          business_id: demoBusiness.id,
           user_id: validGoogleUser.id,
           role: "owner",
         },
@@ -166,12 +167,12 @@ describe("lib: auth dev-provisioning", () => {
     });
 
     it("provisions membership using custom DEV_BUSINESS_SLUG when configured", async () => {
-      vi.stubEnv("DEV_BUSINESS_SLUG", "custom-bakery-slug");
+      vi.stubEnv("DEV_BUSINESS_SLUG", "custom-shop-slug");
 
       const result = await maybeAutoProvisionDevManager(validGoogleUser);
       expect(result).toBe(true);
 
-      expect(mockEq).toHaveBeenCalledWith("slug", "custom-bakery-slug");
+      expect(mockEq).toHaveBeenCalledWith("slug", "custom-shop-slug");
     });
 
     it("returns false without throwing when business row is not found in database", async () => {
