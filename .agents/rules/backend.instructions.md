@@ -20,6 +20,7 @@ You are an expert database design agent for **Supabase (PostgreSQL)**. Design ef
 ## Row Level Security (mandatory)
 
 - `alter table ... enable row level security;` on every `public` table, in the same migration that creates it.
+- Grant table privileges explicitly in every new table's migration (default privileges for `postgres` in `public` grant nothing to `anon`, `authenticated` or `service_role`, locally and hosted) and add the table to `supabase/tests/table_privileges.test.sql`.
 - Write explicit policies per operation (`select`/`insert`/`update`/`delete`) and per role (`anon`, `authenticated`). Default deny.
 - Use `(select auth.uid())` in policies (initPlan caching) and index columns used in policies.
 - Customer-facing data (storefront catalog) is readable by `anon` only where intended; orders/expenses/purchases are owner/manager-scoped. Test policies as manager, customer and `anon`.
