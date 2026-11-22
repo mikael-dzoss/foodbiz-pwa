@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDefaultFixtures,
+  DEMO_CATEGORY_IDS,
+  DEMO_PRODUCT,
   demoBusiness,
   demoCategories,
   demoExpenses,
@@ -34,35 +36,62 @@ describe("Demo fixtures validity", () => {
     }
   });
 
-  it("contains exactly 17 products valid against productSchema across categories", () => {
-    expect(demoProducts).toHaveLength(17);
+  it("contains exactly 22 products valid against productSchema across categories", () => {
+    expect(demoProducts).toHaveLength(22);
+    expect(Object.keys(DEMO_PRODUCT)).toHaveLength(22);
+    expect(DEMO_PRODUCT.koki.stock).toBeLessThan(demoSettings.lowStockThreshold);
     for (const product of demoProducts) {
       expect(() => productSchema.parse(product)).not.toThrow();
       expect(product.price).toBeGreaterThan(0);
       expect(product.stock).toBeGreaterThanOrEqual(0);
       expect(product.visible).toBe(true);
+      expect("nameEn" in product).toBe(false);
+      expect("descriptionEn" in product).toBe(false);
     }
+    expect("descriptionEn" in demoBusiness).toBe(false);
   });
 
-  it("seeds add-on roles and two visible snack products with prices, stock and allergens", () => {
+  it("seeds add-on roles and visible snack products with prices, stock and allergens", () => {
     const drinks = demoCategories.find((category) => category.role === "drinks");
     const snacks = demoCategories.find((category) => category.role === "snacks");
-    expect(drinks?.name).toBe("Hot & Cold Beverages");
-    expect(snacks?.sortOrder).toBe(4);
+    expect(drinks?.id).toBe(DEMO_CATEGORY_IDS.drinks);
+    expect(drinks?.name).toBe("Boissons");
+    expect(drinks?.sortOrder).toBe(4);
+    expect(snacks?.id).toBe(DEMO_CATEGORY_IDS.fritters);
+    expect(snacks?.name).toBe("Beignets");
+    expect(snacks?.sortOrder).toBe(3);
     expect(demoProducts.filter((product) => product.categoryId === snacks?.id)).toMatchObject([
       {
-        name: "Madeleines x3",
-        price: 300,
-        stock: 20,
+        id: DEMO_PRODUCT.beignetsMais.id,
+        name: DEMO_PRODUCT.beignetsMais.name,
+        price: 1000,
+        stock: 25,
+        visible: true,
+        allergens: ["gluten"],
+      },
+      {
+        id: DEMO_PRODUCT.beignetsManioc.id,
+        name: DEMO_PRODUCT.beignetsManioc.name,
+        price: 1000,
+        stock: 25,
+        visible: true,
+        allergens: [],
+      },
+      {
+        id: DEMO_PRODUCT.beignetsFarine.id,
+        name: DEMO_PRODUCT.beignetsFarine.name,
+        price: 1000,
+        stock: 25,
         visible: true,
         allergens: ["gluten", "milk", "eggs"],
       },
       {
-        name: "Mini Cookies",
-        price: 250,
-        stock: 15,
+        id: DEMO_PRODUCT.beignetsSouffles.id,
+        name: DEMO_PRODUCT.beignetsSouffles.name,
+        price: 1000,
+        stock: 30,
         visible: true,
-        allergens: ["gluten", "milk", "eggs", "nuts"],
+        allergens: ["gluten"],
       },
     ]);
   });
