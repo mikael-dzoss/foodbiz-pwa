@@ -1,0 +1,1 @@
+../../.agents/rules/web.instructions.md

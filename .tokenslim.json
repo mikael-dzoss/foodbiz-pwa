@@ -1,0 +1,9 @@
+{
+  "readGuard": {
+    "mode": "deny",
+    "lines": 250
+  },
+  "rewrite": {
+    "enabled": false
+  }
+}

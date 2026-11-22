@@ -1,0 +1,53 @@
+name: "Epic"
+description: "A feature-domain epic grouping related user stories"
+labels: ["type: epic", "status: planned"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "What business capability does this epic deliver?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: stories
+    attributes:
+      label: "Child Stories"
+      description: "List of child story issue references"
+      placeholder: |
+        - [ ] #__ — Story title
+        - [ ] #__ — Story title
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "P0 — Critical path, blocks MVP"
+        - "P1 — High value, needed for launch"
+        - "P2 — Medium, nice-to-have for launch"
+        - "P3 — Low, post-MVP"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      options:
+        - "storefront"
+        - "dashboard"
+        - "orders"
+        - "products"
+        - "expenses"
+        - "analytics"
+        - "auth"
+        - "infra"
+        - "design-system"
+        - "customers"
+        - "settings"
+    validations:
+      required: true

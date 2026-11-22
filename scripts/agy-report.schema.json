@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "summary"],
+  "properties": {
+    "status": { "type": "string", "enum": ["done", "blocked"] },
+    "summary": { "type": "string", "description": "What was done, in at most five sentences." },
+    "pr_url": { "type": "string", "description": "Empty string when no PR was opened." },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "follow_ups": { "type": "array", "items": { "type": "string" } }
+  }
+}

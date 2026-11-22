@@ -1,0 +1,172 @@
+# Screen Inventory
+
+Every v0.9 screen, grouped into **flows** — the unit of the design → implement loop. Tokens and patterns: [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md).
+
+**Status:** `brief` → `designed` (Stitch light) → `implemented` (PR) → `verified` (screenshots light/dark, EN/FR, a11y checks pass).
+
+Routes are proposals until #31 (i18n) settles routing: storefront under `/[locale]` (SEO), manager under `/manage` (locale from user preference).
+
+## Loop per flow
+
+1. Brief in this file (goal, content, primary action, states, EN/FR copy).
+2. Generate in Stitch (mobile) with the **light** design system (`assets/14358508387441273017`), using only patterns from F0. **Dark theme model generation in Stitch is strictly banned**; our well-defined design color tokens in `src/app/globals.css` provide the Dark theme mapping automatically. Fix with `edit_screens`.
+3. Rebuild with our components and tokens (Stitch HTML is reference only); the agent picks the PR slicing ([`ship`](../../.agents/skills/ship/SKILL.md)).
+4. Playwright screenshots (light/dark × EN/FR) verifying both themes in browser; update Stitch if the implementation intentionally differs; status → `verified`.
+
+New pattern needed by a screen → add it to F0 and the component inventory first.
+
+## Flows
+
+| Flow                   | Screens                                                                                                | Stories                      | Status      | Stitch       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------- | ----------- | ------------ |
+| F0 Patterns reference  | Components & states sheet                                                                              | #28, #33, #34                | implemented | see registry |
+| F1 Manager shell       | Shell (bottom nav / sidebar), quick-add sheet                                                          | #29                          | brief       | —            |
+| F2 Storefront shell    | Shell (header, cart button, footer, language switch)                                                   | #30                          | brief       | —            |
+| F3 Auth                | Sign-in, no access                                                                                     | #36, #37, #38, #40           | brief       | see registry |
+| F4 Dashboard           | Dashboard                                                                                              | #61, #62, #63                | designed    | see registry |
+| F5 Orders              | Orders list, order detail, cancel dialog, payment sheet                                                | #49, #50, #52, #53, #54, #55 | designed    | see registry |
+| F6 Manual order        | New order (items, customer, service, payment)                                                          | #51                          | designed    | see registry |
+| F7 Catalog             | Products list, product form, categories, stock sheet                                                   | #42–#47                      | brief       | see registry |
+| F8 Expenses            | Expenses list, expense sheet                                                                           | #58, #59                     | brief       | —            |
+| F9 Settings            | Settings hub, account, business, ordering, payment, inventory & finance, notifications/team/app, about | #68–#74                      | brief       | —            |
+| F10 Customers          | Customers list, customer detail                                                                        | #66                          | verified    | see registry |
+| F11 Storefront catalog | Home/catalog, product detail, shop closed state, shop info                                             | #80–#83                      | designed    | see registry |
+| F12 Checkout           | Cart, checkout, confirmation & payment instructions                                                    | #85, #86, #88, #90           | designed    | see registry |
+| F13 Tracking           | Order tracking                                                                                         | #89                          | designed    | see registry |
+| F14 Analytics          | Analytics (range, trend, top products, export)                                                         | #76, #77, #78                | brief       | —            |
+| F15 System             | 404, error, offline, legal, install prompt                                                             | #34, #97, #100, #101         | brief       | —            |
+
+## Screens
+
+| ID      | Screen                 | Route                               | Purpose                                                                           | Primary action          | Key states                                                 | Flow |
+| ------- | ---------------------- | ----------------------------------- | --------------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------- | ---- |
+| P-01    | Patterns reference     | `/patterns` (dev only)              | Anchor for every generation                                                       | —                       | all component states, light/dark                           | F0   |
+| M-00    | Manager shell          | `/manage/*`                         | Navigate main areas one-handed                                                    | Add (center)            | active item, Soon items in More                            | F1   |
+| M-01    | Quick-add sheet        | sheet                               | Start order / product / expense                                                   | New order               | —                                                          | F1   |
+| S-00    | Storefront shell       | `/[locale]/*`                       | Brand, cart, language                                                             | Cart                    | cart empty / count                                         | F2   |
+| A-01    | Sign-in                | `/manage/sign-in`                   | Manager sign-in                                                                   | Continue with Google    | loading, error                                             | F3   |
+| A-02    | No access              | `/manage/no-access`                 | Explain refusal                                                                   | Sign out                | —                                                          | F3   |
+| M-10    | Dashboard              | `/manage`                           | Today at a glance                                                                 | Period picker           | empty day, loading, error                                  | F4   |
+| M-20    | Orders list            | `/manage/orders`                    | Triage orders by status                                                           | Open order              | tabs w/ counts, empty, loading                             | F5   |
+| M-21    | Order detail           | `/manage/orders/[id]`               | Progress and get paid                                                             | Next status             | unpaid blocks complete, cancelled, web order accept/reject | F5   |
+| M-22    | Record payment sheet   | sheet                               | Record cash/Revolut/Wero                                                          | Mark paid               | —                                                          | F5   |
+| M-23    | Cancel order dialog    | dialog                              | Confirm cancel, restore stock                                                     | Cancel order            | —                                                          | F5   |
+| M-30    | New order              | `/manage/orders/new`                | Fast manual entry                                                                 | Create order            | out of stock, validation                                   | F6   |
+| M-40    | Products list          | `/manage/products`                  | Find and manage products                                                          | Add product             | search, filters, hidden, low stock, empty                  | F7   |
+| M-41    | Product form           | `/manage/products/[id]`             | Create/edit product                                                               | Save product            | image upload, validation                                   | F7   |
+| M-42    | Categories             | `/manage/products/categories`       | Manage categories                                                                 | Add category            | empty, in-use delete                                       | F7   |
+| M-43    | Stock adjustment sheet | sheet                               | Adjust stock                                                                      | Save                    | below zero blocked                                         | F7   |
+| M-50    | Expenses list          | `/manage/expenses`                  | Track costs                                                                       | Add expense             | period total, tags, empty                                  | F8   |
+| M-51    | Expense sheet          | sheet                               | Add/edit/delete                                                                   | Save expense            | validation, delete confirm                                 | F8   |
+| M-60    | Settings hub           | `/manage/settings`                  | Reach every section                                                               | —                       | Soon items                                                 | F9   |
+| M-61…67 | Settings sections      | `/manage/settings/*`                | Account, business, ordering, payment, inventory & finance, notifications/team/app | Save                    | Soon items                                                 | F9   |
+| M-68    | About                  | `/manage/settings/about`            | Version, legal, support                                                           | —                       | —                                                          | F9   |
+| M-70    | Customers list         | `/manage/customers`                 | Repeat guests                                                                     | Open customer           | search, empty                                              | F10  |
+| M-71    | Customer detail        | `/manage/customers/[id]`            | History and contact                                                               | Call / message          | —                                                          | F10  |
+| C-01    | Storefront home        | `/[locale]`                         | Browse catalog                                                                    | Add to cart             | categories, out of stock, shop closed                      | F11  |
+| C-02    | Product detail         | `/[locale]/p/[slug]`                | Decide and add                                                                    | Add to cart             | quantity, unavailable                                      | F11  |
+| C-03    | Shop info              | `/[locale]/info`                    | Hours, contact, area                                                              | Call / directions       | no hours set                                               | F11  |
+| C-10    | Cart                   | `/[locale]/cart`                    | Review order                                                                      | Checkout                | empty, stock changed                                       | F12  |
+| C-11    | Checkout               | `/[locale]/checkout`                | Guest details, pickup/delivery, time, payment preference                          | Place order             | validation, ASAP vs scheduled, submitting                  | F12  |
+| C-12    | Confirmation           | `/[locale]/order/[token]/confirmed` | Payment instructions                                                              | Copy revtag / open Wero | Revolut, Wero, pay on handover                             | F12  |
+| C-20    | Order tracking         | `/[locale]/order/[token]`           | Follow status                                                                     | Contact shop            | each status, cancelled                                     | F13  |
+| C-21    | Order lookup           | `/[locale]/track`                   | Find an order without the link                                                    | Find my order           | not found, invalid, rate limited                           | F13  |
+| M-80    | Analytics              | `/manage/analytics`                 | Trends and top products                                                           | Export CSV              | range, empty, loading                                      | F14  |
+| X-01    | Not found              | both groups                         | Recover                                                                           | Go home                 | —                                                          | F15  |
+| X-02    | Error                  | both groups                         | Recover                                                                           | Retry                   | —                                                          | F15  |
+| X-03    | Offline                | both groups                         | Explain, show cached data                                                         | Retry                   | —                                                          | F15  |
+| X-04    | Legal                  | `/[locale]/legal/*`                 | Terms, privacy                                                                    | —                       | —                                                          | F15  |
+| X-05    | Install prompt         | manager                             | Install PWA                                                                       | Install                 | dismissed                                                  | F15  |
+
+## Active Stitch screens
+
+Only **Light mode** mobile Stitch screens are tracked and used as visual reference models. **Generating dark theme models is strictly banned**; our design tokens in `src/app/globals.css` provide the Dark theme mapping automatically. Any other Stitch card is superseded: list it here until the owner deletes it in Stitch. Rules: [`DESIGN_SYSTEM.md` §11](DESIGN_SYSTEM.md#working-with-stitch-agents).
+
+| Screen                               | Light (active)                     | Superseded (to delete)                                                                                                                         |
+| ------------------------------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| P-01 Patterns reference              | `4b89d3e37632415da28bd4ed0fab6456` | —                                                                                                                                              |
+| S-00 Storefront shell                | `6f0181f5390c480d8dc3aa2528775e54` | `de0d771b3f3640ff97cc38867946f96a`, `8f9801bd78f346f5a839a5ed829ecd77`                                                                         |
+| A-01 Manager sign-in                 | `2ecaa23a39124534acdd75f8e94d8dba` | —                                                                                                                                              |
+| M-10 Dashboard                       | `78b27e2e5b6f41faa8620dfe49daf4d8` | `5a0d37c82c6a419eb3968364824075a5`                                                                                                             |
+| M-20 Orders list                     | `85cd53be973444dcbdff77c6124da920` | —                                                                                                                                              |
+| M-21 Order detail                    | `dd6b7a8e57994a808b4bb091dc366d0e` | —                                                                                                                                              |
+| M-30 New order                       | `a9730928a6cd4a448907b4cd55d3f03d` | —                                                                                                                                              |
+| M-40 Products list                   | `ea7e66081ff7482590a17e14fd1f46c3` | `b45ce7634bf84c92949a79411887e2bc`, `d85df903d3114fc6b1705a6cd8de2244`                                                                         |
+| M-41 Product form                    | `096f7f6b9222407caa87e483cc1de8bf` | —                                                                                                                                              |
+| M-42 Categories                      | `b151c3cdb7934d38ae7c5c19ffb1c4d1` | —                                                                                                                                              |
+| M-43 Stock adjustment                | `c74519cfa4064318b2726a958fe5bedf` | —                                                                                                                                              |
+| M-50 Expenses list                   | `251415a589154a9e92e0e250f6eb8976` | —                                                                                                                                              |
+| M-51 Expense sheet                   | `b94ec8d1081247d7b7453a34110ec32f` | `05c7e6556e2e4ea78318327a175bf6e6`                                                                                                             |
+| M-60 Settings hub                    | `6e8ffc50ac7c4811b656ef660a024e9f` | —                                                                                                                                              |
+| M-61 Account section                 | `bfc76ad7c1614f5b9238da67a6310910` | —                                                                                                                                              |
+| M-62 Business profile                | `ea7f25f130ac435c97189a109f4fa833` | —                                                                                                                                              |
+| M-63 Ordering settings               | `46c2f6a34b44457595003154aee0bcdc` | `c7ab561b16284f1c97bea56179bac590`                                                                                                             |
+| M-64 Payment settings                | `466a1d7f374942e9895e789831633b69` | —                                                                                                                                              |
+| M-65 Inventory & finance             | `6988aebd933e47bda20be9ec53adc21d` | —                                                                                                                                              |
+| M-67 Notifications & app             | `8ee29f8193974f6089b549ea3e13114e` | —                                                                                                                                              |
+| M-70 Customers list                  | `e7ecfb1ddb65480099a05b44683ce239` | —                                                                                                                                              |
+| M-71 Customer detail                 | `f71153b9f4e441adafc8610a8fcd7867` | `01e712f983ba43658ec5d408f89ddb0e` (bottom nav removed)                                                                                        |
+| C-01 Storefront home                 | `50716ccd66824d9dad0e1b9af4463b9d` | `f7ad34729a9749f8bdcd5f284d6693f2`, `caaeda031d3e4b5189e97da9106f760a`, `88a3d8834b634b5a8f5a03c9510afb1a`, `a985c052286b4238a38168800da36704` |
+| C-01e Ordering details card          | `16e36e59afc84679ae082a449663a9c3` | —                                                                                                                                              |
+| C-21 Order lookup                    | `499f281f068e4dbb92348fa2fd124a31` | —                                                                                                                                              |
+| C-01f Menu drawer                    | `bd92bd8c26c247c2832d5d3b0cddba82` | —                                                                                                                                              |
+| C-01b Home scrolled                  | `804d3dca797e4c118b57f1eaa8add586` | —                                                                                                                                              |
+| C-01c Menu sheet                     | `50648308382f414aba7e112f8577b3be` | —                                                                                                                                              |
+| C-01d Menu search                    | `06f565fadb934e929f259471ff6ca128` | —                                                                                                                                              |
+| C-02 Product detail                  | `9d3cb99b53ac4d67a65baf4d87f3c968` | `9204ca8308d64d1fb0cdffdceb556ca3`                                                                                                             |
+| C-02b Product detail – drink add-ons | `40865c54700f4a7e8883bbae427cd0b1` | —                                                                                                                                              |
+| C-03 Shop info                       | `b4a31879979f4acbb3a4ca25b2362d18` | `938e3829952c47c0bba19080058b1a4e`                                                                                                             |
+| C-10 Cart                            | `2b3b671392964f58848147148e39bba6` | —                                                                                                                                              |
+| C-11 Checkout                        | `0b94e37605fb40f0b982d2c610f72ff0` | `ad3a1b405b404ca78366ed1c8297cc95`                                                                                                             |
+| C-12 Confirmation                    | `e23f423142a5463c9055b697bec49db2` | —                                                                                                                                              |
+| C-20 Order tracking                  | `2b5aa769f2f54703bc7f21206a36867e` | —                                                                                                                                              |
+
+Social share cards (1200×630, no canvas yet): shop `opengraph-image` and product `p/[id]/opengraph-image`. TODO(og): Stitch canvas for OG cards.
+
+Not on the Stitch canvas (reachable by ID via `get_screen` only): C-01b light, M-70 light. C-02b light uses a desktop frame around mobile-width content.
+
+## Customer behaviour (#66)
+
+`/manage/customers` searches canonical names and phone numbers, lists all-order counts and the latest order creation date, and sums paid, non-cancelled, non-refunded orders for total spent (matching cash-basis KPI rules). Lists and histories initially render 20 entries with a "Show more" action. Detail resolves orders by `guestId`, displays differing `submittedName` values as "Ordered as …", and supports canonical-name edits, private notes (2,000 characters), call and WhatsApp links. Names are validated with the shared guest schema; all reads and edits are scoped to the authenticated business. Renaming never rewrites historical order audit fields. Uses the existing repository adapter; Supabase persistence remains part of the repository integration work.
+
+The light canvas references were inspected with `get_screen`; dark styling derives from shared tokens. Browser screenshots and WCAG AA checks cover both routes in EN/FR, light/dark, at 360 px.
+
+The M-70 visual contract is a compact app bar with a live customer count, search and result/sort metadata, and one divided directory surface: identity and order/date metadata on the left, spend and chevron on the right. M-71 uses an initials avatar identity card, separate three-column KPI tiles, an internal profile form with a full-width save action, and history cards with status/payment badges, fulfillment, quantities, audit-name annotations and view affordances. Loading skeletons mirror these compositions. Browser checks cover the compact row geometry at 360 and 390 px as well as functional and accessibility regressions.
+
+Keep the model's visual hierarchy, spacing and surfaces, but omit model-only screen IDs, the unsupported "Regular" classification, POS/invoice claims and the empty-state preview control. Customer totals and history counts are live; notes and spend helper copy describe only implemented behavior. Input outlines retain the design system's accessible control token rather than the model's low-contrast decorative borders.
+
+Customer detail uses the top back link without the manager bottom navigation, consistent with order detail. Any bottom navigation added by a generated detail reference is noise, not a requirement.
+
+## Customer post-checkout behaviour (#88, #89)
+
+Checkout opens the reloadable C-12 confirmation route, not tracking directly. Confirmation
+shows the saved reference, item snapshots and total, plus the selected Revolut revtag or
+Wero identifier, amount and payment reference, or payment-at-handover instructions.
+Copying a recipient reports success or an explicit clipboard error. Missing payment
+configuration asks the customer to contact the shop; paid, refunded and cancelled orders
+are not asked to pay again. Payment preference never implies payment receipt.
+The tracking link preserves the token and locale; customers choose when to follow it.
+
+C-12 follows the registered light mobile model; dark styling derives from shared tokens.
+C-20 retains its status timeline, payment badge, item summary, public shop contact details,
+and cancellation reason. Refresh loads the latest state; live polling is not implemented.
+Unsupported tax estimates and invented preparation times are not displayed.
+
+Both token pages are `noindex, nofollow` and use `no-referrer`. Public token and
+ticket/phone repository lookups return the allowlisted `PublicOrder` schema, excluding
+guest identities, submitted names, customer phone/address, notes, internal history notes
+and item identifiers. New mock orders use random 32-character UUID-derived tokens;
+predictable `tk-*` tokens exist only in demo fixtures. Supabase repositories and the future
+`lookup_order_by_ticket_and_phone` RPC remain part of E18 and must enforce the same
+projection at the database boundary, never projecting `guests.name` or `submitted_name`.
+
+Verification: C-12 and C-20 browser screenshots were inspected in EN/light and FR/dark;
+axe WCAG AA checks and screenshots cover EN/FR in both themes at 390 px. Browser
+journeys verify Revolut, Wero and handover instructions, confirmation persistence on
+reload, token-preserving navigation, manager acceptance reflected on tracking refresh,
+and absence of guest details in returned confirmation/tracking HTML and RSC payloads.
+
+## Gaps
+
+- **Living style guide route**: Implemented at `/patterns` (dev-only) with reusable components inventory and documentation in [`COMPONENTS.md`](COMPONENTS.md).
+- **Theme switch** (system/light/dark): Implemented via `ThemeProvider`, `ThemeScript`, and `@theme` tokens in `src/app/globals.css`. Control integrated on `/patterns` toolbar.

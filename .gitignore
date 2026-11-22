@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+/test-results-supabase/
+/playwright-report-supabase/
 
 # next.js
 /.next/
@@ -40,3 +44,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# knowledge graph
+/graphify-out
+
+# supabase cli temp
+/supabase/.temp
+/supabase/.branches
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# claude code (personal overrides & local session state)
+.claude/settings.local.json
+.claude/state/
+.claude/worktrees/
+
+

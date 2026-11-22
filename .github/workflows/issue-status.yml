@@ -1,0 +1,91 @@
+name: Issue status
+
+# Issues closed by a merged PR ("Closes #N") get `status: completed`.
+# If all child stories of a parent epic are done, the epic is marked `status: completed` and closed.
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  issues: write
+  pull-requests: read
+  contents: read
+
+# Note: an atomic `gh stack merge` closes every PR of the stack within seconds, and this workflow
+# fires for each of them (verified on the #260-#268 stack). Do NOT add a shared `concurrency` group:
+# GitHub keeps only one pending run per group and would drop the others.
+
+jobs:
+  mark-completed:
+    name: Mark closed issues completed
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Update status labels and sync parent epics
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          retry_cmd() {
+            local max=5
+            local attempt=1
+            while true; do
+              if "$@"; then
+                return 0
+              fi
+              local exit_code=$?
+              if [ "$attempt" -ge "$max" ]; then
+                echo "Command failed (exit $exit_code) after $max attempts: $*" >&2
+                return "$exit_code"
+              fi
+              local sleep_sec=$((attempt * 2))
+              echo "Command failed (exit $exit_code). Retrying in ${sleep_sec}s ($attempt/$max)..." >&2
+              sleep "$sleep_sec"
+              attempt=$((attempt + 1))
+            done
+          }
+
+          echo "Fetching closing issues for PR #$PR..."
+          if ! closing_issues="$(retry_cmd gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences --jq '.closingIssuesReferences[].number')"; then
+            echo "Error: Failed to fetch closing issues for PR #$PR after retries." >&2
+            exit 1
+          fi
+
+          if [ -z "$closing_issues" ]; then
+            echo "No closing issues found for PR #$PR."
+            exit 0
+          fi
+
+          has_errors=0
+          while read -r issue; do
+            [ -z "$issue" ] && continue
+            echo "Marking issue #$issue completed..."
+
+            if ! retry_cmd gh issue edit "$issue" --repo "$REPO" \
+                --remove-label "status: planned" --remove-label "status: in-progress" \
+                --remove-label "status: in-review" --remove-label "status: blocked" \
+                --add-label "status: completed"; then
+              echo "Error: Failed to update labels for issue #$issue after retries." >&2
+              has_errors=1
+              continue
+            fi
+
+            echo "Checking parent epic for issue #$issue..."
+            if ! retry_cmd python3 -B .agents/skills/issue-logger/scripts/gh_parent_issue.py "$issue" --close-completed; then
+              echo "Warning: Parent-issue sync script failed for #$issue after retries." >&2
+            fi
+          done <<< "$closing_issues"
+
+          if [ "$has_errors" -ne 0 ]; then
+            echo "One or more issues failed to update." >&2
+            exit 1
+          fi

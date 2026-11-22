@@ -1,0 +1,13 @@
+branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+
+case "$branch" in
+  develop|staging|main)
+    echo "❌ Direct commits to '$branch' are not allowed."
+    echo "👉 Please branch off develop (e.g. feature/, bug/, utils/)."
+    echo "   See docs/CONTRIBUTING.md#branches"
+    exit 1
+    ;;
+esac
+
+node scripts/secret-scan.mjs
+npx lint-staged

@@ -1,0 +1,55 @@
+{
+  "name": "foodbiz-pwa",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "runArgs": [
+    "--shm-size=1gb",
+    "--env-file=${localEnv:HOME}/.devcontainer-data/${localWorkspaceFolderBasename}/env"
+  ],
+  "remoteUser": "node",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [3000, 54321, 54322, 54323],
+  "portsAttributes": {
+    "3000": { "label": "Next.js", "onAutoForward": "notify" },
+    "54321": { "label": "Supabase API", "onAutoForward": "silent" },
+    "54322": { "label": "Supabase Postgres", "onAutoForward": "silent" },
+    "54323": { "label": "Supabase Studio", "onAutoForward": "notify" },
+    "4173": { "label": "Vite preview (unused)", "onAutoForward": "ignore" },
+    "5173": { "label": "Vite dev (unused)", "onAutoForward": "ignore" }
+  },
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
+  "containerEnv": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+  "initializeCommand": "sh \"${localWorkspaceFolder}/.devcontainer/init-host.sh\" \"${localEnv:HOME}\" \"${localWorkspaceFolderBasename}\"",
+  "mounts": [
+    "source=foodbiz-pwa-gemini-data,target=/home/node/.gemini,type=volume",
+    "source=foodbiz-pwa-claude-data,target=/home/node/.claude,type=volume",
+    "source=foodbiz-pwa-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=foodbiz-pwa-worktrees,target=${containerWorkspaceFolder}/.claude/worktrees,type=volume",
+    "source=foodbiz-pwa-next,target=${containerWorkspaceFolder}/.next,type=volume"
+  ],
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "vitest.explorer",
+        "supabase.vscode-supabase-extension",
+        "github.vscode-pull-request-github",
+        "github.vscode-github-actions",
+        "eamodio.gitlens",
+        "redhat.vscode-yaml",
+        "google.google-antigravity",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}

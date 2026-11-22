@@ -1,0 +1,94 @@
+name: Migrate staging database
+
+# Applies supabase/migrations/ to the hosted staging Supabase project, runs pgTAP tests, and checks
+# for invalid indexes. Manual only, restricted to the `staging` branch. Uses repository secrets
+# (not GitHub Environments, which require paid plans on private repositories).
+# Runbook: docs/DEPLOYMENT.md#applying-migrations-to-a-hosted-project-active
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migrate-staging
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate staging database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Refuse non-staging branch
+        if: ${{ github.ref != 'refs/heads/staging' }}
+        run: |
+          echo "::error::This workflow only runs on refs/heads/staging (got: $GITHUB_REF)."
+          exit 1
+
+      - name: Verify required secrets
+        env:
+          PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
+          ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          missing=0
+          for name in PROJECT_REF ACCESS_TOKEN DB_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret STAGING_SUPABASE_${name}."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
+        with:
+          # The --remote flags below were checked against 3.1.0 (the devcontainer CLI).
+          version: 3.1.0
+
+      - name: Link staging Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Dry-run migration push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: supabase db push --remote --dry-run
+
+      - name: Push migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: supabase db push --remote --yes
+
+      - name: Run pgTAP database tests
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: supabase test db --remote --yes
+
+      - name: Check for invalid indexes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          result="$(supabase db query --remote --read-only --output-format json --agent no \
+            'select indexrelid::regclass from pg_index where not indisvalid;')"
+          if [ -z "$result" ]; then
+            echo "::error::Invalid-index query returned empty output."
+            exit 1
+          fi
+          count="$(printf '%s\n' "$result" | jq 'if type == "array" then length elif (.rows | type) == "array" then (.rows | length) else error("unexpected response shape") end')"
+          if [ "$count" -ne 0 ]; then
+            echo "::error::Found $count invalid index(es) on staging:"
+            printf '%s\n' "$result"
+            exit 1
+          fi
+          echo "No invalid indexes found."

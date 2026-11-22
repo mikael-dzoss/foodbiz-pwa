@@ -1,0 +1,552 @@
+"use client";
+
+import { useActionState, useState, type ChangeEvent } from "react";
+import { allergenSchema, type Allergen } from "@/domain/allergen";
+import { type ProductsDictionary } from "@/domain/i18n";
+import Image from "next/image";
+import { Camera, Check, Loader2, Trash2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  calculateGrossMargin,
+  centsToEuroString,
+  parseEuroStringToCents,
+  productFormInputSchema,
+  type ProductCategory,
+  type Product,
+  formatPercent,
+} from "@/domain";
+import {
+  createProductAction,
+  updateProductAction,
+  uploadProductImageAction,
+} from "../product-actions";
+import type { EnrichedProduct } from "../product-data";
+import { compressImageFile } from "../utils/image-compression";
+import { actionErrorMessage } from "@/lib/actions/error-message";
+import { useManagerLocale } from "@/components/i18n";
+import { interpolate } from "@/domain/i18n";
+
+export interface ProductFormSheetProps {
+  product?: EnrichedProduct | null;
+  categories: ProductCategory[];
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onProductSaved?: (product: Product) => void;
+  lowStockThreshold?: number;
+  dict?: ProductsDictionary;
+}
+
+export function ProductFormSheet({
+  product,
+  categories,
+  isOpen,
+  onOpenChange,
+  onProductSaved,
+  lowStockThreshold = 5,
+  dict: dictOverride,
+}: ProductFormSheetProps) {
+  const isEditing = Boolean(product);
+  const { locale, dict: managerDict } = useManagerLocale();
+  const dict = dictOverride ?? managerDict.products;
+  const t = managerDict.productsAdmin.form;
+
+  const [prevProduct, setPrevProduct] = useState<EnrichedProduct | null>(product ?? null);
+  const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
+
+  const [name, setName] = useState(product?.name ?? "");
+  const [categoryId, setCategoryId] = useState(product?.categoryId ?? categories[0]?.id ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
+  const [priceStr, setPriceStr] = useState(product ? centsToEuroString(product.price) : "");
+  const [unitCostStr, setUnitCostStr] = useState(
+    product?.unitCost ? centsToEuroString(product.unitCost) : "",
+  );
+  const [stock, setStock] = useState(product?.stock ?? 0);
+  const [suggestAddOns, setSuggestAddOns] = useState(product?.suggestAddOns ?? true);
+  const [allergens, setAllergens] = useState<Allergen[]>(product?.allergens ?? []);
+  const [visible, setVisible] = useState(product?.visible ?? true);
+  const [imageUrl, setImageUrl] = useState<string | null>(product?.imageUrl ?? null);
+
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const normalizedProduct = product ?? null;
+
+  // Sync state with product prop and isOpen changes during render
+  if (normalizedProduct !== prevProduct || isOpen !== prevIsOpen) {
+    setPrevProduct(normalizedProduct);
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      if (normalizedProduct) {
+        setName(normalizedProduct.name);
+        setCategoryId(normalizedProduct.categoryId);
+        setDescription(normalizedProduct.description ?? "");
+        setPriceStr(centsToEuroString(normalizedProduct.price));
+        setUnitCostStr(
+          normalizedProduct.unitCost ? centsToEuroString(normalizedProduct.unitCost) : "",
+        );
+        setStock(normalizedProduct.stock);
+        setVisible(normalizedProduct.visible);
+        setAllergens(normalizedProduct.allergens);
+        setSuggestAddOns(normalizedProduct.suggestAddOns);
+        setImageUrl(normalizedProduct.imageUrl ?? null);
+      } else {
+        setName("");
+        setCategoryId(categories[0]?.id ?? "");
+        setDescription("");
+        setPriceStr("");
+        setUnitCostStr("");
+        setStock(0);
+        setVisible(true);
+        setAllergens([]);
+        setSuggestAddOns(true);
+        setImageUrl(null);
+      }
+      setFieldErrors({});
+      setGeneralError(null);
+    }
+  }
+
+  // Server and schema messages are English: show a localized message per field instead.
+  const fieldMessage = (field: string): string =>
+    (t.errors as Record<string, string>)[field] ?? t.errors.invalid;
+
+  // Live gross margin preview
+  const priceInCents = parseEuroStringToCents(priceStr) || 0;
+  const costInCents = parseEuroStringToCents(unitCostStr) || 0;
+  const grossMargin = calculateGrossMargin(priceInCents, costInCents);
+
+  const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingImage(true);
+      setGeneralError(null);
+
+      // Client-side resize and compression per Story #45
+      const compressed = await compressImageFile(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.8,
+      });
+
+      // Upload or store in mock adapter
+      const res = await uploadProductImageAction({
+        base64Data: compressed.dataUrl,
+        fileName: file.name,
+      });
+
+      if (res.ok) {
+        setImageUrl(res.data.imageUrl);
+      } else {
+        setGeneralError(actionErrorMessage(res, locale));
+      }
+    } catch {
+      setGeneralError(t.compressError);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageUrl(null);
+  };
+
+  const [, formAction, isPending] = useActionState(async (): Promise<null> => {
+    // Client-side schema validation with inline translated errors
+    const payload = {
+      name,
+      categoryId,
+      description: description || null,
+      price: priceStr,
+      unitCost: unitCostStr || 0,
+      stock,
+      visible,
+      allergens,
+      suggestAddOns,
+      imageUrl,
+    };
+    const clientValidation = productFormInputSchema.safeParse(payload);
+
+    if (!clientValidation.success) {
+      const errors: Record<string, string[]> = {};
+      for (const issue of clientValidation.error.issues) {
+        const field = issue.path[0] ? String(issue.path[0]) : "general";
+        if (!errors[field]) errors[field] = [];
+        errors[field].push(fieldMessage(field));
+      }
+      setFieldErrors(errors);
+      return null;
+    }
+
+    setFieldErrors({});
+    setGeneralError(null);
+
+    const res =
+      isEditing && product
+        ? await updateProductAction({ id: product.id, ...payload })
+        : await createProductAction(payload);
+
+    if (res.ok) {
+      onProductSaved?.(res.data);
+      onOpenChange(false);
+    } else {
+      setGeneralError(actionErrorMessage(res, locale));
+      if (res.fieldErrors) {
+        setFieldErrors(
+          Object.fromEntries(
+            Object.keys(res.fieldErrors).map((field) => [field, [fieldMessage(field)]]),
+          ),
+        );
+      }
+    }
+    return null;
+  }, null);
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="mx-auto max-h-[92vh] max-w-lg overflow-y-auto p-0"
+        data-testid="product-form-sheet"
+      >
+        <SheetHeader className="border-border border-b px-5 pt-4 pr-12 pb-3 text-left">
+          <SheetTitle className="text-foreground">
+            {isEditing ? t.titleEdit : t.titleNew}
+          </SheetTitle>
+          <p className="text-muted-foreground text-xs font-medium">{t.subtitle}</p>
+        </SheetHeader>
+
+        <form action={formAction} className="space-y-5 px-5 py-4">
+          {/* Section 1: Product Photo Upload */}
+          <div className="space-y-2">
+            <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+              {t.photo}
+            </span>
+
+            <div className="border-border bg-card flex items-center gap-4 rounded-lg border p-3.5">
+              <div className="border-border bg-muted/40 relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={name || t.photoAlt}
+                    fill
+                    sizes="80px"
+                    unoptimized={imageUrl.startsWith("data:")}
+                    className="object-cover"
+                  />
+                ) : (
+                  <Camera className="text-muted-foreground h-8 w-8 stroke-[1.5]" />
+                )}
+                {isUploadingImage && (
+                  <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="text-primary h-5 w-5 animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-1.5">
+                <p className="text-foreground text-xs font-semibold">{t.uploadTitle}</p>
+                <p className="text-muted-foreground text-caption">{t.uploadHint}</p>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/80 inline-flex h-8 cursor-pointer items-center rounded-md px-3 text-xs font-medium transition-colors">
+                    <span>{imageUrl ? t.changePhoto : t.selectPhoto}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                      className="sr-only"
+                      disabled={isUploadingImage || isPending}
+                      data-testid="product-image-input"
+                    />
+                  </label>
+
+                  {imageUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveImage}
+                      className="text-destructive hover:bg-destructive/10 h-8 px-2 text-xs"
+                      aria-label={t.removeImage}
+                    >
+                      <Trash2 className="mr-1 h-3.5 w-3.5" /> {t.remove}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: General Information */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                {t.general}
+              </span>
+              <span className="text-muted-foreground text-caption">{t.required}</span>
+            </div>
+
+            {/* Product Name */}
+            <Field id="product-name" label={t.nameLabel} required error={fieldErrors.name?.[0]}>
+              <Input
+                name="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t.namePlaceholder}
+                className="h-11 text-sm font-medium"
+                data-testid="product-name-input"
+                required
+              />
+            </Field>
+
+            {/* Category */}
+            <Field
+              id="product-category"
+              label={t.categoryLabel}
+              required
+              error={fieldErrors.categoryId?.[0]}
+            >
+              <NativeSelect
+                name="categoryId"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="h-11 text-sm font-medium"
+                data-testid="product-category-select"
+                required
+              >
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+
+            {/* Description */}
+            <Field id="product-description" label={t.descriptionLabel}>
+              <Textarea
+                name="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t.descriptionPlaceholder}
+                rows={3}
+                className="text-sm font-normal"
+                data-testid="product-description-input"
+              />
+            </Field>
+          </div>
+
+          <fieldset className="border-border bg-card rounded-lg border p-3.5">
+            <legend className="text-foreground px-1 text-sm font-semibold">
+              {dict.allergensLabel}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {allergenSchema.options.map((allergen) => (
+                <Button
+                  variant="unstyled"
+                  size="none"
+                  key={allergen}
+                  type="button"
+                  aria-pressed={allergens.includes(allergen)}
+                  disabled={isPending}
+                  onClick={() =>
+                    setAllergens((selected) =>
+                      selected.includes(allergen)
+                        ? selected.filter((value) => value !== allergen)
+                        : [...selected, allergen],
+                    )
+                  }
+                  className="border-input text-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground focus-visible:ring-ring min-h-11 min-w-11 rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none active:opacity-80"
+                  data-testid={`product-allergen-${allergen}`}
+                >
+                  {dict.allergenLabels[allergen]}
+                </Button>
+              ))}
+            </div>
+            {fieldErrors.allergens && (
+              <p role="alert" className="text-destructive mt-1 text-xs">
+                {fieldErrors.allergens[0]}
+              </p>
+            )}
+          </fieldset>
+
+          {/* Section 3: Pricing & Economics */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                {t.pricing}
+              </span>
+              {priceInCents > 0 && (
+                <span className="bg-primary-soft text-primary-soft-foreground inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold">
+                  {interpolate(t.margin, { percent: formatPercent(grossMargin, locale) })}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                id="product-price"
+                label={t.priceLabel}
+                required
+                error={fieldErrors.price?.[0]}
+              >
+                <Input
+                  name="price"
+                  value={priceStr}
+                  onChange={(e) => setPriceStr(e.target.value)}
+                  placeholder="12.50"
+                  className="h-11 text-sm font-semibold tabular-nums"
+                  data-testid="product-price-input"
+                  required
+                />
+              </Field>
+
+              <Field
+                id="product-unit-cost"
+                label={t.unitCostLabel}
+                error={fieldErrors.unitCost?.[0]}
+              >
+                <Input
+                  name="unitCost"
+                  value={unitCostStr}
+                  onChange={(e) => setUnitCostStr(e.target.value)}
+                  placeholder="4.20"
+                  className="h-11 text-sm font-semibold tabular-nums"
+                  data-testid="product-unit-cost-input"
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* Section 4: Inventory & Stock */}
+          <div className="border-border bg-card space-y-2 rounded-lg border p-3.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <label htmlFor="product-stock" className="text-foreground text-xs font-semibold">
+                  {isEditing ? t.stockCurrent : t.stockInitial}
+                </label>
+                <p className="text-muted-foreground text-caption">
+                  {interpolate(t.alertThreshold, { count: lowStockThreshold })}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setStock((prev) => Math.max(0, prev - 1))}
+                  className="text-foreground h-9 w-9"
+                  aria-label={t.decreaseStock}
+                >
+                  -
+                </Button>
+                <Input
+                  id="product-stock"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={stock}
+                  onChange={(e) => setStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="h-9 w-16 text-center text-sm font-bold tabular-nums"
+                  data-testid="product-stock-input"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setStock((prev) => prev + 1)}
+                  className="text-foreground h-9 w-9"
+                  aria-label={t.increaseStock}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Visibility Toggle */}
+          <div className="border-border bg-card flex items-center justify-between rounded-lg border p-3.5">
+            <div>
+              <span className="text-foreground text-xs font-semibold">{t.visibleLabel}</span>
+              <p className="text-muted-foreground text-caption">{t.visibleHelper}</p>
+            </div>
+            <Switch
+              checked={visible}
+              onCheckedChange={setVisible}
+              aria-label={t.visibleLabel}
+              data-testid="product-visibility-switch"
+            />
+          </div>
+
+          <div className="border-border bg-card flex items-center justify-between gap-3 rounded-lg border p-3.5">
+            <label
+              htmlFor="product-suggest-add-ons"
+              className="flex min-h-11 min-w-11 flex-1 cursor-pointer flex-col justify-center"
+            >
+              <span className="text-foreground text-sm font-semibold">
+                {dict.suggestAddOnsLabel}
+              </span>
+              <span id="product-suggest-add-ons-helper" className="text-muted-foreground text-xs">
+                {dict.suggestAddOnsHelper}
+              </span>
+            </label>
+            <Switch
+              id="product-suggest-add-ons"
+              checked={suggestAddOns}
+              onCheckedChange={setSuggestAddOns}
+              disabled={isPending}
+              aria-label={dict.suggestAddOnsLabel}
+              aria-describedby="product-suggest-add-ons-helper"
+              className="relative before:absolute before:inset-x-0 before:-inset-y-2.5 active:opacity-80"
+              data-testid="product-suggest-add-ons-switch"
+            />
+          </div>
+
+          {/* General Error */}
+          {generalError && (
+            <p className="text-destructive text-xs font-medium" role="alert">
+              {generalError}
+            </p>
+          )}
+
+          {/* Action Footer */}
+          {/* TODO(design): scale down action buttons from h-12 to min-h-11 to align with Stitch mobile tokens */}
+          <div className="border-border bg-card pb-safe-4 -mx-5 -mb-4 flex items-center gap-3 border-t px-5 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+              className="h-12 flex-1 font-semibold"
+            >
+              {t.cancel}
+            </Button>
+            <Button
+              type="submit"
+              disabled={isPending || isUploadingImage}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 flex-2 font-semibold"
+              data-testid="save-product-button"
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-5 w-5" />
+              )}
+              {isEditing ? t.saveChanges : t.save}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}

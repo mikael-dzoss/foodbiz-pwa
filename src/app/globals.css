@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f9f9ff;
+  --foreground: #171c22;
+  --card: #ffffff;
+  --card-foreground: #171c22;
+  --muted: #e4e7ef;
+  --muted-foreground: #38404d;
+  --border: #dde0e8;
+  --input: #737a86;
+  --ring: #006c49;
+  --primary: #006c49;
+  --primary-foreground: #ffffff;
+  --primary-soft: #d3efe1;
+  --primary-soft-foreground: #00402a;
+  --secondary: #855300;
+  --secondary-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #1c1100;
+  --warning-soft: #fbe7cc;
+  --warning-soft-foreground: #5e3a00;
+  --info: #005ac2;
+  --info-foreground: #ffffff;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+}
+
+.dark {
+  --background: #0f1417;
+  --foreground: #e5e9ee;
+  --card: #171d20;
+  --card-foreground: #e5e9ee;
+  --muted: #232a2e;
+  --muted-foreground: #a4adb8;
+  --border: #2c3439;
+  --input: #7c8692;
+  --ring: #5cd6a3;
+  --primary: #5cd6a3;
+  --primary-foreground: #00391f;
+  --primary-soft: #0f3d2c;
+  --primary-soft-foreground: #b4f1d4;
+  --secondary: #ffb95c;
+  --secondary-foreground: #462a00;
+  --warning: #fbbf24;
+  --warning-foreground: #1c1100;
+  --warning-soft: #4a3510;
+  --warning-soft-foreground: #ffddb0;
+  --info: #a9c7ff;
+  --info-foreground: #002f68;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-foreground: var(--primary-soft-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-foreground: var(--warning-soft-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  --font-sans: var(--font-sans), sans-serif;
+}
+
+@theme {
+  /* WhatsApp dark green (white text 7.67:1; the brand #25d366 is ~2:1); same in both themes. */
+  --color-whatsapp: #075e54;
+
+  /* Type sizes below the label scale (badges, meta). Line height is inherited, like the former text-[11px]. */
+  --text-caption: 0.6875rem;
+  --text-micro: 0.625rem;
+
+  /* Narrow phones: 400 px and up (between the 360 px design floor and 430 px). */
+  --breakpoint-xs: 25rem;
+
+  --animate-pop-in: pop-in 180ms ease-out;
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-in;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      scale: 0.96;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Type scale (DESIGN_SYSTEM.md section 3): size, line height and weight together. */
+@utility text-display {
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@utility text-title-lg {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+@utility text-title-md {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+@utility text-title-sm {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+@utility text-body-md {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+}
+
+@utility text-body-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+}
+
+@utility text-label-md {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+@utility text-label-strong {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 600;
+}
+
+@utility text-label-sm {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+
+/* Safe areas: pb-safe, pb-safe-4 (spacing + inset), pb-safe-min-4 (larger of the two); pt-safe-min-N. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pb-safe-* {
+  padding-bottom: calc(var(--spacing) * --value(number) + env(safe-area-inset-bottom));
+}
+
+@utility pb-safe-min-* {
+  padding-bottom: max(calc(var(--spacing) * --value(number)), env(safe-area-inset-bottom));
+}
+
+@utility pt-safe-min-* {
+  padding-top: max(calc(var(--spacing) * --value(number)), env(safe-area-inset-top));
+}
+
+/* Sticky bars sit 16 px above the bottom, or 8 px above the home indicator. */
+@utility bottom-sticky-safe {
+  bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+}
+
+/* Fixed bars that sit directly above the manager bottom nav (h-16 plus the home-indicator inset). */
+@utility bottom-above-nav {
+  bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Dialog/card width that keeps the 16 px screen gutter on both sides. */
+@utility w-screen-gutter {
+  width: calc(100% - 2rem);
+}
+
+@utility bg-dot-grid {
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop-in {
+    animation: none;
+  }
+}

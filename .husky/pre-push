@@ -1,0 +1,27 @@
+has_refs=false
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  has_refs=true
+  case "$remote_ref" in
+    refs/heads/develop|refs/heads/staging|refs/heads/main)
+      target_branch="${remote_ref#refs/heads/}"
+      echo "❌ Direct push to '$target_branch' is not allowed."
+      echo "👉 Work on a feature/, bug/, or utils/ branch and open a PR against develop."
+      echo "   See docs/CONTRIBUTING.md#branches"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$has_refs" = false ]; then
+  current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+  case "$current_branch" in
+    develop|staging|main)
+      echo "❌ Direct push from '$current_branch' is not allowed."
+      echo "👉 Work on a feature/, bug/, or utils/ branch and open a PR against develop."
+      echo "   See docs/CONTRIBUTING.md#branches"
+      exit 1
+      ;;
+  esac
+fi
+

@@ -1,0 +1,50 @@
+name: Promote
+
+# Opens a promotion PR: develop → staging (pre-production) or staging → main (production).
+# Promotions are merged with a merge commit so the three branches keep a shared history.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Environment to promote to"
+        required: true
+        type: choice
+        options:
+          - staging
+          - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# PLANNED (when staging/production exist; see docs/DEPLOYMENT.md#planned-ci-for-promotion-prs):
+# PRs created with GITHUB_TOKEN do not trigger `pull_request` workflows, so a promotion PR gets no
+# CI of its own. Today that is harmless: the required check "Quality Gate - Summary" is evaluated on
+# the PR head SHA, and the head of a promotion PR is the tip of develop (or staging), which already
+# has that check from the `push` run of ci.yml. It breaks as soon as the PR head is not a branch tip
+# CI already ran on. Then pick one of: (a) after creating the PR, `gh workflow run ci.yml --ref
+# <source branch>` (workflow_dispatch is exempt from the GITHUB_TOKEN rule, needs `actions: write`),
+# or (b) create the PR with a fine-grained token or GitHub App token (secret PROMOTE_TOKEN) so
+# `pull_request` fires normally.
+
+jobs:
+  open-pr:
+    name: Open promotion PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          if [ "$TARGET" = "staging" ]; then SOURCE=develop; else SOURCE=staging; fi
+          EXISTING=$(gh pr list --repo "$REPO" --base "$TARGET" --head "$SOURCE" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            echo "Promotion PR #$EXISTING already open."
+            exit 0
+          fi
+          gh pr create --repo "$REPO" --base "$TARGET" --head "$SOURCE" \
+            --title "chore(release): promote $SOURCE to $TARGET" \
+            --body "Automated promotion \`$SOURCE\` → \`$TARGET\`. Review the qualification steps in docs/DEPLOYMENT.md#releasing before merging."
