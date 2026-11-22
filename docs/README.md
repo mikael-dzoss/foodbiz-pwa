@@ -10,6 +10,7 @@
 | [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md)         | Tokens, typography, layout, components, accessibility, Stitch mirror                                                            |
 | [`design/COMPONENTS.md`](design/COMPONENTS.md)               | Component reference                                                                                                             |
 | [`design/SCREENS.md`](design/SCREENS.md)                     | Screen inventory, flows, design to implementation loop, Stitch screen registry                                                  |
+| [`decisions/`](decisions/)                                   | Architecture decision records: [0001 hosting and backups](decisions/0001-hosting-and-backups.md)                                |
 | [`LEGACY_EXPO_REFERENCE.md`](LEGACY_EXPO_REFERENCE.md)       | Reference for porting behaviour from the legacy React Native app (still linked from `AGENTS.md`)                                |
 
 Code and agent rules: [`../AGENTS.md`](../AGENTS.md).
