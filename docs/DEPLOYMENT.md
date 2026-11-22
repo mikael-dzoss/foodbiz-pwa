@@ -107,7 +107,7 @@ One Supabase project (`foodbiz-staging`) serves both the `staging` branch and al
 
 - **Build-time requirement:** the same variables must be available at **build time** (enabled for Build & Runtime in Vercel). The storefront prerenders its catalog against Supabase during `next build`, and an unreachable database fails the build instead of shipping placeholder data.
 - **No service-role key on Vercel:** the runtime app throws if `createAdminClient()` is invoked outside `development` or `test`. Only the provisioning CLI (`npm run db:provision-member`) uses `SUPABASE_SERVICE_ROLE_KEY`, supplied out-of-band by the maintainer.
-- **Vercel Deployment Protection:** enabled by default for preview deployments on Hobby, which blocks anonymous visitors behind Vercel login. Decide in **Project Settings → Deployment Protection** whether to keep it on for the staging URL (or disable it / use shareable bypass links so anonymous storefront visits work without a Vercel account).
+- **Vercel Deployment Protection:** on by default for previews on Hobby, so the staging URL and every preview need a Vercel login. Keep it on: previews of unmerged branches share the staging database and nothing asks search engines to skip them yet (#96). Automated smoke checks get past it with a **Protection Bypass for Automation** secret sent as the `x-vercel-protection-bypass` header; testers without a Vercel account get a per-deployment shareable link.
 
 ## Planned: CI for promotion PRs
 
@@ -192,6 +192,7 @@ In the staging Supabase project, navigate to **Authentication > URL Configuratio
   Add these exact entries on the staging project:
   - `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app/auth/callback**`
   - `https://foodbiz-pwa-*-<team-slug>.vercel.app/auth/callback**`
+    - Caveat: Supabase's `*` stops at dots but matches hyphens, so a Vercel team whose slug ends in `-<team-slug>` could match it. PKCE limits the impact (the code is useless without the verifier cookie on our preview host); remove the line if previews don't need Google sign-in.
   - `http://localhost:3000/auth/callback**`
 
 ### Preview origin resolution
@@ -296,7 +297,7 @@ Migrations to staging run exclusively through [`.github/workflows/db-migrate-sta
 Run these steps in order to bring up the hosted staging environment:
 
 1. **Create the Supabase staging project** in the Supabase dashboard: EU region, Free organisation, project name `foodbiz-staging`. Save the database password in your password manager. Note the 20-character project ref (`https://supabase.com/dashboard/project/<staging-ref>`) and copy the Project URL and Publishable key from **Project Settings → API**.
-2. **Create a Supabase personal access token** at **Account → Access Tokens** (used by the migration workflow).
+2. **Create a Supabase personal access token** at **Account → Access Tokens** (used by the migration workflow). It needs database read and write access to the staging project.
 3. **Add three GitHub repository secrets** in **Settings → Secrets and variables → Actions → Repository secrets** (repository secrets, not GitHub Environments, so they work once the repo is private on the Free plan):
    - `STAGING_SUPABASE_PROJECT_REF` = `<staging-ref>`
    - `STAGING_SUPABASE_ACCESS_TOKEN` = `<access-token>`
@@ -316,9 +317,11 @@ Run these steps in order to bring up the hosted staging environment:
 9. **Import the repo in Vercel** (Hobby plan, **Production Branch:** `main`):
    - In **Settings → Environment Variables**, configure the Preview (all branches) and `staging` branch override variables from the [Staging and preview setup](#staging-and-preview-setup) table (leave Production empty; never add `SUPABASE_SERVICE_ROLE_KEY`; ensure Build & Runtime are both enabled).
    - In **Settings → General → Node.js Version**, verify **22.x** is selected if not auto-detected from `package.json`.
-   - In **Settings → Deployment Protection**, decide whether to keep protection enabled on previews/staging.
+   - In **Settings → Deployment Protection**, keep protection on and create a **Protection Bypass for Automation** secret. Put it in the devcontainer's env-file secrets as `VERCEL_AUTOMATION_BYPASS_SECRET` (never in git, `.env.local` or chat) so Claude can smoke-test staging. Rotate it there if it leaks.
+     Steps 10 and 11 wait for the demo seed (#113): the build prerenders the catalog of `STOREFRONT_BUSINESS_ID`, and provisioning needs the demo business to exist.
+
 10. **Trigger a `staging` deployment** in Vercel (Deployments → Redeploy `staging`, or push/promote to `staging`) and confirm the build succeeds and loads at `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app`.
-11. **Provision yourself as manager/owner**: once the demo business exists in staging (from #113), sign in once at `<staging-url>/manage/login` (this creates your Supabase Auth user and lands on `no_access`), then run locally with the staging service-role key supplied out-of-band:
+11. **Provision yourself as manager/owner**: sign in once at `<staging-url>/manage/login` (this creates your Supabase Auth user and lands on `no_access`), then run locally with the staging service-role key supplied out-of-band:
     ```bash
     SUPABASE_URL="https://<staging-ref>.supabase.co" \
     SUPABASE_SERVICE_ROLE_KEY="<staging-service-role-key>" \
