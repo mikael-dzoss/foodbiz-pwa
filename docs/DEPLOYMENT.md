@@ -1,6 +1,6 @@
 # Deployment and environments
 
-Read this first: **nothing is deployed.** There is no staging or production environment, no Vercel project and no hosted Supabase project. `develop` is exercised locally and in CI only. Sections are labelled **Active** (true today) or **Planned** (does not exist yet).
+Read this first: **nothing is live yet.** Staging and preview deployments are being set up ([#112](https://github.com/mikael-dzoss/foodbiz-pwa/issues/112)); production does not exist yet. `develop` is exercised locally and in CI only. Sections are labelled **Active** (true today) or **Planned** (does not exist yet).
 
 # Active today
 
@@ -10,19 +10,21 @@ Read this first: **nothing is deployed.** There is no staging or production envi
 | ----------- | ----------------------------------------------------------------------------------------------- |
 | Local       | Active: devcontainer, `npm run dev`, local Supabase (`npm run db:start`), mock or Supabase mode |
 | CI          | Active: GitHub Actions, see below                                                               |
-| Staging     | Planned: no Supabase or Vercel project                                                          |
-| Production  | Planned: same                                                                                   |
+| Staging     | Being set up (#112)                                                                             |
+| Preview     | Being set up: shares the staging Supabase project                                               |
+| Production  | Planned: no Supabase or hosting project ([ADR 0001](decisions/0001-hosting-and-backups.md))     |
 
 ## CI
 
 [`ci.yml`](../.github/workflows/ci.yml) runs on pull requests, on pushes to `develop`, `staging` and `main`, and manually. It has three tiers (`check` always, `integration` and `e2e` only when the change needs them) and one required check, `Quality Gate - Summary`. Which paths trigger which tier, and the cost, are in [`CONTRIBUTING.md`](CONTRIBUTING.md#ci-tiers-and-cost). The `integration` job starts a local Supabase stack seeded by `supabase/seed.sql`, so CI needs no secrets.
 
-| Workflow                                                    | Trigger                                | What it does                                                                                                  |
-| ----------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [`ci.yml`](../.github/workflows/ci.yml)                     | PR, push to protected branches, manual | The tiered gate above                                                                                         |
-| [`promote.yml`](../.github/workflows/promote.yml)           | Manual                                 | Opens a `develop` to `staging` or `staging` to `main` PR. Works, but nothing consumes `staging` or `main` yet |
-| [`issue-status.yml`](../.github/workflows/issue-status.yml) | PR merged into `develop`               | Sets `status: completed` on issues the PR closes                                                              |
-| [`dependabot.yml`](../.github/dependabot.yml)               | Weekly                                 | Grouped npm and Actions update PRs against `develop`                                                          |
+| Workflow                                                                | Trigger                                | What it does                                                                                            |
+| ----------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [`ci.yml`](../.github/workflows/ci.yml)                                 | PR, push to protected branches, manual | The tiered gate above                                                                                   |
+| [`promote.yml`](../.github/workflows/promote.yml)                       | Manual                                 | Opens a `develop` to `staging` or `staging` to `main` PR                                                |
+| [`db-migrate-staging.yml`](../.github/workflows/db-migrate-staging.yml) | Manual (`staging` branch only)         | Dry-runs and pushes `supabase/migrations/` to staging, runs pgTAP tests, and checks for invalid indexes |
+| [`issue-status.yml`](../.github/workflows/issue-status.yml)             | PR merged into `develop`               | Sets `status: completed` on issues the PR closes                                                        |
+| [`dependabot.yml`](../.github/dependabot.yml)                           | Weekly                                 | Grouped npm and Actions update PRs against `develop`                                                    |
 
 ## Branch protection
 
@@ -38,17 +40,20 @@ CI runs again on the push (a format check when the merge commit equals the verif
 
 Parsed in [`src/config/env.ts`](../src/config/env.ts); template in [`.env.example`](../.env.example). The devcontainer copies it to `.env.local` on first start.
 
-| Variable                               | Scope  | Required when                                                                 | What it does                                                                                                                                     |
-| -------------------------------------- | ------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SUPABASE_URL`             | public | Always                                                                        | Supabase project URL; also allows `next/image` to load that project's `product-images` bucket                                                    |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | public | Always                                                                        | Supabase publishable (anon) key                                                                                                                  |
-| `NEXT_PUBLIC_SITE_URL`                 | public | Optional in the schema; Google sign-in fails in production without it         | Canonical origin for the OAuth `redirectTo`. Outside production the request origin or `http://localhost:3000` is the fallback                    |
-| `DATA_SOURCE`                          | server | Optional, default `mock`                                                      | `mock` or `supabase`. `mock` is rejected when `NODE_ENV` or `APP_ENV` is `production`; `npm run build` defaults it to `supabase`                 |
-| `STOREFRONT_BUSINESS_ID`               | server | `DATA_SOURCE=supabase`                                                        | UUID of the business the public storefront serves. The seed uses `11111111-1111-4111-8111-111111111111`; mock mode defaults to the demo business |
-| `APP_ENV`                              | server | Optional                                                                      | `development`, `test`, `staging` or `production`; falls back to `NODE_ENV`. Dev and test features need it to resolve to development or test      |
-| `ALLOWED_MANAGER_EMAILS`               | server | Optional                                                                      | Comma-separated emails auto-provisioned as managers of the demo business; honoured only in development and test                                  |
-| `DEV_BUSINESS_SLUG`                    | server | Optional                                                                      | Business slug for that auto-provisioning (default `la-petite-boulangerie`)                                                                       |
-| `SUPABASE_SERVICE_ROLE_KEY`            | server | Dev and test auto-provisioning; the `db:provision-member` script reads it too | Admin key that bypasses RLS. Never `NEXT_PUBLIC_*`, never in client code. The app throws if it is used outside development or test               |
+| Variable                               | Scope  | Required when                                                                           | What it does                                                                                                                                                                                                                    |
+| -------------------------------------- | ------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | public | Always                                                                                  | Supabase project URL; also allows `next/image` to load that project's `product-images` bucket                                                                                                                                   |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | public | Always                                                                                  | Supabase publishable (anon) key                                                                                                                                                                                                 |
+| `NEXT_PUBLIC_SITE_URL`                 | public | Optional in the schema; required in production and set on the `staging` branch override | Canonical origin for the OAuth `redirectTo`. Unset on Vercel previews (`VERCEL_ENV=preview`) so `resolveAuthBaseUrl` resolves the preview host; outside production, falls back to the request origin or `http://localhost:3000` |
+| `DATA_SOURCE`                          | server | Optional, default `mock`                                                                | `mock` or `supabase`. `mock` is rejected when `NODE_ENV` or `APP_ENV` is `production`; `npm run build` defaults it to `supabase`                                                                                                |
+| `STOREFRONT_BUSINESS_ID`               | server | `DATA_SOURCE=supabase`                                                                  | UUID of the business the public storefront serves. The seed uses `11111111-1111-4111-8111-111111111111`; mock mode defaults to the demo business                                                                                |
+| `APP_ENV`                              | server | Optional                                                                                | `development`, `test`, `staging` or `production`; falls back to `NODE_ENV`. Use `staging` on hosted staging and Vercel previews. Dev/test features require both `NODE_ENV` and `APP_ENV` to resolve to `development` or `test`  |
+| `ALLOWED_MANAGER_EMAILS`               | server | Optional                                                                                | Comma-separated emails auto-provisioned as managers of the demo business; honoured only in development and test                                                                                                                 |
+| `DEV_BUSINESS_SLUG`                    | server | Optional                                                                                | Business slug for that auto-provisioning (default `la-petite-boulangerie`)                                                                                                                                                      |
+| `SUPABASE_SERVICE_ROLE_KEY`            | server | Dev and test auto-provisioning; the `db:provision-member` script reads it too           | Admin key that bypasses RLS. Never `NEXT_PUBLIC_*`, never in client code, never set on Vercel. The app throws if it is used outside development or test                                                                         |
+| `VERCEL_ENV`                           | server | Set by Vercel; leave unset locally                                                      | `production`, `preview` or `development`. Only `preview` enables the validated Vercel host fallback in `resolveAuthBaseUrl`                                                                                                     |
+| `VERCEL_URL`                           | server | Set by Vercel; leave unset locally                                                      | Deployment hostname without protocol (e.g. `foodbiz-pwa-abc123-<team>.vercel.app`), used to validate preview OAuth origins                                                                                                      |
+| `VERCEL_BRANCH_URL`                    | server | Set by Vercel; leave unset locally                                                      | Branch hostname without protocol (e.g. `foodbiz-pwa-git-<branch>-<team>.vercel.app`), preferred preview fallback when `origin` does not match                                                                                   |
 
 # Planned
 
@@ -58,10 +63,10 @@ Parsed in [`src/config/env.ts`](../src/config/env.ts); template in [`.env.exampl
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | NOW (foundation work)                     | Tiered CI and local gate                                                                                                                                                                                                                                                 | Cheap, trustworthy checks                      | done                                                                                                  |
 | NOW                                       | Database-enforced order limits, idempotency and rate limits                                                                                                                                                                                                              | Public ordering must survive abuse and retries | done                                                                                                  |
-| NOW                                       | Migration safety runbook ([Applying migrations](#applying-migrations-to-a-hosted-project-planned))                                                                                                                                                                       | Safe first push to a hosted database           | done                                                                                                  |
+| NOW                                       | Migration safety runbook ([Applying migrations](#applying-migrations-to-a-hosted-project-active))                                                                                                                                                                        | Safe first push to a hosted database           | done                                                                                                  |
 | NOW                                       | Local secret scan                                                                                                                                                                                                                                                        | No secrets in git                              | done                                                                                                  |
 | NOW                                       | `instrumentation.ts` request-error logging                                                                                                                                                                                                                               | See server errors                              | built: JSON lines in Vercel runtime logs ([architecture.md#server-logs](architecture.md#server-logs)) |
-| BEFORE v0.9                               | Staging Supabase project and Vercel project with preview deploys. Production builds refuse mock data, so previews need a real Supabase project or a deliberate preview-only exception: open decision for the owner                                                       | Somewhere to test on real infrastructure       | #112                                                                                                  |
+| BEFORE v0.9                               | Staging Supabase project and Vercel project with preview deploys. Decided: all preview deployments share the staging Supabase project; production builds keep refusing `DATA_SOURCE=mock`                                                                                | Somewhere to test on real infrastructure       | #112                                                                                                  |
 | BEFORE v0.9                               | Security headers and CSP                                                                                                                                                                                                                                                 | Browser hardening                              | #108                                                                                                  |
 | BEFORE v0.9                               | Error tracking provider                                                                                                                                                                                                                                                  | See production failures                        | #109                                                                                                  |
 | BEFORE v0.9                               | Service worker and offline page                                                                                                                                                                                                                                          | Offline fallback                               | #101                                                                                                  |
@@ -86,19 +91,23 @@ Parsed in [`src/config/env.ts`](../src/config/env.ts); template in [`.env.exampl
 | BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Delete stale remote branches                                                                                                                                                                                                                                             | Tidy                                           | none                                                                                                  |
 | BEFORE MAKING THE REPOSITORY PUBLIC AGAIN | Re-check the Actions allow-list and the ruleset                                                                                                                                                                                                                          | No surprises on visibility change              | none                                                                                                  |
 
-## Vercel and Supabase setup: Planned
+## Staging and preview setup
 
-1. Import `mikael-dzoss/foodbiz-pwa` in Vercel. Framework: Next.js (auto-detected).
-2. **Production Branch:** `main`. Ensure Preview deployments are on for all branches.
-3. Environment variables (Settings → Environment Variables), one Supabase project per environment:
-   - **Production** → production Supabase URL + publishable key.
-   - **Preview** → staging/dev Supabase URL + publishable key. Use a branch-specific value for `staging` if staging has its own project.
-   - Never add the service-role key as `NEXT_PUBLIC_*`.
-   - `NEXT_PUBLIC_SITE_URL`: canonical origin (e.g. `https://foodbiz.app` for production).
-     The variables are also needed at **build** time (see the table above): the storefront prerenders its catalog, so the build must be able to reach Supabase with the same values, and an unreachable database fails the build instead of shipping placeholder data.
+One Supabase project (`foodbiz-staging`) serves both the `staging` branch and all Vercel preview deployments on a Vercel Hobby project (Production Branch: `main`). There is no mock-data exception for previews: production builds (`next build` runs with `NODE_ENV=production`) refuse `DATA_SOURCE=mock`.
 
-4. **Staging domain:** Settings → Domains → add a domain (e.g. `staging.<your-domain>`) and assign it to the `staging` Git branch.
-5. Optional: enable Deployment Protection on previews/staging.
+| Variable                               | Preview (all branches)  | Preview (`staging` branch override)                                                 | Production                                                                                                                    |
+| -------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Staging Supabase URL    | Inherits Preview (same staging URL)                                                 | Not set until a production project exists ([ADR 0001](decisions/0001-hosting-and-backups.md): Netlify, subject to spike #327) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Staging publishable key | Inherits Preview (same staging key)                                                 | Not set                                                                                                                       |
+| `DATA_SOURCE`                          | `supabase`              | Inherits Preview (`supabase`)                                                       | Not set                                                                                                                       |
+| `STOREFRONT_BUSINESS_ID`               | `<demo business uuid>`  | Inherits Preview (`<demo business uuid>`)                                           | Not set                                                                                                                       |
+| `APP_ENV`                              | `staging`               | Inherits Preview (`staging`)                                                        | Not set                                                                                                                       |
+| `NEXT_PUBLIC_SITE_URL`                 | **Unset**               | `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app` (or custom staging domain) | Not set                                                                                                                       |
+| `SUPABASE_SERVICE_ROLE_KEY`            | **Never set on Vercel** | **Never set on Vercel**                                                             | **Never set on Vercel**                                                                                                       |
+
+- **Build-time requirement:** the same variables must be available at **build time** (enabled for Build & Runtime in Vercel). The storefront prerenders its catalog against Supabase during `next build`, and an unreachable database fails the build instead of shipping placeholder data.
+- **No service-role key on Vercel:** the runtime app throws if `createAdminClient()` is invoked outside `development` or `test`. Only the provisioning CLI (`npm run db:provision-member`) uses `SUPABASE_SERVICE_ROLE_KEY`, supplied out-of-band by the maintainer.
+- **Vercel Deployment Protection:** enabled by default for preview deployments on Hobby, which blocks anonymous visitors behind Vercel login. Decide in **Project Settings → Deployment Protection** whether to keep it on for the staging URL (or disable it / use shareable bypass links so anonymous storefront visits work without a Vercel account).
 
 ## Planned: CI for promotion PRs
 
@@ -145,10 +154,14 @@ In the Google Cloud Console (APIs & Services > Credentials > OAuth 2.0 Client ID
    | Environment                    | Authorised redirect URI                              |
    | ------------------------------ | ---------------------------------------------------- |
    | Local (devcontainer CLI stack) | `http://127.0.0.1:54321/auth/v1/callback`            |
-   | Hosted (Staging / Production)  | `https://<project-ref>.supabase.co/auth/v1/callback` |
+   | Staging                        | `https://<staging-ref>.supabase.co/auth/v1/callback` |
+   | Production (Planned)           | `https://<prod-ref>.supabase.co/auth/v1/callback`    |
 
-2. **Authorised JavaScript origins**:
-   Not required for server redirect OAuth flow (only needed for Google Identity Services / One Tap). Leaving `http://localhost:3000` or production domain is harmless.
+2. **Test users (while in Testing)**:
+   Under **APIs & Services > OAuth consent screen > Audience / Test users**, add each manager's Gmail address while the publishing status is **Testing** (up to 100 users).
+
+3. **Authorised JavaScript origins**:
+   Not required for server redirect OAuth flow (only needed for Google Identity Services / One Tap). Leaving `http://localhost:3000` or the staging domain is harmless.
 
 ### Where secrets live
 
@@ -170,17 +183,20 @@ In the Google Cloud Console (APIs & Services > Credentials > OAuth 2.0 Client ID
 
 ### Supabase URL Configuration (Dashboard)
 
-Navigate to **Authentication > URL Configuration**:
+In the staging Supabase project, navigate to **Authentication > URL Configuration**:
 
 - **Site URL**:
-  - Hosted: `https://<your-production-domain>` (e.g. `https://foodbiz.app`)
+  - Staging: `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app` (or a custom staging domain if added)
   - Local: `http://localhost:3000`
 - **Redirect URLs (Allow-list)**:
-  Add the explicit callback URLs and preview wildcard pattern:
-  - `https://<your-production-domain>/auth/callback**`
-  - `https://staging.<your-domain>/auth/callback**` (if staging domain configured)
-  - `https://*-<team-slug>.vercel.app/auth/callback**` (wildcard placeholder for Vercel preview deployments)
-  - `http://localhost:3000/auth/callback**` (for local development)
+  Add these exact entries on the staging project:
+  - `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app/auth/callback**`
+  - `https://foodbiz-pwa-*-<team-slug>.vercel.app/auth/callback**`
+  - `http://localhost:3000/auth/callback**`
+
+### Preview origin resolution
+
+When `NEXT_PUBLIC_SITE_URL` is set (such as on the `staging` branch override or in production), `resolveAuthBaseUrl` ([`src/config/site-url.ts`](../src/config/site-url.ts)) always uses it. On Vercel previews (`VERCEL_ENV=preview`) where `NEXT_PUBLIC_SITE_URL` is left unset, it accepts the request `origin` header only if it exactly equals `https://${VERCEL_URL}` or `https://${VERCEL_BRANCH_URL}` (falling back to `VERCEL_BRANCH_URL`, then `VERCEL_URL`), keeping the PKCE verifier cookie on the preview host without ever trusting `host`/`x-forwarded-host` or applying the preview fallback when `VERCEL_ENV=production`.
 
 ### Google OAuth consent screen
 
@@ -192,12 +208,12 @@ Navigate to **Authentication > URL Configuration**:
 
 ### Troubleshooting
 
-| Issue / Error                                              | Root cause                                                                                                                                                                               | Fix                                                                                                                                                                                                                                                            |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Redirect lands on `/?code=...` instead of `/auth/callback` | The `redirectTo` parameter sent by the app does not match any entry in Supabase's redirect allow-list. Supabase falls back to `site_url`.                                                | In Supabase Dashboard (or `supabase/config.toml` for local), add `https://<domain>/auth/callback**` (or `http://localhost:3000/auth/callback**`) to **Redirect URLs**.                                                                                         |
-| `redirect_uri_mismatch` on Google consent screen           | The redirect URI registered in Google Cloud Console is pointing to the Next.js app (e.g. `http://localhost:3000/api/auth/callback/google` or `/auth/callback`) instead of Supabase Auth. | In Google Cloud Console > Credentials, change Authorised redirect URI to `http://127.0.0.1:54321/auth/v1/callback` (local) or `https://<project-ref>.supabase.co/auth/v1/callback` (hosted).                                                                   |
-| Redirect to `/manage/login?error=no_access`                | The Google user authenticated successfully with Supabase, but their account email has no active membership in `business_members` table (or allow-list in dev).                           | A business owner or admin must provision membership for that email using `npm run db:provision-member -- --business-slug <slug> --email <email>` or add them to the business. The user can click "Sign out" on the error banner to try another Google account. |
-| `/manage/login?error=auth_failed` in production            | `NEXT_PUBLIC_SITE_URL` is not configured in Vercel environment variables. In production, the app strictly requires a configured canonical origin and refuses forwarded headers.          | Set `NEXT_PUBLIC_SITE_URL=https://<your-domain>` in Vercel project environment variables (Production and Preview).                                                                                                                                             |
+| Issue / Error                                              | Root cause                                                                                                                                                                                                                                                                                                                              | Fix                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Redirect lands on `/?code=...` instead of `/auth/callback` | The `redirectTo` parameter sent by the app does not match any entry in Supabase's redirect allow-list. Supabase falls back to `site_url`.                                                                                                                                                                                               | In Supabase Dashboard (or `supabase/config.toml` for local), add `https://<domain>/auth/callback**` (or `http://localhost:3000/auth/callback**`) to **Redirect URLs**.                                                                                                                                      |
+| `redirect_uri_mismatch` on Google consent screen           | The redirect URI registered in Google Cloud Console is pointing to the Next.js app (e.g. `http://localhost:3000/api/auth/callback/google` or `/auth/callback`) instead of Supabase Auth.                                                                                                                                                | In Google Cloud Console > Credentials, change Authorised redirect URI to `http://127.0.0.1:54321/auth/v1/callback` (local) or `https://<project-ref>.supabase.co/auth/v1/callback` (hosted).                                                                                                                |
+| Redirect to `/manage/login?error=no_access`                | The Google user authenticated successfully with Supabase, but their account email has no active membership in `business_members` table (or allow-list in dev).                                                                                                                                                                          | A business owner or admin must provision membership for that email using `npm run db:provision-member -- --business-slug <slug> --email <email>` or add them to the business. The user can click "Sign out" on the error banner to try another Google account.                                              |
+| `/manage/login?error=auth_failed` in production or preview | `resolveAuthBaseUrl` could not resolve a trusted origin: in production (`VERCEL_ENV=production` or non-Vercel production), `NEXT_PUBLIC_SITE_URL` is unset; on a Vercel preview (`VERCEL_ENV=preview`), `NEXT_PUBLIC_SITE_URL` is unset and both `VERCEL_BRANCH_URL` and `VERCEL_URL` are missing. Forwarded headers are never trusted. | In production (and the `staging` branch override), set `NEXT_PUBLIC_SITE_URL=https://<canonical-origin>`. On other Vercel preview branches, leave `NEXT_PUBLIC_SITE_URL` unset and ensure Vercel System Environment Variables (`VERCEL_ENV`, `VERCEL_URL`, `VERCEL_BRANCH_URL`) are exposed to deployments. |
 
 ## Development allow-list and auto-provisioning: Active
 
@@ -266,14 +282,51 @@ npm run db:provision-member -- --business-slug <slug> --email <email> --role man
 
 > **Security Note:** `SUPABASE_SERVICE_ROLE_KEY` is an administrative server-only secret that bypasses RLS. It must NEVER be prefixed with `NEXT_PUBLIC_`, never exposed to client code, never committed to git, and must be provided strictly out-of-band by the maintainer when executing administrative CLI scripts.
 
-## Applying migrations to a hosted project: Planned
+## Applying migrations to a hosted project: Active
 
-> Planned: no hosted Supabase environment exists yet; this is the runbook to follow once one does.
+Migrations to staging run exclusively through [`.github/workflows/db-migrate-staging.yml`](../.github/workflows/db-migrate-staging.yml) (**Actions → Migrate staging database → Run workflow** with branch `staging`). The workflow refuses any branch other than `refs/heads/staging`, uses repository secrets (`STAGING_SUPABASE_PROJECT_REF`, `STAGING_SUPABASE_ACCESS_TOKEN`, `STAGING_SUPABASE_DB_PASSWORD`), runs a dry-run push, pushes pending `supabase/migrations/` (never `--include-seed`), runs the pgTAP suite (`supabase test db --remote --yes`), and fails if any invalid index exists in `pg_index`.
 
-- Migrations `20260101000008` to `20260101000010` and `20260101000013` use `create index concurrently` in single-statement files so they can run outside a transaction block. Before the first `supabase db push` to a hosted project, apply them to a branch or staging database and verify the CLI runs them outside a transaction (the statement fails inside one).
-- After any deploy, check for indexes left invalid by a failed concurrent build: `select indexrelid::regclass from pg_index where not indisvalid;`. If a row comes back, run `drop index concurrently <name>;` and re-apply the migration (`create index concurrently if not exists` silently skips an existing invalid index, so drop it first).
-- Migrations `20260101000006`, `20260101000007` and `20260101000012` set `lock_timeout = '5s'` so they fail fast instead of queueing behind long transactions; re-run when traffic is low if one times out.
-- Deploy order: app code that passes `p_idempotency_key` to `place_order` must be deployed after migration `20260101000014` (the old 12-argument signature no longer exists after it, and the new one only exists then).
+- **Concurrent indexes:** migrations `20260101000008` to `20260101000010` and `20260101000013` (as well as `20260101000016` to `20260101000019` and `20260101000021`) use `create index concurrently` in single-statement files so they run outside a transaction block. The first run of `db-migrate-staging` verifies that Supabase CLI v3 executes them outside a transaction against the hosted project (the statement fails inside one).
+- **Invalid index check and recovery:** the workflow runs `select indexrelid::regclass from pg_index where not indisvalid;` after every push and fails if any row is returned. If a failed concurrent build leaves an invalid index, run `drop index concurrently <name>;` and re-run the migration (`create index concurrently if not exists` silently skips an existing invalid index, so drop it first).
+- **Lock timeouts:** migrations `20260101000006`, `20260101000007` and `20260101000012` set `lock_timeout = '5s'` so they fail fast instead of queueing behind long transactions; re-run when traffic is low if one times out.
+- **Deploy order:** apply migrations **before** the app code that requires them. Because `db-migrate-staging` reads migrations from `refs/heads/staging`, run the workflow **right after merging** a promotion PR into `staging` (and redeploy `staging` in Vercel if the automatic build started before the migration finished). For breaking schema or RPC changes (for example migration `20260101000014`, which replaced the 12-argument `place_order` signature with the `p_idempotency_key` signature), land and apply the migration before deploying app code that calls the new signature.
+
+## Owner checklist for staging (#112)
+
+Run these steps in order to bring up the hosted staging environment:
+
+1. **Create the Supabase staging project** in the Supabase dashboard: EU region, Free organisation, project name `foodbiz-staging`. Save the database password in your password manager. Note the 20-character project ref (`https://supabase.com/dashboard/project/<staging-ref>`) and copy the Project URL and Publishable key from **Project Settings → API**.
+2. **Create a Supabase personal access token** at **Account → Access Tokens** (used by the migration workflow).
+3. **Add three GitHub repository secrets** in **Settings → Secrets and variables → Actions → Repository secrets** (repository secrets, not GitHub Environments, so they work once the repo is private on the Free plan):
+   - `STAGING_SUPABASE_PROJECT_REF` = `<staging-ref>`
+   - `STAGING_SUPABASE_ACCESS_TOKEN` = `<access-token>`
+   - `STAGING_SUPABASE_DB_PASSWORD` = `<db-password>`
+4. **Sync `staging` with `develop`** if `staging` is behind: run **Actions → Promote → `staging`** and merge the resulting PR with a **merge commit**.
+5. **Run the migration workflow**: go to **Actions → Migrate staging database → Run workflow**, select branch **`staging`**, and run it. Confirm that the dry-run, migration push (including concurrent indexes), pgTAP suite, and invalid-index check all pass.
+6. **Enable Google OAuth in staging Supabase**: go to **Authentication → Providers → Google**, toggle **Enable Sign in with Google** ON, and paste your Google OAuth Client ID and Client Secret (never store them in git, `.env`, or Vercel).
+7. **Update Google Cloud Console** (**APIs & Services → Credentials → OAuth 2.0 Client ID**):
+   - Add Authorised redirect URI: `https://<staging-ref>.supabase.co/auth/v1/callback`
+   - Under **OAuth consent screen → Test users** (while in **Testing**), add the manager Gmail addresses that will test staging.
+8. **Configure staging Supabase URLs** (**Authentication → URL Configuration**):
+   - **Site URL**: `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app`
+   - **Redirect URLs**:
+     - `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app/auth/callback**`
+     - `https://foodbiz-pwa-*-<team-slug>.vercel.app/auth/callback**`
+     - `http://localhost:3000/auth/callback**`
+9. **Import the repo in Vercel** (Hobby plan, **Production Branch:** `main`):
+   - In **Settings → Environment Variables**, configure the Preview (all branches) and `staging` branch override variables from the [Staging and preview setup](#staging-and-preview-setup) table (leave Production empty; never add `SUPABASE_SERVICE_ROLE_KEY`; ensure Build & Runtime are both enabled).
+   - In **Settings → General → Node.js Version**, verify **22.x** is selected if not auto-detected from `package.json`.
+   - In **Settings → Deployment Protection**, decide whether to keep protection enabled on previews/staging.
+10. **Trigger a `staging` deployment** in Vercel (Deployments → Redeploy `staging`, or push/promote to `staging`) and confirm the build succeeds and loads at `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app`.
+11. **Provision yourself as manager/owner**: once the demo business exists in staging (from #113), sign in once at `<staging-url>/manage/login` (this creates your Supabase Auth user and lands on `no_access`), then run locally with the staging service-role key supplied out-of-band:
+    ```bash
+    SUPABASE_URL="https://<staging-ref>.supabase.co" \
+    SUPABASE_SERVICE_ROLE_KEY="<staging-service-role-key>" \
+    npm run db:provision-member -- --business-slug <demo-business-slug> --email <your-email> --yes
+    ```
+    _(Omitting `--role` assigns `owner` to the first member of a business so owner-only settings are unlocked; pass `--role manager` for additional managers.)_
+
+**Then tell Claude: "staging is up".** Claude will run a smoke check against the staging URL, flip the staging and preview entries in `docs/DEPLOYMENT.md` to **Active**, and close #112.
 
 ## Releasing
 
