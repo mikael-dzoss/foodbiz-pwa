@@ -136,5 +136,6 @@ grant select, insert, update, delete on table public.order_items to service_role
 
 -- rate_limit_attempts: internal to SECURITY DEFINER helpers; no direct API access (20260101000011).
 revoke all on table public.rate_limit_attempts from anon, authenticated, service_role;
+revoke all on sequence public.rate_limit_attempts_id_seq from anon, authenticated, service_role;
 
 commit;

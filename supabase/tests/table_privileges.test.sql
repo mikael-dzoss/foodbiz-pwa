@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(34);
+select plan(35);
 
 -- ----------------------------------------------------------------------------
 -- 1. Exhaustive table guard: any new public base table must be added here
@@ -56,6 +56,20 @@ select is_empty(
       and a.grantee in ('anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
   $$,
   'default privileges for postgres in public grant nothing on tables or sequences to API roles'
+);
+
+-- No API role holds privileges on any public sequence (all ids are uuid or
+-- used only by SECURITY DEFINER helpers).
+select is_empty(
+  $$
+    select c.relname, pg_get_userbyid(a.grantee), a.privilege_type
+    from pg_catalog.pg_class c
+    cross join lateral aclexplode(c.relacl) a
+    where c.relkind = 'S'
+      and c.relnamespace = 'public'::regnamespace
+      and a.grantee in ('anon'::regrole, 'authenticated'::regrole, 'service_role'::regrole)
+  $$,
+  'no public sequence is granted to API roles'
 );
 
 -- ----------------------------------------------------------------------------
