@@ -23,6 +23,7 @@ Read this first: **nothing is live yet.** Staging and preview deployments are be
 | [`ci.yml`](../.github/workflows/ci.yml)                                 | PR, push to protected branches, manual | The tiered gate above                                                                                   |
 | [`promote.yml`](../.github/workflows/promote.yml)                       | Manual                                 | Opens a `develop` to `staging` or `staging` to `main` PR                                                |
 | [`db-migrate-staging.yml`](../.github/workflows/db-migrate-staging.yml) | Manual (`staging` branch only)         | Dry-runs and pushes `supabase/migrations/` to staging, runs pgTAP tests, and checks for invalid indexes |
+| [`db-seed-staging.yml`](../.github/workflows/db-seed-staging.yml)       | Manual (`staging` branch only)         | Seeds `supabase/seed.sql` on staging, shifts order dates to today, and verifies business and products   |
 | [`issue-status.yml`](../.github/workflows/issue-status.yml)             | PR merged into `develop`               | Sets `status: completed` on issues the PR closes                                                        |
 | [`dependabot.yml`](../.github/dependabot.yml)                           | Weekly                                 | Grouped npm and Actions update PRs against `develop`                                                    |
 
@@ -34,7 +35,7 @@ Enforcement depends on repository visibility and plan. Rulesets are enforced whi
 
 ## What merging to develop does
 
-CI runs again on the push (a format check when the merge commit equals the verified PR head, otherwise the same scope rules on the merge diff). `issue-status.yml` marks the closed issues. No deployment happens: `vercel.json` enables deployments for `main` and `staging` only, and no Vercel project is connected.
+CI runs again on the push (a format check when the merge commit equals the verified PR head, otherwise the same scope rules on the merge diff). `issue-status.yml` marks the closed issues. A Vercel project is now connected; `develop` itself does not deploy (`deploymentEnabled: false`), feature/bug/utils branches get protected preview deployments, `staging` deploys the staging environment, `main` is production; dependabot branches are skipped.
 
 ## Environment variables
 
@@ -49,7 +50,7 @@ Parsed in [`src/config/env.ts`](../src/config/env.ts); template in [`.env.exampl
 | `STOREFRONT_BUSINESS_ID`               | server | `DATA_SOURCE=supabase`                                                                  | UUID of the business the public storefront serves. The seed uses `11111111-1111-4111-8111-111111111111`; mock mode defaults to the demo business                                                                                |
 | `APP_ENV`                              | server | Optional                                                                                | `development`, `test`, `staging` or `production`; falls back to `NODE_ENV`. Use `staging` on hosted staging and Vercel previews. Dev/test features require both `NODE_ENV` and `APP_ENV` to resolve to `development` or `test`  |
 | `ALLOWED_MANAGER_EMAILS`               | server | Optional                                                                                | Comma-separated emails auto-provisioned as managers of the demo business; honoured only in development and test                                                                                                                 |
-| `DEV_BUSINESS_SLUG`                    | server | Optional                                                                                | Business slug for that auto-provisioning (default `la-petite-boulangerie`)                                                                                                                                                      |
+| `DEV_BUSINESS_SLUG`                    | server | Optional                                                                                | Business slug for that auto-provisioning (default `les-saveurs-du-continent`)                                                                                                                                                   |
 | `SUPABASE_SERVICE_ROLE_KEY`            | server | Dev and test auto-provisioning; the `db:provision-member` script reads it too           | Admin key that bypasses RLS. Never `NEXT_PUBLIC_*`, never in client code, never set on Vercel. The app throws if it is used outside development or test                                                                         |
 | `VERCEL_ENV`                           | server | Set by Vercel; leave unset locally                                                      | `production`, `preview` or `development`. Only `preview` enables the validated Vercel host fallback in `resolveAuthBaseUrl`                                                                                                     |
 | `VERCEL_URL`                           | server | Set by Vercel; leave unset locally                                                      | Deployment hostname without protocol (e.g. `foodbiz-pwa-abc123-<team>.vercel.app`), used to validate preview OAuth origins                                                                                                      |
@@ -106,6 +107,8 @@ One Supabase project (`foodbiz-staging`) serves both the `staging` branch and al
 | `SUPABASE_SERVICE_ROLE_KEY`            | **Never set on Vercel** | **Never set on Vercel**                                                             | **Never set on Vercel**                                                                                                       |
 
 - **Build-time requirement:** the same variables must be available at **build time** (enabled for Build & Runtime in Vercel). The storefront prerenders its catalog against Supabase during `next build`, and an unreachable database fails the build instead of shipping placeholder data.
+- **Environment variable types:** create the variables as type "Config" (plain), not "Secret"/sensitive, for the `NEXT_PUBLIC_*` values and the ones listed in the table; the service-role key is never set on Vercel.
+- **Function region:** set Functions region to `cdg1` (Paris) to match the Supabase region.
 - **No service-role key on Vercel:** the runtime app throws if `createAdminClient()` is invoked outside `development` or `test`. Only the provisioning CLI (`npm run db:provision-member`) uses `SUPABASE_SERVICE_ROLE_KEY`, supplied out-of-band by the maintainer.
 - **Vercel Deployment Protection:** on by default for previews on Hobby, so the staging URL and every preview need a Vercel login. Keep it on: previews of unmerged branches share the staging database and nothing asks search engines to skip them yet (#96). Automated smoke checks get past it with a **Protection Bypass for Automation** secret sent as the `x-vercel-protection-bypass` header; testers without a Vercel account get a per-deployment shareable link.
 
@@ -191,9 +194,9 @@ In the staging Supabase project, navigate to **Authentication > URL Configuratio
 - **Redirect URLs (Allow-list)**:
   Add these exact entries on the staging project:
   - `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app/auth/callback**`
-  - `https://foodbiz-pwa-*-<team-slug>.vercel.app/auth/callback**`
-    - Caveat: Supabase's `*` stops at dots but matches hyphens, so a Vercel team whose slug ends in `-<team-slug>` could match it. PKCE limits the impact (the code is useless without the verifier cookie on our preview host); remove the line if previews don't need Google sign-in.
   - `http://localhost:3000/auth/callback**`
+
+  Decision (2026-11): Google sign-in only works on staging and localhost; preview deployments have no OAuth redirect entry.
 
 ### Preview origin resolution
 
@@ -224,7 +227,7 @@ In local development and test environments (`APP_ENV=development` or `APP_ENV=te
 ### Behavior
 
 1. **Auto-Provisioning in Dev/Test**:
-   When a signed-in Google user has no existing row in the `business_members` table, the server automatically provisions a membership row with role `manager` attached to the seeded demo business (`DEV_BUSINESS_SLUG`, default: `la-petite-boulangerie`). This ensures that Postgres RLS policies grant immediate access to real database records.
+   When a signed-in Google user has no existing row in the `business_members` table, the server automatically provisions a membership row with role `manager` attached to the seeded demo business (`DEV_BUSINESS_SLUG`, default: `les-saveurs-du-continent`). This ensures that Postgres RLS policies grant immediate access to real database records.
 2. **Strict Security Invariants**:
    - **Environment restricted**: Auto-provisioning and the server-side admin client (`createAdminClient()`) throw and fail closed if invoked outside `development` or `test` (e.g. in `production` or `staging`).
    - **Google provider only**: The user's account must originate from the Google OAuth provider (`user.app_metadata.provider === 'google'`).
@@ -261,7 +264,7 @@ Manager access is strictly restricted to authenticated users provisioned in `pub
 #### Local CLI stack
 
 ```bash
-npm run db:provision-member -- --business-slug la-petite-boulangerie --email manager@example.com --role manager
+npm run db:provision-member -- --business-slug les-saveurs-du-continent --email manager@example.com --role manager
 ```
 
 #### Hosted / Production Supabase project
@@ -278,7 +281,7 @@ npm run db:provision-member -- --business-slug <slug> --email <email> --role man
 
 - `--business-slug <slug>` or `--business-id <uuid>` (exactly one is required)
 - `--email <email>` or `--user-id <uuid>` (exactly one is required)
-- `--role <owner|manager|staff>` (defaults to `manager`)
+- `--role <owner|manager|staff>`: the first member of a business defaults to `owner` ([`scripts/provision-member.mjs`](../scripts/provision-member.mjs)); `--role` only matters for later members (which default to `manager`)
 - `--yes`: Required for any non-local target host (anything other than `localhost`, `127.0.0.1`, `::1`, `host.docker.internal`). Prevents unintended writes to production databases.
 - `--force`: Required if changing an existing member's role (e.g. promoting from `staff` to `manager` or downgrading). Re-running with the identical role is idempotent and safe without `--force`.
 
@@ -292,6 +295,15 @@ Migrations to staging run exclusively through [`.github/workflows/db-migrate-sta
 - **Invalid index check and recovery:** the workflow runs `select indexrelid::regclass from pg_index where not indisvalid;` after every push and fails if any row is returned. If a failed concurrent build leaves an invalid index, run `drop index concurrently <name>;` and re-run the migration (`create index concurrently if not exists` silently skips an existing invalid index, so drop it first).
 - **Lock timeouts:** migrations `20260101000006`, `20260101000007` and `20260101000012` set `lock_timeout = '5s'` so they fail fast instead of queueing behind long transactions; re-run when traffic is low if one times out.
 - **Deploy order:** apply migrations **before** the app code that requires them. Because `db-migrate-staging` reads migrations from `refs/heads/staging`, run the workflow **right after merging** a promotion PR into `staging` (and redeploy `staging` in Vercel if the automatic build started before the migration finished). For breaking schema or RPC changes (for example migration `20260101000014`, which replaced the 12-argument `place_order` signature with the `p_idempotency_key` signature), land and apply the migration before deploying app code that calls the new signature.
+
+## Seeding the staging database
+
+Run the "Seed staging database" workflow ([`.github/workflows/db-seed-staging.yml`](../.github/workflows/db-seed-staging.yml), manual, `staging` ref only) after "Migrate staging database". The seed is `supabase/seed.sql`, generated from the mock fixtures by `npm run db:seed:gen` (never edit by hand).
+
+- **Idempotency:** business, categories and products are upserted (re-running restores catalog values and stock), settings, guests, orders and expenses are only inserted once. Products removed from the fixtures are NOT deleted on staging.
+- **Date shifting:** demo order dates are shifted so the newest order lands on the seed day.
+- **Verification:** the job logs `current_user` and fails if the business or its products are missing.
+- **Target restriction:** never run it against production.
 
 ## Owner checklist for staging (#112)
 
@@ -313,20 +325,23 @@ Run these steps in order to bring up the hosted staging environment:
    - **Site URL**: `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app`
    - **Redirect URLs**:
      - `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app/auth/callback**`
-     - `https://foodbiz-pwa-*-<team-slug>.vercel.app/auth/callback**`
      - `http://localhost:3000/auth/callback**`
+   - Decision (2026-11): Google sign-in only works on staging and localhost; preview deployments have no OAuth redirect entry.
 9. **Import the repo in Vercel** (Hobby plan, **Production Branch:** `main`):
-   - In **Settings → Environment Variables**, configure the Preview (all branches) and `staging` branch override variables from the [Staging and preview setup](#staging-and-preview-setup) table (leave Production empty; never add `SUPABASE_SERVICE_ROLE_KEY`; ensure Build & Runtime are both enabled).
+   - **Production-branch trap:** the repository default branch is `develop`, so right after importing the project set **Settings → Git → Production Branch** to `main`, and do not click Deploy on the import screen.
+   - In **Settings → Environment Variables**, configure the Preview (all branches) and `staging` branch override variables from the [Staging and preview setup](#staging-and-preview-setup) table (leave Production empty; create the variables as type "Config" (plain), not "Secret"/sensitive, for the `NEXT_PUBLIC_*` values and the ones listed in the table; the service-role key is never set on Vercel; ensure Build & Runtime are both enabled).
+   - In **Settings → Functions**, set the Function Region to `cdg1` (Paris) to match the Supabase region.
    - In **Settings → General → Node.js Version**, verify **22.x** is selected if not auto-detected from `package.json`.
    - In **Settings → Deployment Protection**, keep protection on and create a **Protection Bypass for Automation** secret. Put it in the devcontainer's env-file secrets as `VERCEL_AUTOMATION_BYPASS_SECRET` (never in git, `.env.local` or chat) so Claude can smoke-test staging. Rotate it there if it leaks.
-     Steps 10 and 11 wait for the demo seed (#113): the build prerenders the catalog of `STOREFRONT_BUSINESS_ID`, and provisioning needs the demo business to exist.
+
+   Before step 10, run the "Seed staging database" workflow ([`.github/workflows/db-seed-staging.yml`](../.github/workflows/db-seed-staging.yml), branch **`staging`**) after migrations succeed: the build prerenders the catalog of `STOREFRONT_BUSINESS_ID`, and provisioning needs the demo business to exist.
 
 10. **Trigger a `staging` deployment** in Vercel (Deployments → Redeploy `staging`, or push/promote to `staging`) and confirm the build succeeds and loads at `https://foodbiz-pwa-git-staging-<team-slug>.vercel.app`.
 11. **Provision yourself as manager/owner**: sign in once at `<staging-url>/manage/login` (this creates your Supabase Auth user and lands on `no_access`), then run locally with the staging service-role key supplied out-of-band:
     ```bash
     SUPABASE_URL="https://<staging-ref>.supabase.co" \
     SUPABASE_SERVICE_ROLE_KEY="<staging-service-role-key>" \
-    npm run db:provision-member -- --business-slug <demo-business-slug> --email <your-email> --yes
+    npm run db:provision-member -- --business-slug les-saveurs-du-continent --email <your-email> --yes
     ```
     _(Omitting `--role` assigns `owner` to the first member of a business so owner-only settings are unlocked; pass `--role manager` for additional managers.)_
 
