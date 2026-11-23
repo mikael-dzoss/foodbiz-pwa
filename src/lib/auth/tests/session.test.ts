@@ -16,6 +16,14 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+const callOrder: string[] = [];
+const mockConnection = vi.fn(async () => {
+  callOrder.push("connection");
+});
+vi.mock("next/server", () => ({
+  connection: () => mockConnection(),
+}));
+
 const mockGetUser = vi.fn();
 const mockGetClaims = vi.fn();
 let mockMembershipData: unknown = null;
@@ -134,6 +142,20 @@ describe("lib: auth session", () => {
   });
 
   describe("getManagerSession with DATA_SOURCE=supabase", () => {
+    it("awaits connection() before the Supabase auth read (#345)", async () => {
+      vi.stubEnv("DATA_SOURCE", "supabase");
+      vi.stubEnv("NODE_ENV", "production");
+      callOrder.length = 0;
+      mockGetUser.mockImplementationOnce(async () => {
+        callOrder.push("getUser");
+        return { data: { user: null }, error: null };
+      });
+
+      await getManagerSession();
+
+      expect(callOrder).toEqual(["connection", "getUser"]);
+    });
+
     it("returns null when Supabase Auth getUser() returns null user", async () => {
       vi.stubEnv("DATA_SOURCE", "supabase");
       vi.stubEnv("NODE_ENV", "production");
