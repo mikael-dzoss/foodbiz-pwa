@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getServerEnv } from "@/config/env";
 import {
   MOCK_AUTH_COOKIE_NAME,
@@ -36,6 +37,9 @@ export const getManagerSession = cache(async (): Promise<ManagerSession | null> 
     return MOCK_MANAGER_SESSION;
   }
 
+  // Supabase reads the clock while loading the session. `cookies()` alone only reaches the runtime
+  // render stage, where Next.js flags `Date.now()` as sync IO; `connection()` moves to the dynamic stage.
+  await connection();
   const supabase = await createClient();
   const {
     data: { user },
