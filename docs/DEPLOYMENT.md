@@ -1,18 +1,18 @@
 # Deployment and environments
 
-Read this first: **nothing is live yet.** Staging and preview deployments are being set up ([#112](https://github.com/mikael-dzoss/foodbiz-pwa/issues/112)); production does not exist yet. `develop` is exercised locally and in CI only. Sections are labelled **Active** (true today) or **Planned** (does not exist yet).
+Read this first: **staging and preview deployments are live** on Vercel with the `foodbiz-staging` Supabase project, seeded with the demo shop ([#112](https://github.com/mikael-dzoss/foodbiz-pwa/issues/112), [#113](https://github.com/mikael-dzoss/foodbiz-pwa/issues/113)); production does not exist yet. Sections are labelled **Active** (true today) or **Planned** (does not exist yet).
 
 # Active today
 
 ## Environments
 
-| Environment | State                                                                                           |
-| ----------- | ----------------------------------------------------------------------------------------------- |
-| Local       | Active: devcontainer, `npm run dev`, local Supabase (`npm run db:start`), mock or Supabase mode |
-| CI          | Active: GitHub Actions, see below                                                               |
-| Staging     | Being set up (#112)                                                                             |
-| Preview     | Being set up: shares the staging Supabase project                                               |
-| Production  | Planned: no Supabase or hosting project ([ADR 0001](decisions/0001-hosting-and-backups.md))     |
+| Environment | State                                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------ |
+| Local       | Active: devcontainer, `npm run dev`, local Supabase (`npm run db:start`), mock or Supabase mode              |
+| CI          | Active: GitHub Actions, see below                                                                            |
+| Staging     | Active: `staging` branch on Vercel, `foodbiz-staging` Supabase project ([setup](#staging-and-preview-setup)) |
+| Preview     | Active: protected previews of feature, bug and utils branches; shares the staging Supabase project           |
+| Production  | Planned: no Supabase or hosting project ([ADR 0001](decisions/0001-hosting-and-backups.md))                  |
 
 ## CI
 
@@ -29,7 +29,7 @@ Read this first: **nothing is live yet.** Staging and preview deployments are be
 
 ## Branch protection
 
-`develop`, `staging` and `main` exist. One repository ruleset ("Protected Ref") applies to all three: no deletion, no force push, changes only through a pull request (zero approvals required), and the check `Quality Gate - Summary` must pass. Nothing builds or deploys from `staging` or `main`.
+`develop`, `staging` and `main` exist. One repository ruleset ("Protected Ref") applies to all three: no deletion, no force push, changes only through a pull request (zero approvals required), and the check `Quality Gate - Summary` must pass. `staging` deploys the staging environment on Vercel; `main` has no production environment yet.
 
 Enforcement depends on repository visibility and plan. Rulesets are enforced while the repository is public. On a private repository, enforcement depends on the GitHub plan (not verified here). The owner intends to make the repository private again; in that case the local husky hooks (`.husky/`) and the agent hooks (`.claude/hooks/`) are the only enforcement.
 
@@ -67,14 +67,14 @@ Parsed in [`src/config/env.ts`](../src/config/env.ts); template in [`.env.exampl
 | NOW                                       | Migration safety runbook ([Applying migrations](#applying-migrations-to-a-hosted-project-active))                                                                                                                                                                        | Safe first push to a hosted database           | done                                                                                                  |
 | NOW                                       | Local secret scan                                                                                                                                                                                                                                                        | No secrets in git                              | done                                                                                                  |
 | NOW                                       | `instrumentation.ts` request-error logging                                                                                                                                                                                                                               | See server errors                              | built: JSON lines in Vercel runtime logs ([architecture.md#server-logs](architecture.md#server-logs)) |
-| BEFORE v0.9                               | Staging Supabase project and Vercel project with preview deploys. Decided: all preview deployments share the staging Supabase project; production builds keep refusing `DATA_SOURCE=mock`                                                                                | Somewhere to test on real infrastructure       | #112                                                                                                  |
+| BEFORE v0.9                               | Staging Supabase project and Vercel project with preview deploys. Decided: all preview deployments share the staging Supabase project; production builds keep refusing `DATA_SOURCE=mock`                                                                                | Somewhere to test on real infrastructure       | done (#112)                                                                                           |
 | BEFORE v0.9                               | Security headers and CSP                                                                                                                                                                                                                                                 | Browser hardening                              | #108                                                                                                  |
 | BEFORE v0.9                               | Error tracking provider                                                                                                                                                                                                                                                  | See production failures                        | #109                                                                                                  |
 | BEFORE v0.9                               | Service worker and offline page                                                                                                                                                                                                                                          | Offline fallback                               | #101                                                                                                  |
 | BEFORE v0.9                               | PNG and maskable icons, install experience                                                                                                                                                                                                                               | Installable app                                | #99, #100                                                                                             |
 | BEFORE v0.9                               | Legal pages (mentions legales, privacy, terms) and a privacy notice at checkout                                                                                                                                                                                          | Legal requirement for taking customer data     | #97                                                                                                   |
 | BEFORE v0.9                               | Sitemap, robots, metadata, Open Graph                                                                                                                                                                                                                                    | Search and sharing                             | #95, #96                                                                                              |
-| BEFORE v0.9                               | Demo seed for staging                                                                                                                                                                                                                                                    | Realistic test data                            | #113                                                                                                  |
+| BEFORE v0.9                               | Demo seed for staging                                                                                                                                                                                                                                                    | Realistic test data                            | done (#113)                                                                                           |
 | BEFORE v0.9                               | Acceptance checklist and bug bash                                                                                                                                                                                                                                        | Release confidence                             | #114                                                                                                  |
 | BEFORE v0.9                               | CI for promotion PRs ([below](#planned-ci-for-promotion-prs))                                                                                                                                                                                                            | Promotion PRs get checks of their own          | none                                                                                                  |
 | BEFORE v1                                 | Production environment and custom domain                                                                                                                                                                                                                                 | Launch                                         | none                                                                                                  |
@@ -114,9 +114,9 @@ One Supabase project (`foodbiz-staging`) serves both the `staging` branch and al
 
 ## Planned: CI for promotion PRs
 
-`promote.yml` creates its PR with `GITHUB_TOKEN`, and PRs created that way do not trigger `pull_request` workflows, so promotion PRs get no CI of their own. Nothing is needed today (staging and production do not exist yet), and it stays harmless while the promotion PR's head is the tip of `develop` (or `staging`): the required check `Quality Gate - Summary` is evaluated on the head SHA, and that SHA already has it from the `push` run of `ci.yml`. When environments exist and that no longer holds, apply one of: (a) after creating the PR, have `promote.yml` run `gh workflow run ci.yml --ref <source branch>` (`workflow_dispatch` is exempt from the `GITHUB_TOKEN` rule; needs `actions: write`), or (b) create the PR with a fine-grained token or GitHub App token so `pull_request` fires normally.
+`promote.yml` creates its PR with `GITHUB_TOKEN`, and PRs created that way do not trigger `pull_request` workflows, so promotion PRs get no CI of their own. Nothing is needed yet: it stays harmless while the promotion PR's head is the tip of `develop` (or `staging`): the required check `Quality Gate - Summary` is evaluated on the head SHA, and that SHA already has it from the `push` run of `ci.yml`. When environments exist and that no longer holds, apply one of: (a) after creating the PR, have `promote.yml` run `gh workflow run ci.yml --ref <source branch>` (`workflow_dispatch` is exempt from the `GITHUB_TOKEN` rule; needs `actions: write`), or (b) create the PR with a fine-grained token or GitHub App token so `pull_request` fires normally.
 
-## Google sign-in (Supabase Auth): Active locally, Planned for hosted
+## Google sign-in (Supabase Auth): Active
 
 ### Flow architecture
 
@@ -249,7 +249,7 @@ In local development and test environments (`APP_ENV=development` or `APP_ENV=te
 3. Sign in via Google OAuth on `/manage/login`.
 4. Upon successful sign-in, the server creates the `business_members` row and redirects to `/manage`. Real orders and products are immediately accessible through RLS.
 
-## Provisioning a manager: Active locally, Planned for hosted
+## Provisioning a manager: Active
 
 Manager access is strictly restricted to authenticated users provisioned in `public.business_members` (enforced via Supabase RLS).
 
@@ -305,7 +305,7 @@ Run the "Seed staging database" workflow ([`.github/workflows/db-seed-staging.ym
 - **Verification:** the job logs `current_user` and fails if the business or its products are missing.
 - **Target restriction:** never run it against production.
 
-## Owner checklist for staging (#112)
+## Owner checklist for staging (#112): done
 
 Run these steps in order to bring up the hosted staging environment:
 
@@ -345,11 +345,11 @@ Run these steps in order to bring up the hosted staging environment:
     ```
     _(Omitting `--role` assigns `owner` to the first member of a business so owner-only settings are unlocked; pass `--role manager` for additional managers.)_
 
-**Then tell Claude: "staging is up".** Claude will run a smoke check against the staging URL, flip the staging and preview entries in `docs/DEPLOYMENT.md` to **Active**, and close #112.
+**Then tell Claude: "staging is up".** Claude runs a smoke check against the staging URL (storefront, `/manage/login`, no runtime errors). Completed on 2026-11-23; keep this checklist for rebuilding staging.
 
 ## Releasing
 
-**Planned.** Staging and production do not exist yet. (The heading carries no label because `promote.yml` links to `#releasing`.)
+**Active for staging; Planned for production**, which does not exist yet. (The heading carries no label because `promote.yml` links to `#releasing`.)
 
 Promotions are PRs (never direct pushes) opened and merged by maintainers; hotfixes follow the same path unless maintainers decide otherwise.
 
