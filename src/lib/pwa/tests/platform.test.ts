@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectInstallPlatform, isIosUserAgent } from "../platform";
+import { detectInstallPlatform, detectManualPlatform, isIosUserAgent } from "../platform";
 
 const UA = {
   iosSafari:
@@ -199,5 +199,25 @@ describe("detectInstallPlatform (#100)", () => {
     expect(
       isIosUserAgent({ userAgent: UA.windowsEdge, platform: "Win32", maxTouchPoints: 10 }),
     ).toBe(false);
+  });
+
+  it("exposes detectManualPlatform directly for UA-only classification", () => {
+    expect(
+      detectManualPlatform({
+        userAgent: UA.macosSafari,
+        platform: "MacIntel",
+        maxTouchPoints: 5,
+      }),
+    ).toBe("ios-safari");
+    expect(detectManualPlatform({ userAgent: UA.iosChrome })).toBe("ios-other");
+    expect(detectManualPlatform({ userAgent: UA.androidFirefox })).toBe("android-manual");
+    expect(
+      detectManualPlatform({
+        userAgent: UA.macosSafari,
+        platform: "MacIntel",
+        maxTouchPoints: 0,
+      }),
+    ).toBe("macos-safari");
+    expect(detectManualPlatform({ userAgent: UA.linuxChrome })).toBe("generic");
   });
 });

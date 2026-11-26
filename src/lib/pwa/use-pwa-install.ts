@@ -7,7 +7,12 @@ import {
   promptPwaInstall,
   subscribePwaInstall,
 } from "./install-store";
-import { detectInstallPlatform, isIosUserAgent, type InstallPlatform } from "./platform";
+import {
+  detectManualPlatform,
+  isIosUserAgent,
+  type InstallPlatform,
+  type ManualInstallPlatform,
+} from "./platform";
 
 function subscribeStandalone(callback: () => void) {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -27,17 +32,14 @@ function getStandaloneSnapshot(): boolean {
   );
 }
 
-type ManualInstallPlatform = Exclude<InstallPlatform, "standalone" | "native-prompt">;
-
-function getManualPlatformSnapshot(): ManualInstallPlatform {
+/** Reads the navigator snapshot for manual install guidance; falls back to `"generic"` on SSR. */
+export function getManualPlatformSnapshot(): ManualInstallPlatform {
   if (typeof navigator === "undefined") return "generic";
-  return detectInstallPlatform({
+  return detectManualPlatform({
     userAgent: navigator.userAgent ?? "",
     platform: navigator.platform ?? "",
     maxTouchPoints: navigator.maxTouchPoints ?? 0,
-    canPrompt: false,
-    isStandalone: false,
-  }) as ManualInstallPlatform;
+  });
 }
 
 function getIosSnapshot(): boolean {

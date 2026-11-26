@@ -15,6 +15,9 @@ export type InstallPlatform =
 /** Platforms that display install guidance inside the shared dialog. */
 export type InstallGuidePlatform = Exclude<InstallPlatform, "standalone">;
 
+/** Fallback platforms detected purely from navigator/user-agent signals (no native prompt). */
+export type ManualInstallPlatform = Exclude<InstallPlatform, "standalone" | "native-prompt">;
+
 export interface InstallPlatformInput {
   userAgent: string;
   /** `navigator.platform` when available (paired with `maxTouchPoints` for iPadOS desktop UA). */
@@ -27,26 +30,28 @@ export interface InstallPlatformInput {
   isStandalone: boolean;
 }
 
+export type ManualInstallPlatformInput = Pick<
+  InstallPlatformInput,
+  "userAgent" | "platform" | "maxTouchPoints"
+>;
+
 const IOS_DEVICE = /iphone|ipad|ipod/i;
 const MAC_UA = /macintosh|mac os x/i;
-const IOS_OTHER_BROWSER = /crios|fxios|edgios|opios|yabrowser|duckduckgo|brave/i;
+// iOS browsers that advertise a distinct UA token (Chrome, Firefox, Edge, Opera, Yandex).
+// Other iOS browsers whose UA looks like Safari receive the Safari guide.
+const IOS_OTHER_BROWSER = /crios|fxios|edgios|opios|yabrowser/i;
 const NON_SAFARI_DESKTOP = /chrome|chromium|crios|edg|opr|opera|firefox|fxios|samsungbrowser/i;
 
 /** Returns true for iOS/iPadOS devices, including iPadOS reporting a desktop Mac user agent. */
-export function isIosUserAgent(
-  input: Pick<InstallPlatformInput, "userAgent" | "platform" | "maxTouchPoints">,
-): boolean {
+export function isIosUserAgent(input: ManualInstallPlatformInput): boolean {
   const ua = input.userAgent;
   if (IOS_DEVICE.test(ua)) return true;
   const touchPoints = input.maxTouchPoints ?? 0;
   return touchPoints > 1 && (input.platform === "MacIntel" || MAC_UA.test(ua));
 }
 
-/** Maps browser signals to the matching PWA install guidance variant. */
-export function detectInstallPlatform(input: InstallPlatformInput): InstallPlatform {
-  if (input.isStandalone) return "standalone";
-  if (input.canPrompt) return "native-prompt";
-
+/** Classifies the manual install guide variant purely from user-agent and touch signals. */
+export function detectManualPlatform(input: ManualInstallPlatformInput): ManualInstallPlatform {
   const ua = input.userAgent;
   if (isIosUserAgent(input)) {
     const isSafari = /safari/i.test(ua) && /version\//i.test(ua) && !IOS_OTHER_BROWSER.test(ua);
@@ -67,4 +72,11 @@ export function detectInstallPlatform(input: InstallPlatformInput): InstallPlatf
   }
 
   return "generic";
+}
+
+/** Maps browser signals to the matching PWA install guidance variant. */
+export function detectInstallPlatform(input: InstallPlatformInput): InstallPlatform {
+  if (input.isStandalone) return "standalone";
+  if (input.canPrompt) return "native-prompt";
+  return detectManualPlatform(input);
 }
