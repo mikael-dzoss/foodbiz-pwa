@@ -179,6 +179,7 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 | Dialog                                                  | shadcn       | Custom content; use `ConfirmDialog` for plain confirmations                       |
 | Confirm dialog                                          | custom       | Destructive variant: alertdialog, focus starts on Cancel                          |
 | Toast                                                   | shadcn       | Bottom, above nav; auto-dismiss 4 s; action optional; error variant (`showError`) |
+| Alert                                                   | custom       | Inline bordered notice (`error`/`warning`/`info`); icon + body; see below         |
 | Skeleton                                                | shadcn       | Matches final layout; no shimmer under reduced motion                             |
 | Empty state                                             | custom (#34) | Icon, one-line title, one-line hint, one action                                   |
 | Error state                                             | custom (#34) | Icon, message, retry action                                                       |
@@ -186,6 +187,22 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 | Action bar (`ActionBar`)                                | custom       | The one sticky bar: manager form save (above nav), storefront cart/checkout       |
 | Quantity stepper                                        | custom       | − / value / +, 48 px buttons                                                      |
 | Soon badge + soon item                                  | custom (#33) | See §8                                                                            |
+
+### Alert (`@/components/ui`)
+
+Shared bordered inline notice box (`flex items-start gap-2 rounded-xl border p-3 text-body-sm`), always pairing a soft tinted surface with an `aria-hidden` leading icon (`shrink-0`, aligned with the first line) and wrapping cleanly at 360 px.
+
+- **Props:** `tone: "error" | "warning" | "info"`, optional `title?: ReactNode` (`text-label-md`), optional `icon?: ReactNode` (defaults: `AlertCircle`, `AlertTriangle`, `Info`), optional `role?: "alert" | "status"` override, forwarded `ref` + `tabIndex` (adds focus ring when focusable), passthrough `id`, `data-testid`, `className`, `aria-*`.
+- **Tones & default roles:**
+  - `error` → `border-destructive/30 bg-destructive/10 text-destructive`, default `role="alert"`.
+  - `warning` → `border-warning/30 bg-warning-soft text-warning-soft-foreground`, default `role="status"`.
+  - `info` → `border-primary/30 bg-primary-soft text-primary-soft-foreground`, default `role="status"`.
+  - No `success` tone (no success token in §2; use `info` with a `Check` icon for persistent inline confirmations or `Toast` for transient feedback).
+- **When to use:**
+  - Use **`Alert`** for persistent in-flow notices inside a form, card, sheet or dialog (submit errors, closed-hours notices, cancellation/refund callouts, kitchen notes, inline status banners).
+  - Use **`Field` error** for single-control validation messages directly under an input or switch.
+  - Use **`Toast`** for brief transient action confirmations or errors that auto-dismiss.
+  - Use **`Badge`** for compact status pills and counts attached to an entity row or header.
 
 ## 8. "Coming soon" pattern
 

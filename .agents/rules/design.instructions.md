@@ -37,6 +37,7 @@ When implementing or redesigning any screen from `SCREENS.md`:
 4. **Build in Code**:
    - Only the **Light mode** Stitch design is used as the visual reference model for our screens. Dark mode styling is derived automatically through design tokens in `src/app/globals.css`.
    - Rebuild in React using our tokens and `@/components/ui` primitives. Stitch HTML is reference only.
+   - Inline notices use `Alert` from `@/components/ui`; never hand-roll a bordered notice box.
 
 ### 2.1 Signal vs. Noise in Stitch Models
 
