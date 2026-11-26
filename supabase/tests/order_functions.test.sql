@@ -10,7 +10,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(65);
+select plan(96);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -1431,6 +1431,625 @@ select is(
    where n.nspname = 'public' and p.proname = 'place_order'),
   1,
   'exactly one place_order overload exists'
+);
+
+-- ----------------------------------------------------------------------------
+-- Section 9: pickup locations on orders (#386, #387). Hours are built relative to the
+-- real now() in Europe/Paris, never assuming a time of day.
+-- ----------------------------------------------------------------------------
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set payment_methods = '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb, shop_pickup_enabled = true
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+insert into public.pickup_locations (id, business_id, name, address, postcode, fee_cents, weekly_hours, is_active, sort_order)
+values
+  ('f1000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001'::uuid, 'Gare Nord', '1 rue A', '75010', 150, null, true, 0),
+  ('f1000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001'::uuid, 'Gare Sud', '2 rue B', '75013', 0, (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), true, 1),
+  ('f1000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001'::uuid, 'Closed Relay', '3 rue C', '75003', 100, null, false, 2),
+  ('f1000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000002'::uuid, 'Other Business Relay', '4 rue D', '69001', 0, null, true, 0);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_reloc_ok on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000101',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001') as res;
+grant select on t_reloc_ok to public;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select o.pickup_location_id from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_ok)) = 'f1000000-0000-0000-0000-000000000001'::uuid,
+  'relay order stores the pickup location id'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select o.pickup_location_name from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_ok)) = 'Gare Nord',
+  'relay order snapshots the location name'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select o.pickup_location_address from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_ok)) = '1 rue A, 75010',
+  'relay order snapshots the location address and postcode'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select is(
+  (select o.pickup_fee_cents from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_ok)),
+  150,
+  'relay order stores the location fee'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select is(
+  (select o.total_amount from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_ok)),
+  250,
+  'relay fee is added to the order total'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select is(
+  (select (res ->> 'total_amount')::integer from t_reloc_ok),
+  250,
+  'place_order result total includes the relay fee'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000102',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000003')$$,
+  '22023',
+  'INVALID_PICKUP_LOCATION: pickup location f1000000-0000-0000-0000-000000000003 is not available',
+  'inactive pickup location is rejected'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000103',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000004')$$,
+  '22023',
+  'INVALID_PICKUP_LOCATION: pickup location f1000000-0000-0000-0000-000000000004 is not available',
+  'another business pickup location is rejected'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000104',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-0000000000ff')$$,
+  '22023',
+  'INVALID_PICKUP_LOCATION: pickup location f1000000-0000-0000-0000-0000000000ff is not available',
+  'unknown pickup location is rejected'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000105',
+    'delivery'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001', p_delivery_address := '5 rue E')$$,
+  '22023',
+  'INVALID_PICKUP_LOCATION: only pickup orders can have a pickup location',
+  'pickup location on a delivery order is rejected'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_reloc_shop on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000106',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true) as res;
+grant select on t_reloc_shop to public;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select o.pickup_location_id from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_shop)) is null,
+  'null location with shop pickup enabled means the shop'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select is(
+  (select o.pickup_fee_cents from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_shop)),
+  0,
+  'shop pickup has no fee'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings set shop_pickup_enabled = false where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000107',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true)$$,
+  '22023',
+  'PICKUP_LOCATION_REQUIRED: choose a pickup location',
+  'a choice is required when several relays and no shop pickup are offered'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.pickup_locations set is_active = false where id = 'f1000000-0000-0000-0000-000000000002';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_reloc_auto on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000108',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true) as res;
+grant select on t_reloc_auto to public;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select o.pickup_location_id from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_auto)) = 'f1000000-0000-0000-0000-000000000001'::uuid,
+  'a lone relay is selected automatically'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select is(
+  (select o.total_amount from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_auto)),
+  250,
+  'auto-selected relay fee is in the total'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+alter table public.pickup_locations disable trigger user;
+alter table public.business_settings disable trigger user;
+update public.pickup_locations set is_active = false where id = 'f1000000-0000-0000-0000-000000000001';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000109',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true)$$,
+  '22023',
+  'PICKUP_NOT_AVAILABLE: no pickup option is available',
+  'PICKUP_NOT_AVAILABLE when no pickup option exists'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.pickup_locations set is_active = true where id in ('f1000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000002');
+update public.business_settings set shop_pickup_enabled = true where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+alter table public.pickup_locations enable trigger user;
+alter table public.business_settings enable trigger user;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.pickup_locations set weekly_hours = (select jsonb_object_agg(d, case when d = (array['mon','tue','wed','thu','fri','sat','sun'])[extract(isodow from (now() at time zone 'Europe/Paris')::date + 1)::integer] then '[]'::jsonb else '[{"open":"00:00","close":"24:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d) where id = 'f1000000-0000-0000-0000-000000000002';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000110',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000002')$$,
+  '22023',
+  'SLOT_INVALID: closed_day',
+  'relay hours close a day the business is open'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_reloc_hours_ok on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000111',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001') as res;
+grant select on t_reloc_hours_ok to public;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select res ? 'order_id' from t_reloc_hours_ok),
+  'a relay without hours follows the business hours'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.pickup_locations set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d) where id = 'f1000000-0000-0000-0000-000000000002';
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings set weekly_hours = (select jsonb_object_agg(d, case when d = (array['mon','tue','wed','thu','fri','sat','sun'])[extract(isodow from (now() at time zone 'Europe/Paris')::date + 1)::integer] then '[]'::jsonb else '[{"open":"00:00","close":"24:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000112',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000002')$$,
+  '22023',
+  'SLOT_INVALID: closed_day',
+  'a weekday the business is closed stays closed at a relay open that day'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = jsonb_build_array(jsonb_build_object('from', to_char((now() at time zone 'Europe/Paris')::date + 1, 'YYYY-MM-DD'), 'to', to_char((now() at time zone 'Europe/Paris')::date + 1, 'YYYY-MM-DD'), 'ranges', '[]'::jsonb))
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000113',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000002')$$,
+  '22023',
+  'SLOT_INVALID: closed_day',
+  'a business closure applies to relay locations'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.pickup_locations set weekly_hours = (select jsonb_object_agg(d, case when d = (array['mon','tue','wed','thu','fri','sat','sun'])[extract(isodow from (now() at time zone 'Europe/Paris')::date + 1)::integer] then '[]'::jsonb else '[{"open":"00:00","close":"24:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d) where id = 'f1000000-0000-0000-0000-000000000002';
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = jsonb_build_array(jsonb_build_object('from', to_char((now() at time zone 'Europe/Paris')::date + 1, 'YYYY-MM-DD'), 'to', to_char((now() at time zone 'Europe/Paris')::date + 1, 'YYYY-MM-DD'), 'ranges', '[{"open":"00:00","close":"24:00"}]'::jsonb))
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000114',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000002')$$,
+  '22023',
+  'SLOT_INVALID: closed_day',
+  'a business special-hours exception does not open a relay on its closed day'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role service_role;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
+set local "request.jwt.claims" = '{"role": "service_role"}';
+
+set local role service_role;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
+set local "request.jwt.claims" = '{"role": "service_role"}';
+
+create temp table t_reloc_manual_null on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000115',
+    'pickup'::public.order_service_type, 'phone'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true) as res;
+grant select on t_reloc_manual_null to public;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select o.pickup_location_id from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_manual_null)) is null,
+  'manual order without a location means the shop'
+);
+
+set local role service_role;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
+set local "request.jwt.claims" = '{"role": "service_role"}';
+
+create temp table t_reloc_manual_loc on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000116',
+    'pickup'::public.order_service_type, 'phone'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001') as res;
+grant select on t_reloc_manual_loc to public;
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select is(
+  (select o.total_amount from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_manual_loc)),
+  250,
+  'manual order at a relay stores the fee in the total'
+);
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_reloc_idem on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000199',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001', p_idempotency_key := '5a5a5a5a-0000-4000-8000-0000000000b1') as res;
+grant select on t_reloc_idem to public;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select is(
+  (select (public.place_order('10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000199', 'pickup'::public.order_service_type, 'storefront'::public.order_channel, (now() at time zone 'Europe/Paris')::date, '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001', p_idempotency_key := '5a5a5a5a-0000-4000-8000-0000000000b1') ->> 'replayed'),
+  'true',
+  'a retry with the same relay replays the order'
+);
+
+select throws_like(
+  $$select public.place_order('10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000199', 'pickup'::public.order_service_type, 'storefront'::public.order_channel, (now() at time zone 'Europe/Paris')::date, '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_idempotency_key := '5a5a5a5a-0000-4000-8000-0000000000b1')$$,
+  'INVALID_IDEMPOTENCY_KEY%',
+  'replaying an idempotency key with another pickup location is rejected'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select (s.weekly = (select jsonb_object_agg(d, case when d = 'mon' then '[]'::jsonb else '[{"open":"09:00","close":"18:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d) and s.exceptions = '[{"from":"2030-01-01","to":"2030-01-02","ranges":[]},{"from":"2030-02-01","to":"2030-02-01","ranges":[{"open":"10:00","close":"12:00"}]}]'::jsonb) from public.pickup_schedule_hours((select jsonb_object_agg(d, case when d = 'mon' then '[]'::jsonb else '[{"open":"09:00","close":"18:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), '[{"from":"2030-01-01","to":"2030-01-02","ranges":[]},{"from":"2030-02-01","to":"2030-02-01","ranges":[{"open":"10:00","close":"12:00"}]}]'::jsonb, null) s),
+  'pickup_schedule_hours: no location hours keeps the business schedule'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select (s.weekly -> 'mon' = '[]'::jsonb and s.weekly -> 'tue' = '[{"open":"07:00","close":"20:00"}]'::jsonb) from public.pickup_schedule_hours((select jsonb_object_agg(d, case when d = 'mon' then '[]'::jsonb else '[{"open":"09:00","close":"18:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), '[{"from":"2030-01-01","to":"2030-01-02","ranges":[]},{"from":"2030-02-01","to":"2030-02-01","ranges":[{"open":"10:00","close":"12:00"}]}]'::jsonb, (select jsonb_object_agg(d, '[{"open":"07:00","close":"20:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d)) s),
+  'pickup_schedule_hours: location hours keep their ranges except business closed weekdays'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select s.exceptions = '[{"from":"2030-01-01","to":"2030-01-02","ranges":[]}]'::jsonb from public.pickup_schedule_hours((select jsonb_object_agg(d, case when d = 'mon' then '[]'::jsonb else '[{"open":"09:00","close":"18:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), '[{"from":"2030-01-01","to":"2030-01-02","ranges":[]},{"from":"2030-02-01","to":"2030-02-01","ranges":[{"open":"10:00","close":"12:00"}]}]'::jsonb, (select jsonb_object_agg(d, '[{"open":"07:00","close":"20:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d)) s),
+  'pickup_schedule_hours: only the business closed exceptions apply to a location'
+);
+
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+select ok(
+  (select (s.weekly -> 'mon' = '[{"open":"07:00","close":"20:00"}]'::jsonb and s.exceptions = '[]'::jsonb) from public.pickup_schedule_hours(null, null, (select jsonb_object_agg(d, '[{"open":"07:00","close":"20:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d)) s),
+  'pickup_schedule_hours: business without hours leaves the location hours untouched'
+);
+
+select is(
+  (select count(*)::integer from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'order_total_cents'),
+  1,
+  'exactly one order_total_cents overload exists'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.pickup_schedule_hours(jsonb, jsonb, jsonb)', 'execute')
+  and not has_function_privilege('authenticated', 'public.pickup_schedule_hours(jsonb, jsonb, jsonb)', 'execute')
+  and has_function_privilege('service_role', 'public.pickup_schedule_hours(jsonb, jsonb, jsonb)', 'execute'),
+  'pickup_schedule_hours is executable by service_role only'
 );
 
 select * from finish();

@@ -11,7 +11,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(21);
+select plan(24);
 
 insert into public.businesses (id, name, slug, currency)
 values
@@ -163,6 +163,35 @@ select is(
   (select count(*)::int from public.order_items where order_id = '0a000000-0000-0000-0000-000000000001'),
   0,
   'deleting an order cascades to its items'
+);
+
+-- ----------------------------------------------------------------------------
+-- orders.pickup_location_id (20260101000036)
+-- ----------------------------------------------------------------------------
+insert into public.pickup_locations (id, business_id, name, address, postcode)
+values
+  ('f1000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Relay A', '1 rue A', '75010'),
+  ('f2000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'Relay B', '2 rue B', '75013');
+
+select ok(
+  (select convalidated from pg_constraint where conname = 'orders_business_pickup_location_fkey' and contype = 'f'),
+  'the composite pickup location foreign key exists and is validated'
+);
+
+select throws_ok(
+  $$update public.orders set pickup_location_id = 'f1000000-0000-0000-0000-000000000001' where id = '0b000000-0000-0000-0000-000000000002'$$,
+  '23503', null, 'an order cannot point at another business pickup location'
+);
+
+update public.orders
+set pickup_location_id = 'f2000000-0000-0000-0000-000000000002', pickup_location_name = 'Relay B'
+where id = '0b000000-0000-0000-0000-000000000002';
+delete from public.pickup_locations where id = 'f2000000-0000-0000-0000-000000000002';
+
+select ok(
+  (select pickup_location_id is null and business_id = '20000000-0000-0000-0000-000000000002'::uuid and pickup_location_name = 'Relay B'
+   from public.orders where id = '0b000000-0000-0000-0000-000000000002'),
+  'deleting a pickup location nulls only orders.pickup_location_id and keeps the snapshot'
 );
 
 -- ----------------------------------------------------------------------------

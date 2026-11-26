@@ -15,7 +15,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(82);
+select plan(86);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (as the migration role)
@@ -777,6 +777,10 @@ reset role;
 -- ----------------------------------------------------------------------------
 -- Section I: get_order_by_tracking_token exposes only the explicit keys
 -- ----------------------------------------------------------------------------
+update public.businesses set address = '9 Rue du Four, 75006 Paris' where id = 'b1000000-0000-0000-0000-000000000001';
+insert into public.pickup_locations (id, business_id, name, address, postcode)
+values ('f1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'Gare du Nord', '18 Rue de Dunkerque', '75010');
+
 set local role anon;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claim.role" = 'anon';
@@ -808,6 +812,19 @@ select public.place_order(
 ) as res;
 grant select on t_pickup_with_address to public;
 
+create temp table t_relay_order on commit drop as
+select public.place_order(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 'Relay Buyer', '+33699000015',
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb,
+  p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001'
+) as res;
+grant select on t_relay_order to public;
+
+create temp table t_tracking_relay on commit drop as
+select public.get_order_by_tracking_token((select res->>'tracking_token' from t_relay_order)) as res;
+grant select on t_tracking_relay to public;
+
 create temp table t_tracking_pickup_addr on commit drop as
 select public.get_order_by_tracking_token((select res->>'tracking_token' from t_pickup_with_address)) as res;
 grant select on t_tracking_pickup_addr to public;
@@ -831,6 +848,8 @@ select is(
     'order_number',
     'paid',
     'payment_preference',
+    'pickup_location_address',
+    'pickup_location_name',
     'requested_date',
     'requested_time',
     'service_type',
@@ -839,7 +858,7 @@ select is(
     'tracking_token',
     'updated_at'
   ]::text[],
-  'tracking order exposes exactly the explicit allowlisted keys (including delivery_address)'
+  'tracking order exposes exactly the explicit allowlisted keys (including delivery_address and the pickup location)'
 );
 
 select is(
@@ -863,6 +882,32 @@ select is(
   (select res->'order'->>'delivery_address' from t_tracking_pickup_addr),
   null::text,
   'pickup order tracking returns null for delivery_address even if stored on the row'
+);
+
+select is(
+  (select res->'order'->>'pickup_location_name' from t_tracking_relay),
+  'Gare du Nord',
+  'relay order tracking returns the pickup location name'
+);
+
+select is(
+  (select res->'order'->>'pickup_location_address' from t_tracking_relay),
+  '18 Rue de Dunkerque, 75010',
+  'relay order tracking returns the pickup location address and postcode'
+);
+
+select ok(
+  (select (res->'order'->'pickup_location_name') = 'null'::jsonb
+      and res->'order'->>'pickup_location_address' = '9 Rue du Four, 75006 Paris'
+   from t_tracking_pickup_addr),
+  'shop pickup tracking returns no location name and the shop address'
+);
+
+select ok(
+  (select (res->'order'->'pickup_location_name') = 'null'::jsonb
+      and (res->'order'->'pickup_location_address') = 'null'::jsonb
+   from t_tracking_delivery),
+  'delivery order tracking returns no pickup location'
 );
 
 select ok(
