@@ -122,6 +122,19 @@ export const publicOrderSchema = orderSchema
   });
 export type PublicOrder = z.infer<typeof publicOrderSchema>;
 
+/**
+ * Public-tracking delivery address rule: expose the address only for delivery orders,
+ * returning `null` for other service types or blank values.
+ */
+export function publicDeliveryAddress(
+  serviceType: unknown,
+  deliveryAddress: unknown,
+): string | null {
+  if (serviceType !== "delivery" || typeof deliveryAddress !== "string") return null;
+  const trimmed = deliveryAddress.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /** Read model: an order with its guest's current name resolved via guestId. */
 export type NamedOrder = Order & { readonly guestName: string };
 

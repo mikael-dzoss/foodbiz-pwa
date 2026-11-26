@@ -9,6 +9,7 @@ import {
   guestSchema,
   orderItemSchema,
   orderSchema,
+  publicDeliveryAddress,
   publicOrderSchema,
   orderStatusEventSchema,
   manualOrderInputSchema,
@@ -487,6 +488,19 @@ describe("Order and OrderItem schemas", () => {
     ).toBeNull();
     const { deliveryAddress: _omit, ...withoutAddress } = parsed;
     expect(publicOrderSchema.parse(withoutAddress).deliveryAddress).toBeUndefined();
+  });
+
+  it("publicDeliveryAddress exposes trimmed address only for delivery orders (#352)", () => {
+    expect(publicDeliveryAddress("delivery", "  12 Rue de Rivoli, Paris  ")).toBe(
+      "12 Rue de Rivoli, Paris",
+    );
+    expect(publicDeliveryAddress("delivery", "   ")).toBeNull();
+    expect(publicDeliveryAddress("delivery", "")).toBeNull();
+    expect(publicDeliveryAddress("delivery", null)).toBeNull();
+    expect(publicDeliveryAddress("delivery", undefined)).toBeNull();
+    expect(publicDeliveryAddress("pickup", "12 Rue de Rivoli, Paris")).toBeNull();
+    expect(publicDeliveryAddress("dine-in", "12 Rue de Rivoli, Paris")).toBeNull();
+    expect(publicDeliveryAddress(null, "12 Rue de Rivoli, Paris")).toBeNull();
   });
 
   it("validates orderStatusEventSchema", () => {

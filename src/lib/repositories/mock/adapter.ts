@@ -11,6 +11,7 @@ import {
 } from "@/domain/guest";
 import type { Guest } from "@/domain/guest";
 import {
+  publicDeliveryAddress,
   publicOrderSchema,
   OrderRepoError,
   type CancelOrderResult,
@@ -278,7 +279,7 @@ export function createMockRepositories(
       if (!o) return null;
       return publicOrderSchema.parse({
         ...o,
-        deliveryAddress: o.serviceType === "delivery" ? (o.deliveryAddress ?? null) : null,
+        deliveryAddress: publicDeliveryAddress(o.serviceType, o.deliveryAddress),
       });
     },
     async place(bId, input): Promise<PlacedOrderSummary> {

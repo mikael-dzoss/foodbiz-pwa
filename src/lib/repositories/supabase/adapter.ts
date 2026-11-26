@@ -21,6 +21,7 @@ import {
   orderSchema,
   OrderRepoError,
   placedOrderSummarySchema,
+  publicDeliveryAddress,
   publicOrderSchema,
   type CancelOrderResult,
   type Order,
@@ -690,10 +691,10 @@ export function createSupabaseRepositories(
             : null,
         totalAmount: order.total_amount ?? order.totalAmount,
         cancellationReason: order.cancellation_reason ?? order.cancellationReason ?? null,
-        deliveryAddress:
-          serviceType === "delivery"
-            ? (order.delivery_address ?? order.deliveryAddress ?? null)
-            : null,
+        deliveryAddress: publicDeliveryAddress(
+          serviceType,
+          order.delivery_address ?? order.deliveryAddress,
+        ),
         createdAt: toIsoUtc(order.created_at ?? order.createdAt),
         items: items.map((it) => ({
           productName: it.product_name ?? it.productName,
