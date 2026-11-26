@@ -8,7 +8,7 @@ import { getDictionary, interpolate, type SupportedLocale } from "@/domain/i18n"
 import type { HoursException } from "@/domain/opening-hours";
 import { getZonedDay } from "@/domain/timezone";
 import { actionErrorMessage } from "@/lib/actions/error-message";
-import { Button, ConfirmDialog, useToastOptional } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, useToastOptional } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { updateHoursExceptionsAction } from "../actions";
 import { ExceptionSheet } from "./opening-hours";
@@ -98,10 +98,10 @@ export function HoursExceptionsSettings({
 
   const handleDelete = async () => {
     if (!editing) return;
-    if (await persist(others, t.deleteSuccess)) {
-      setDeleteOpen(false);
-      setSheetOpen(false);
-    }
+    const ok = await persist(others, t.deleteSuccess);
+    // Always close the dialog so a failure (submitError in the sheet, toast) stays visible.
+    setDeleteOpen(false);
+    if (ok) setSheetOpen(false);
   };
 
   const renderRow = (ex: HoursException, muted = false) => {
@@ -122,17 +122,16 @@ export function HoursExceptionsSettings({
           )}
         >
           <span className="flex items-baseline justify-between gap-3">
-            <span className="text-foreground text-sm font-semibold tabular-nums">{date}</span>
-            <span
-              className={cn(
-                "text-body-sm shrink-0 tabular-nums",
-                closed
-                  ? "bg-warning-soft text-warning-soft-foreground rounded px-1.5 py-0.5 text-xs font-semibold"
-                  : "text-muted-foreground",
-              )}
-            >
-              {closed ? t.statusClosed : ex.ranges.map((r) => `${r.open}–${r.close}`).join(" · ")}
-            </span>
+            <span className="text-foreground text-label-md tabular-nums">{date}</span>
+            {closed ? (
+              <Badge variant="warning" className="shrink-0">
+                {t.statusClosed}
+              </Badge>
+            ) : (
+              <span className="text-body-sm text-muted-foreground shrink-0 tabular-nums">
+                {ex.ranges.map((r) => `${r.open}–${r.close}`).join(" · ")}
+              </span>
+            )}
           </span>
           {ex.note && <span className="text-body-sm text-muted-foreground">{ex.note}</span>}
         </button>
@@ -207,7 +206,6 @@ export function HoursExceptionsSettings({
             type="button"
             variant="ghost"
             aria-expanded={showPast}
-            aria-controls="exceptions-past-list"
             onClick={() => setShowPast((v) => !v)}
             data-testid="exceptions-past-toggle"
             className="min-h-11 rounded-xl px-2"

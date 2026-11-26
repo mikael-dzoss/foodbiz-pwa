@@ -417,6 +417,22 @@ describe("ServiceToggleHeader (#193)", () => {
       }
     });
 
+    it("renders a neutral status (no Open/Closed badge) before the client clock is known", () => {
+      const html = renderToString(
+        <ServiceToggleHeader
+          isAcceptingOrders
+          isOpen
+          openingHoursText="07:30 - 19:30"
+          settings={baseSettings}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(html).toContain("store-status-pending");
+      expect(html).not.toContain(enDictionary.storefront.storeOpenBadge);
+      expect(html).not.toContain(enDictionary.storefront.storeClosedBadge);
+    });
+
     it("renders no invented default times before the client clock is known", () => {
       const html = renderToString(
         <ServiceToggleHeader

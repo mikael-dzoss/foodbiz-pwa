@@ -490,6 +490,23 @@ describe("ShopInfoView (#83)", () => {
       expect(screen.queryByText("07:30 – 19:30")).toBeNull();
     });
 
+    it("does not render legacy free text next to structured hours", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{
+            ...mockSettings,
+            openingHours: "LEGACY-HOURS-TEXT",
+            weeklyHours: weekly,
+            hoursExceptions: [],
+          }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(screen.queryByText("LEGACY-HOURS-TEXT")).toBeNull();
+    });
+
     it("hides the hours section when no hours are configured", () => {
       render(
         <ShopInfoView

@@ -335,7 +335,7 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             locale={locale}
             timeZone={settings?.timezone ?? DEFAULT_TIMEZONE}
             highlightToday
-            fallbackText={settings?.openingHours}
+            fallbackText={hasStructuredHours ? null : settings?.openingHours}
             labels={{
               closed: dict.storeClosedBadge,
               todayBadge: dict.today,

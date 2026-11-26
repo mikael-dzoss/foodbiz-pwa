@@ -125,6 +125,33 @@ describe("HoursExceptionsSettings (#375)", () => {
     await waitFor(() => expect(screen.queryByTestId("exception-row-2026-12-24")).toBeNull());
   });
 
+  it("closes the delete dialog when deleting fails so the error stays visible", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("exception-row-2026-12-24"));
+    saveMock.mockResolvedValueOnce({ ok: false, code: "INTERNAL", message: "boom" });
+    fireEvent.click(screen.getByTestId("exception-delete"));
+    fireEvent.click(screen.getByTestId("exception-delete-dialog-confirm"));
+    await waitFor(() => expect(saveMock).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId("exception-delete-dialog")).toBeNull());
+    expect(screen.getByTestId("exception-sheet")).toBeDefined();
+    expect(screen.getByTestId("exception-form-error")).toBeDefined();
+  });
+
+  it("focuses the first invalid control after a failed submit", async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId("exception-add"));
+    fillDates("2026-12-25", "2026-12-25");
+    fireEvent.click(screen.getByTestId("exception-save"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("exception-from")));
+  });
+
+  it("counts the trimmed note length", () => {
+    renderPage([]);
+    fireEvent.click(screen.getByTestId("exception-add"));
+    fireEvent.change(screen.getByTestId("exception-note"), { target: { value: "  ab  " } });
+    expect(screen.getByTestId("exception-note-counter").textContent).toContain("2");
+  });
+
   it("shows inline validation: overlap, end before start, span, note length", () => {
     renderPage();
     fireEvent.click(screen.getByTestId("exception-add"));

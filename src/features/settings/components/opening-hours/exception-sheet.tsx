@@ -176,8 +176,8 @@ function ExceptionForm({
     () => buildRangesValidation(draft.ranges, rangeLabels),
     [draft.ranges, rangeLabels],
   );
-  const noteLength = draft.note.length;
-  const noteOver = draft.note.trim().length > MAX_EXCEPTION_NOTE_LENGTH;
+  const noteLength = draft.note.trim().length;
+  const noteOver = noteLength > MAX_EXCEPTION_NOTE_LENGTH;
   const show = (message?: string) => (submitted ? message : undefined);
 
   const patch = (next: Partial<ExceptionDraft>) => setDraft((prev) => ({ ...prev, ...next }));
@@ -186,6 +186,11 @@ function ExceptionForm({
     event.preventDefault();
     setSubmitted(true);
     if (!value || rangesValidation.rangeErrors.size > 0 || rangesValidation.dayErrors.length > 0) {
+      const form = event.currentTarget as HTMLFormElement;
+      // Wait for the error state to render so aria-invalid is set, then focus the first one.
+      requestAnimationFrame(() =>
+        form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+      );
       return;
     }
     onSave(value);
@@ -200,7 +205,7 @@ function ExceptionForm({
       className="mt-4 space-y-4"
       data-testid="exception-form"
     >
-      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
+      <div className="xs:grid-cols-2 grid grid-cols-1 gap-4">
         <Field label={t.startDateLabel} error={show(errors.from)} required>
           <Input
             type="date"
@@ -334,11 +339,11 @@ function ExceptionForm({
         {onDelete && (
           <Button
             type="button"
-            variant="outline"
+            variant="destructive"
             onClick={onDelete}
             disabled={busy}
             data-testid="exception-delete"
-            className="border-destructive/30 text-destructive hover:bg-destructive/10 min-h-11 rounded-xl"
+            className="min-h-11 rounded-xl"
           >
             {t.deleteButton}
           </Button>

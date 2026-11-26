@@ -76,6 +76,8 @@ export function ServiceToggleHeader({
   );
   const openNow = useOpenNowStatus(schedule, timeZone);
   const structuredStatus = hasStructuredHours ? openNow : null;
+  // Structured hours but no client clock yet (SSR / first paint): neutral, never the cached flag.
+  const statusPending = hasStructuredHours && openNow === null;
   const isStoreOpen = isAcceptingOrders && (structuredStatus ? structuredStatus.isOpen : isOpen);
   const legacyHoursText = hasStructuredHours ? null : openingHoursText;
   // Compact structured hours for today (e.g. "11:00–14:00 · 18:00–22:00"); empty when closed.
@@ -249,6 +251,14 @@ export function ServiceToggleHeader({
               </span>
               {legacyHoursText && <span className="sr-only">{legacyHoursText}</span>}
             </>
+          ) : statusPending ? (
+            <span className="flex items-center gap-1.5" data-testid="store-status-pending">
+              <span
+                className="bg-muted-foreground/40 h-2 w-2 shrink-0 rounded-full"
+                aria-hidden="true"
+              />
+              <InfoGlyph label={dict.orderingDetailsOpen} />
+            </span>
           ) : isStoreOpen ? (
             <>
               <span className="flex items-center gap-1.5">
