@@ -223,7 +223,10 @@ for (const locale of ["en", "fr"] as const) {
       );
 
       const pickupSection = screen.getByTestId("confirmation-pickup-location");
-      expect(pickupSection.querySelector("dl dt")?.textContent).toBe(dict.orderTracking.collectAt);
+      expect(
+        screen.getByRole("heading", { name: dict.orderTracking.collectAt, level: 2 }),
+      ).toBeDefined();
+      expect(pickupSection.querySelector("h2")?.textContent).toBe(dict.orderTracking.collectAt);
       expect(screen.getByTestId("confirmation-pickup-name").textContent).toBe(
         "Marché de Montreuil",
       );
@@ -234,6 +237,11 @@ for (const locale of ["en", "fr"] as const) {
       );
       expect(directionsLink.getAttribute("target")).toBe("_blank");
       expect(directionsLink.getAttribute("rel")).toBe("noopener noreferrer");
+      expect(directionsLink.getAttribute("aria-label")).toBe(
+        locale === "fr"
+          ? "Itinéraire vers Marché de Montreuil (ouvre un nouvel onglet)"
+          : "Directions to Marché de Montreuil (opens in a new tab)",
+      );
 
       // Shop fallback when pickupLocation name is null (tracking RPC shop pickup)
       rerender(

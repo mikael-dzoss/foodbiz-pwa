@@ -44,6 +44,7 @@ import {
   formatDateTime,
   formatTime,
   resolvePickupDisplay,
+  splitOrderTotal,
   type OrderStatus,
   type PaymentMethod,
 } from "@/domain";
@@ -348,11 +349,11 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
     o.storePickup,
   );
 
-  // Tax calculation for breakdown (10% VAT on food; relay pickup fee is already in totalAmount)
-  const pickupFeeCents = currentOrder.pickupFeeCents ?? 0;
-  const foodTotal = Math.max(0, currentOrder.totalAmount - pickupFeeCents);
-  const includedTax = Math.round(foodTotal * 0.1 * 100) / 100;
-  const subtotal = foodTotal - includedTax;
+  // Totals breakdown (pre-tax food subtotal, 10% included VAT, and relay pickup fee)
+  const { subtotal, includedTax, pickupFeeCents } = splitOrderTotal(
+    currentOrder.totalAmount,
+    currentOrder.pickupFeeCents,
+  );
 
   // Predictive Full Journey Timeline
   const timelineSteps = React.useMemo(() => {
@@ -657,8 +658,9 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
                     href={pickupDisplay.directionsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label={interpolate(t.directionsAria, { place: pickupDisplay.name })}
                     data-testid="order-pickup-directions"
-                    className="border-border bg-card hover:bg-muted text-primary inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
+                    className="border-border bg-card hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
                   >
                     <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     <span>{t.directions}</span>

@@ -860,6 +860,7 @@ export const frDictionary: Dictionary = {
     // Pickup location (#387)
     collectAt: "Retrait à",
     directions: "Itinéraire",
+    directionsAria: "Itinéraire vers {place} (ouvre un nouvel onglet)",
     orderSummary: "Récapitulatif de commande",
     subtotal: "Sous-total",
     taxIncluded: "TVA incluse (10%)",

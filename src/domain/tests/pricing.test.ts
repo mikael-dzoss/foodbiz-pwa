@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { calculateOrderItemTotal, calculateOrderTotals, type PricingLineItem } from "../index";
+import {
+  calculateOrderItemTotal,
+  calculateOrderTotals,
+  splitOrderTotal,
+  type PricingLineItem,
+} from "../index";
 
 const validUuid1 = "11111111-1111-4111-8111-111111111111";
 const validUuid2 = "22222222-2222-4111-8111-222222222222";
@@ -200,6 +205,51 @@ describe("Order pricing and totals", () => {
       if (result.ok) {
         expect(result.subtotal).toBe(800);
       }
+    });
+  });
+
+  describe("splitOrderTotal", () => {
+    it("splits food total into pre-tax subtotal and 10% included VAT when pickup fee is 0 or omitted", () => {
+      expect(splitOrderTotal(1700)).toEqual({
+        subtotal: 1530,
+        includedTax: 170,
+        pickupFeeCents: 0,
+        totalAmount: 1700,
+      });
+      expect(splitOrderTotal(1700, 0)).toEqual({
+        subtotal: 1530,
+        includedTax: 170,
+        pickupFeeCents: 0,
+        totalAmount: 1700,
+      });
+    });
+
+    it("excludes the relay pickup fee from the food VAT split so lines sum to totalAmount", () => {
+      const breakdown = splitOrderTotal(1900, 200);
+      expect(breakdown).toEqual({
+        subtotal: 1530,
+        includedTax: 170,
+        pickupFeeCents: 200,
+        totalAmount: 1900,
+      });
+      expect(breakdown.subtotal + breakdown.includedTax + breakdown.pickupFeeCents).toBe(
+        breakdown.totalAmount,
+      );
+    });
+
+    it("clamps negative fees to 0 and guards against fee exceeding total", () => {
+      expect(splitOrderTotal(1000, -50)).toEqual({
+        subtotal: 900,
+        includedTax: 100,
+        pickupFeeCents: 0,
+        totalAmount: 1000,
+      });
+      expect(splitOrderTotal(100, 250)).toEqual({
+        subtotal: 0,
+        includedTax: 0,
+        pickupFeeCents: 250,
+        totalAmount: 100,
+      });
     });
   });
 });

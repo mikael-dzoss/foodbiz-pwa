@@ -563,6 +563,10 @@ describe("OrderDetail Component", () => {
       );
       expect(directions.getAttribute("target")).toBe("_blank");
       expect(directions.getAttribute("rel")).toBe("noopener noreferrer");
+      expect(directions.className).toContain("min-h-11");
+      expect(directions.getAttribute("aria-label")).toBe(
+        "Directions to Marché de Montreuil (opens in a new tab)",
+      );
 
       const feeRow = screen.getByTestId("order-pickup-fee");
       expect(feeRow.textContent).toContain("Pickup fee");
@@ -614,6 +618,9 @@ describe("OrderDetail Component", () => {
 
       expect(screen.getByTestId("order-pickup-location").textContent).toContain("Lieu de retrait");
       expect(screen.getByTestId("order-pickup-directions").textContent).toContain("Itinéraire");
+      expect(screen.getByTestId("order-pickup-directions").getAttribute("aria-label")).toBe(
+        "Itinéraire vers Point Relais Nord (ouvre un nouvel onglet)",
+      );
       expect(screen.getByTestId("order-pickup-fee").textContent).toContain("Frais de retrait");
       expect(screen.getByTestId("order-pickup-fee").textContent).toContain("1,50");
     });

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import type { BusinessSettings } from "@/domain/business";
 import { publicDeliveryAddress, type PublicOrder } from "@/domain/order";
 import { resolvePickupDisplay } from "@/domain/pickup-location";
-import type { Dictionary, SupportedLocale } from "@/domain/i18n";
+import { interpolate, type Dictionary, type SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { CopyPaymentRecipient } from "./copy-payment-recipient";
 
@@ -134,31 +134,31 @@ export function OrderConfirmationView({
         >
           <h2 id="confirmation-pickup-title" className="text-title-sm flex items-center gap-1.5">
             <Store className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{tracking.fulfillmentDetails}</span>
+            <span>{tracking.collectAt}</span>
           </h2>
           <div className="flex items-start justify-between gap-3">
-            <dl className="min-w-0 flex-1">
-              <dt className="text-muted-foreground text-xs font-medium">{tracking.collectAt}</dt>
-              <dd
-                className="text-foreground mt-0.5 text-xs font-bold wrap-break-word"
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p
+                className="text-foreground text-xs font-bold wrap-break-word"
                 data-testid="confirmation-pickup-name"
               >
                 {pickupDisplay.name}
-              </dd>
+              </p>
               {pickupDisplay.address && (
-                <dd
-                  className="text-muted-foreground mt-0.5 text-xs wrap-break-word"
+                <p
+                  className="text-muted-foreground text-xs wrap-break-word"
                   data-testid="confirmation-pickup-address"
                 >
                   {pickupDisplay.address}
-                </dd>
+                </p>
               )}
-            </dl>
+            </div>
             {pickupDisplay.directionsUrl && (
               <a
                 href={pickupDisplay.directionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={interpolate(tracking.directionsAria, { place: pickupDisplay.name })}
                 data-testid="confirmation-directions-link"
                 className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
               >

@@ -64,6 +64,7 @@ export interface OrdersDictionary {
     // Pickup location (#387)
     pickupLocation: string;
     directions: string;
+    directionsAria: string;
     pickupFee: string;
     today: string;
     asap: string;
@@ -316,6 +317,7 @@ const en: OrdersDictionary = {
     address: "Address",
     pickupLocation: "Pickup location",
     directions: "Directions",
+    directionsAria: "Directions to {place} (opens in a new tab)",
     pickupFee: "Pickup fee",
     today: "Today",
     asap: "ASAP",
@@ -572,6 +574,7 @@ const fr: OrdersDictionary = {
     address: "Adresse",
     pickupLocation: "Lieu de retrait",
     directions: "Itinéraire",
+    directionsAria: "Itinéraire vers {place} (ouvre un nouvel onglet)",
     pickupFee: "Frais de retrait",
     today: "Aujourd'hui",
     asap: "Dès que possible",

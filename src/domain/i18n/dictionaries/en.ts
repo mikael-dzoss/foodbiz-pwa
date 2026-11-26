@@ -838,6 +838,7 @@ export const enDictionary: Dictionary = {
     // Pickup location (#387)
     collectAt: "Collect at",
     directions: "Directions",
+    directionsAria: "Directions to {place} (opens in a new tab)",
     orderSummary: "Order Summary",
     subtotal: "Subtotal",
     taxIncluded: "VAT included (10%)",

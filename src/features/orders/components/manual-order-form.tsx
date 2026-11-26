@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Store,
 } from "lucide-react";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
@@ -560,21 +561,21 @@ export function ManualOrderForm({
 
         {/* Pickup Location select when Pickup is selected and business has active relays */}
         {showPickupLocationSelect && (
-          <div className="space-y-1 pt-1" data-testid="pickup-location-field">
-            <label
-              htmlFor="pickupLocation"
-              className="text-muted-foreground block text-xs font-medium"
-            >
-              {t.pickupLocationLabel}
-              {requiresPickupLocation && (
-                <>
-                  {" "}
-                  <span className="text-destructive">*</span>
-                </>
-              )}
-            </label>
+          <Field
+            id="pickupLocation"
+            label={t.pickupLocationLabel}
+            required={requiresPickupLocation}
+            error={errorField === "pickupLocation" ? errorMessage : null}
+            announceError={false}
+            hint={
+              selectedPickupLocation
+                ? `${selectedPickupLocation.address}, ${selectedPickupLocation.postcode}`
+                : undefined
+            }
+            className="pt-1"
+            data-testid="pickup-location-field"
+          >
             <NativeSelect
-              id="pickupLocation"
               value={pickupLocationId}
               onChange={(e) => {
                 setPickupLocationId(e.target.value);
@@ -584,9 +585,7 @@ export function ManualOrderForm({
                 }
               }}
               required={requiresPickupLocation}
-              className="h-11 rounded-lg"
               data-testid="pickup-location-select"
-              {...fieldA11y("pickupLocation")}
             >
               {shopPickupEnabled ? (
                 <option value="">
@@ -603,15 +602,7 @@ export function ManualOrderForm({
                 </option>
               ))}
             </NativeSelect>
-            {selectedPickupLocation && (
-              <p
-                className="text-muted-foreground text-caption"
-                data-testid="pickup-location-selected-address"
-              >
-                {selectedPickupLocation.address}, {selectedPickupLocation.postcode}
-              </p>
-            )}
-          </div>
+          </Field>
         )}
 
         {/* Timing Options: ASAP vs Scheduled (2-card selector matching Stitch M-30) */}

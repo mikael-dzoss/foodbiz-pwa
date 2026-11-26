@@ -25,7 +25,11 @@ import {
   type SupportedLocale,
 } from "@/domain";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
-import type { OrderTrackingDictionary, StorefrontDictionary } from "@/domain/i18n";
+import {
+  interpolate,
+  type OrderTrackingDictionary,
+  type StorefrontDictionary,
+} from "@/domain/i18n";
 import { cn } from "@/lib/utils";
 
 export interface OrderTrackingViewProps {
@@ -400,26 +404,29 @@ export function OrderTrackingView({
                 >
                   <dl className="min-w-0 flex-1">
                     <dt className="text-muted-foreground text-xs font-medium">{dict.collectAt}</dt>
-                    <dd
-                      className="text-foreground mt-0.5 text-xs font-bold wrap-break-word"
-                      data-testid="tracking-pickup-name"
-                    >
-                      {pickupDisplay.name}
-                    </dd>
-                    {pickupDisplay.address && (
-                      <dd
-                        className="text-muted-foreground mt-0.5 text-xs wrap-break-word"
-                        data-testid="tracking-pickup-address"
+                    <dd className="mt-0.5 space-y-0.5">
+                      <p
+                        className="text-foreground text-xs font-bold wrap-break-word"
+                        data-testid="tracking-pickup-name"
                       >
-                        {pickupDisplay.address}
-                      </dd>
-                    )}
+                        {pickupDisplay.name}
+                      </p>
+                      {pickupDisplay.address && (
+                        <p
+                          className="text-muted-foreground text-xs wrap-break-word"
+                          data-testid="tracking-pickup-address"
+                        >
+                          {pickupDisplay.address}
+                        </p>
+                      )}
+                    </dd>
                   </dl>
                   {pickupDisplay.directionsUrl && (
                     <a
                       href={pickupDisplay.directionsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={interpolate(dict.directionsAria, { place: pickupDisplay.name })}
                       data-testid="tracking-directions-link"
                       className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
                     >

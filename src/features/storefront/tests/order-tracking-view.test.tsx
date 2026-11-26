@@ -309,6 +309,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     const pickupBlock = screen.getByTestId("tracking-pickup-location");
     expect(pickupBlock.querySelector("dt")?.textContent).toBe("Collect at");
+    expect(pickupBlock.querySelectorAll("dd")).toHaveLength(1);
     expect(screen.getByTestId("tracking-pickup-name").textContent).toBe("Marché de Montreuil");
     expect(screen.getByTestId("tracking-pickup-address").textContent).toBe(relayAddress);
     const link = screen.getByTestId("tracking-directions-link");
@@ -317,6 +318,9 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("aria-label")).toBe(
+      "Directions to Marché de Montreuil (opens in a new tab)",
+    );
 
     // Shop fallback when pickupLocation has null name (tracking RPC shape)
     rerender(
@@ -339,6 +343,9 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     expect(screen.getByTestId("tracking-pickup-address").textContent).toBe(demoBusiness.address);
     expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toBe(
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(demoBusiness.address!)}`,
+    );
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("aria-label")).toBe(
+      `Itinéraire vers ${mockBusiness.name} (ouvre un nouvel onglet)`,
     );
 
     // Delivery shows nothing for Collect at even if pickupLocation were present

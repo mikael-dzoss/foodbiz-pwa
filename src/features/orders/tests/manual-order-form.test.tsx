@@ -337,11 +337,13 @@ describe("ManualOrderForm Component", () => {
 
       fillValidGuestAndItem();
 
-      // Select relay with €2.00 fee -> total updates from €8.50 to €10.50
+      // Select relay with €2.00 fee -> total updates from €8.50 to €10.50 and hint is wired via aria-describedby
       fireEvent.change(pickupSelect, { target: { value: relayB.id } });
-      expect(screen.getByTestId("pickup-location-selected-address").textContent).toContain(
-        "12 Place Jean Jaurès, 93100",
-      );
+      const hintId = pickupSelect.getAttribute("aria-describedby");
+      expect(hintId).toBeTruthy();
+      expect(document.getElementById(hintId!)?.textContent).toBe("12 Place Jean Jaurès, 93100");
+      expect(pickupSelect.classList.contains("h-12")).toBe(true);
+      expect(pickupSelect.classList.contains("rounded-md")).toBe(true);
       expect(screen.getByTestId("create-order-submit-button").textContent).toContain("€10.50");
 
       // Open preview -> shows relay name and fee
@@ -398,17 +400,28 @@ describe("ManualOrderForm Component", () => {
 
       const select = screen.getByTestId("pickup-location-select") as HTMLSelectElement;
       expect(select.required).toBe(true);
+      expect(select.getAttribute("aria-required")).toBe("true");
       expect(select.value).toBe("");
       expect(select.options[0].textContent).toContain("Choose a pickup location");
 
       fillValidGuestAndItem();
 
-      // Still disabled until a relay is selected
+      // Still disabled until a relay is selected; submitting form shows Field error wired to select
       const previewBtn = screen.getByTestId("create-order-submit-button") as HTMLButtonElement;
       expect(previewBtn.disabled).toBe(true);
 
-      // Select a relay -> enabled
+      fireEvent.submit(screen.getByTestId("manual-order-form"));
+      expect(select.getAttribute("aria-invalid")).toBe("true");
+      expect(screen.getByTestId("pickup-location-field-error").textContent).toContain(
+        "Please choose a pickup location.",
+      );
+      expect(select.getAttribute("aria-describedby")).toContain(
+        screen.getByTestId("pickup-location-field-error").id,
+      );
+
+      // Select a relay -> error clears and button enables
       fireEvent.change(select, { target: { value: relayA.id } });
+      expect(select.getAttribute("aria-invalid")).toBeNull();
       expect(previewBtn.disabled).toBe(false);
 
       fireEvent.click(previewBtn);

@@ -823,6 +823,7 @@ export interface OrderTrackingDictionary {
   // Pickup location (#387)
   collectAt: string;
   directions: string;
+  directionsAria: string;
   orderSummary: string;
   subtotal: string;
   taxIncluded: string;

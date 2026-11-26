@@ -98,3 +98,34 @@ export function calculateOrderTotals(input: CalculateOrderTotalsInput): OrderTot
     items: normalizedItems,
   };
 }
+
+export interface OrderTotalBreakdown {
+  /** Pre-tax food subtotal (cents). */
+  subtotal: number;
+  /** Included food VAT portion (cents, 10% of the food total). */
+  includedTax: number;
+  /** Relay pickup fee (cents, 0 when none). */
+  pickupFeeCents: number;
+  /** Grand total charged on the order (cents). */
+  totalAmount: number;
+}
+
+/**
+ * Splits a tax-inclusive order total (in cents) into pre-tax food subtotal, included VAT (10% of
+ * the food portion) and relay pickup fee. The pickup fee is already included in `totalAmount`.
+ */
+export function splitOrderTotal(
+  totalAmount: number,
+  pickupFeeCents: number = 0,
+): OrderTotalBreakdown {
+  const safePickupFee = Math.max(0, pickupFeeCents);
+  const foodTotal = Math.max(0, totalAmount - safePickupFee);
+  const includedTax = Math.round(foodTotal * 0.1 * 100) / 100;
+  const subtotal = foodTotal - includedTax;
+  return {
+    subtotal,
+    includedTax,
+    pickupFeeCents: safePickupFee,
+    totalAmount,
+  };
+}
