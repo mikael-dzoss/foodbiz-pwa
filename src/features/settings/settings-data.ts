@@ -28,6 +28,7 @@ function defaultSettings(businessId: string): BusinessSettings {
     openingHours: "",
     weeklyHours: null,
     hoursExceptions: [],
+    shopPickupEnabled: true,
     orderTimingAsap: true,
     orderTimingScheduled: true,
     orderTimingTimeOptional: true,

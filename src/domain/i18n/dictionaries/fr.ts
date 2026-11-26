@@ -850,6 +850,9 @@ export const frDictionary: Dictionary = {
       STOCK_ERROR: "Certains articles ne sont pas disponibles dans la quantité demandée.",
       ORDER_STATE_CONFLICT:
         "Cette commande a été modifiée ailleurs. Rechargez la page et réessayez.",
+      LAST_PICKUP_OPTION:
+        "Le retrait nécessite au moins une option active : gardez la boutique ou un autre lieu actif d'abord.",
+      PICKUP_LOCATIONS_LIMIT: "Vous pouvez avoir jusqu'à 20 lieux de retrait.",
     },
     pageError: {
       title: "Impossible de charger cette page",

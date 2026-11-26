@@ -437,6 +437,8 @@ export interface CommonDictionary {
   actionReasons: {
     STOCK_ERROR: string;
     ORDER_STATE_CONFLICT: string;
+    LAST_PICKUP_OPTION: string;
+    PICKUP_LOCATIONS_LIMIT: string;
   };
   /** Manager area error boundary (a page read failed). */
   pageError: {

@@ -830,6 +830,9 @@ export const enDictionary: Dictionary = {
     actionReasons: {
       STOCK_ERROR: "Some items are not available in the requested quantity.",
       ORDER_STATE_CONFLICT: "This order was updated elsewhere. Please reload and try again.",
+      LAST_PICKUP_OPTION:
+        "Pickup needs at least one active option: keep the shop or another location active first.",
+      PICKUP_LOCATIONS_LIMIT: "You can have up to 20 pickup locations.",
     },
     pageError: {
       title: "We could not load this page",
