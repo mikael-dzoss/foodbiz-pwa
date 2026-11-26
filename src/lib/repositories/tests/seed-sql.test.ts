@@ -155,6 +155,24 @@ describe("buildSeedSql", () => {
     }
   });
 
+  it("seeds two RER relay pickup locations after expenses and replaces them on re-run", () => {
+    const sql = buildSeedSql();
+    const stmt = extractTableInsert(sql, "pickup_locations");
+    expect(stmt).toContain("Gare RER B – La Plaine Stade de France");
+    expect(stmt).toContain("'93210'");
+    expect(stmt).toContain("Gare RER D – Saint-Denis");
+    expect(stmt).toContain("'93200'");
+    expect(stmt).toMatch(/, 150, /);
+    expect(stmt).not.toMatch(/\bcreated_at\b|\bupdated_at\b/);
+    expect(sql.indexOf("insert into public.pickup_locations (")).toBeGreaterThan(
+      sql.indexOf("insert into public.expenses ("),
+    );
+    expect(sql).toContain(
+      `delete from public.pickup_locations where business_id = '${demoBusiness.id}'::uuid;`,
+    );
+    expect(extractTableInsert(sql, "business_settings")).toContain("shop_pickup_enabled");
+  });
+
   it("never emits tracking_token and sets updated_at only on orders", () => {
     const sql = buildSeedSql();
     expect(sql).not.toMatch(/\btracking_token\b/);
