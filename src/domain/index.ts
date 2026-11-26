@@ -25,3 +25,4 @@ export * from "./product-image";
 export * from "./storefront-product";
 export * from "./storefront-business";
 export * from "./timezone";
+export * from "./opening-hours";

@@ -2,6 +2,9 @@ import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
 import { timeZoneSchema, DEFAULT_TIMEZONE } from "./timezone";
 import { leadTimeUnitSchema, leadTimeValueSchema } from "./lead-time";
+import { weeklyHoursSchema } from "./opening-hours";
+
+const openingHoursTextSchema = z.string().trim().max(500);
 
 const socialUrlSchema = z
   .url({ protocol: /^https$/ })
@@ -114,7 +117,8 @@ export const businessSettingsSchema = z.object({
       dineIn: z.boolean().default(true),
     })
     .default({ pickup: true, delivery: true, dineIn: true }),
-  openingHours: z.string().trim().max(500).optional().default(""),
+  openingHours: openingHoursTextSchema.optional().default(""),
+  weeklyHours: weeklyHoursSchema.nullable().optional(),
   orderTimingAsap: z.boolean().default(true),
   orderTimingScheduled: z.boolean().default(true),
   orderTimingTimeOptional: z.boolean().default(true),
@@ -154,7 +158,7 @@ export const updateOrderingSettingsSchema = z
       delivery: z.boolean(),
       dineIn: z.boolean(),
     }),
-    openingHours: z.string().trim().max(500).optional().default(""),
+    openingHours: openingHoursTextSchema.optional().default(""),
     orderTimingAsap: z.boolean().default(true),
     orderTimingScheduled: z.boolean().default(true),
     orderTimingTimeOptional: z.boolean().default(true),
@@ -177,6 +181,13 @@ export const updateOrderingSettingsSchema = z
   );
 
 export type UpdateOrderingSettingsInput = z.infer<typeof updateOrderingSettingsSchema>;
+
+export const updateOpeningHoursSchema = z.object({
+  weeklyHours: weeklyHoursSchema.nullable(),
+  openingHours: openingHoursTextSchema.optional(),
+});
+
+export type UpdateOpeningHoursInput = z.infer<typeof updateOpeningHoursSchema>;
 
 export const updatePaymentSettingsSchema = z
   .object({
