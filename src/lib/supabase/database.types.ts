@@ -124,6 +124,7 @@ export type Database = {
           sound_alerts: boolean;
           updated_at: string;
           timezone: string;
+          weekly_hours: Json | null;
         };
         Insert: {
           id?: string;
@@ -152,6 +153,7 @@ export type Database = {
           sound_alerts?: boolean;
           updated_at?: string;
           timezone?: string;
+          weekly_hours?: Json | null;
         };
         Update: {
           id?: string;
@@ -180,6 +182,7 @@ export type Database = {
           sound_alerts?: boolean;
           updated_at?: string;
           timezone?: string;
+          weekly_hours?: Json | null;
         };
         Relationships: [
           {
@@ -725,6 +728,32 @@ export type Database = {
           p_reason?: string;
         };
         Returns: Json;
+      };
+      valid_weekly_hours: {
+        Args: {
+          p: Json;
+        };
+        Returns: boolean;
+      };
+      is_open_at: {
+        Args: {
+          p_hours: Json;
+          p_tz: string;
+          p_at: string;
+        };
+        Returns: boolean;
+      };
+      slot_error: {
+        Args: {
+          p_hours: Json;
+          p_tz: string;
+          p_now: string;
+          p_date: string;
+          p_time: string;
+          p_is_asap: boolean;
+          p_horizon_days?: number;
+        };
+        Returns: string;
       };
     };
     Enums: {

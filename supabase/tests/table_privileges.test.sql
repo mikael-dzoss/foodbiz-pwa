@@ -158,6 +158,7 @@ select results_eq(
     'revolut_revtag',
     'service_types',
     'timezone',
+    'weekly_hours',
     'wero_identifier'
   ]::text[],
   'anon has column SELECT on exactly the storefront columns of business_settings'

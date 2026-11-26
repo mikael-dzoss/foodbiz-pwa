@@ -233,6 +233,8 @@ create table business_settings (
   timezone text not null default 'Europe/Paris',
   -- Enabled payment options (#377 adds "card": false by default)
   payment_methods jsonb not null default '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb,
+  -- Structured weekly opening hours (#372): nullable jsonb validated by valid_weekly_hours (see 5.2.4)
+  weekly_hours jsonb null constraint business_settings_weekly_hours_valid check (weekly_hours is null or public.valid_weekly_hours(weekly_hours)),
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );
@@ -485,6 +487,14 @@ See [5.6](#56-order-state-functions).
 ### 5.2.3 Business time zone
 
 `business_settings.timezone` (`text not null default 'Europe/Paris'`, migration `20260101000029_business_timezone.sql`) is the IANA zone every date is computed and rendered in: KPI day boundaries, "today", opening hours, order timestamps. The default fits the euro-only currency and makes the migration safe on existing rows. A `CHECK` cannot look a name up (`pg_timezone_names` is a view, so an `IMMUTABLE` wrapper would be a lie), so the `BEFORE INSERT OR UPDATE` trigger `business_settings_validate_timezone` raises `INVALID_TIMEZONE` (SQLSTATE `22023`) for a name missing from `pg_timezone_names`; it only runs when the value changes. Manager-editable (not owner-only) and readable by `anon` (column grant) because the storefront formats pickup and order times in the shop's zone. The zod schema (`timeZoneSchema`, `src/domain/timezone.ts`) mirrors the check.
+
+### 5.2.4 Structured weekly opening hours
+
+`business_settings.weekly_hours` (`jsonb null`, migration `20260101000033_weekly_opening_hours.sql`, #372) stores structured per-weekday opening ranges (`mon`..`sun`), nullable so existing shops keep their legacy free-text `opening_hours` until a manager configures structured hours. Manager-editable (not owner-only) and readable by `anon` (storefront column-level `SELECT` grant). Three SQL helpers mirror [`src/domain/opening-hours.ts`](../../src/domain/opening-hours.ts) (`revoke execute from public`, granted to `anon`, `authenticated`, `service_role`, `set search_path = ''`):
+
+- `public.valid_weekly_hours(p jsonb) returns boolean` (`IMMUTABLE`, no `::time` casts): validates the exact 7 keys `mon`..`sun`, each an array of at most 4 `{open, close}` objects where `open` matches `00:00`–`23:59`, `close` matches `00:00`–`23:59` or `24:00`, `close > open` (`COLLATE "C"`), and ranges are strictly sorted and non-touching (`prev.close < next.open`). Used by `business_settings_weekly_hours_valid`.
+- `public.is_open_at(p_hours jsonb, p_tz text, p_at timestamptz) returns boolean` (`STABLE`): returns `true` when `p_hours` is `null`; otherwise evaluates half-open `[open, close)` membership in `p_tz` (DST-safe, supports `24:00` close).
+- `public.slot_error(p_hours jsonb, p_tz text, p_now timestamptz, p_date date, p_time time, p_is_asap boolean, p_horizon_days integer default 30) returns text` (`STABLE`): returns `null` when valid, or one of `'date_out_of_window'`, `'closed_now'`, `'closed_day'`, `'time_outside_hours'`, `'time_in_past'` in the same order and semantics as `validateSlot` (booking window `[today, today + p_horizon_days]` always checked in `p_tz`; other checks skipped when `p_hours` is `null`; time-optional checks remaining 15-minute stepped slots with lead 0). Ready for later enforcement in `place_order`.
 
 ### 5.3 Public Guest Tracking & Verification
 
