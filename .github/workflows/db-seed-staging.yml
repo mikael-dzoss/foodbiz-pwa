@@ -68,12 +68,12 @@ jobs:
           set -euo pipefail
           out="$(supabase db push --remote --dry-run --agent no 2>&1)" || {
             echo "::error::Migration history check failed. Run \"Migrate staging database\" on staging first."
-            printf '%s\n' "$out"
+            printf '%s\n' "$out" | sed -E 's#(postgres(ql)?://)[^@ ]+@#\1***@#g'
             exit 1
           }
           if ! grep -q "Remote database is up to date" <<<"$out"; then
             echo "::error::Migrations are pending on staging. Run \"Migrate staging database\" on staging first."
-            printf '%s\n' "$out"
+            printf '%s\n' "$out" | sed -E 's#(postgres(ql)?://)[^@ ]+@#\1***@#g'
             exit 1
           fi
           echo "Staging schema is up to date."

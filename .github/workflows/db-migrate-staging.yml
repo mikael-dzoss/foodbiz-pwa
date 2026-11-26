@@ -70,8 +70,8 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          out="$(supabase db push --remote --dry-run --agent no 2>&1)" || { printf '%s\n' "$out"; exit 1; }
-          printf '%s\n' "$out"
+          out="$(supabase db push --remote --dry-run --agent no 2>&1)" || { printf '%s\n' "$out" | sed -E 's#(postgres(ql)?://)[^@ ]+@#\1***@#g'; exit 1; }
+          printf '%s\n' "$out" | sed -E 's#(postgres(ql)?://)[^@ ]+@#\1***@#g'
           {
             echo "### Staging migration"
             echo "Commit: \`$COMMIT_SHA\`"
