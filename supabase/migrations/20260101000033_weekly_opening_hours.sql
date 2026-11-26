@@ -13,20 +13,29 @@
 --       validated by IMMUTABLE `public.valid_hours_exceptions(jsonb)` (<= 100
 --       non-overlapping {from, to, ranges, note?} objects, valid YYYY-MM-DD
 --       dates via regex + calendar check + IMMUTABLE pg_catalog.make_date,
---       to >= from, inclusive span <= 60 days, note <= 50 chars, per-day range
+--       to >= from, inclusive span <= 60 days, note <= 50 chars after btrim (char_length(btrim(note)), mirrors zod trim), per-day range
 --       rules matching weekly_hours; no ::time/::date casts).
 --     - STABLE SQL helpers `public.is_open_at(p_hours, p_exceptions, p_tz, p_at)`
 --       and `public.slot_error(p_hours, p_exceptions, p_tz, p_now, p_date, p_time,
---       p_is_asap, p_horizon_days)` mirroring `isOpenAt` and `validateSlot` in
+--       p_is_asap, p_horizon_days, p_step_minutes, p_lead_minutes)` mirroring `isOpenAt` and `validateSlot` in
 --       `src/domain/opening-hours.ts` for later server-side enforcement in
 --       `place_order` (not touched here). Exceptions override weekly hours even
 --       when weekly_hours is null; dates with neither skip opening-hour checks.
 --
+--     TS/SQL parity: `p_step_minutes` / `p_lead_minutes` mirror `stepMinutes` /
+--     `leadMinutes` (defaults 15 / 0; step > 0 and lead >= 0 else INVALID_ARGUMENT);
+--     `p_horizon_days` mirrors `horizonDays`. A `p_time` with non-zero seconds is
+--     `time_outside_hours` (TS `OPEN_TIME_REGEX` only accepts HH:MM). NULL
+--     `p_now` / `p_at` / `p_tz` raise INVALID_ARGUMENT (22023); never fail open.
+--
 --   Access: manager-editable (not owner-only) and readable by `anon` via the
 --   storefront column-level SELECT grant on `business_settings`.
+--   Function EXECUTE: validators -> authenticated, service_role (CHECK evaluation
+--   needs EXECUTE for the writing role); is_open_at / slot_error -> service_role
+--   only (place_order is SECURITY DEFINER; the storefront uses the TS domain).
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
---   drop function if exists public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer);
+--   drop function if exists public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer);
 --   drop function if exists public.is_open_at(jsonb, jsonb, text, timestamptz);
 --   alter table public.business_settings drop constraint if exists business_settings_hours_exceptions_valid;
 --   alter table public.business_settings drop column if exists hours_exceptions;
@@ -247,7 +256,7 @@ begin
 
     -- Optional note: string, <= 50 characters
     if v_has_note then
-      if jsonb_typeof(v_ex -> 'note') <> 'string' or char_length(v_ex ->> 'note') > 50 then
+      if jsonb_typeof(v_ex -> 'note') <> 'string' or char_length(btrim(v_ex ->> 'note')) > 50 then
         return false;
       end if;
     end if;
@@ -360,12 +369,8 @@ declare
   v_has_exception boolean := false;
 begin
   if p_tz is null or p_at is null then
-    if p_hours is null
-      and (p_exceptions is null or jsonb_typeof(p_exceptions) <> 'array' or jsonb_array_length(p_exceptions) = 0)
-    then
-      return true;
-    end if;
-    return false;
+    raise exception 'INVALID_ARGUMENT: p_tz and p_at must not be null'
+      using errcode = '22023';
   end if;
 
   v_local := p_at at time zone p_tz;
@@ -415,7 +420,9 @@ create or replace function public.slot_error(
   p_date date,
   p_time time,
   p_is_asap boolean,
-  p_horizon_days integer default 30
+  p_horizon_days integer default 30,
+  p_step_minutes integer default 15,
+  p_lead_minutes integer default 0
 )
 returns text
 language plpgsql
@@ -424,7 +431,6 @@ set search_path = ''
 as $$
 declare
   v_days constant text[] := array['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-  v_step constant integer := 15;
   v_local_now timestamp;
   v_today date;
   v_now_min integer;
@@ -436,6 +442,21 @@ declare
   v_time_min integer;
   v_min_min integer;
 begin
+  if p_now is null or p_tz is null then
+    raise exception 'INVALID_ARGUMENT: p_now and p_tz must not be null'
+      using errcode = '22023';
+  end if;
+
+  if p_step_minutes is null or p_step_minutes <= 0 then
+    raise exception 'INVALID_ARGUMENT: p_step_minutes must be a positive integer'
+      using errcode = '22023';
+  end if;
+
+  if p_lead_minutes is null or p_lead_minutes < 0 then
+    raise exception 'INVALID_ARGUMENT: p_lead_minutes must be a non-negative integer'
+      using errcode = '22023';
+  end if;
+
   if p_horizon_days is null or p_horizon_days < 0 then
     raise exception 'INVALID_HORIZON_DAYS: horizon must be a non-negative integer'
       using errcode = '22023';
@@ -457,7 +478,7 @@ begin
   end if;
 
   -- Resolve ranges for p_date (mirrors rangesForDate): exception overrides weekly even if weekly is null.
-  v_date_str := to_char(p_date, 'YYYY-MM-DD');
+  v_date_str := to_char(p_date::timestamp, 'YYYY-MM-DD');
   if p_exceptions is not null and jsonb_typeof(p_exceptions) = 'array' then
     select ex -> 'ranges'
       into v_ex_ranges
@@ -488,6 +509,11 @@ begin
     + extract(minute from v_local_now)::integer;
 
   if p_time is not null then
+    -- Parity with TS OPEN_TIME_REGEX (HH:MM only): non-zero seconds are invalid.
+    if extract(second from p_time) <> 0 then
+      return 'time_outside_hours';
+    end if;
+
     v_time_min := extract(hour from p_time)::integer * 60
       + extract(minute from p_time)::integer;
 
@@ -501,18 +527,23 @@ begin
       return 'time_outside_hours';
     end if;
 
-    -- Lead = 0 -> strictly after current local minute on today (time >= now + 1).
-    if p_date = v_today and v_time_min <= v_now_min then
+    -- Lead = 0 -> strictly after current local minute (time >= now + 1); else time >= now + lead.
+    if p_date = v_today
+      and v_time_min < v_now_min + (case when p_lead_minutes > 0 then p_lead_minutes else 1 end)
+    then
       return 'time_in_past';
     end if;
 
     return null;
   end if;
 
-  -- Time-optional scheduled order: require at least one stepped slot (step = 15, lead = 0)
+  -- Time-optional scheduled order: require at least one stepped slot (p_step_minutes, p_lead_minutes)
   -- remaining on p_date. Each range [open, close) has last stepped slot:
   --   open + ((close - 1 - open) / step) * step.
-  v_min_min := case when p_date = v_today then v_now_min + 1 else 0 end;
+  v_min_min := case
+    when p_date = v_today then v_now_min + (case when p_lead_minutes > 0 then p_lead_minutes else 1 end)
+    else 0
+  end;
 
   if not exists (
     select 1
@@ -523,7 +554,7 @@ begin
         left(r ->> 'close', 2)::integer * 60 + right(r ->> 'close', 2)::integer as close_min
     ) as bounds
     where bounds.close_min > bounds.open_min
-      and (bounds.open_min + ((bounds.close_min - 1 - bounds.open_min) / v_step) * v_step) >= v_min_min
+      and (bounds.open_min + ((bounds.close_min - 1 - bounds.open_min) / p_step_minutes) * p_step_minutes) >= v_min_min
   ) then
     return 'time_in_past';
   end if;
@@ -535,16 +566,16 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 4. Function execute grants
 -- ----------------------------------------------------------------------------
-revoke all on function public.valid_weekly_hours(jsonb) from public;
-grant execute on function public.valid_weekly_hours(jsonb) to anon, authenticated, service_role;
+revoke all on function public.valid_weekly_hours(jsonb) from public, anon, authenticated;
+grant execute on function public.valid_weekly_hours(jsonb) to authenticated, service_role;
 
-revoke all on function public.valid_hours_exceptions(jsonb) from public;
-grant execute on function public.valid_hours_exceptions(jsonb) to anon, authenticated, service_role;
+revoke all on function public.valid_hours_exceptions(jsonb) from public, anon, authenticated;
+grant execute on function public.valid_hours_exceptions(jsonb) to authenticated, service_role;
 
-revoke all on function public.is_open_at(jsonb, jsonb, text, timestamptz) from public;
-grant execute on function public.is_open_at(jsonb, jsonb, text, timestamptz) to anon, authenticated, service_role;
+revoke all on function public.is_open_at(jsonb, jsonb, text, timestamptz) from public, anon, authenticated;
+grant execute on function public.is_open_at(jsonb, jsonb, text, timestamptz) to service_role;
 
-revoke all on function public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer) from public;
-grant execute on function public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer) to anon, authenticated, service_role;
+revoke all on function public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer) from public, anon, authenticated;
+grant execute on function public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer) to service_role;
 
 reset lock_timeout;

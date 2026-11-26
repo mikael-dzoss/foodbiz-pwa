@@ -763,6 +763,8 @@ export type Database = {
           p_time: string;
           p_is_asap: boolean;
           p_horizon_days?: number;
+          p_step_minutes?: number;
+          p_lead_minutes?: number;
         };
         Returns: string;
       };

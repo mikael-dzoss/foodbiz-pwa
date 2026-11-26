@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(112);
+select plan(121);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (run as migration/table owner)
@@ -445,30 +445,34 @@ select is(
 );
 
 select ok(
-  has_function_privilege('anon', 'public.valid_weekly_hours(jsonb)', 'execute')
-  and has_function_privilege('anon', 'public.valid_hours_exceptions(jsonb)', 'execute')
-  and has_function_privilege('anon', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
-  and has_function_privilege('anon', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)', 'execute'),
-  'anon can execute all opening-hours functions'
+  not has_function_privilege('anon', 'public.valid_weekly_hours(jsonb)', 'execute')
+  and not has_function_privilege('anon', 'public.valid_hours_exceptions(jsonb)', 'execute')
+  and not has_function_privilege('anon', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
+  and not has_function_privilege('anon', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer)', 'execute'),
+  'anon cannot execute any opening-hours function'
 );
 
 select ok(
   has_function_privilege('authenticated', 'public.valid_weekly_hours(jsonb)', 'execute')
   and has_function_privilege('authenticated', 'public.valid_hours_exceptions(jsonb)', 'execute')
-  and has_function_privilege('authenticated', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
-  and has_function_privilege('authenticated', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)', 'execute')
-  and has_function_privilege('service_role', 'public.valid_weekly_hours(jsonb)', 'execute')
+  and not has_function_privilege('authenticated', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
+  and not has_function_privilege('authenticated', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer)', 'execute'),
+  'authenticated can execute only the validators (needed for CHECK evaluation)'
+);
+
+select ok(
+  has_function_privilege('service_role', 'public.valid_weekly_hours(jsonb)', 'execute')
   and has_function_privilege('service_role', 'public.valid_hours_exceptions(jsonb)', 'execute')
   and has_function_privilege('service_role', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
-  and has_function_privilege('service_role', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)', 'execute'),
-  'authenticated and service_role can execute all opening-hours functions'
+  and has_function_privilege('service_role', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer)', 'execute'),
+  'service_role can execute all opening-hours functions'
 );
 
 select ok(
   (select provolatile from pg_catalog.pg_proc where oid = 'public.valid_weekly_hours(jsonb)'::regprocedure) = 'i'
   and (select provolatile from pg_catalog.pg_proc where oid = 'public.valid_hours_exceptions(jsonb)'::regprocedure) = 'i'
   and (select provolatile from pg_catalog.pg_proc where oid = 'public.is_open_at(jsonb, jsonb, text, timestamptz)'::regprocedure) = 's'
-  and (select provolatile from pg_catalog.pg_proc where oid = 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)'::regprocedure) = 's',
+  and (select provolatile from pg_catalog.pg_proc where oid = 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer, integer, integer)'::regprocedure) = 's',
   'validators are IMMUTABLE and is_open_at / slot_error are STABLE'
 );
 
@@ -706,7 +710,7 @@ select is(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 5: slot_error(...) (Tests 79-112)
+-- Section 5: slot_error(...) (Tests 79-112; section 6 adds 8 more)
 -- ----------------------------------------------------------------------------
 select is(
   public.slot_error(
@@ -1039,6 +1043,59 @@ select is(
   ),
   'time_outside_hours',
   'slot_error: custom hours exception enforces time_outside_hours even when weekly_hours is null'
+);
+
+-- ----------------------------------------------------------------------------
+-- Section 6: review-round-2 hardening (NULL args, seconds, lead, step)
+-- ----------------------------------------------------------------------------
+select throws_ok(
+  $$select public.is_open_at(null, '[]'::jsonb, 'Europe/Paris', null)$$,
+  '22023', null, 'is_open_at rejects NULL p_at'
+);
+
+select throws_ok(
+  $$select public.is_open_at(null, '[]'::jsonb, null, now())$$,
+  '22023', null, 'is_open_at rejects NULL p_tz'
+);
+
+select throws_ok(
+  $$select public.slot_error(null, '[]'::jsonb, 'Europe/Paris', null, date '2026-07-06', null, false)$$,
+  '22023', null, 'slot_error rejects NULL p_now'
+);
+
+select throws_ok(
+  $$select public.slot_error(null, '[]'::jsonb, null, now(), date '2026-07-06', null, false)$$,
+  '22023', null, 'slot_error rejects NULL p_tz'
+);
+
+select throws_ok(
+  $$select public.slot_error(null, '[]'::jsonb, 'Europe/Paris', now(), date '2026-07-06', null, false, 30, 0, 0)$$,
+  '22023', null, 'slot_error rejects p_step_minutes = 0'
+);
+
+select throws_ok(
+  $$select public.slot_error(null, '[]'::jsonb, 'Europe/Paris', now(), date '2026-07-06', null, false, 30, 15, -1)$$,
+  '22023', null, 'slot_error rejects negative p_lead_minutes'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T06:00:00Z'::timestamptz, date '2026-07-06', time '10:30:30', false
+  ),
+  'time_outside_hours',
+  'slot_error: p_time with non-zero seconds is time_outside_hours'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', time '10:20', false, 30, 15, 30
+  ),
+  'time_in_past',
+  'slot_error: p_lead_minutes = 30 rejects a slot 20 minutes ahead'
 );
 
 select * from finish();
