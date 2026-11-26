@@ -66,6 +66,7 @@ vi.mock("../actions", () => ({
 afterEach(() => {
   resetPwaInstallStore();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("NotificationsAppForm component (M-67)", () => {
@@ -82,14 +83,16 @@ describe("NotificationsAppForm component (M-67)", () => {
     expect(aboutLink.getAttribute("href")).toBe("/manage/settings/about");
   });
 
-  it("handles PWA install click fallback guidance when not installed", () => {
+  it("opens the shared install guide naming FoodBiz Manager when no native prompt is available", async () => {
     render(<NotificationsAppForm settings={mockSettings} dict={dict} />);
 
     const installBtn = screen.getByTestId("button-install-pwa");
     fireEvent.click(installBtn);
 
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "To install, tap Share or Menu in your browser, then 'Add to Home Screen'",
+    const dialog = await screen.findByRole("dialog", { name: "Install FoodBiz Manager" });
+    expect(dialog).toBe(screen.getByTestId("manager-install-guide"));
+    expect(screen.getByTestId("manager-install-guide-generic").textContent).toContain(
+      "FoodBiz Manager",
     );
   });
 
@@ -142,7 +145,7 @@ describe("NotificationsAppForm component (M-67)", () => {
     });
   });
 
-  it("prompts installation when beforeinstallprompt event is captured", async () => {
+  it("opens the shared install guide and prompts installation when beforeinstallprompt is captured", async () => {
     const mockPrompt = vi.fn(async () => {});
     const promptEvent = Object.assign(new Event("beforeinstallprompt"), {
       prompt: mockPrompt,
@@ -153,16 +156,18 @@ describe("NotificationsAppForm component (M-67)", () => {
 
     fireEvent(window, promptEvent);
 
-    const installBtn = screen.getByTestId("button-install-pwa");
-    fireEvent.click(installBtn);
+    fireEvent.click(screen.getByTestId("button-install-pwa"));
+    const primaryInstall = await screen.findByTestId("manager-install-guide-install-button");
+    fireEvent.click(primaryInstall);
 
     await waitFor(() => {
       expect(mockPrompt).toHaveBeenCalled();
-      expect(mockShowToast).toHaveBeenCalledWith("FoodBiz Manager PWA installed successfully");
+      expect(mockShowToast).toHaveBeenCalledWith("FoodBiz Manager installed");
     });
+    await waitFor(() => expect(screen.queryByTestId("manager-install-app-card")).toBeNull());
   });
 
-  it("handles user dismissing PWA install prompt", async () => {
+  it("handles user dismissing PWA install prompt inside the guide", async () => {
     const mockPrompt = vi.fn(async () => {});
     const promptEvent = Object.assign(new Event("beforeinstallprompt"), {
       prompt: mockPrompt,
@@ -172,36 +177,42 @@ describe("NotificationsAppForm component (M-67)", () => {
     render(<NotificationsAppForm settings={mockSettings} dict={dict} />);
     fireEvent(window, promptEvent);
 
-    const installBtn = screen.getByTestId("button-install-pwa");
-    fireEvent.click(installBtn);
+    fireEvent.click(screen.getByTestId("button-install-pwa"));
+    fireEvent.click(await screen.findByTestId("manager-install-guide-install-button"));
 
     await waitFor(() => {
       expect(mockPrompt).toHaveBeenCalled();
-      expect(mockShowToast).not.toHaveBeenCalledWith("FoodBiz Manager PWA installed successfully");
+      expect(mockShowToast).not.toHaveBeenCalledWith("FoodBiz Manager installed");
     });
+    await waitFor(() => expect(screen.queryByTestId("manager-install-guide")).toBeNull());
   });
 
-  it("handles install click when already in standalone mode", () => {
-    const originalNavigator = window.navigator;
-    Object.defineProperty(window, "navigator", {
-      value: { standalone: true },
-      writable: true,
-      configurable: true,
-    });
+  it("hides the install card entirely when already in standalone mode while keeping About", () => {
+    vi.stubGlobal("navigator", { ...navigator, standalone: true });
 
     render(<NotificationsAppForm settings={mockSettings} dict={dict} />);
 
-    expect(screen.getByTestId("badge-installed")).toBeDefined();
-    const installBtn = screen.getByTestId("button-install-pwa");
-    fireEvent.click(installBtn);
+    expect(screen.queryByTestId("manager-install-app-card")).toBeNull();
+    expect(screen.queryByTestId("button-install-pwa")).toBeNull();
+    expect(screen.getByTestId("link-to-about")).toBeDefined();
+  });
 
-    expect(mockShowToast).toHaveBeenCalledWith("FoodBiz is already installed on this device");
-
-    Object.defineProperty(window, "navigator", {
-      value: originalNavigator,
-      writable: true,
-      configurable: true,
+  it("shows iOS Safari Share steps in the manager install guide on iPadOS reporting as Mac", async () => {
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+      platform: "MacIntel",
+      maxTouchPoints: 5,
     });
+
+    render(<NotificationsAppForm settings={mockSettings} dict={dict} />);
+    fireEvent.click(screen.getByTestId("button-install-pwa"));
+
+    const steps = await screen.findByTestId("manager-install-guide-ios-safari");
+    expect(steps.textContent).toContain("Add to Home Screen");
+    expect(steps.textContent).toContain("FoodBiz Manager");
+    expect(screen.getByTestId("manager-install-guide-ios-safari-share-icon")).toBeDefined();
   });
 
   it("handles toggling in-app alerts and renders fallback settings", async () => {

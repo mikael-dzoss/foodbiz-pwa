@@ -45,6 +45,9 @@ import {
   useToast,
 } from "@/components/ui";
 import { SoonItem, EmptyState, ErrorState } from "@/components/feedback";
+import { InstallGuide } from "@/components/pwa";
+import { enDictionary } from "@/domain/i18n";
+import type { InstallGuidePlatform } from "@/lib/pwa/platform";
 
 export default function PatternsPage() {
   const { theme, resolvedTheme, setTheme, mounted } = useTheme();
@@ -56,6 +59,8 @@ export default function PatternsPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = React.useState(false);
+  const [installPlatform, setInstallPlatform] = React.useState<InstallGuidePlatform>("ios-safari");
   const [segment, setSegment] = React.useState<"pickup" | "delivery">("pickup");
   const [fieldValue, setFieldValue] = React.useState("");
 
@@ -641,6 +646,58 @@ export default function PatternsPage() {
             </Button>
             <Button className="flex-1">Save changes</Button>
           </ActionBar>
+        </section>
+
+        {/* 17. INSTALL GUIDE (PWA) */}
+        <section className="space-y-3" data-testid="section-install-guide">
+          <div className="text-label-sm text-muted-foreground tracking-wider uppercase">
+            17. Install Guide (PWA)
+          </div>
+          <Card className="space-y-3 p-4">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  "native-prompt",
+                  "ios-safari",
+                  "ios-other",
+                  "android-manual",
+                  "macos-safari",
+                  "generic",
+                ] as const
+              ).map((variant) => (
+                <Button
+                  key={variant}
+                  type="button"
+                  size="sm"
+                  variant={installPlatform === variant ? "secondary" : "outline"}
+                  onClick={() => setInstallPlatform(variant)}
+                  data-testid={`pattern-install-variant-${variant}`}
+                >
+                  {variant}
+                </Button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => setIsInstallGuideOpen(true)}
+              data-testid="trigger-install-guide"
+            >
+              Open Install Guide
+            </Button>
+          </Card>
+          <InstallGuide
+            open={isInstallGuideOpen}
+            onOpenChange={setIsInstallGuideOpen}
+            appName="FoodBiz Manager"
+            platform={installPlatform}
+            copy={enDictionary.installGuide}
+            onInstall={() => {
+              setIsInstallGuideOpen(false);
+              showToast("Install prompt triggered");
+            }}
+            data-testid="pattern-install-guide"
+          />
         </section>
       </main>
     </div>

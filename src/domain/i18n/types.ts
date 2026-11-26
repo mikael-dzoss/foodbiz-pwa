@@ -1,6 +1,9 @@
 import type { Allergen } from "@/domain/allergen";
 import type { CategoryRole } from "@/domain/category";
+import type { InstallGuideDictionary } from "./areas/install-guide";
 import type { ManagerExtras } from "./manager-types";
+
+export type { InstallGuideDictionary };
 
 export const SUPPORTED_LOCALES = ["en", "fr"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -91,10 +94,6 @@ export interface StorefrontDictionary {
   installAppTitle: string;
   installAppSubtitle: string;
   installAppButton: string;
-  installIosTitle: string;
-  installIosStep1: string;
-  installIosStep2: string;
-  installIosStep3: string;
   installAppDone: string;
   footerShopInformation: string;
   footerContactUs: string;
@@ -580,7 +579,6 @@ export interface SettingsDictionary {
     installAppTitle: string;
     installAppDesc: string;
     installAppButton: string;
-    installedBadge: string;
     aboutLinkText: string;
     soonSection: string;
     saveButton: string;
@@ -742,6 +740,7 @@ export interface Dictionary extends ManagerExtras {
   customers: CustomersDictionary;
   products: ProductsDictionary;
   auth: AuthDictionary;
+  installGuide: InstallGuideDictionary;
 }
 
 export * from "./manager-types";

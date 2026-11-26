@@ -30,6 +30,7 @@ Interactive local inventory: `/patterns` (dev route).
 | **Overlays**     | `Dialog`           | `src/components/ui/dialog.tsx`            | `@radix-ui/react-dialog`   | 44px close icon          |
 | **Overlays**     | `Sheet`            | `src/components/ui/sheet.tsx`             | `@radix-ui/react-dialog`   | 44px close icon          |
 | **Overlays**     | `ConfirmDialog`    | `src/components/ui/confirm-dialog.tsx`    | `Dialog` + `Button`        | 48px buttons             |
+| **Overlays**     | `InstallGuide`     | `src/components/pwa/install-guide.tsx`    | `Dialog` + `Button`        | 48px buttons             |
 | **Feedback**     | `Toast`            | `src/components/ui/toast.tsx`             | custom Context             | —                        |
 | **Feedback**     | `Skeleton`         | `src/components/ui/skeleton.tsx`          | custom HTML                | —                        |
 | **Feedback**     | `EmptyState`       | `src/components/feedback/empty-state.tsx` | custom Card                | 48px action              |
@@ -154,6 +155,11 @@ Interactive local inventory: `/patterns` (dev route).
 
 - **Import:** `import { ConfirmDialog } from "@/components/ui"`
 - `<ConfirmDialog open onOpenChange title description confirmLabel cancelLabel onConfirm destructive loading data-testid />`. The caller owns `open` and closes it from `onConfirm`. `destructive` uses the destructive button, `role="alertdialog"` and puts initial focus on Cancel. `loading` disables both buttons. Test ids: `<id>`, `<id>-confirm`, `<id>-cancel` (override with `confirmTestId` / `cancelTestId`). Never use `window.confirm`.
+
+### InstallGuide
+
+- **Import:** `import { InstallGuide } from "@/components/pwa"`
+- `<InstallGuide open onOpenChange appName platform copy onInstall installing closeLabel data-testid />`. Presentation-only PWA install dialog shared by the storefront (`InstallAppCard`) and manager settings (`NotificationsAppForm`). Renders nothing when `platform === "standalone"`. Supports six install paths from `detectInstallPlatform` (`src/lib/pwa/platform.ts`): `native-prompt` (primary Install button wired to `onInstall`), `ios-safari`, `ios-other`, `android-manual`, `macos-safari`, and `generic`. Test ids: `<id>`, `<id>-<platform>`, `<id>-install-button`, `<id>-done-button`, and `<id>-<platform>-share-icon` (iOS variants).
 
 ### ActionBar
 

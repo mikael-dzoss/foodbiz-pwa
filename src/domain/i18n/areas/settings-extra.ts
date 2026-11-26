@@ -7,8 +7,6 @@ export interface SettingsExtraDictionary {
   roleOwner: string;
   roleManager: string;
   pwaInstalled: string;
-  pwaAlreadyInstalled: string;
-  pwaHowTo: string;
   urlCopied: string;
   logoHint: string;
   copyUrl: string;
@@ -63,9 +61,7 @@ const en: SettingsExtraDictionary = {
   atLeastOneMode: "At least one fulfillment mode must be enabled",
   roleOwner: "Owner & Manager",
   roleManager: "Manager",
-  pwaInstalled: "FoodBiz Manager PWA installed successfully",
-  pwaAlreadyInstalled: "FoodBiz is already installed on this device",
-  pwaHowTo: "To install, tap Share or Menu in your browser, then 'Add to Home Screen'",
+  pwaInstalled: "FoodBiz Manager installed",
   urlCopied: "Store URL copied to clipboard",
   logoHint: "PNG, JPG or WebP (square 1:1)",
   copyUrl: "Copy storefront URL",
@@ -123,9 +119,6 @@ const fr: SettingsExtraDictionary = {
   roleOwner: "Propriétaire et gestionnaire",
   roleManager: "Gestionnaire",
   pwaInstalled: "L'application FoodBiz Manager a bien été installée",
-  pwaAlreadyInstalled: "FoodBiz est déjà installé sur cet appareil",
-  pwaHowTo:
-    "Pour installer, touchez Partager ou Menu dans votre navigateur, puis « Ajouter à l'écran d'accueil »",
   urlCopied: "Adresse de la boutique copiée dans le presse-papiers",
   logoHint: "PNG, JPG ou WebP (carré 1:1)",
   copyUrl: "Copier l'adresse de la boutique",

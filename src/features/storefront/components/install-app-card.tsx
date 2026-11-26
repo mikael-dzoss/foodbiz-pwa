@@ -1,27 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Share, Smartphone } from "lucide-react";
-import type { StorefrontDictionary } from "@/domain/i18n";
+import { Download, Smartphone } from "lucide-react";
+import { APP_METADATA } from "@/config/app";
+import {
+  DEFAULT_LOCALE,
+  getDictionary,
+  type StorefrontDictionary,
+  type SupportedLocale,
+} from "@/domain/i18n";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { useToastOptional } from "@/components/ui";
+import { InstallGuide } from "@/components/pwa";
+import { Button, useToastOptional } from "@/components/ui";
 
-/** Storefront "Install the app" entry (#232): hidden when running standalone or not installable. */
-export function InstallAppCard({ dict }: { dict: StorefrontDictionary }) {
-  const { isStandalone, canPrompt, isIos, promptInstall } = usePwaInstall();
-  const [iosHelpOpen, setIosHelpOpen] = useState(false);
+export interface InstallAppCardProps {
+  dict: StorefrontDictionary;
+  businessName?: string;
+  locale?: SupportedLocale;
+}
+
+/** Storefront "Install the app" entry (#100, #232): hidden when already running standalone. */
+export function InstallAppCard({
+  dict,
+  businessName = APP_METADATA.storefront.defaultName,
+  locale = DEFAULT_LOCALE,
+}: InstallAppCardProps) {
+  const { isStandalone, platform, promptInstall } = usePwaInstall();
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const toast = useToastOptional();
 
-  if (isStandalone || (!canPrompt && !isIos)) return null;
+  if (isStandalone) return null;
 
-  const handleInstall = async () => {
-    if (canPrompt) {
-      if ((await promptInstall()) === "accepted") toast?.showToast(dict.installAppDone);
-      return;
+  const guideCopy = getDictionary(locale).installGuide;
+
+  const handleNativeInstall = async () => {
+    setInstalling(true);
+    try {
+      const outcome = await promptInstall();
+      if (outcome === "accepted") {
+        setGuideOpen(false);
+        toast?.showToast(dict.installAppDone);
+      } else if (outcome === "dismissed") {
+        setGuideOpen(false);
+      }
+    } finally {
+      setInstalling(false);
     }
-    setIosHelpOpen(true);
   };
 
   return (
@@ -43,32 +68,25 @@ export function InstallAppCard({ dict }: { dict: StorefrontDictionary }) {
       </div>
       <Button
         type="button"
-        onClick={handleInstall}
-        className="min-h-11 w-full"
+        onClick={() => setGuideOpen(true)}
+        className="min-h-11 w-full gap-2"
         data-testid="install-app-button"
       >
         <Download className="h-4 w-4" aria-hidden="true" />
         {dict.installAppButton}
       </Button>
 
-      <Dialog open={iosHelpOpen} onOpenChange={setIosHelpOpen}>
-        <DialogContent
-          data-testid="install-ios-dialog"
-          closeLabel={dict.dismiss}
-          className="animate-pop-in w-screen-gutter max-w-sm rounded-2xl p-5"
-        >
-          <DialogTitle className="pr-10">{dict.installIosTitle}</DialogTitle>
-          <DialogDescription className="sr-only">{dict.installAppSubtitle}</DialogDescription>
-          <ol className="text-foreground flex list-decimal flex-col gap-2 pl-5 text-sm">
-            <li>
-              {dict.installIosStep1}{" "}
-              <Share className="text-primary inline h-4 w-4 align-text-bottom" aria-hidden="true" />
-            </li>
-            <li>{dict.installIosStep2}</li>
-            <li>{dict.installIosStep3}</li>
-          </ol>
-        </DialogContent>
-      </Dialog>
+      <InstallGuide
+        open={guideOpen}
+        onOpenChange={setGuideOpen}
+        appName={businessName}
+        platform={platform}
+        copy={guideCopy}
+        onInstall={handleNativeInstall}
+        installing={installing}
+        closeLabel={dict.dismiss}
+        data-testid="storefront-install-guide"
+      />
     </div>
   );
 }
