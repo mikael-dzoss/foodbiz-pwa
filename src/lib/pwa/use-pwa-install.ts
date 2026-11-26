@@ -9,6 +9,7 @@ import {
 } from "./install-store";
 import {
   detectManualPlatform,
+  isInAppPlatform,
   isIosUserAgent,
   type InstallPlatform,
   type ManualInstallPlatform,
@@ -32,14 +33,29 @@ function getStandaloneSnapshot(): boolean {
   );
 }
 
-/** Reads the navigator snapshot for manual install guidance; falls back to `"generic"` on SSR. */
-export function getManualPlatformSnapshot(): ManualInstallPlatform {
+let cachedManualPlatformKey: string | null = null;
+let cachedManualPlatform: ManualInstallPlatform | null = "generic";
+
+/**
+ * Reads the navigator and standalone snapshot for manual install guidance.
+ * Returns `null` when running standalone and falls back to `"generic"` on SSR.
+ */
+export function getManualPlatformSnapshot(): ManualInstallPlatform | null {
   if (typeof navigator === "undefined") return "generic";
-  return detectManualPlatform({
-    userAgent: navigator.userAgent ?? "",
-    platform: navigator.platform ?? "",
-    maxTouchPoints: navigator.maxTouchPoints ?? 0,
+  const userAgent = navigator.userAgent ?? "";
+  const platform = navigator.platform ?? "";
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isStandalone = getStandaloneSnapshot();
+  const key = `${userAgent}\0${platform}\0${maxTouchPoints}\0${isStandalone ? "1" : "0"}`;
+  if (key === cachedManualPlatformKey) return cachedManualPlatform;
+  cachedManualPlatformKey = key;
+  cachedManualPlatform = detectManualPlatform({
+    userAgent,
+    platform,
+    maxTouchPoints,
+    isStandalone,
   });
+  return cachedManualPlatform;
 }
 
 function getIosSnapshot(): boolean {
@@ -68,7 +84,7 @@ export function usePwaInstall() {
     () => false,
   );
   const manualPlatform = useSyncExternalStore(
-    noopSubscribe,
+    subscribeStandalone,
     getManualPlatformSnapshot,
     () => "generic" as const,
   );
@@ -76,11 +92,14 @@ export function usePwaInstall() {
 
   const isStandalone = isRunningStandalone || installed;
   const canPrompt = deferredPrompt !== null;
-  const platform: InstallPlatform = isStandalone
-    ? "standalone"
-    : canPrompt
-      ? "native-prompt"
-      : manualPlatform;
+  const platform: InstallPlatform =
+    isStandalone || manualPlatform === null
+      ? "standalone"
+      : isInAppPlatform(manualPlatform)
+        ? manualPlatform
+        : canPrompt
+          ? "native-prompt"
+          : manualPlatform;
 
   return {
     isStandalone,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { enDictionary, frDictionary } from "@/domain/i18n";
@@ -8,8 +8,23 @@ import { InstallGuide } from "../install-guide";
 const enCopy = enDictionary.installGuide;
 const frCopy = frDictionary.installGuide;
 
+const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+
+function stubClipboard(value: { writeText: (text: string) => Promise<void> } | undefined) {
+  Object.defineProperty(navigator, "clipboard", {
+    value,
+    configurable: true,
+  });
+}
+
 afterEach(() => {
   document.documentElement.classList.remove("dark");
+  if (originalClipboardDescriptor) {
+    Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
+  } else {
+    Reflect.deleteProperty(navigator, "clipboard");
+  }
+  vi.restoreAllMocks();
 });
 
 describe("InstallGuide (#100)", () => {
@@ -231,14 +246,208 @@ describe("InstallGuide (#100)", () => {
     expect(screen.getByTestId("install-guide-native-prompt")).toBeDefined();
   });
 
-  it.each<InstallGuidePlatform>([
-    "native-prompt",
-    "ios-safari",
-    "ios-other",
-    "android-manual",
-    "macos-safari",
-    "generic",
-  ])("has no WCAG 2.2 AA axe violations for the %s variant", async (platform) => {
+  it("renders the iOS in-app browser guide naming the detected app and omits the Android Chrome intent link", () => {
+    const onOpenChange = vi.fn();
+    render(
+      <InstallGuide
+        open
+        onOpenChange={onOpenChange}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "ios", app: "Instagram" }}
+        copy={enCopy}
+      />,
+    );
+
+    const body = screen.getByTestId("install-guide-in-app");
+    expect(body.textContent).toContain(
+      "This page is open inside Instagram. To install, open it in your browser.",
+    );
+    const steps = screen.getByTestId("install-guide-in-app-steps");
+    expect(steps.tagName).toBe("OL");
+    expect(steps.textContent).toContain("••• (More)");
+    expect(steps.textContent).toContain("Open in Safari");
+    expect(steps.textContent).toContain("Open in external browser");
+    expect(screen.getByTestId("install-guide-in-app-share-icon")).toBeDefined();
+    expect(screen.getByTestId("install-guide-copy-link-button")).toBeDefined();
+    expect(screen.queryByTestId("install-guide-open-chrome-link")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("install-guide-done-button"));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("renders the Android in-app guide with the real Chrome intent href + fallback URL after mount", () => {
+    window.history.pushState({}, "", "/en/menu?cat=mains#featured");
+
+    render(
+      <InstallGuide
+        open
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "android", app: "Messenger" }}
+        copy={enCopy}
+      />,
+    );
+
+    const body = screen.getByTestId("install-guide-in-app");
+    expect(body.textContent).toContain(
+      "This page is open inside Messenger. To install, open it in your browser.",
+    );
+    const steps = screen.getByTestId("install-guide-in-app-steps");
+    expect(steps.textContent).toContain("⋮ (three-dot)");
+    expect(steps.textContent).toContain("Open in Chrome");
+    expect(steps.textContent).toContain("Open in browser");
+    expect(screen.queryByTestId("install-guide-in-app-share-icon")).toBeNull();
+
+    const chromeLink = screen.getByTestId("install-guide-open-chrome-link");
+    expect(chromeLink.tagName).toBe("A");
+    const scheme = window.location.protocol === "http:" ? "http" : "https";
+    const expectedFallback = encodeURIComponent(
+      `${scheme}://${window.location.host}/en/menu?cat=mains`,
+    );
+    expect(chromeLink.getAttribute("href")).toBe(
+      `intent://${window.location.host}/en/menu?cat=mains#Intent;scheme=${scheme};package=com.android.chrome;S.browser_fallback_url=${expectedFallback};end`,
+    );
+
+    window.history.pushState({}, "", "/");
+  });
+
+  it("falls back to generic app wording when in-app browser name is unknown (EN and FR)", () => {
+    const { rerender } = render(
+      <InstallGuide
+        open
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "other", app: null }}
+        copy={enCopy}
+      />,
+    );
+
+    expect(screen.getByTestId("install-guide-in-app-explanation").textContent).toContain(
+      "This page is open inside this app.",
+    );
+    expect(screen.queryByTestId("install-guide-open-chrome-link")).toBeNull();
+
+    rerender(
+      <InstallGuide
+        open={false}
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "ios", app: null }}
+        copy={frCopy}
+      />,
+    );
+    rerender(
+      <InstallGuide
+        open
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "ios", app: null }}
+        copy={frCopy}
+      />,
+    );
+
+    expect(screen.getByTestId("install-guide-in-app-explanation").textContent).toContain(
+      "Cette page est ouverte dans cette application.",
+    );
+    const frSteps = screen.getByTestId("install-guide-in-app-steps");
+    expect(frSteps.textContent).toContain("••• (Plus)");
+    expect(frSteps.textContent).toContain("Ouvrir dans Safari");
+    expect(frSteps.textContent).toContain("Ouvrir dans le navigateur externe");
+  });
+
+  it("copies the current URL to the clipboard and announces localized confirmation", async () => {
+    window.history.pushState({}, "", "/fr/menu");
+    const writeText = vi.fn(async () => undefined);
+    stubClipboard({ writeText });
+
+    render(
+      <InstallGuide
+        open
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "ios", app: "Instagram" }}
+        copy={frCopy}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("install-guide-copy-link-button"));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
+    const confirmation = await screen.findByTestId("install-guide-copy-confirmation");
+    expect(confirmation.textContent).toContain(frCopy.inAppLinkCopied);
+
+    window.history.pushState({}, "", "/");
+  });
+
+  it("shows a selectable URL fallback when clipboard API is unavailable or rejects", async () => {
+    window.history.pushState({}, "", "/en/menu");
+    stubClipboard(undefined);
+
+    const { rerender } = render(
+      <InstallGuide
+        open
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "ios", app: "Facebook" }}
+        copy={enCopy}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("install-guide-copy-link-button"));
+
+    const fallback = await screen.findByTestId("install-guide-copy-fallback");
+    expect(fallback.textContent).toContain(enCopy.inAppCopyFallback);
+    const input = screen.getByTestId("install-guide-copy-fallback-input") as HTMLInputElement;
+    expect(input.value).toBe(window.location.href);
+    expect(input.readOnly).toBe(true);
+    const selectSpy = vi.spyOn(input, "select");
+    fireEvent.focus(input);
+    expect(selectSpy).toHaveBeenCalledTimes(1);
+
+    // Close and reopen: resets previous copy state and tests clipboard rejection path too.
+    const rejectWrite = vi.fn(async () => {
+      throw new Error("Permission denied");
+    });
+    stubClipboard({ writeText: rejectWrite });
+
+    rerender(
+      <InstallGuide
+        open={false}
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "android", app: "Instagram" }}
+        copy={enCopy}
+      />,
+    );
+    rerender(
+      <InstallGuide
+        open
+        onOpenChange={vi.fn()}
+        appName="Les Saveurs du Continent"
+        platform={{ kind: "in-app", os: "android", app: "Instagram" }}
+        copy={enCopy}
+      />,
+    );
+    expect(screen.queryByTestId("install-guide-copy-fallback")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("install-guide-copy-link-button"));
+    await waitFor(() => expect(rejectWrite).toHaveBeenCalledWith(window.location.href));
+    expect(await screen.findByTestId("install-guide-copy-fallback")).toBeDefined();
+
+    window.history.pushState({}, "", "/");
+  });
+
+  it.each<{ label: string; platform: InstallGuidePlatform }>([
+    { label: "native-prompt", platform: "native-prompt" },
+    { label: "ios-safari", platform: "ios-safari" },
+    { label: "ios-other", platform: "ios-other" },
+    { label: "android-manual", platform: "android-manual" },
+    { label: "macos-safari", platform: "macos-safari" },
+    { label: "generic", platform: "generic" },
+    { label: "in-app-ios", platform: { kind: "in-app", os: "ios", app: "Instagram" } },
+    { label: "in-app-android", platform: { kind: "in-app", os: "android", app: "TikTok" } },
+    { label: "in-app-generic", platform: { kind: "in-app", os: "other", app: null } },
+  ])("has no WCAG 2.2 AA axe violations for the $label variant", async ({ platform }) => {
     render(
       <InstallGuide
         open

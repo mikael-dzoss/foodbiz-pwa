@@ -49,6 +49,34 @@ import { InstallGuide } from "@/components/pwa";
 import { enDictionary } from "@/domain/i18n";
 import type { InstallGuidePlatform } from "@/lib/pwa/platform";
 
+const INSTALL_GUIDE_VARIANTS: ReadonlyArray<{
+  id: string;
+  label: string;
+  platform: InstallGuidePlatform;
+}> = [
+  { id: "native-prompt", label: "native-prompt", platform: "native-prompt" },
+  { id: "ios-safari", label: "ios-safari", platform: "ios-safari" },
+  { id: "ios-other", label: "ios-other", platform: "ios-other" },
+  { id: "android-manual", label: "android-manual", platform: "android-manual" },
+  { id: "macos-safari", label: "macos-safari", platform: "macos-safari" },
+  { id: "generic", label: "generic", platform: "generic" },
+  {
+    id: "in-app-ios",
+    label: "in-app (iOS · Instagram)",
+    platform: { kind: "in-app", os: "ios", app: "Instagram" },
+  },
+  {
+    id: "in-app-android",
+    label: "in-app (Android · TikTok)",
+    platform: { kind: "in-app", os: "android", app: "TikTok" },
+  },
+  {
+    id: "in-app-generic",
+    label: "in-app (generic)",
+    platform: { kind: "in-app", os: "ios", app: null },
+  },
+];
+
 export default function PatternsPage() {
   const { theme, resolvedTheme, setTheme, mounted } = useTheme();
   const { showToast, showError } = useToast();
@@ -60,7 +88,9 @@ export default function PatternsPage() {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
   const [isInstallGuideOpen, setIsInstallGuideOpen] = React.useState(false);
-  const [installPlatform, setInstallPlatform] = React.useState<InstallGuidePlatform>("ios-safari");
+  const [installVariantId, setInstallVariantId] = React.useState<string>("ios-safari");
+  const installPlatform: InstallGuidePlatform =
+    INSTALL_GUIDE_VARIANTS.find((v) => v.id === installVariantId)?.platform ?? "ios-safari";
   const [segment, setSegment] = React.useState<"pickup" | "delivery">("pickup");
   const [fieldValue, setFieldValue] = React.useState("");
 
@@ -655,25 +685,16 @@ export default function PatternsPage() {
           </div>
           <Card className="space-y-3 p-4">
             <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  "native-prompt",
-                  "ios-safari",
-                  "ios-other",
-                  "android-manual",
-                  "macos-safari",
-                  "generic",
-                ] as const
-              ).map((variant) => (
+              {INSTALL_GUIDE_VARIANTS.map((variant) => (
                 <Button
-                  key={variant}
+                  key={variant.id}
                   type="button"
                   size="sm"
-                  variant={installPlatform === variant ? "secondary" : "outline"}
-                  onClick={() => setInstallPlatform(variant)}
-                  data-testid={`pattern-install-variant-${variant}`}
+                  variant={installVariantId === variant.id ? "secondary" : "outline"}
+                  onClick={() => setInstallVariantId(variant.id)}
+                  data-testid={`pattern-install-variant-${variant.id}`}
                 >
-                  {variant}
+                  {variant.label}
                 </Button>
               ))}
             </div>
