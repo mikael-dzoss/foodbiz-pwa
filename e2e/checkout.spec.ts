@@ -9,14 +9,14 @@ import {
 } from "../src/lib/repositories/mock/fixtures";
 
 /**
- * Outside the mock shop's opening hours the checkout forces "Schedule for later" (#350), so pick a
- * date two days out; inside hours the date input is hidden and ASAP stays the default.
+ * Outside the mock shop's opening hours the checkout forces "Schedule for later" (#350). The date
+ * picker only lists bookable days (#374), so pick the first one (index 0 is the placeholder);
+ * inside hours the date select is hidden and ASAP stays the default.
  */
 async function scheduleIfClosed(page: Page) {
-  const dateInput = page.getByTestId("checkout-date-input");
-  if (!(await dateInput.isVisible())) return;
-  const date = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  await dateInput.fill(date);
+  const dateSelect = page.getByTestId("checkout-date-input");
+  if (!(await dateSelect.isVisible())) return;
+  await dateSelect.selectOption({ index: 1 });
 }
 
 test("storefront sticky category bar appears after scrolling past first category and Menu sheet navigates", async ({

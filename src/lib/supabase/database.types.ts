@@ -623,6 +623,7 @@ export type Database = {
           p_notes?: string;
           p_update_guest_name?: boolean;
           p_idempotency_key?: string;
+          p_is_asap?: boolean;
         };
         Returns: Json;
       };

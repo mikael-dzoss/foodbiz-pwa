@@ -54,10 +54,22 @@ import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
-import { useZonedToday } from "@/components/time/business-timezone";
+import { NativeSelect } from "@/components/ui/native-select";
+import { getZonedDay } from "@/domain/timezone";
+import { isOpenAt } from "@/domain/opening-hours";
 import { useCart, resolveServiceMode } from "../context/cart-context";
 import type { ActionCode, ActionFailure } from "@/lib/actions/types";
 import { placeOrderAction } from "../storefront-actions";
+import {
+  buildSlotOptions,
+  closedNextOpeningLabel,
+  formatSlotDate,
+  scheduleFromSettings,
+  slotIssue,
+} from "../checkout-slots";
+
+/** How often the form re-evaluates the slot lists against the running clock (stale picks, #374). */
+const SLOT_CLOCK_TICK_MS = 30_000;
 
 /** Dictionary key for a place-order failure: its domain `reason` first, then its action code. */
 const PLACE_ORDER_ERROR_KEYS = {
@@ -66,6 +78,11 @@ const PLACE_ORDER_ERROR_KEYS = {
   SERVICE_TYPE_DISABLED: "orderErrorServiceDisabled",
   MINIMUM_ORDER_UNMET: "orderErrorMinimum",
   STOCK_ERROR: "orderErrorStock",
+  SLOT_CLOSED_NOW: "orderErrorSlotClosedNow",
+  SLOT_CLOSED_DAY: "orderErrorSlotClosedDay",
+  SLOT_DATE_OUT_OF_WINDOW: "orderErrorSlotDateOutOfWindow",
+  SLOT_TIME_OUTSIDE_HOURS: "orderErrorSlotTimeOutsideHours",
+  SLOT_TIME_IN_PAST: "orderErrorSlotTimeInPast",
   VALIDATION: "orderErrorValidation",
   RATE_LIMITED: "orderErrorAntiAbuse",
   FORBIDDEN: "orderErrorAntiAbuse",
@@ -157,6 +174,8 @@ export interface CheckoutFormProps {
   dict: StorefrontDictionary;
   isOpen?: boolean;
   isAcceptingOrders?: boolean;
+  /** Request time (ISO) the server evaluated; seeds the slot lists so SSR and hydration agree. */
+  nowIso?: string;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   onOrderSuccess?: () => void;
   redirectDelayMs?: number;
@@ -169,6 +188,7 @@ export function CheckoutForm({
   dict,
   isOpen,
   isAcceptingOrders,
+  nowIso,
   onSubmitOrder,
   onOrderSuccess,
   redirectDelayMs,
@@ -206,8 +226,21 @@ export function CheckoutForm({
 
   // Fulfillment State
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
-  // Earliest schedulable day: today in the business zone (null until hydrated)
-  const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
+  // Slot clock: seeded from the server request time, then advanced by the elapsed browser time
+  const timeZone = settings?.timezone ?? DEFAULT_TIMEZONE;
+  const [clock] = useState(() => {
+    const base = nowIso ? new Date(nowIso) : new Date();
+    return { baseMs: base.getTime(), mountedMs: Date.now() };
+  });
+  const [now, setNow] = useState(() => new Date(clock.baseMs));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setNow(new Date(clock.baseMs + (Date.now() - clock.mountedMs)));
+    }, SLOT_CLOCK_TICK_MS);
+    return () => clearInterval(id);
+  }, [clock]);
+  const today = getZonedDay(now, timeZone);
+  const schedule = useMemo(() => scheduleFromSettings(settings), [settings]);
   const pickupAllowed = settings?.serviceTypes.pickup ?? true;
   const deliveryAllowed = settings?.serviceTypes.delivery ?? true;
   const preselectedService = resolveServiceMode(serviceMode, {
@@ -220,12 +253,38 @@ export function CheckoutForm({
 
   // Timing State
   const resolvedAcceptingOrders = isAcceptingOrders ?? settings?.acceptingOrders ?? true;
-  const resolvedIsOpen = isOpen ?? true;
+  // Structured hours drive open/closed on the ticking slot clock; the prop only covers legacy shops.
+  const structuredHours = schedule.weekly !== null || schedule.exceptions.length > 0;
+  const resolvedIsOpen = structuredHours ? isOpenAt(schedule, timeZone, now) : (isOpen ?? true);
   const closedButAccepting = resolvedAcceptingOrders && !resolvedIsOpen;
   const [selectedAsap, setSelectedAsap] = useState(!closedButAccepting);
   const isAsap = closedButAccepting ? false : selectedAsap;
   const [requestedDate, setRequestedDate] = useState("");
   const [requestedTime, setRequestedTime] = useState("");
+  const slotOptions = useMemo(
+    () => buildSlotOptions(schedule, timeZone, now, requestedDate),
+    [schedule, timeZone, now, requestedDate],
+  );
+  const slotProblem = isAsap
+    ? null
+    : slotIssue(schedule, timeZone, now, requestedDate, requestedTime, slotOptions.timeRequired);
+  const noSlotsAvailable = !isAsap && slotOptions.dates.length === 0;
+  // A stale pick stays in its sorted position, disabled and flagged, so the error points at it.
+  const withStalePick = (values: string[], pick: string): string[] =>
+    pick && !values.includes(pick) ? [...values, pick].toSorted() : values;
+  const dateOptions = withStalePick(slotOptions.dates, requestedDate);
+  const timeOptions = withStalePick(slotOptions.times, requestedTime);
+  const closedNextOpening = closedButAccepting
+    ? closedNextOpeningLabel(settings, now, locale, dict)
+    : null;
+  // Only states that make ordering impossible block the button; the not-accepting sentence is
+  // already announced by the top alert, so it is not repeated here.
+  const blockedReason = !resolvedAcceptingOrders
+    ? null
+    : noSlotsAvailable
+      ? dict.checkoutNoSlots
+      : null;
+  const orderingBlocked = !resolvedAcceptingOrders || noSlotsAvailable;
 
   // Payment State
   const revolutAllowed = settings?.paymentMethods.revolut ?? true;
@@ -270,8 +329,9 @@ export function CheckoutForm({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLSelectElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
+  const timeSelectRef = useRef<HTMLSelectElement>(null);
   const notesInputRef = useRef<HTMLTextAreaElement>(null);
 
   const markTouched = (field: CheckoutFieldName) => {
@@ -354,13 +414,35 @@ export function CheckoutForm({
     dict,
   ]);
 
+  // Slot rules join the zod errors so the submit/focus/summary flow treats them like any field.
+  const slotField: CheckoutFieldName | null = slotProblem
+    ? slotProblem.field === "date"
+      ? "requestedDate"
+      : "requestedTime"
+    : null;
+  const allFieldErrors: Partial<Record<CheckoutFieldName, string>> =
+    slotProblem && slotField && !fieldErrors[slotField]
+      ? { ...fieldErrors, [slotField]: dict[slotProblem.messageKey] }
+      : fieldErrors;
+  const formValid = validationResult.success && slotProblem === null;
+  // "Choose a time" waits for interaction; stale or closed picks are explained immediately.
+  const slotErrorVisible =
+    slotProblem !== null &&
+    (slotProblem.messageKey !== "checkoutTimeRequired" || Boolean(touchedFields.requestedTime));
+
   const visibleErrors: Partial<Record<CheckoutFieldName, string>> = {
     name: touchedFields.name ? fieldErrors.name : undefined,
     phone: touchedFields.phone ? fieldErrors.phone : undefined,
     serviceType: touchedFields.serviceType ? fieldErrors.serviceType : undefined,
     deliveryAddress: touchedFields.deliveryAddress ? fieldErrors.deliveryAddress : undefined,
-    requestedDate: touchedFields.requestedDate ? fieldErrors.requestedDate : undefined,
-    requestedTime: touchedFields.requestedTime ? fieldErrors.requestedTime : undefined,
+    requestedDate:
+      touchedFields.requestedDate || (slotErrorVisible && slotField === "requestedDate")
+        ? allFieldErrors.requestedDate
+        : undefined,
+    requestedTime:
+      touchedFields.requestedTime || (slotErrorVisible && slotField === "requestedTime")
+        ? allFieldErrors.requestedTime
+        : undefined,
     paymentPreference: touchedFields.paymentPreference ? fieldErrors.paymentPreference : undefined,
     notes: touchedFields.notes ? fieldErrors.notes : undefined,
   };
@@ -372,7 +454,7 @@ export function CheckoutForm({
       phone: phoneInputRef.current,
       deliveryAddress: addressInputRef.current,
       requestedDate: dateInputRef.current,
-      requestedTime: timeInputRef.current,
+      requestedTime: timeInputRef.current ?? timeSelectRef.current,
       notes: notesInputRef.current,
     };
     const target = refMap[focusRequest.field];
@@ -464,7 +546,7 @@ export function CheckoutForm({
   }, null);
 
   const submitting = isSubmitting || isPending;
-  const canSubmit = items.length > 0 && !submitting;
+  const canSubmit = items.length > 0 && !submitting && !orderingBlocked;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (!canSubmit) {
@@ -472,7 +554,7 @@ export function CheckoutForm({
       return;
     }
 
-    if (!validationResult.success) {
+    if (!validationResult.success || slotProblem !== null) {
       event.preventDefault();
       setErrorFeedback(null);
       setHasInvalidSubmit(true);
@@ -499,7 +581,9 @@ export function CheckoutForm({
         return next;
       });
 
-      const firstInvalidField = FOCUSABLE_FIELD_ORDER.find((field) => Boolean(fieldErrors[field]));
+      const firstInvalidField = FOCUSABLE_FIELD_ORDER.find((field) =>
+        Boolean(allFieldErrors[field]),
+      );
       if (firstInvalidField) {
         if (firstInvalidField === "name" && isNameLocked) {
           setIsUnlocked(true);
@@ -575,7 +659,7 @@ export function CheckoutForm({
         data-testid="checkout-validation-summary"
       >
         {/* Keyed per submit so a repeated invalid submit replaces the node and is re-announced */}
-        {hasInvalidSubmit && !validationResult.success ? (
+        {hasInvalidSubmit && !formValid ? (
           <span key={focusRequest?.seq ?? 0}>{dict.formValidationSummary}</span>
         ) : null}
       </p>
@@ -597,6 +681,17 @@ export function CheckoutForm({
           data-testid="checkout-honeypot-input"
         />
       </div>
+
+      {!resolvedAcceptingOrders && (
+        <div
+          role="alert"
+          data-testid="checkout-not-accepting-notice"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{dict.checkoutBlockedNotAccepting}</span>
+        </div>
+      )}
 
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
@@ -833,7 +928,11 @@ export function CheckoutForm({
             className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
           >
             <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{dict.checkoutClosedScheduleNotice}</span>
+            <span>
+              {closedNextOpening
+                ? dict.checkoutClosedNextOpening.replace("{when}", closedNextOpening)
+                : dict.checkoutClosedScheduleNotice}
+            </span>
           </div>
         )}
 
@@ -927,36 +1026,81 @@ export function CheckoutForm({
                   className="min-w-0"
                   data-testid="checkout-date-field"
                 >
-                  <Input
-                    ref={dateInputRef}
-                    type="date"
-                    min={today ?? undefined}
-                    value={requestedDate}
-                    onChange={(e) => setRequestedDate(e.target.value)}
-                    onBlur={() => markTouched("requestedDate")}
-                    data-testid="checkout-date-input"
-                    className="h-9 w-full min-w-0"
-                    required
-                  />
+                  {(control) => (
+                    <NativeSelect
+                      {...control}
+                      ref={dateInputRef}
+                      value={requestedDate}
+                      onChange={(e) => {
+                        setRequestedDate(e.target.value);
+                        setRequestedTime("");
+                      }}
+                      onBlur={() => markTouched("requestedDate")}
+                      data-testid="checkout-date-input"
+                      className="min-w-0"
+                    >
+                      <option value="">{dict.checkoutChooseDate}</option>
+                      {dateOptions.map((date) => {
+                        const label = formatSlotDate(date, today, locale, dict);
+                        const stale = !slotOptions.dates.includes(date);
+                        return (
+                          <option key={date} value={date} disabled={stale}>
+                            {stale ? dict.checkoutSlotUnavailable.replace("{value}", label) : label}
+                          </option>
+                        );
+                      })}
+                    </NativeSelect>
+                  )}
                 </Field>
 
                 <Field
                   id={timeId}
-                  label={dict.scheduledTime}
+                  label={slotOptions.timeRequired ? dict.scheduledTimeRequired : dict.scheduledTime}
+                  required={slotOptions.timeRequired}
                   error={visibleErrors.requestedTime}
+                  hint={
+                    slotOptions.note
+                      ? dict.checkoutDayNote.replace("{note}", slotOptions.note)
+                      : undefined
+                  }
                   announceError={false}
                   className="min-w-0"
                   data-testid="checkout-time-field"
                 >
-                  <Input
-                    ref={timeInputRef}
-                    type="time"
-                    value={requestedTime}
-                    onChange={(e) => setRequestedTime(e.target.value)}
-                    onBlur={() => markTouched("requestedTime")}
-                    data-testid="checkout-time-input"
-                    className="h-9 w-full min-w-0"
-                  />
+                  {(control) =>
+                    slotOptions.structured ? (
+                      <NativeSelect
+                        {...control}
+                        ref={timeSelectRef}
+                        value={requestedTime}
+                        onChange={(e) => setRequestedTime(e.target.value)}
+                        onBlur={() => markTouched("requestedTime")}
+                        data-testid="checkout-time-input"
+                        className="min-w-0"
+                      >
+                        <option value="">{dict.checkoutChooseTime}</option>
+                        {timeOptions.map((time) => {
+                          const stale = !slotOptions.times.includes(time);
+                          return (
+                            <option key={time} value={time} disabled={stale}>
+                              {stale ? dict.checkoutSlotUnavailable.replace("{value}", time) : time}
+                            </option>
+                          );
+                        })}
+                      </NativeSelect>
+                    ) : (
+                      <Input
+                        {...control}
+                        ref={timeInputRef}
+                        type="time"
+                        value={requestedTime}
+                        onChange={(e) => setRequestedTime(e.target.value)}
+                        onBlur={() => markTouched("requestedTime")}
+                        data-testid="checkout-time-input"
+                        className="w-full min-w-0"
+                      />
+                    )
+                  }
                 </Field>
               </div>
             )}
@@ -1255,6 +1399,25 @@ export function CheckoutForm({
           </span>
           <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>
+
+        {/* Always mounted so a reason appearing later is announced; keyed so a change re-announces */}
+        <p
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="checkout-blocked-reason-region"
+          className="text-destructive text-caption text-center"
+        >
+          {blockedReason ? (
+            <span
+              key={blockedReason}
+              data-testid="checkout-blocked-reason"
+              className="flex items-start justify-center gap-1.5"
+            >
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{blockedReason}</span>
+            </span>
+          ) : null}
+        </p>
 
         <p className="text-muted-foreground text-caption text-center">
           🔒 {dict.pickupPolicyNotice}

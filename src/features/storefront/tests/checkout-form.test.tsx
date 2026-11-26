@@ -75,12 +75,16 @@ const mockCartItems = [
 
 describe("CheckoutView & CheckoutForm", () => {
   beforeEach(() => {
+    // Slot lists (#374) depend on the clock; pin Date only so waitFor timers keep working.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-26T10:00:00Z"));
     resetCartStore();
     resetGuestContactCache();
     localStorage.clear();
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     resetCartStore();
     resetGuestContactCache();
     localStorage.clear();

@@ -657,6 +657,15 @@ describe("validateSlot (#372)", () => {
       opts: undefined,
       expected: { ok: false, reason: "date_out_of_window" },
     },
+    {
+      label: "future open date with hours and no time passes",
+      hours: STANDARD_WEEK,
+      tz: PARIS,
+      now: mon1000Paris,
+      slot: { date: "2026-07-14", time: null, isAsap: false },
+      opts: undefined,
+      expected: { ok: true },
+    },
     // Null hours skip
     {
       label: "null hours: skips closed/time checks inside window (scheduled)",

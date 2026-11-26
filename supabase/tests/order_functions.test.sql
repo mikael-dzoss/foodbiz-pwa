@@ -10,7 +10,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(51);
+select plan(65);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -124,7 +124,7 @@ insert into public.orders (
   'storefront',
   'NEW',
   'unpaid',
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   500,
   'token-seeded-order-1'
 ) on conflict (id) do nothing;
@@ -222,7 +222,7 @@ select public.place_order(
   '+33600000002',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 2}]'::jsonb
 ) as res;
 grant select on t_order_1 to public;
@@ -287,7 +287,7 @@ select public.place_order(
   '+33600000002',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
 ) as res;
 grant select on t_order_2 to public;
@@ -325,7 +325,7 @@ select public.place_order(
   '+33600000002',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference,
@@ -364,7 +364,7 @@ select public.place_order(
   '+33600000002',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference,
@@ -398,7 +398,7 @@ select public.place_order(
   '+33600000002',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference,
@@ -440,7 +440,7 @@ select public.place_order(
   '+33600000003',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
 ) as res;
 grant select on t_order_last to public;
@@ -460,7 +460,7 @@ select throws_ok(
     '+33600000004',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000002", "quantity": 1}]'::jsonb
   )$$,
   'P0001',
@@ -483,7 +483,7 @@ select throws_ok(
     '+33600000005',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb
   )$$,
   'P0003',
@@ -500,7 +500,7 @@ select public.place_order(
   '+33600000006',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[
     {"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1},
     {"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 2}
@@ -537,7 +537,7 @@ select throws_ok(
     '+33600000010',
     'pickup'::public.order_service_type,
     'phone'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   '42501',
@@ -558,7 +558,7 @@ select throws_ok(
     '+33600000010',
     'pickup'::public.order_service_type,
     'phone'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   '42501',
@@ -579,7 +579,7 @@ select public.place_order(
   '+33600000011',
   'pickup'::public.order_service_type,
   'phone'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb
 ) as res;
 grant select on t_order_member_phone to public;
@@ -603,7 +603,7 @@ select public.place_order(
   '+33600000012',
   'pickup'::public.order_service_type,
   'in-person'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb
 ) as res;
 grant select on t_order_service_role to public;
@@ -627,7 +627,7 @@ select throws_ok(
     '+33600000013',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   'P0002',
@@ -643,7 +643,7 @@ select throws_ok(
     '+33600000014',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "dc000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   'P0004',
@@ -659,7 +659,7 @@ select throws_ok(
     '+33600000015',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "dd000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   'P0005',
@@ -675,7 +675,7 @@ select throws_ok(
     '+33600000016',
     'delivery'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "de000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null,
     'on_handover'::public.order_payment_preference,
@@ -694,7 +694,7 @@ select throws_ok(
     '+33600000017',
     'delivery'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null,
     'on_handover'::public.order_payment_preference,
@@ -713,7 +713,7 @@ select public.place_order(
   '+33600000018',
   'delivery'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference,
@@ -754,7 +754,7 @@ select throws_ok(
     '+33600000019',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null,
     'on_handover'::public.order_payment_preference,
@@ -766,7 +766,7 @@ select throws_ok(
   'notes exceeding 500 characters rejected with 22023'
 );
 
--- Test 34: Storefront rejects requested_date in past (< current_date - 1) with 22023
+-- Test 34: Storefront rejects requested_date two days in the past (SLOT_INVALID date_out_of_window)
 select throws_ok(
   $$select public.place_order(
     '10000000-0000-0000-0000-000000000001'::uuid,
@@ -774,30 +774,28 @@ select throws_ok(
     '+33600000020',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date - 2,
+    (now() at time zone 'Europe/Paris')::date - 2,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   '22023',
-  null,
-  'storefront rejects requested_date in past (< current_date - 1)'
+  'SLOT_INVALID: date_out_of_window',
+  'storefront rejects requested_date in the past (window starts today)'
 );
 
--- Test 35: Storefront accepts requested_date = current_date - 1 (lenient timezone threshold)
-create temp table t_order_past_tolerated on commit drop as
-select public.place_order(
-  '10000000-0000-0000-0000-000000000001'::uuid,
-  'Yesterday Guest',
-  '+33600000021',
-  'pickup'::public.order_service_type,
-  'storefront'::public.order_channel,
-  current_date - 1,
-  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
-) as res;
-grant select on t_order_past_tolerated to public;
-
-select ok(
-  (select res ? 'order_id' from t_order_past_tolerated),
-  'storefront accepts requested_date = current_date - 1'
+-- Test 35: Storefront now rejects yesterday too (window is [today, today + 30] in the business timezone)
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid,
+    'Yesterday Guest',
+    '+33600000021',
+    'pickup'::public.order_service_type,
+    'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date - 1,
+    '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
+  )$$,
+  '22023',
+  'SLOT_INVALID: date_out_of_window',
+  'storefront rejects requested_date = yesterday'
 );
 
 -- ----------------------------------------------------------------------------
@@ -839,10 +837,10 @@ select is(
   'orders table status is CANCELLED'
 );
 
--- Test 39: Restores product stock atomically (3 restored: 4 + 3 = 7)
+-- Test 39: Restores product stock atomically (3 restored: 5 + 3 = 8; yesterday's order of test 35 is now rejected)
 select is(
   (select stock from public.products where id = 'da000000-0000-0000-0000-000000000001'),
-  7,
+  8,
   'cancel_order atomically restores product stock'
 );
 
@@ -978,7 +976,7 @@ select public.place_order(
   '+33600000022',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference
@@ -1012,7 +1010,7 @@ select public.place_order(
   '+33600000024',
   'pickup'::public.order_service_type,
   'storefront'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference
@@ -1046,7 +1044,7 @@ select throws_ok(
     '+33600000023',
     'pickup'::public.order_service_type,
     'storefront'::public.order_channel,
-    current_date,
+    (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null,
     'on_handover'::public.order_payment_preference
@@ -1069,7 +1067,7 @@ select public.place_order(
   '+33600000025',
   'pickup'::public.order_service_type,
   'phone'::public.order_channel,
-  current_date,
+  (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
   null,
   'on_handover'::public.order_payment_preference
@@ -1128,6 +1126,311 @@ select ok(
       and a.attname = 'payment_methods'
   ),
   'business_settings.payment_methods column default contains "card"'
+);
+
+-- ----------------------------------------------------------------------------
+-- Section 8: slot rules (#373 / #374, Tests 52-63). Opening hours are built relative
+-- to the real now() in Europe/Paris, never assuming a time of day.
+-- ----------------------------------------------------------------------------
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+-- Self-contained: earlier sections leave payment_methods with cash and card disabled.
+update public.business_settings
+set payment_methods = '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+insert into public.products (id, business_id, category_id, name, price, stock, visible)
+values ('da000000-0000-0000-0000-0000000000a1'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Slot Bun', 100, 1000, true)
+on conflict (id) do nothing;
+
+-- Test 52: ASAP accepted while open (open all day, every day)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+create temp table t_slot_asap_open on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000030',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true) as res;
+grant select on t_slot_asap_open to public;
+
+select ok((select res ? 'order_id' from t_slot_asap_open), 'ASAP order accepted while the shop is open');
+
+-- Test 53: ASAP rejected while closed (closed all week)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, '[]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000031',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true)$$,
+  '22023',
+  'SLOT_INVALID: closed_now',
+  'ASAP order rejected while the shop is closed (closed_now)'
+);
+
+-- Test 54: scheduled on a closed weekday (tomorrow closed)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, case when d = (array['mon','tue','wed','thu','fri','sat','sun'])[extract(isodow from (now() at time zone 'Europe/Paris')::date + 1)::integer] then '[]'::jsonb else '[{"open":"00:00","close":"24:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000032',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb)$$,
+  '22023',
+  'SLOT_INVALID: closed_day',
+  'scheduled order on a closed weekday rejected (closed_day)'
+);
+
+-- Test 55: time outside opening hours (tomorrow open 08:00-09:00 only, ask 12:00)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, case when d = (array['mon','tue','wed','thu','fri','sat','sun'])[extract(isodow from (now() at time zone 'Europe/Paris')::date + 1)::integer] then '[{"open":"08:00","close":"09:00"}]'::jsonb else '[{"open":"00:00","close":"24:00"}]'::jsonb end) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000033',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_requested_time := '12:00')$$,
+  '22023',
+  'SLOT_INVALID: time_outside_hours',
+  'scheduled time outside opening hours rejected'
+);
+
+-- Test 56: time in the past today (open all day, 00:00 is never in the future)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000034',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_requested_time := '00:00')$$,
+  '22023',
+  'SLOT_INVALID: time_in_past',
+  'scheduled time in the past rejected (time_in_past)'
+);
+
+-- Tests 57-58: window is [today, today + 30]
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000035',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 31,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb)$$,
+  '22023',
+  'SLOT_INVALID: date_out_of_window',
+  'date 31 days ahead rejected'
+);
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000036',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date - 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb)$$,
+  '22023',
+  'SLOT_INVALID: date_out_of_window',
+  'yesterday rejected'
+);
+
+-- Test 59: exception closing tomorrow overrides open weekly hours
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = jsonb_build_array(jsonb_build_object('from', to_char((now() at time zone 'Europe/Paris')::date + 1, 'YYYY-MM-DD'), 'to', to_char((now() at time zone 'Europe/Paris')::date + 1, 'YYYY-MM-DD'), 'ranges', '[]'::jsonb))
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000037',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 1,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb)$$,
+  '22023',
+  'SLOT_INVALID: closed_day',
+  'exception closed day rejected'
+);
+
+-- Test 60: null hours -> no hours check, only the window applies (today + 30 accepted)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = null, hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+create temp table t_slot_null_hours on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000038',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date + 30,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_requested_time := '03:00') as res;
+grant select on t_slot_null_hours to public;
+
+select ok((select res ? 'order_id' from t_slot_null_hours), 'null weekly_hours: only the date window applies (+30 days accepted)');
+
+-- Test 61: manual channel unaffected (service_role, closed all week, past date, no slot checks)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, '[]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role service_role;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
+set local "request.jwt.claims" = '{"role": "service_role"}';
+create temp table t_slot_manual on commit drop as
+select public.place_order(
+  '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000039',
+  'pickup'::public.order_service_type, 'phone'::public.order_channel,
+  (now() at time zone 'Europe/Paris')::date - 5,
+  '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb,
+  p_is_asap := true
+) as res;
+grant select on t_slot_manual to public;
+
+select ok((select res ? 'order_id' from t_slot_manual), 'manual channel order skips slot rules');
+
+-- Test 62: p_is_asap is part of the idempotency payload hash
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.business_settings
+set weekly_hours = null, hours_exceptions = '[]'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+create temp table t_slot_idem on commit drop as
+select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000040',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_idempotency_key := '5a5a5a5a-0000-4000-8000-000000000001') as res;
+grant select on t_slot_idem to public;
+
+select throws_like(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000040',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_idempotency_key := '5a5a5a5a-0000-4000-8000-000000000001', p_is_asap := true)$$,
+  'INVALID_IDEMPOTENCY_KEY%',
+  'replaying an idempotency key with a different p_is_asap is rejected'
+);
+
+-- Test 63: a pre-034 stored hash (computed without is_asap) still replays a non-ASAP retry
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.orders
+set idempotency_payload_hash = encode(sha256(convert_to(
+  jsonb_build_object(
+    'items', jsonb_build_array(jsonb_build_object('product_id', 'da000000-0000-0000-0000-0000000000a1'::uuid, 'quantity', 1::numeric)),
+    'service_type', 'pickup'::public.order_service_type,
+    'requested_date', (now() at time zone 'Europe/Paris')::date,
+    'requested_time', '',
+    'payment_preference', 'on_handover'::public.order_payment_preference,
+    'phone', '+33600000040'
+  )::text, 'UTF8')), 'hex')
+where idempotency_key = '5a5a5a5a-0000-4000-8000-000000000001';
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select is(
+  (select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000040',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_idempotency_key := '5a5a5a5a-0000-4000-8000-000000000001') ->> 'replayed'),
+  'true',
+  'a legacy (pre-is_asap) stored hash still replays a non-ASAP retry'
+);
+
+-- Test 64: a legacy stored hash does not replay an ASAP retry
+select throws_like(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000040',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_idempotency_key := '5a5a5a5a-0000-4000-8000-000000000001', p_is_asap := true)$$,
+  'INVALID_IDEMPOTENCY_KEY%',
+  'a legacy stored hash does not replay an ASAP retry'
+);
+
+-- Test 65: exactly one place_order overload remains
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+select is(
+  (select count(*)::integer from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'place_order'),
+  1,
+  'exactly one place_order overload exists'
 );
 
 select * from finish();

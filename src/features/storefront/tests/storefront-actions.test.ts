@@ -4,6 +4,8 @@ import { getMockRepositories } from "@/lib/repositories/mock";
 import { DEMO_BUSINESS_ID, DEMO_PRODUCT, demoGuests } from "@/lib/repositories/mock/fixtures";
 import { getGlobalRateLimiter } from "@/lib/rate-limiter";
 import { OrderRepoError } from "@/domain/order";
+import type { WeeklyHours } from "@/domain/opening-hours";
+import { addCalendarDays, DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import { placeOrderAction } from "../storefront-actions";
 
 const mockUpdateTag = vi.fn();
@@ -40,11 +42,17 @@ describe("placeOrderAction", () => {
   const firstProductId = firstProduct.id;
   const secondProductId = secondProduct.id;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockClientIp = "192.168.1.100";
     getMockRepositories().reset();
     getGlobalRateLimiter().reset();
+    // The demo store has opening hours: clear them so these tests never depend on the time of
+    // day (the "opening-hours rules" block sets hours relative to now).
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: null,
+      hoursExceptions: [],
+    });
   });
 
   const validOrderPayload = {
@@ -354,6 +362,90 @@ describe("placeOrderAction", () => {
       if (!result.ok) {
         expect(result.reason).toBe("STORE_CLOSED");
       }
+    });
+
+    describe("opening-hours rules (hours set relative to now)", () => {
+      const week = (ranges: { open: string; close: string }[]): WeeklyHours => ({
+        mon: ranges,
+        tue: ranges,
+        wed: ranges,
+        thu: ranges,
+        fri: ranges,
+        sat: ranges,
+        sun: ranges,
+      });
+      const closedAllWeek = week([]);
+      const openAllWeek = week([{ open: "00:00", close: "24:00" }]);
+      const businessToday = async () =>
+        getZonedDay(
+          new Date(),
+          (await getMockRepositories().business.getSettings(bId))?.timezone ?? DEFAULT_TIMEZONE,
+        );
+
+      it("refuses an ASAP order while closed, without touching stock", async () => {
+        const repos = getRepositories("mock");
+        await repos.business.updateSettings(bId, { weeklyHours: closedAllWeek });
+        const before = (await repos.products.findById(bId, firstProductId))?.stock;
+        const place = vi.spyOn(repos.orders, "place");
+
+        const result = await placeOrderAction({
+          ...validOrderPayload,
+          idempotencyKey: idem("idem-asap-closed"),
+        });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.reason).toBe("SLOT_CLOSED_NOW");
+        expect((await repos.products.findById(bId, firstProductId))?.stock).toBe(before);
+        place.mockRestore();
+      });
+
+      it("accepts an ASAP order while open", async () => {
+        const repos = getRepositories("mock");
+        await repos.business.updateSettings(bId, { weeklyHours: openAllWeek });
+        const result = await placeOrderAction({
+          ...validOrderPayload,
+          idempotencyKey: idem("idem-asap-open"),
+        });
+        expect(result.ok).toBe(true);
+      });
+
+      it("refuses a scheduled order on a closed day and outside the 30-day window", async () => {
+        const repos = getRepositories("mock");
+        await repos.business.updateSettings(bId, { weeklyHours: closedAllWeek });
+        const today = await businessToday();
+
+        const closedDay = await placeOrderAction({
+          ...validOrderPayload,
+          isAsap: false,
+          requestedDate: addCalendarDays(today, 1),
+          idempotencyKey: idem("idem-closed-day"),
+        });
+        expect(closedDay.ok).toBe(false);
+        if (!closedDay.ok) expect(closedDay.reason).toBe("SLOT_CLOSED_DAY");
+
+        const tooFar = await placeOrderAction({
+          ...validOrderPayload,
+          isAsap: false,
+          requestedDate: addCalendarDays(today, 31),
+          idempotencyKey: idem("idem-too-far"),
+        });
+        expect(tooFar.ok).toBe(false);
+        if (!tooFar.ok) expect(tooFar.reason).toBe("SLOT_DATE_OUT_OF_WINDOW");
+      });
+
+      it("keeps the accepting-orders refusal when orders are switched off", async () => {
+        const repos = getRepositories("mock");
+        await repos.business.updateSettings(bId, {
+          acceptingOrders: false,
+          weeklyHours: openAllWeek,
+        });
+        const result = await placeOrderAction({
+          ...validOrderPayload,
+          idempotencyKey: idem("idem-accepting-off"),
+        });
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.reason).toBe("STORE_CLOSED");
+      });
     });
 
     it("rejects order when requested service type is disabled in settings", async () => {

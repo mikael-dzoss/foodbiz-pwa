@@ -1,5 +1,6 @@
 import type { Repositories } from "@/domain/repositories";
-import { describe } from "vitest";
+import { beforeEach, describe } from "vitest";
+import type { OpeningHoursSetter } from "./order-placement.contract";
 
 import { DEMO_BUSINESS_ID } from "../../mock/fixtures";
 import { describeBusinessRepositoryContract } from "./business.contract";
@@ -20,6 +21,12 @@ export interface ContractSuiteOptions {
    * must be refused with code FORBIDDEN while everything else keeps working.
    */
   nonOwnerRepositories?: () => Promise<Repositories> | Repositories;
+  /**
+   * Sets the business's weekly opening hours and exceptions (as its owner). The storefront rules
+   * depend on the current time, so the suite clears the hours before every test (nothing to
+   * check) and the placement contract sets what each of its cases needs.
+   */
+  setOpeningHours?: OpeningHoursSetter;
 }
 
 export function describeRepositoryContracts(
@@ -30,11 +37,17 @@ export function describeRepositoryContracts(
   const businessId = options.businessId ?? DEMO_BUSINESS_ID;
 
   describe(`Repository Contracts Suite [${adapterName}]`, () => {
+    beforeEach(async () => {
+      await options.setOpeningHours?.({ weeklyHours: null, hoursExceptions: [] });
+    });
+
     describeProductRepositoryContract(getRepositories, businessId);
     describeCategoryRepositoryContract(getRepositories, businessId);
     describeOrderRepositoryContract(getRepositories, businessId);
     describeOrderStateContract(getRepositories, businessId, options.nonOwnerRepositories);
-    describeOrderPlacementContract(getRepositories, businessId);
+    describeOrderPlacementContract(getRepositories, businessId, {
+      setOpeningHours: options.setOpeningHours,
+    });
     describeGuestRepositoryContract(getRepositories, businessId);
     describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeBusinessRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);

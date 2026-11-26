@@ -277,6 +277,24 @@ export interface StorefrontDictionary {
   orderErrorMinimum: string;
   orderErrorStock: string;
   orderErrorInternal: string;
+  orderErrorSlotClosedNow: string;
+  orderErrorSlotClosedDay: string;
+  orderErrorSlotDateOutOfWindow: string;
+  orderErrorSlotTimeOutsideHours: string;
+  orderErrorSlotTimeInPast: string;
+  checkoutDateTomorrow: string;
+  checkoutChooseDate: string;
+  checkoutChooseTime: string;
+  scheduledTimeRequired: string;
+  checkoutTimeRequired: string;
+  /** "{day} at {time}" */
+  checkoutSlotAt: string;
+  /** "{value} (unavailable)" for a stale pick kept in a list */
+  checkoutSlotUnavailable: string;
+  checkoutClosedNextOpening: string;
+  checkoutBlockedNotAccepting: string;
+  checkoutNoSlots: string;
+  checkoutDayNote: string;
   pageErrorTitle: string;
   pageErrorMessage: string;
   pageErrorRetry: string;

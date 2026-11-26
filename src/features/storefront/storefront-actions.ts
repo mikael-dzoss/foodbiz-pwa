@@ -9,6 +9,8 @@ import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/reposi
 import {
   mergeDuplicateItems,
   placeOrderInputSchema,
+  SLOT_ERROR_MESSAGES,
+  SLOT_ERROR_REASONS,
   type PlaceOrderReason,
   type PlaceOrderSuccessData,
 } from "@/domain/checkout";
@@ -25,6 +27,7 @@ import {
   type PlacedOrderSummary,
   type Product,
 } from "@/domain";
+import { validateSlot } from "@/domain/opening-hours";
 import { validateOrderStock } from "@/domain/stock";
 import { calculateOrderTotals, type PricingLineItem } from "@/domain/pricing";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
@@ -121,9 +124,8 @@ export const placeOrderAction = defineAction(
     ]);
 
     // 5. Order request for the repository (also used to replay a retry, see rejectOrReplay)
-    // place_order checks "past" and the horizon against the database's UTC current_date with a
-    // one-day slack; every IANA zone is within a day of UTC, so this default always passes. Don't
-    // tighten that slack without making place_order zone-aware (far-east zones would break).
+    // place_order enforces the same slot rules (booking window and opening hours in the business
+    // timezone), see validateSlot below.
     const todayDate = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
     const placeInput = {
       guestName: data.name,
@@ -137,6 +139,7 @@ export const placeOrderAction = defineAction(
       deliveryAddress: data.deliveryAddress ?? null,
       notes: data.notes ?? null,
       allowRename: false,
+      isAsap: data.isAsap,
       // The database returns the original order for a repeated key (no second order, no second
       // stock decrement), also across server instances.
       idempotencyKey: data.idempotencyKey,
@@ -183,6 +186,19 @@ export const placeOrderAction = defineAction(
       if (settings.acceptingOrders === false) {
         return rejectOrReplay(
           reject("CONFLICT", "STORE_CLOSED", "This store is currently not accepting orders."),
+        );
+      }
+      // Closed shop = scheduled orders only; a scheduled slot must be on an open day/time within
+      // [today, today + 30] (place_order enforces the same rules).
+      const slot = validateSlot(
+        { weekly: settings.weeklyHours ?? null, exceptions: settings.hoursExceptions ?? [] },
+        settings.timezone ?? DEFAULT_TIMEZONE,
+        new Date(),
+        { date: placeInput.requestedDate, time: placeInput.requestedTime, isAsap: data.isAsap },
+      );
+      if (!slot.ok) {
+        return rejectOrReplay(
+          reject("CONFLICT", SLOT_ERROR_REASONS[slot.reason], SLOT_ERROR_MESSAGES[slot.reason]),
         );
       }
       if (settings.serviceTypes && settings.serviceTypes[data.serviceType] === false) {

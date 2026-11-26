@@ -5,11 +5,21 @@ import {
   MAX_QUANTITY_PER_ORDER,
   RATE_LIMIT_PHONE_MAX_REQUESTS,
 } from "@/domain/anti-abuse";
+import { DAY_KEYS, type HoursException, type WeeklyHours } from "@/domain/opening-hours";
 import { OrderRepoError, type PlaceOrderRepoInput } from "@/domain/order";
+import { addCalendarDays, DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import type { Repositories } from "@/domain/repositories";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+
+/** Sets the business's opening hours (the contract runs with anonymous repositories that cannot). */
+export type OpeningHoursSetter = (hours: {
+  weeklyHours: WeeklyHours | null;
+  hoursExceptions: HoursException[];
+}) => Promise<void>;
 
 export interface OrderPlacementContractOptions {
+  /** Required for the opening-hours cases; they are skipped when omitted. */
+  readonly setOpeningHours?: OpeningHoursSetter;
   /**
    * A visible product with at least MAX_QUANTITY_PER_LINE + 1 units in stock. When given, the
    * suite also proves the exact boundary is accepted (live database only: the mock fixtures
@@ -32,7 +42,9 @@ export function describeOrderPlacementContract(
 ): void {
   const freshPhone = (): string =>
     `+3367${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`;
-  const today = (): string => new Date().toISOString().slice(0, 10);
+  // A date relative to now in the business timezone, as place_order computes its window
+  // (UTC dates can be a day behind it). Defaults to the demo timezone before settings are read.
+  const today = (): string => getZonedDay(new Date(), DEFAULT_TIMEZONE);
 
   const orderInput = (
     phone: string,
@@ -290,5 +302,120 @@ export function describeOrderPlacementContract(
         expect(await stockOf(repos, boundaryProductId())).toBe((before ?? 0) - MAX_LINES_PER_ORDER);
       });
     }
+
+    describe.skipIf(!options.setOpeningHours)("opening-hours rules", () => {
+      const ALL_DAY = [{ open: "00:00", close: "24:00" }];
+      const weekdayKey = (day: string) =>
+        DAY_KEYS[(new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7];
+      const weekly = (
+        overrides: Partial<
+          Record<(typeof DAY_KEYS)[number], { open: string; close: string }[]>
+        > = {},
+        fallback: { open: string; close: string }[] = ALL_DAY,
+      ): WeeklyHours => {
+        const base = Object.fromEntries(DAY_KEYS.map((key) => [key, fallback])) as WeeklyHours;
+        return { ...base, ...overrides };
+      };
+      const businessToday = async (repos: Repositories): Promise<string> => {
+        const settings = await repos.business.getSettings(businessId);
+        return getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
+      };
+      // Leave the business without hours so other suites never depend on the time of day.
+      afterEach(() => options.setOpeningHours?.({ weeklyHours: null, hoursExceptions: [] }));
+      const setHours = (weeklyHours: WeeklyHours | null, hoursExceptions: HoursException[] = []) =>
+        options.setOpeningHours!({ weeklyHours, hoursExceptions });
+
+      it("accepts an ASAP order while the shop is open", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        await setHours(weekly());
+        const placed = await repos.orders.place(
+          businessId,
+          orderInput(freshPhone(), [{ productId, quantity: qty }], {
+            requestedDate: await businessToday(repos),
+            isAsap: true,
+          }),
+        );
+        expect(placed.orderId).toBeDefined();
+      });
+
+      it("rejects an ASAP order while the shop is closed (closed_now)", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const before = await stockOf(repos, productId);
+        await setHours(weekly({}, []));
+        await expectRejection(
+          repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }], {
+              requestedDate: await businessToday(repos),
+              isAsap: true,
+            }),
+          ),
+          "SLOT_CLOSED_NOW",
+        );
+        expect(await stockOf(repos, productId)).toBe(before);
+      });
+
+      it("rejects a scheduled order on a closed weekday (closed_day)", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const tomorrow = addCalendarDays(await businessToday(repos), 1);
+        await setHours(weekly({ [weekdayKey(tomorrow)]: [] }));
+        await expectRejection(
+          repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }], { requestedDate: tomorrow }),
+          ),
+          "SLOT_CLOSED_DAY",
+        );
+      });
+
+      it("rejects a scheduled time outside the opening hours", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const tomorrow = addCalendarDays(await businessToday(repos), 1);
+        await setHours(weekly({ [weekdayKey(tomorrow)]: [{ open: "08:00", close: "09:00" }] }));
+        await expectRejection(
+          repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }], {
+              requestedDate: tomorrow,
+              requestedTime: "12:00",
+            }),
+          ),
+          "SLOT_TIME_OUTSIDE_HOURS",
+        );
+      });
+
+      it("rejects a date outside [today, today + 30 days] (date_out_of_window)", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        await setHours(weekly());
+        const day = await businessToday(repos);
+        for (const requestedDate of [addCalendarDays(day, -1), addCalendarDays(day, 31)]) {
+          await expectRejection(
+            repos.orders.place(
+              businessId,
+              orderInput(freshPhone(), [{ productId, quantity: qty }], { requestedDate }),
+            ),
+            "SLOT_DATE_OUT_OF_WINDOW",
+          );
+        }
+      });
+
+      it("applies only the date window when no opening hours are set", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        await setHours(null);
+        const placed = await repos.orders.place(
+          businessId,
+          orderInput(freshPhone(), [{ productId, quantity: qty }], {
+            requestedDate: addCalendarDays(await businessToday(repos), 30),
+          }),
+        );
+        expect(placed.orderId).toBeDefined();
+      });
+    });
   });
 }

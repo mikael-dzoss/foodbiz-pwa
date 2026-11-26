@@ -12,6 +12,8 @@ import {
   type BusinessMemberRole,
   type BusinessSettings,
 } from "@/domain/business";
+import { SLOT_ERROR_MESSAGES, SLOT_ERROR_REASONS } from "@/domain/checkout";
+import type { SlotErrorReason } from "@/domain/opening-hours";
 import { uuidSchema } from "@/domain/common";
 import { expenseSchema, type Expense } from "@/domain/expense";
 import { sumOrderProductQuantities, type ProductQuantityFilter } from "@/domain/featured";
@@ -291,6 +293,15 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
   const sqlState = error.code;
 
   const build = (message: string, code: string) => new OrderRepoError(message, code);
+  if (reason === "SLOT_INVALID") {
+    // "SLOT_INVALID: <reason>": only an allowlisted slot reason is mapped, never free text.
+    const slotReason = /^SLOT_INVALID:\s*([a-z_]+)/.exec(raw)?.[1];
+    if (slotReason && Object.hasOwn(SLOT_ERROR_REASONS, slotReason)) {
+      const key = slotReason as SlotErrorReason;
+      return build(SLOT_ERROR_MESSAGES[key], SLOT_ERROR_REASONS[key]);
+    }
+    return build("Please check your order details.", "INVALID_INPUT");
+  }
   switch (reason) {
     case "INSUFFICIENT_STOCK":
     case "PRODUCT_NOT_AVAILABLE":
@@ -735,6 +746,7 @@ export function createSupabaseRepositories(
         p_notes: input.notes ?? undefined,
         p_update_guest_name: input.allowRename ?? false,
         p_idempotency_key: input.idempotencyKey,
+        p_is_asap: input.isAsap ?? false,
       });
 
       if (error) {

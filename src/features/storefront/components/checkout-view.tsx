@@ -18,6 +18,8 @@ export interface CheckoutViewProps {
   dict: StorefrontDictionary;
   isOpen: boolean;
   isAcceptingOrders: boolean;
+  /** Request time (ISO) from the server page; seeds the checkout slot lists. */
+  nowIso?: string;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   redirectDelayMs?: number;
 }
@@ -29,6 +31,7 @@ export function CheckoutView({
   dict,
   isOpen,
   isAcceptingOrders,
+  nowIso,
   onSubmitOrder,
   redirectDelayMs,
 }: CheckoutViewProps) {
@@ -85,6 +88,7 @@ export function CheckoutView({
         dict={dict}
         isOpen={isOpen}
         isAcceptingOrders={isAcceptingOrders}
+        nowIso={nowIso}
         onSubmitOrder={onSubmitOrder}
         onOrderSuccess={() => setIsOrderSubmitted(true)}
         redirectDelayMs={redirectDelayMs}

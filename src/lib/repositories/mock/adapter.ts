@@ -1,6 +1,9 @@
 import { isOwnerRole, OwnerRequiredError } from "@/domain/auth";
 import type { Business, BusinessMember, BusinessMemberRole } from "@/domain/business";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
+import { SLOT_ERROR_MESSAGES, SLOT_ERROR_REASONS } from "@/domain/checkout";
+import { validateSlot } from "@/domain/opening-hours";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { sumOrderProductQuantities } from "@/domain/featured";
 import type { Expense } from "@/domain/expense";
 import {
@@ -307,6 +310,7 @@ export function createMockRepositories(
         requestedDate: input.requestedDate,
         requestedTime: input.requestedTime ?? "",
         paymentPreference: input.paymentPreference ?? "on_handover",
+        isAsap: input.isAsap ?? false,
         phone: phoneKey,
       });
       if (idempotencyId) {
@@ -325,6 +329,22 @@ export function createMockRepositories(
       }
 
       if (input.channel === "storefront") {
+        // Same slot rules as place_order (window, ASAP only while open, open day/time).
+        if (settings) {
+          const slot = validateSlot(
+            { weekly: settings.weeklyHours ?? null, exceptions: settings.hoursExceptions ?? [] },
+            settings.timezone ?? DEFAULT_TIMEZONE,
+            new Date(),
+            { date: input.requestedDate, time: input.requestedTime, isAsap: input.isAsap ?? false },
+          );
+          if (!slot.ok) {
+            throw new OrderRepoError(
+              SLOT_ERROR_MESSAGES[slot.reason],
+              SLOT_ERROR_REASONS[slot.reason],
+            );
+          }
+        }
+
         if (settings?.serviceTypes?.[input.serviceType] === false) {
           throw new OrderRepoError(
             "This service type is currently not available.",
