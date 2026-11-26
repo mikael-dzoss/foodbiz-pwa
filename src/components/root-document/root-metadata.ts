@@ -2,14 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { APP_METADATA } from "@/config/app";
 import { getSiteUrl } from "@/config/site-url";
 
-// No title template here: each area (`/[locale]` storefront, `/manage`) owns its own, so a page
-// title is never suffixed twice.
+// No title template, applicationName, appleWebApp.title or manifest here: each area
+// (`/[locale]` storefront, `/manage`) owns its own so neither inherits the other's identity.
 export const rootMetadata: Metadata = {
   metadataBase: getSiteUrl(),
-  title: APP_METADATA.name,
-  description: APP_METADATA.description,
-  applicationName: APP_METADATA.name,
-  appleWebApp: { capable: true, title: APP_METADATA.shortName, statusBarStyle: "default" },
+  title: APP_METADATA.manager.name,
+  description: APP_METADATA.manager.description,
+  appleWebApp: { capable: true, statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

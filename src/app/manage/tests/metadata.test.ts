@@ -38,16 +38,23 @@ afterEach(() => {
 });
 
 describe("manager layout and page metadata (EN & FR)", () => {
-  it("keeps the layout title template and translates its default description", async () => {
+  it("keeps the layout title template, manager PWA metadata and translates its default description", async () => {
     for (const locale of ["en", "fr"] as const) {
       setLocale(locale);
       const dict = getDictionary(locale);
       const meta = await layoutMetadata();
       expect(meta.title).toEqual({
-        default: APP_METADATA.name,
-        template: `%s · ${APP_METADATA.name}`,
+        default: APP_METADATA.manager.name,
+        template: `%s · ${APP_METADATA.manager.name}`,
       });
       expect(meta.description).toBe(dict.manager.meta.appDescription);
+      expect(meta.applicationName).toBe(APP_METADATA.manager.name);
+      expect(meta.appleWebApp).toEqual({
+        capable: true,
+        title: APP_METADATA.manager.shortName,
+        statusBarStyle: "default",
+      });
+      expect(meta.manifest).toBe("/manage/manifest.webmanifest");
       expect(meta.robots).toEqual({ index: false, follow: false });
     }
   });

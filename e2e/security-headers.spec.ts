@@ -38,6 +38,46 @@ test("storefront and manager responses carry the security headers", async ({ req
   }
 });
 
+test("storefront and manager HTML link their separate manifests and both return 200", async ({
+  request,
+}) => {
+  const storefrontHtml = await (await request.get("/en")).text();
+  expect(storefrontHtml).toMatch(
+    /<link\b[^>]*rel="manifest"[^>]*href="\/en\/manifest\.webmanifest"/,
+  );
+  expect(storefrontHtml).toMatch(
+    /<meta\b[^>]*name="apple-mobile-web-app-title"[^>]*content="Les Saveurs du Continent"/,
+  );
+
+  const managerHtml = await (await request.get("/manage/login")).text();
+  expect(managerHtml).toMatch(
+    /<link\b[^>]*rel="manifest"[^>]*href="\/manage\/manifest\.webmanifest"/,
+  );
+  expect(managerHtml).toMatch(
+    /<meta\b[^>]*name="apple-mobile-web-app-title"[^>]*content="FoodBiz"/,
+  );
+
+  const storefrontRes = await request.get("/en/manifest.webmanifest", { maxRedirects: 0 });
+  expect(storefrontRes.status()).toBe(200);
+  expect(storefrontRes.headers()["content-type"]).toContain("application/manifest+json");
+  const storefrontManifest = (await storefrontRes.json()) as Record<string, unknown>;
+  expect(storefrontManifest.id).toBe("/");
+  expect(storefrontManifest.scope).toBe("/");
+  expect(storefrontManifest.start_url).toBe("/en");
+
+  const managerRes = await request.get("/manage/manifest.webmanifest", { maxRedirects: 0 });
+  expect(managerRes.status()).toBe(200);
+  expect(managerRes.headers()["content-type"]).toContain("application/manifest+json");
+  const managerManifest = (await managerRes.json()) as Record<string, unknown>;
+  expect(managerManifest.id).toBe("/manage");
+  expect(managerManifest.scope).toBe("/manage");
+  expect(managerManifest.start_url).toBe("/manage");
+  expect(managerManifest.name).toBe("FoodBiz Manager");
+
+  const unknownLocaleRes = await request.get("/de/manifest.webmanifest", { maxRedirects: 0 });
+  expect(unknownLocaleRes.status()).toBe(404);
+});
+
 test("storefront pages produce no CSP violations", async ({ page }) => {
   const violations = trackViolations(page);
   for (const path of STOREFRONT) {

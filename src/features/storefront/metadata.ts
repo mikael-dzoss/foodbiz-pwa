@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { storefrontManifestPath } from "@/config/app";
 import { formatMoney } from "@/domain/formatting";
 import {
   DEFAULT_LOCALE,
@@ -60,6 +61,13 @@ export function buildStorefrontRootMetadata(options: {
   return {
     title: { default: businessName, template: `%s · ${businessName}` },
     description,
+    applicationName: businessName,
+    appleWebApp: {
+      capable: true,
+      title: businessName,
+      statusBarStyle: "default",
+    },
+    manifest: storefrontManifestPath(locale),
     openGraph: {
       title: businessName,
       description,

@@ -55,6 +55,13 @@ describe("storefront page metadata (EN & FR)", () => {
         template: `%s · ${demoBusiness.name}`,
       });
       expect(root.description).toBe(demoBusiness.description);
+      expect(root.applicationName).toBe(demoBusiness.name);
+      expect(root.appleWebApp).toEqual({
+        capable: true,
+        title: demoBusiness.name,
+        statusBarStyle: "default",
+      });
+      expect(root.manifest).toBe(`/${locale}/manifest.webmanifest`);
       expect(root.openGraph).toMatchObject({
         siteName: demoBusiness.name,
         title: demoBusiness.name,

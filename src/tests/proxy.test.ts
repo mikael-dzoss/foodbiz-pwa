@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { proxy, unknownLocaleRewrite } from "@/proxy";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { config, proxy, unknownLocaleRewrite } from "@/proxy";
 import { NextRequest, NextResponse } from "next/server";
 import { MOCK_AUTH_COOKIE_NAME } from "@/domain/auth";
 import { updateSession } from "@/lib/supabase/proxy";
@@ -146,4 +147,22 @@ describe("unknownLocaleRewrite", () => {
     );
     vi.unstubAllEnvs();
   });
+});
+
+describe("proxy matcher", () => {
+  it.each([
+    "/manage/manifest.webmanifest",
+    "/fr/manifest.webmanifest",
+    "/en/manifest.webmanifest",
+    "/manifest.webmanifest",
+  ])("does not intercept %s so browsers can fetch manifests without auth cookies", (url) => {
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url })).toBe(false);
+  });
+
+  it.each(["/manage", "/manage/orders", "/manage/manifest.webmanifest/extra", "/en", "/fr/cart"])(
+    "still intercepts %s",
+    (url) => {
+      expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url })).toBe(true);
+    },
+  );
 });

@@ -20,8 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const dict = getDictionary(await getManagerLocale());
   return {
     ...rootMetadata,
-    title: { default: APP_METADATA.name, template: `%s · ${APP_METADATA.name}` },
+    title: { default: APP_METADATA.manager.name, template: `%s · ${APP_METADATA.manager.name}` },
     description: dict.manager.meta.appDescription,
+    applicationName: APP_METADATA.manager.name,
+    appleWebApp: {
+      capable: true,
+      title: APP_METADATA.manager.shortName,
+      statusBarStyle: "default",
+    },
+    manifest: APP_METADATA.manager.manifestPath,
     robots: { index: false, follow: false },
   };
 }

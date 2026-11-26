@@ -32,10 +32,10 @@ A web app for small, part-time food business owners (home bakers, meal prep, foo
 
 ## 2. Roles
 
-| Role         | Surface                        | Capabilities                                                         |
-| ------------ | ------------------------------ | -------------------------------------------------------------------- |
-| **Manager**  | Dashboard (installable PWA)    | Manage products, orders, expenses; view dashboard and analytics      |
-| **Customer** | Storefront (SSR, SEO-friendly) | Browse visible products, place orders without app-store installation |
+| Role         | Surface                                         | Capabilities                                                         |
+| ------------ | ----------------------------------------------- | -------------------------------------------------------------------- |
+| **Manager**  | Dashboard (installable PWA)                     | Manage products, orders, expenses; view dashboard and analytics      |
+| **Customer** | Storefront (SSR, SEO-friendly, installable PWA) | Browse visible products, place orders without app-store installation |
 
 Data segregation between roles is enforced with Supabase Row Level Security (see [`architecture.md`](architecture.md)). The exact customer sign-in/checkout flow is not yet defined.
 
@@ -117,7 +117,7 @@ Service types: `pickup` and `delivery` (`dine-in` exists only as a stored legacy
 
 - **Performance:** fast first load; storefront pages server-rendered.
 - **Accessibility:** WCAG AA, 44px touch targets, high contrast.
-- **Platform:** modern mobile and desktop browsers; manager dashboard installable as a PWA (manifest implemented; offline support **Planned**).
+- **Platform:** modern mobile and desktop browsers; both the customer storefront and the manager dashboard are installable as separate PWAs with distinct manifests (offline support **Planned**).
 - **Security:** authorisation enforced by RLS; no secrets in `NEXT_PUBLIC_*`.
 
 ## 8. Known gaps and planned improvements
