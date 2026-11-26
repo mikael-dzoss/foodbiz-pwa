@@ -84,4 +84,45 @@ describe("usePwaInstall & getManualPlatformSnapshot (#100)", () => {
       canPrompt: false,
     });
   });
+
+  it("exposes a stable in-app platform snapshot that beats native-prompt but yields to standalone", () => {
+    vi.stubGlobal("navigator", {
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/123.0.0.0 Mobile Safari/537.36 Instagram 324.0.0.34.97",
+      platform: "Linux armv8l",
+      maxTouchPoints: 5,
+    });
+
+    const first = getManualPlatformSnapshot();
+    const second = getManualPlatformSnapshot();
+    expect(first).toBe(second);
+    expect(first).toEqual({ kind: "in-app", os: "android", app: "Instagram" });
+
+    render(<Probe />);
+    expect(JSON.parse(screen.getByTestId("pwa-probe").textContent ?? "").platform).toEqual({
+      kind: "in-app",
+      os: "android",
+      app: "Instagram",
+    });
+
+    const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+      prompt: vi.fn(async () => {}),
+      userChoice: Promise.resolve({ outcome: "accepted" as const, platform: "web" }),
+    });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+    expect(JSON.parse(screen.getByTestId("pwa-probe").textContent ?? "").platform).toEqual({
+      kind: "in-app",
+      os: "android",
+      app: "Instagram",
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+    expect(JSON.parse(screen.getByTestId("pwa-probe").textContent ?? "").platform).toBe(
+      "standalone",
+    );
+  });
 });

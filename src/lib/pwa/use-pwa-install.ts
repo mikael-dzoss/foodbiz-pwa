@@ -9,6 +9,7 @@ import {
 } from "./install-store";
 import {
   detectManualPlatform,
+  isInAppPlatform,
   isIosUserAgent,
   type InstallPlatform,
   type ManualInstallPlatform,
@@ -32,14 +33,20 @@ function getStandaloneSnapshot(): boolean {
   );
 }
 
+let cachedManualPlatformKey: string | null = null;
+let cachedManualPlatform: ManualInstallPlatform = "generic";
+
 /** Reads the navigator snapshot for manual install guidance; falls back to `"generic"` on SSR. */
 export function getManualPlatformSnapshot(): ManualInstallPlatform {
   if (typeof navigator === "undefined") return "generic";
-  return detectManualPlatform({
-    userAgent: navigator.userAgent ?? "",
-    platform: navigator.platform ?? "",
-    maxTouchPoints: navigator.maxTouchPoints ?? 0,
-  });
+  const userAgent = navigator.userAgent ?? "";
+  const platform = navigator.platform ?? "";
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const key = `${userAgent}\0${platform}\0${maxTouchPoints}`;
+  if (key === cachedManualPlatformKey) return cachedManualPlatform;
+  cachedManualPlatformKey = key;
+  cachedManualPlatform = detectManualPlatform({ userAgent, platform, maxTouchPoints });
+  return cachedManualPlatform;
 }
 
 function getIosSnapshot(): boolean {
@@ -78,9 +85,11 @@ export function usePwaInstall() {
   const canPrompt = deferredPrompt !== null;
   const platform: InstallPlatform = isStandalone
     ? "standalone"
-    : canPrompt
-      ? "native-prompt"
-      : manualPlatform;
+    : isInAppPlatform(manualPlatform)
+      ? manualPlatform
+      : canPrompt
+        ? "native-prompt"
+        : manualPlatform;
 
   return {
     isStandalone,
