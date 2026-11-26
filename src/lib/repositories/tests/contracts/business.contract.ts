@@ -153,6 +153,44 @@ export function describeBusinessRepositoryContract(
       expect(refetchedCleared?.weeklyHours).toBeNull();
     });
 
+    it("round-trips hoursExceptions on updateSettings and clears them back to []", async () => {
+      const repos = await getRepositories();
+      const before = await repos.business.getSettings(businessId);
+      expect(before?.hoursExceptions).toEqual([]);
+
+      const sampleExceptions = [
+        {
+          from: "2026-07-30",
+          to: "2026-08-03",
+          ranges: [],
+          note: "Congés annuels",
+        },
+        {
+          from: "2026-08-15",
+          to: "2026-08-15",
+          ranges: [{ open: "10:00", close: "14:00" }],
+          note: "Ouverture exceptionnelle",
+        },
+      ];
+
+      const saved = await repos.business.updateSettings(businessId, {
+        hoursExceptions: sampleExceptions,
+      });
+      expect(saved.hoursExceptions).toEqual(sampleExceptions);
+      expect(saved.weeklyHours).toEqual(before?.weeklyHours);
+
+      const refetched = await repos.business.getSettings(businessId);
+      expect(refetched?.hoursExceptions).toEqual(sampleExceptions);
+
+      const cleared = await repos.business.updateSettings(businessId, {
+        hoursExceptions: [],
+      });
+      expect(cleared.hoursExceptions).toEqual([]);
+
+      const refetchedCleared = await repos.business.getSettings(businessId);
+      expect(refetchedCleared?.hoursExceptions).toEqual([]);
+    });
+
     it.runIf(Boolean(getNonOwnerRepositories))(
       "a member who is not an owner cannot change payment settings or the slug (FORBIDDEN)",
       async () => {

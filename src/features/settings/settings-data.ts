@@ -27,6 +27,7 @@ function defaultSettings(businessId: string): BusinessSettings {
     serviceTypes: { pickup: true, delivery: true, dineIn: true },
     openingHours: "",
     weeklyHours: null,
+    hoursExceptions: [],
     orderTimingAsap: true,
     orderTimingScheduled: true,
     orderTimingTimeOptional: true,

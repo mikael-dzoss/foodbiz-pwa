@@ -9,7 +9,7 @@ import type { DateFormat } from "@/domain/business";
 import type { CategoryRole } from "@/domain/category";
 import type { StandardExpenseTag } from "@/domain/expense";
 import type { LeadTimeUnit } from "@/domain/lead-time";
-import type { WeeklyHours } from "@/domain/opening-hours";
+import type { HoursException, WeeklyHours } from "@/domain/opening-hours";
 
 export type DemoCategoryKey = "meatFish" | "traditional" | "fritters" | "drinks";
 
@@ -47,6 +47,7 @@ export interface DemoCatalogSettings {
   };
   readonly openingHours: string;
   readonly weeklyHours: WeeklyHours | null;
+  readonly hoursExceptions: readonly HoursException[];
   readonly orderTimingAsap: boolean;
   readonly orderTimingScheduled: boolean;
   readonly orderTimingTimeOptional: boolean;
@@ -145,6 +146,7 @@ export const DEMO_CATALOG_SETTINGS: DemoCatalogSettings = {
   },
   openingHours: "Mar–Dim 11:00–21:00 · fermé le lundi",
   weeklyHours: null,
+  hoursExceptions: [],
   orderTimingAsap: true,
   orderTimingScheduled: true,
   orderTimingTimeOptional: false,

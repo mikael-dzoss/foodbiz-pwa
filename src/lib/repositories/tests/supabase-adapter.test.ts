@@ -79,6 +79,7 @@ function createFakeSupabaseClient(
         service_types: structuredClone(fixtures.settings.serviceTypes) as Json,
         opening_hours: fixtures.settings.openingHours,
         weekly_hours: structuredClone(fixtures.settings.weeklyHours ?? null) as Json | null,
+        hours_exceptions: structuredClone(fixtures.settings.hoursExceptions ?? []) as Json,
         order_timing_asap: fixtures.settings.orderTimingAsap,
         order_timing_scheduled: fixtures.settings.orderTimingScheduled,
         order_timing_time_optional: fixtures.settings.orderTimingTimeOptional,
@@ -309,6 +310,7 @@ function createFakeSupabaseClient(
               service_types: { pickup: true, delivery: true, dineIn: true },
               opening_hours: "",
               weekly_hours: null,
+              hours_exceptions: [],
               order_timing_asap: true,
               order_timing_scheduled: true,
               order_timing_time_optional: true,
@@ -932,10 +934,11 @@ describe("Supabase Repository Adapter", () => {
       expect(settings?.taxPercentage).toBe(0);
       expect(settings?.notifications).toBe(true);
       expect(settings?.weeklyHours).toBeNull();
+      expect(settings?.hoursExceptions).toEqual([]);
       expect(settings?.timezone).toBe("Europe/Paris");
     });
 
-    it("carries configured weeklyHours and timezone through publicOnly settings reads", async () => {
+    it("carries configured weeklyHours, hoursExceptions and timezone through publicOnly settings reads", async () => {
       const fixtures = createDefaultFixtures();
       const customHours = {
         mon: [],
@@ -946,13 +949,18 @@ describe("Supabase Repository Adapter", () => {
         sat: [{ open: "00:00", close: "01:00" }],
         sun: [],
       };
+      const customExceptions = [
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+      ];
       fixtures.settings.weeklyHours = customHours;
+      fixtures.settings.hoursExceptions = customExceptions;
       fixtures.settings.timezone = "Africa/Douala";
       const fakeClient = createFakeSupabaseClient(fixtures);
       const repos = createSupabaseRepositories(fakeClient, { publicOnly: true });
 
       const settings = await repos.business.getSettings(DEMO_BUSINESS_ID);
       expect(settings?.weeklyHours).toEqual(customHours);
+      expect(settings?.hoursExceptions).toEqual(customExceptions);
       expect(settings?.timezone).toBe("Africa/Douala");
     });
 

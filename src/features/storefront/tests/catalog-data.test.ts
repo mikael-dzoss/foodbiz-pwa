@@ -28,6 +28,7 @@ const baseSettings: BusinessSettings = {
   },
   openingHours: "08:00 - 18:00",
   weeklyHours: null,
+  hoursExceptions: [],
   orderTimingAsap: true,
   orderTimingScheduled: true,
   orderTimingTimeOptional: true,
@@ -189,7 +190,7 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       }
     });
 
-    it("carries weeklyHours and timezone through settings on catalog and product queries", async () => {
+    it("carries weeklyHours, hoursExceptions and timezone through settings on catalog and product queries", async () => {
       const customHours = {
         mon: [],
         tue: [{ open: "11:30", close: "14:30" }],
@@ -199,24 +200,31 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
         sat: [{ open: "00:00", close: "01:00" }],
         sun: [],
       };
+      const customExceptions = [
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+      ];
       const repos = getMockRepositories();
       try {
         const initialCatalog = await getStorefrontCatalog();
         expect(initialCatalog.settings?.weeklyHours).toBeNull();
+        expect(initialCatalog.settings?.hoursExceptions).toEqual([]);
         expect(initialCatalog.settings?.timezone).toBe("Europe/Paris");
 
         await repos.business.updateSettings(DEMO_BUSINESS_ID, {
           weeklyHours: customHours,
+          hoursExceptions: customExceptions,
           timezone: "Africa/Douala",
         });
 
         const updatedCatalog = await getStorefrontCatalog();
         expect(updatedCatalog.settings?.weeklyHours).toEqual(customHours);
+        expect(updatedCatalog.settings?.hoursExceptions).toEqual(customExceptions);
         expect(updatedCatalog.settings?.timezone).toBe("Africa/Douala");
 
         const firstProductId = updatedCatalog.groupedCategories[0].products[0].id;
         const productData = await getStorefrontProduct(firstProductId);
         expect(productData?.settings?.weeklyHours).toEqual(customHours);
+        expect(productData?.settings?.hoursExceptions).toEqual(customExceptions);
         expect(productData?.settings?.timezone).toBe("Africa/Douala");
       } finally {
         repos.reset();
