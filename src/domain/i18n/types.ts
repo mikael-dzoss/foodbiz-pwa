@@ -245,6 +245,7 @@ export interface StorefrontDictionary {
   recommended: string;
   scheduleLater: string;
   scheduleLaterSubtext: string;
+  checkoutClosedScheduleNotice: string;
   selectDateTime: string;
   scheduledDate: string;
   scheduledTime: string;

@@ -364,6 +364,8 @@ export const enDictionary: Dictionary = {
     recommended: "Recommended",
     scheduleLater: "Schedule for later",
     scheduleLaterSubtext: "Pick date and arrival window",
+    checkoutClosedScheduleNotice:
+      "The shop is currently closed. Your order will be prepared for your chosen slot.",
     selectDateTime: "Select date & time",
     scheduledDate: "Date",
     scheduledTime: "Time (optional)",

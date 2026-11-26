@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShoppingBag, Check, UtensilsCrossed, Lightbulb } from "lucide-react";
+import { ShoppingBag, Check, UtensilsCrossed, Lightbulb, Clock } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { AddOnCandidates } from "@/domain/add-ons";
 import type { StorefrontProduct } from "@/domain/storefront-product";
@@ -44,8 +44,9 @@ export function ProductDetailView({
   const lowStockThreshold = settings?.lowStockThreshold ?? 5;
   const isOutOfStock = product.stock <= 0;
   const isLowStock = !isOutOfStock && product.stock <= lowStockThreshold;
-  const isStoreUnavailable = !isAcceptingOrders || !isOpen;
-  const canOrder = !isStoreUnavailable && !isOutOfStock;
+  const isOrderingPaused = !isAcceptingOrders;
+  const isClosedButAccepting = isAcceptingOrders && !isOpen;
+  const canOrder = isAcceptingOrders && !isOutOfStock;
 
   const currentCartQty = getItemQuantity(product.id);
   const maxAddable = Math.max(0, product.stock - currentCartQty);
@@ -97,12 +98,6 @@ export function ProductDetailView({
 
   const addOnsUnitPrice = selectedAddOns.reduce((sum, item) => sum + item.price, 0);
   const totalPrice = (product.price + addOnsUnitPrice) * quantity;
-  const unavailableShortText = !isAcceptingOrders
-    ? dict.notAcceptingOrdersShort
-    : dict.storeClosedBadge;
-  const unavailableFullNotice = !isAcceptingOrders
-    ? dict.notAcceptingOrdersBanner
-    : dict.storeClosedBanner;
 
   return (
     <div className="flex flex-col gap-4 pb-32">
@@ -193,6 +188,17 @@ export function ProductDetailView({
         </div>
       </section>
 
+      {/* Closed-hours Scheduling Notice (#350) */}
+      {isClosedButAccepting && (
+        <div
+          data-testid="product-closed-schedule-notice"
+          className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
+        >
+          <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{dict.storeClosedBanner}</span>
+        </div>
+      )}
+
       {/* Description, Allergen Badges & Cook's Recommendation Card (Stitch C-02) */}
       <section className="border-border/80 bg-card space-y-3.5 rounded-2xl border p-4">
         {product.description && (
@@ -279,7 +285,7 @@ export function ProductDetailView({
           >
             {dict.outOfStock}
           </Button>
-        ) : isStoreUnavailable ? (
+        ) : isOrderingPaused ? (
           <Button
             variant="unstyled"
             size="none"
@@ -288,8 +294,8 @@ export function ProductDetailView({
             data-testid="product-add-button"
             className="border-border bg-muted text-muted-foreground flex h-12 flex-1 cursor-not-allowed items-center justify-center rounded-xl border px-4 text-center text-xs font-semibold opacity-60"
           >
-            <span>{unavailableShortText}</span>
-            <span className="sr-only"> — {unavailableFullNotice}</span>
+            <span>{dict.notAcceptingOrdersShort}</span>
+            <span className="sr-only"> — {dict.notAcceptingOrdersBanner}</span>
           </Button>
         ) : (
           <Button
