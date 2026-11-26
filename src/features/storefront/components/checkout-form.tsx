@@ -54,10 +54,21 @@ import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
-import { useZonedToday } from "@/components/time/business-timezone";
+import { NativeSelect } from "@/components/ui/native-select";
+import { getZonedDay } from "@/domain/timezone";
 import { useCart, resolveServiceMode } from "../context/cart-context";
 import type { ActionCode, ActionFailure } from "@/lib/actions/types";
 import { placeOrderAction } from "../storefront-actions";
+import {
+  buildSlotOptions,
+  closedNextOpeningLabel,
+  formatSlotDate,
+  scheduleFromSettings,
+  slotIssue,
+} from "../checkout-slots";
+
+/** How often the form re-evaluates the slot lists against the running clock (stale picks, #374). */
+const SLOT_CLOCK_TICK_MS = 30_000;
 
 /** Dictionary key for a place-order failure: its domain `reason` first, then its action code. */
 const PLACE_ORDER_ERROR_KEYS = {
@@ -162,6 +173,8 @@ export interface CheckoutFormProps {
   dict: StorefrontDictionary;
   isOpen?: boolean;
   isAcceptingOrders?: boolean;
+  /** Request time (ISO) the server evaluated; seeds the slot lists so SSR and hydration agree. */
+  nowIso?: string;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   onOrderSuccess?: () => void;
   redirectDelayMs?: number;
@@ -174,6 +187,7 @@ export function CheckoutForm({
   dict,
   isOpen,
   isAcceptingOrders,
+  nowIso,
   onSubmitOrder,
   onOrderSuccess,
   redirectDelayMs,
@@ -211,8 +225,21 @@ export function CheckoutForm({
 
   // Fulfillment State
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
-  // Earliest schedulable day: today in the business zone (null until hydrated)
-  const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
+  // Slot clock: seeded from the server request time, then advanced by the elapsed browser time
+  const timeZone = settings?.timezone ?? DEFAULT_TIMEZONE;
+  const [clock] = useState(() => {
+    const base = nowIso ? new Date(nowIso) : new Date();
+    return { baseMs: base.getTime(), mountedMs: Date.now() };
+  });
+  const [now, setNow] = useState(() => new Date(clock.baseMs));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setNow(new Date(clock.baseMs + (Date.now() - clock.mountedMs)));
+    }, SLOT_CLOCK_TICK_MS);
+    return () => clearInterval(id);
+  }, [clock]);
+  const today = getZonedDay(now, timeZone);
+  const schedule = useMemo(() => scheduleFromSettings(settings), [settings]);
   const pickupAllowed = settings?.serviceTypes.pickup ?? true;
   const deliveryAllowed = settings?.serviceTypes.delivery ?? true;
   const preselectedService = resolveServiceMode(serviceMode, {
@@ -231,6 +258,32 @@ export function CheckoutForm({
   const isAsap = closedButAccepting ? false : selectedAsap;
   const [requestedDate, setRequestedDate] = useState("");
   const [requestedTime, setRequestedTime] = useState("");
+  const slotOptions = useMemo(
+    () => buildSlotOptions(schedule, timeZone, now, requestedDate),
+    [schedule, timeZone, now, requestedDate],
+  );
+  const slotProblem = isAsap
+    ? null
+    : slotIssue(schedule, timeZone, now, requestedDate, requestedTime, slotOptions.timeRequired);
+  const noSlotsAvailable = !isAsap && slotOptions.dates.length === 0;
+  const dateOptions =
+    requestedDate && !slotOptions.dates.includes(requestedDate)
+      ? [requestedDate, ...slotOptions.dates]
+      : slotOptions.dates;
+  const timeOptions =
+    requestedTime && !slotOptions.times.includes(requestedTime)
+      ? [requestedTime, ...slotOptions.times]
+      : slotOptions.times;
+  const closedNextOpening = closedButAccepting
+    ? closedNextOpeningLabel(settings, now, locale, dict)
+    : null;
+  const blockedReason = !resolvedAcceptingOrders
+    ? dict.checkoutBlockedNotAccepting
+    : noSlotsAvailable
+      ? dict.checkoutNoSlots
+      : slotProblem
+        ? dict[slotProblem.messageKey]
+        : null;
 
   // Payment State
   const revolutAllowed = settings?.paymentMethods.revolut ?? true;
@@ -275,8 +328,9 @@ export function CheckoutForm({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLSelectElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
+  const timeSelectRef = useRef<HTMLSelectElement>(null);
   const notesInputRef = useRef<HTMLTextAreaElement>(null);
 
   const markTouched = (field: CheckoutFieldName) => {
@@ -377,7 +431,7 @@ export function CheckoutForm({
       phone: phoneInputRef.current,
       deliveryAddress: addressInputRef.current,
       requestedDate: dateInputRef.current,
-      requestedTime: timeInputRef.current,
+      requestedTime: timeInputRef.current ?? timeSelectRef.current,
       notes: notesInputRef.current,
     };
     const target = refMap[focusRequest.field];
@@ -469,7 +523,7 @@ export function CheckoutForm({
   }, null);
 
   const submitting = isSubmitting || isPending;
-  const canSubmit = items.length > 0 && !submitting;
+  const canSubmit = items.length > 0 && !submitting && blockedReason === null;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (!canSubmit) {
@@ -602,6 +656,17 @@ export function CheckoutForm({
           data-testid="checkout-honeypot-input"
         />
       </div>
+
+      {!resolvedAcceptingOrders && (
+        <div
+          role="alert"
+          data-testid="checkout-not-accepting-notice"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{dict.checkoutBlockedNotAccepting}</span>
+        </div>
+      )}
 
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
@@ -838,7 +903,11 @@ export function CheckoutForm({
             className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
           >
             <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{dict.checkoutClosedScheduleNotice}</span>
+            <span>
+              {closedNextOpening
+                ? dict.checkoutClosedNextOpening.replace("{when}", closedNextOpening)
+                : dict.checkoutClosedScheduleNotice}
+            </span>
           </div>
         )}
 
@@ -927,41 +996,86 @@ export function CheckoutForm({
                   id={dateId}
                   label={dict.scheduledDate}
                   required
-                  error={visibleErrors.requestedDate}
+                  error={
+                    visibleErrors.requestedDate ??
+                    (slotProblem?.field === "date" ? dict[slotProblem.messageKey] : undefined)
+                  }
                   announceError={false}
                   className="min-w-0"
                   data-testid="checkout-date-field"
                 >
-                  <Input
-                    ref={dateInputRef}
-                    type="date"
-                    min={today ?? undefined}
-                    value={requestedDate}
-                    onChange={(e) => setRequestedDate(e.target.value)}
-                    onBlur={() => markTouched("requestedDate")}
-                    data-testid="checkout-date-input"
-                    className="h-9 w-full min-w-0"
-                    required
-                  />
+                  {(control) => (
+                    <NativeSelect
+                      {...control}
+                      ref={dateInputRef}
+                      value={requestedDate}
+                      onChange={(e) => {
+                        setRequestedDate(e.target.value);
+                        setRequestedTime("");
+                      }}
+                      onBlur={() => markTouched("requestedDate")}
+                      data-testid="checkout-date-input"
+                      className="min-w-0"
+                      required
+                    >
+                      <option value="">{dict.checkoutChooseDate}</option>
+                      {dateOptions.map((date) => (
+                        <option key={date} value={date}>
+                          {formatSlotDate(date, today, locale, dict)}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  )}
                 </Field>
 
                 <Field
                   id={timeId}
-                  label={dict.scheduledTime}
-                  error={visibleErrors.requestedTime}
+                  label={slotOptions.timeRequired ? dict.scheduledTimeRequired : dict.scheduledTime}
+                  required={slotOptions.timeRequired}
+                  error={
+                    visibleErrors.requestedTime ??
+                    (slotProblem?.field === "time" ? dict[slotProblem.messageKey] : undefined)
+                  }
+                  hint={
+                    slotOptions.note
+                      ? dict.checkoutDayNote.replace("{note}", slotOptions.note)
+                      : undefined
+                  }
                   announceError={false}
                   className="min-w-0"
                   data-testid="checkout-time-field"
                 >
-                  <Input
-                    ref={timeInputRef}
-                    type="time"
-                    value={requestedTime}
-                    onChange={(e) => setRequestedTime(e.target.value)}
-                    onBlur={() => markTouched("requestedTime")}
-                    data-testid="checkout-time-input"
-                    className="h-9 w-full min-w-0"
-                  />
+                  {(control) =>
+                    slotOptions.structured ? (
+                      <NativeSelect
+                        {...control}
+                        ref={timeSelectRef}
+                        value={requestedTime}
+                        onChange={(e) => setRequestedTime(e.target.value)}
+                        onBlur={() => markTouched("requestedTime")}
+                        data-testid="checkout-time-input"
+                        className="min-w-0"
+                      >
+                        <option value="">{dict.checkoutChooseTime}</option>
+                        {timeOptions.map((time) => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    ) : (
+                      <Input
+                        {...control}
+                        ref={timeInputRef}
+                        type="time"
+                        value={requestedTime}
+                        onChange={(e) => setRequestedTime(e.target.value)}
+                        onBlur={() => markTouched("requestedTime")}
+                        data-testid="checkout-time-input"
+                        className="h-9 w-full min-w-0"
+                      />
+                    )
+                  }
                 </Field>
               </div>
             )}
@@ -1260,6 +1374,17 @@ export function CheckoutForm({
           </span>
           <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>
+
+        {blockedReason && (
+          <p
+            role="status"
+            data-testid="checkout-blocked-reason"
+            className="text-destructive text-caption flex items-start justify-center gap-1.5 text-center"
+          >
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>{blockedReason}</span>
+          </p>
+        )}
 
         <p className="text-muted-foreground text-caption text-center">
           🔒 {dict.pickupPolicyNotice}

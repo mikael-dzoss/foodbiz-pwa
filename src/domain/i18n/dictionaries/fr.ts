@@ -418,6 +418,18 @@ export const frDictionary: Dictionary = {
     orderErrorSlotTimeOutsideHours: "L'heure choisie est en dehors des horaires d'ouverture.",
     orderErrorSlotTimeInPast:
       "L'heure choisie est déjà passée. Veuillez choisir une heure plus tardive.",
+    checkoutDateTomorrow: "Demain",
+    checkoutChooseDate: "Choisissez une date",
+    checkoutChooseTime: "Choisissez une heure",
+    scheduledTimeRequired: "Heure",
+    checkoutTimeRequired: "Choisissez une heure pour la commande du jour.",
+    checkoutClosedNextOpening:
+      "La boutique est fermée pour le moment et ouvre {when}. Programmez votre commande pour plus tard.",
+    checkoutBlockedNotAccepting:
+      "La boutique ne prend pas de commandes pour le moment, cette commande ne peut pas être passée. Revenez plus tard.",
+    checkoutNoSlots:
+      "Aucun créneau n'est disponible dans les 30 prochains jours. Veuillez contacter la boutique.",
+    checkoutDayNote: "Remarque pour ce jour : {note}",
     pageErrorTitle: "Une erreur est survenue",
     pageErrorMessage: "Nous n'avons pas pu charger cette page. Veuillez réessayer.",
     pageErrorRetry: "Réessayer",

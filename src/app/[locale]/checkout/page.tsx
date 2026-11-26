@@ -73,6 +73,7 @@ async function CheckoutContent({
       dict={dict}
       isOpen={isOpen}
       isAcceptingOrders={isAcceptingOrders}
+      nowIso={now.toISOString()}
     />
   );
 }

@@ -400,6 +400,17 @@ export const enDictionary: Dictionary = {
     orderErrorSlotDateOutOfWindow: "Please choose a date from today up to 30 days ahead.",
     orderErrorSlotTimeOutsideHours: "The chosen time is outside the store's opening hours.",
     orderErrorSlotTimeInPast: "The chosen time has already passed. Please choose a later time.",
+    checkoutDateTomorrow: "Tomorrow",
+    checkoutChooseDate: "Choose a date",
+    checkoutChooseTime: "Choose a time",
+    scheduledTimeRequired: "Time",
+    checkoutTimeRequired: "Please choose a time for today's order.",
+    checkoutClosedNextOpening:
+      "The shop is closed right now and opens {when}. Schedule your order for later.",
+    checkoutBlockedNotAccepting:
+      "The shop is not accepting orders right now, so this order cannot be placed yet. Please check back later.",
+    checkoutNoSlots: "No time slots are available in the next 30 days. Please contact the shop.",
+    checkoutDayNote: "Note for this day: {note}",
     pageErrorTitle: "Something went wrong",
     pageErrorMessage: "We could not load this page. Please try again.",
     pageErrorRetry: "Try again",
