@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDictionary } from "@/domain/i18n";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
 import { CheckoutView } from "../components/checkout-view";
-import { resetGuestContactCache } from "../components/checkout-form";
-import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
+import { CheckoutForm, resetGuestContactCache } from "../components/checkout-form";
+import { GUEST_CONTACT_STORAGE_KEY, mapCheckoutIssueToDictKey } from "@/domain/checkout";
 import { DEMO_PRODUCT, demoBusiness } from "@/lib/repositories/mock/fixtures";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
@@ -317,36 +317,336 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(timeInput.className).toContain("min-w-0");
   });
 
-  it("gates Place Order button until valid name and phone are entered", () => {
-    render(
+  it("keeps Place Order button enabled with an invalid form and disables it when cart is empty or submitting (#351)", async () => {
+    const onSubmitOrder = vi.fn();
+
+    const { unmount } = render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
           dict={dict}
+          onSubmitOrder={onSubmitOrder}
           redirectDelayMs={50}
         />
       </CartProvider>,
     );
 
     const submitBtn = screen.getByTestId("place-order-button") as HTMLButtonElement;
-    expect(submitBtn.disabled).toBe(true);
-
-    // Fill invalid name
-    const nameInput = screen.getByTestId("checkout-name-input");
-    fireEvent.change(nameInput, { target: { value: "A" } }); // too short
-    expect(submitBtn.disabled).toBe(true);
-
-    // Fill valid name
-    fireEvent.change(nameInput, { target: { value: "Léa Martin" } });
-    expect(submitBtn.disabled).toBe(true); // phone still missing
-
-    // Fill valid phone
-    const phoneInput = screen.getByTestId("checkout-phone-input");
-    fireEvent.change(phoneInput, { target: { value: "+33612345678" } });
-
     expect(submitBtn.disabled).toBe(false);
+
+    // No errors on initial render
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    // Tapping Place Order with invalid fields submits nothing and surfaces per-field errors
+    fireEvent.click(submitBtn);
+    expect(onSubmitOrder).not.toHaveBeenCalled();
+    expect(screen.getByTestId("checkout-name-field-error").textContent).toBe(
+      dict.nameRequiredError,
+    );
+    expect(screen.getByTestId("checkout-phone-field-error").textContent).toBe(
+      dict.phoneRequiredError,
+    );
+    expect(screen.queryByTestId("checkout-error-feedback")).toBeNull();
+
+    unmount();
+
+    // Empty cart disables Place Order when CheckoutForm is rendered directly
+    const { unmount: unmountEmpty } = render(
+      <CartProvider initialItems={[]} initialServiceMode="pickup">
+        <CheckoutForm business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+    expect((screen.getByTestId("place-order-button") as HTMLButtonElement).disabled).toBe(true);
+    unmountEmpty();
+    resetCartStore();
+
+    // Submitting state disables Place Order while request is in flight
+    let resolveSubmit: (() => void) | undefined;
+    const pendingSubmit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
+    render(
+      <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
+        <CheckoutForm
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          onSubmitOrder={pendingSubmit}
+        />
+      </CartProvider>,
+    );
+
+    const submitBtnWhilePending = screen.getByTestId("place-order-button") as HTMLButtonElement;
+    fireEvent.change(screen.getByTestId("checkout-name-input"), {
+      target: { value: "Léa Martin" },
+    });
+    fireEvent.change(screen.getByTestId("checkout-phone-input"), {
+      target: { value: "+33612345678" },
+    });
+    fireEvent.submit(screen.getByTestId("checkout-form"));
+
+    await waitFor(() => {
+      expect(submitBtnWhilePending.disabled).toBe(true);
+    });
+    resolveSubmit?.();
+    await waitFor(() => {
+      expect(pendingSubmit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("shows errors under each invalid field, sets ARIA attributes, and scrolls + focuses the first invalid field in DOM order (#351)", () => {
+    const onSubmitOrder = vi.fn();
+    const scrollIntoViewMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+
+    render(
+      <CartProvider initialItems={mockCartItems} initialServiceMode="delivery">
+        <CheckoutView
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+          onSubmitOrder={onSubmitOrder}
+        />
+      </CartProvider>,
+    );
+
+    // Switch to scheduled so requestedDate is also required
+    fireEvent.click(screen.getByTestId("timing-scheduled-option"));
+    // Make notes exceed 500 chars
+    const notesInput = screen.getByTestId("checkout-notes-input");
+    fireEvent.change(notesInput, { target: { value: "x".repeat(501) } });
+
+    // Live region is silent before submit
+    const liveSummary = screen.getByTestId("checkout-validation-summary");
+    expect(liveSummary.getAttribute("aria-live")).toBe("polite");
+    expect(liveSummary.className).toContain("sr-only");
+    expect(liveSummary.textContent).toBe("");
+
+    fireEvent.click(screen.getByTestId("place-order-button"));
+    expect(onSubmitOrder).not.toHaveBeenCalled();
+
+    // Single polite live region announces localized summary without per-field role="alert" double announcements
+    expect(liveSummary.textContent).toBe(dict.formValidationSummary);
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    const nameInput = screen.getByTestId("checkout-name-input");
+    const phoneInput = screen.getByTestId("checkout-phone-input");
+    const addressInput = screen.getByTestId("checkout-address-input");
+    const dateInput = screen.getByTestId("checkout-date-input");
+
+    // First invalid in DOM order is name
+    expect(document.activeElement).toBe(nameInput);
+    expect(scrollIntoViewMock).toHaveBeenCalled();
+
+    // Every invalid field has its localized error, aria-invalid="true", and aria-describedby -> error id
+    for (const [input, errorTestId, expectedText] of [
+      [nameInput, "checkout-name-field-error", dict.nameRequiredError],
+      [phoneInput, "checkout-phone-field-error", dict.phoneRequiredError],
+      [addressInput, "delivery-address-container-error", dict.addressRequiredError],
+      [dateInput, "checkout-date-field-error", dict.dateRequiredError],
+      [notesInput, "checkout-notes-field-error", dict.notesTooLongError],
+    ] as const) {
+      const errorEl = screen.getByTestId(errorTestId);
+      expect(errorEl.getAttribute("role")).toBeNull();
+      expect(errorEl.textContent).toBe(expectedText);
+      expect(input.getAttribute("aria-invalid")).toBe("true");
+      const describedByIds = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
+      expect(describedByIds).toContain(errorEl.id);
+    }
+
+    // Fix name, submit again -> phone is now the first invalid field focused
+    fireEvent.change(nameInput, { target: { value: "Léa Martin" } });
+    expect(screen.queryByTestId("checkout-name-field-error")).toBeNull();
+    expect(nameInput.hasAttribute("aria-invalid")).toBe(false);
+
+    fireEvent.click(screen.getByTestId("place-order-button"));
+    expect(document.activeElement).toBe(phoneInput);
+
+    // Fix phone, submit again -> deliveryAddress is now focused
+    fireEvent.change(phoneInput, { target: { value: "+33612345678" } });
+    fireEvent.click(screen.getByTestId("place-order-button"));
+    expect(document.activeElement).toBe(addressInput);
+
+    // Fix remaining fields -> live summary clears automatically
+    fireEvent.change(addressInput, { target: { value: "10 Rue de la Paix" } });
+    fireEvent.change(dateInput, { target: { value: "2026-12-01" } });
+    fireEvent.change(notesInput, { target: { value: "Ring bell" } });
+    expect(liveSummary.textContent).toBe("");
+  });
+
+  it("shows per-field errors only after blur, not while typing before first blur, and clears as soon as valid (#351)", () => {
+    render(
+      <CartProvider initialItems={mockCartItems} initialServiceMode="delivery">
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+
+    const nameInput = screen.getByTestId("checkout-name-input");
+    const phoneInput = screen.getByTestId("checkout-phone-input");
+    const addressInput = screen.getByTestId("checkout-address-input");
+
+    // Typing invalid phone before first blur shows NO error
+    fireEvent.change(phoneInput, { target: { value: "123" } });
+    expect(screen.queryByTestId("checkout-phone-field-error")).toBeNull();
+    expect(phoneInput.hasAttribute("aria-invalid")).toBe(false);
+
+    // Blur phone -> shows format error with example, without touching name or address
+    fireEvent.blur(phoneInput);
+    const phoneErr = screen.getByTestId("checkout-phone-field-error");
+    expect(phoneErr.textContent).toBe(dict.phoneInvalidError);
+    expect(phoneErr.textContent).toContain("+33 6 12 34 56 78");
+    expect(phoneInput.getAttribute("aria-invalid")).toBe("true");
+    expect(screen.queryByTestId("checkout-name-field-error")).toBeNull();
+    expect(screen.queryByTestId("delivery-address-container-error")).toBeNull();
+
+    // Becoming valid clears error immediately
+    fireEvent.change(phoneInput, { target: { value: "06 12 34 56 78" } });
+    expect(screen.queryByTestId("checkout-phone-field-error")).toBeNull();
+    expect(phoneInput.hasAttribute("aria-invalid")).toBe(false);
+
+    // Blur deliveryAddress while name is still empty still surfaces the delivery address error
+    fireEvent.change(addressInput, { target: { value: "123" } });
+    expect(screen.queryByTestId("delivery-address-container-error")).toBeNull();
+    fireEvent.blur(addressInput);
+    expect(screen.getByTestId("delivery-address-container-error").textContent).toBe(
+      dict.addressRequiredError,
+    );
+    fireEvent.change(addressInput, { target: { value: "10 Rue de la Paix" } });
+    expect(screen.queryByTestId("delivery-address-container-error")).toBeNull();
+
+    // Name too long (>50 chars) shows nameTooLongError on blur
+    fireEvent.change(nameInput, { target: { value: "A".repeat(51) } });
+    expect(screen.queryByTestId("checkout-name-field-error")).toBeNull();
+    fireEvent.blur(nameInput);
+    expect(screen.getByTestId("checkout-name-field-error").textContent).toBe(dict.nameTooLongError);
+  });
+
+  it("stretches the scheduled radio label across the full card while keeping date/time inputs outside and above it (#351)", () => {
+    render(
+      <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+      </CartProvider>,
+    );
+
+    const scheduleCard = screen.getByTestId("timing-scheduled-card");
+    const scheduleLabel = screen.getByTestId("timing-scheduled-option");
+    expect(scheduleCard.className).toContain("relative");
+    expect(scheduleLabel.className).toContain("after:absolute");
+    expect(scheduleLabel.className).toContain("after:inset-0");
+
+    // Clicking the card's stretched label selects scheduled mode
+    fireEvent.click(scheduleLabel);
+
+    const timingInputs = screen.getByTestId("scheduled-timing-inputs");
+    expect(timingInputs.className).toContain("relative");
+    expect(timingInputs.className).toContain("z-10");
+
+    const dateInput = screen.getByTestId("checkout-date-input") as HTMLInputElement;
+    const timeInput = screen.getByTestId("checkout-time-input");
+
+    // Inputs are siblings after the label, never nested inside the radio label
+    expect(scheduleLabel.contains(dateInput)).toBe(false);
+    expect(scheduleLabel.contains(timeInput)).toBe(false);
+    expect(scheduleLabel.querySelectorAll("label").length).toBe(0);
+
+    // Clicking and typing in the date input keeps scheduled mode selected and does not toggle ASAP
+    fireEvent.click(dateInput);
+    fireEvent.change(dateInput, { target: { value: "2026-12-01" } });
+    expect(dateInput.value).toBe("2026-12-01");
+    expect(screen.getByTestId("scheduled-timing-inputs")).toBeDefined();
+
+    // Clearing and blurring triggers date validation
+    fireEvent.change(dateInput, { target: { value: "" } });
+    fireEvent.blur(dateInput);
+    expect(screen.getByTestId("checkout-date-field-error").textContent).toBe(
+      dict.dateRequiredError,
+    );
+  });
+
+  it("renders French validation messages and polite summary with zero English Zod literals when locale is fr (#351)", () => {
+    const frDict = getDictionary("fr").storefront;
+
+    render(
+      <CartProvider initialItems={mockCartItems} initialServiceMode="delivery">
+        <CheckoutView business={mockBusiness} settings={mockSettings} locale="fr" dict={frDict} />
+      </CartProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("timing-scheduled-option"));
+    fireEvent.change(screen.getByTestId("checkout-phone-input"), {
+      target: { value: "abc" },
+    });
+    fireEvent.change(screen.getByTestId("checkout-address-input"), {
+      target: { value: "a".repeat(301) },
+    });
+    fireEvent.change(screen.getByTestId("checkout-notes-input"), {
+      target: { value: "n".repeat(501) },
+    });
+
+    fireEvent.click(screen.getByTestId("place-order-button"));
+
+    const liveSummary = screen.getByTestId("checkout-validation-summary");
+    expect(liveSummary.textContent).toBe(frDict.formValidationSummary);
+
+    const errorTestIds = [
+      "checkout-name-field-error",
+      "checkout-phone-field-error",
+      "delivery-address-container-error",
+      "checkout-date-field-error",
+      "checkout-notes-field-error",
+    ] as const;
+
+    expect(screen.getByTestId("checkout-name-field-error").textContent).toBe(
+      frDict.nameRequiredError,
+    );
+    expect(screen.getByTestId("checkout-phone-field-error").textContent).toBe(
+      frDict.phoneInvalidError,
+    );
+    expect(screen.getByTestId("checkout-phone-field-error").textContent).toContain(
+      "+33 6 12 34 56 78",
+    );
+    expect(screen.getByTestId("delivery-address-container-error").textContent).toBe(
+      frDict.addressTooLongError,
+    );
+    expect(screen.getByTestId("checkout-date-field-error").textContent).toBe(
+      frDict.dateRequiredError,
+    );
+    expect(screen.getByTestId("checkout-notes-field-error").textContent).toBe(
+      frDict.notesTooLongError,
+    );
+
+    const allErrorText = [
+      liveSummary.textContent ?? "",
+      ...errorTestIds.map((id) => screen.getByTestId(id).textContent ?? ""),
+    ].join(" ");
+    expect(allErrorText).not.toMatch(/Please|Invalid|Delivery address|Name must be|Notes must be/);
+  });
+
+  it("falls back to generic localized fieldInvalidError for unknown schema issues (#351)", () => {
+    expect(mapCheckoutIssueToDictKey({ path: ["unknownField"], code: "custom" }, "")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["name"], code: "custom" }, "ab\u0000cd")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedDate"], code: "invalid_format" }, "")).toBe(
+      "dateInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedTime"], code: "invalid_format" }, "")).toBe(
+      "timeInvalidError",
+    );
+    expect(getDictionary("en").storefront.fieldInvalidError).toBe("Please check this field");
+    expect(getDictionary("fr").storefront.fieldInvalidError).toBe("Veuillez vérifier ce champ");
   });
 
   it("saves contact to localStorage and triggers onSubmitOrder on valid submission", async () => {

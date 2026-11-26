@@ -89,6 +89,21 @@ describe("Field", () => {
     );
     expect(screen.getByLabelText("Category").getAttribute("aria-invalid")).toBe("true");
   });
+
+  it("omits role=alert on the inline error when announceError is false while keeping aria wiring", () => {
+    render(
+      <Field label="Phone" error="Invalid phone" announceError={false} data-testid="f-phone">
+        <Input data-testid="phone-inp" />
+      </Field>,
+    );
+    const input = screen.getByTestId("phone-inp");
+    const errorEl = screen.getByTestId("f-phone-error");
+    expect(errorEl.getAttribute("role")).toBeNull();
+    expect(errorEl.textContent).toBe("Invalid phone");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toBe(errorEl.id);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
 
 describe("ConfirmDialog", () => {

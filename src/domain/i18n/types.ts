@@ -288,9 +288,17 @@ export interface StorefrontDictionary {
   viewConfirmation: string;
   trackOrder: string;
   nameRequiredError: string;
+  nameTooLongError: string;
   phoneRequiredError: string;
+  phoneInvalidError: string;
   addressRequiredError: string;
+  addressTooLongError: string;
   dateRequiredError: string;
+  dateInvalidError: string;
+  timeInvalidError: string;
+  notesTooLongError: string;
+  fieldInvalidError: string;
+  formValidationSummary: string;
 }
 
 export interface QuickAddDictionary {

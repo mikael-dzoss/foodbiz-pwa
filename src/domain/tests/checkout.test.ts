@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  checkoutFieldIssues,
   checkoutFormSchema,
   guestContactStorageSchema,
   GUEST_CONTACT_STORAGE_KEY,
+  mapCheckoutIssueToDictKey,
   mergeDuplicateItems,
   placeOrderInputSchema,
 } from "../checkout";
@@ -233,5 +235,139 @@ describe("mergeDuplicateItems", () => {
       { productId: b, quantity: 1 },
     ]);
     expect(input).toHaveLength(3);
+  });
+});
+
+describe("checkoutFieldIssues & mapCheckoutIssueToDictKey (#351)", () => {
+  it("returns empty issues for valid checkout input", () => {
+    const issues = checkoutFieldIssues({
+      name: "Jean Dupont",
+      phone: "+33612345678",
+      serviceType: "delivery",
+      deliveryAddress: "12 Rue de la Paix",
+      isAsap: false,
+      requestedDate: "2026-12-01",
+      requestedTime: "14:30",
+      paymentPreference: "on_handover",
+      notes: "Ring twice",
+    });
+    expect(issues).toEqual({});
+  });
+
+  it("reports conditional deliveryAddress and requestedDate issues even when name/phone also fail", () => {
+    const issues = checkoutFieldIssues({
+      name: "",
+      phone: "",
+      serviceType: "delivery",
+      deliveryAddress: "123",
+      isAsap: false,
+      requestedDate: undefined,
+      requestedTime: "99:99",
+      paymentPreference: "on_handover",
+      notes: "n".repeat(501),
+    });
+
+    expect(issues.name?.code).toBe("custom");
+    expect(issues.phone?.code).toBe("too_small");
+    expect(issues.deliveryAddress?.code).toBe("custom");
+    expect(issues.requestedDate?.code).toBe("custom");
+    expect(issues.requestedTime?.code).toBe("invalid_format");
+    expect(issues.notes?.code).toBe("too_big");
+  });
+
+  it("keeps base too_big issue on deliveryAddress instead of overwriting with conditional issue", () => {
+    const issues = checkoutFieldIssues({
+      name: "",
+      phone: "",
+      serviceType: "delivery",
+      deliveryAddress: "a".repeat(301),
+      isAsap: true,
+      paymentPreference: "on_handover",
+    });
+
+    expect(issues.deliveryAddress?.code).toBe("too_big");
+    expect(mapCheckoutIssueToDictKey(issues.deliveryAddress!, "")).toBe("addressTooLongError");
+  });
+
+  it("keeps invalid_format on requestedDate distinct from missing requestedDate", () => {
+    const missing = checkoutFieldIssues({
+      name: "Jean Dupont",
+      phone: "+33612345678",
+      serviceType: "pickup",
+      isAsap: false,
+      requestedDate: undefined,
+      paymentPreference: "on_handover",
+    });
+    const malformed = checkoutFieldIssues({
+      name: "Jean Dupont",
+      phone: "+33612345678",
+      serviceType: "pickup",
+      isAsap: false,
+      requestedDate: "not-a-date",
+      paymentPreference: "on_handover",
+    });
+
+    expect(missing.requestedDate?.code).toBe("custom");
+    expect(malformed.requestedDate?.code).toBe("invalid_format");
+    expect(mapCheckoutIssueToDictKey(missing.requestedDate!, "Jean Dupont")).toBe(
+      "dateRequiredError",
+    );
+    expect(mapCheckoutIssueToDictKey(malformed.requestedDate!, "Jean Dupont")).toBe(
+      "dateInvalidError",
+    );
+  });
+
+  it("maps every known field/code pair and falls back to fieldInvalidError for unknown issues", () => {
+    expect(mapCheckoutIssueToDictKey({ path: ["name"], code: "custom" }, "")).toBe(
+      "nameRequiredError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["name"], code: "custom" }, "A".repeat(51))).toBe(
+      "nameTooLongError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["name"], code: "custom" }, "ab\u0000cd")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["name"], code: "invalid_type" }, "")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["phone"], code: "too_small" }, "")).toBe(
+      "phoneRequiredError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["phone"], code: "custom" }, "")).toBe(
+      "phoneInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["phone"], code: "invalid_type" }, "")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["deliveryAddress"], code: "custom" }, "")).toBe(
+      "addressRequiredError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["deliveryAddress"], code: "too_big" }, "")).toBe(
+      "addressTooLongError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedDate"], code: "custom" }, "")).toBe(
+      "dateRequiredError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedDate"], code: "invalid_format" }, "")).toBe(
+      "dateInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedDate"], code: "invalid_type" }, "")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedTime"], code: "invalid_format" }, "")).toBe(
+      "timeInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["requestedTime"], code: "custom" }, "")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["notes"], code: "too_big" }, "")).toBe(
+      "notesTooLongError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["notes"], code: "custom" }, "")).toBe(
+      "fieldInvalidError",
+    );
+    expect(mapCheckoutIssueToDictKey({ path: ["unknownField"], code: "custom" }, "")).toBe(
+      "fieldInvalidError",
+    );
   });
 });
