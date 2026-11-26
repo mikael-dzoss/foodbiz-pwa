@@ -15,6 +15,19 @@ create extension if not exists pgtap;
 
 select plan(60);
 
+-- Row count of a data-modifying statement run as the calling role (a data-modifying CTE cannot
+-- sit inside a function argument).
+create function public.pl_test_rows(p_sql text) returns integer
+language plpgsql as $$
+declare n integer;
+begin
+  execute p_sql;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+grant execute on function public.pl_test_rows(text) to anon, authenticated, service_role;
+
 -- ----------------------------------------------------------------------------
 -- Seeds (as the migration role)
 -- ----------------------------------------------------------------------------
@@ -78,7 +91,7 @@ set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claims" = '{}';
 
 select is(
-  (select count(*)::int from public.pickup_locations),
+  (select count(*)::int from public.pickup_locations where business_id::text like 'a_000000-%'),
   5,
   'anon sees only the 5 active locations across businesses'
 );
@@ -133,13 +146,13 @@ select throws_ok(
 );
 
 select is(
-  (with u as (update public.pickup_locations set name = 'Hacked' where business_id = 'a1000000-0000-0000-0000-0000000000a1'::uuid returning 1) select count(*)::int from u),
+  public.pl_test_rows($q$update public.pickup_locations set name = 'Hacked' where business_id = 'a1000000-0000-0000-0000-0000000000a1'::uuid$q$),
   0,
   'a non-member cannot update a business''s locations'
 );
 
 select is(
-  (with d as (delete from public.pickup_locations where business_id = 'a1000000-0000-0000-0000-0000000000a1'::uuid returning 1) select count(*)::int from d),
+  public.pl_test_rows($q$delete from public.pickup_locations where business_id = 'a1000000-0000-0000-0000-0000000000a1'::uuid$q$),
   0,
   'a non-member cannot delete a business''s locations'
 );
@@ -189,13 +202,13 @@ select throws_ok(
 );
 
 select is(
-  (with u as (update public.pickup_locations set name = 'Hacked' where business_id = 'a2000000-0000-0000-0000-0000000000b2'::uuid returning 1) select count(*)::int from u),
+  public.pl_test_rows($q$update public.pickup_locations set name = 'Hacked' where business_id = 'a2000000-0000-0000-0000-0000000000b2'::uuid$q$),
   0,
   'member A cannot update business B locations'
 );
 
 select is(
-  (with d as (delete from public.pickup_locations where business_id = 'a2000000-0000-0000-0000-0000000000b2'::uuid returning 1) select count(*)::int from d),
+  public.pl_test_rows($q$delete from public.pickup_locations where business_id = 'a2000000-0000-0000-0000-0000000000b2'::uuid$q$),
   0,
   'member A cannot delete business B locations'
 );
@@ -206,7 +219,7 @@ select throws_ok(
 );
 
 select is(
-  (with u as (update public.pickup_locations set is_active = true, fee_cents = 200 where id = 'e1000000-0000-0000-0000-000000000002'::uuid returning 1) select count(*)::int from u),
+  public.pl_test_rows($q$update public.pickup_locations set is_active = true, fee_cents = 200 where id = 'e1000000-0000-0000-0000-000000000002'::uuid$q$),
   1,
   'member A can update a location of business A'
 );
@@ -248,7 +261,7 @@ select throws_ok(
 
 -- Settings: managers can switch shop pickup off
 select is(
-  (with u as (update public.business_settings set shop_pickup_enabled = false where business_id = 'a1000000-0000-0000-0000-0000000000a1'::uuid returning 1) select count(*)::int from u),
+  public.pl_test_rows($q$update public.business_settings set shop_pickup_enabled = false where business_id = 'a1000000-0000-0000-0000-0000000000a1'::uuid$q$),
   1,
   'member A can turn shop pickup off (1 row updated)'
 );
@@ -261,12 +274,12 @@ select is(
 
 -- Another business's row cannot be reached by id
 select is(
-  (with u as (update public.pickup_locations set name = 'Hacked' where id = 'e2000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*)::int from u),
+  public.pl_test_rows($q$update public.pickup_locations set name = 'Hacked' where id = 'e2000000-0000-0000-0000-000000000001'::uuid$q$),
   0,
   'member A cannot update a business B location by id'
 );
 select is(
-  (with d as (delete from public.pickup_locations where id = 'e2000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*)::int from d),
+  public.pl_test_rows($q$delete from public.pickup_locations where id = 'e2000000-0000-0000-0000-000000000001'::uuid$q$),
   0,
   'member A cannot delete a business B location by id'
 );
@@ -293,7 +306,7 @@ select throws_ok(
 
 -- Member A can delete their own location
 select is(
-  (with d as (delete from public.pickup_locations where id = 'e1000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*)::int from d),
+  public.pl_test_rows($q$delete from public.pickup_locations where id = 'e1000000-0000-0000-0000-000000000001'::uuid$q$),
   1,
   'member A can delete a location of business A'
 );
