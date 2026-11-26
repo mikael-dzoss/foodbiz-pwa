@@ -49,6 +49,10 @@ function linkedCheckoutRoot(): string | undefined {
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  outputFileTracingIncludes: {
+    "/\\[locale\\]/opengraph-image": ["./public/images/**"],
+    "/\\[locale\\]/p/\\[id\\]/opengraph-image": ["./public/images/**"],
+  },
   headers() {
     return [
       {

@@ -67,6 +67,16 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+async function waitForSaveCompleted(submitButton: HTMLElement) {
+  await waitFor(
+    () => {
+      expect(mockShowToast).toHaveBeenCalledWith(dict.ordering.saveSuccess);
+      expect((submitButton as HTMLButtonElement).disabled).toBe(false);
+    },
+    { timeout: 3000 },
+  );
+}
+
 describe("OrderingSettingsForm component (M-63)", () => {
   it("renders form fields pre-populated with business settings", () => {
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
@@ -144,7 +154,11 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
-    expect(await screen.findByText("At least one fulfillment mode must be enabled")).toBeDefined();
+    expect(
+      await screen.findByText("At least one fulfillment mode must be enabled", undefined, {
+        timeout: 3000,
+      }),
+    ).toBeDefined();
     expect(actions.updateOrderingSettingsAction).not.toHaveBeenCalled();
     expect(mockShowError).toHaveBeenCalledWith("At least one fulfillment mode must be enabled");
   });
@@ -161,18 +175,17 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deliveryFee: 420,
-          minOrderAmount: 2000,
-          leadTimeValue: 1,
-          leadTimeUnit: "business_days" as const,
-          acceptingOrders: true,
-          openingHours: "Mon-Sat 07:00-19:30",
-        }),
-      );
-    });
+    await waitForSaveCompleted(submitBtn);
+    expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveryFee: 420,
+        minOrderAmount: 2000,
+        leadTimeValue: 1,
+        leadTimeUnit: "business_days" as const,
+        acceptingOrders: true,
+        openingHours: "Mon-Sat 07:00-19:30",
+      }),
+    );
   });
 
   it("displays server error when action returns an error", async () => {
@@ -190,9 +203,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText("Delivery fee cannot exceed 100 EUR")).toBeDefined();
-    });
+    expect(
+      await screen.findByText("Delivery fee cannot exceed 100 EUR", undefined, { timeout: 3000 }),
+    ).toBeDefined();
   });
 
   it("renders with fallback values when settings fields are absent or false", () => {
@@ -241,15 +254,14 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orderTimingAsap: false,
-          orderTimingScheduled: false,
-          orderTimingTimeOptional: false,
-        }),
-      );
-    });
+    await waitForSaveCompleted(submitBtn);
+    expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderTimingAsap: false,
+        orderTimingScheduled: false,
+        orderTimingTimeOptional: false,
+      }),
+    );
   });
 
   it("displays minOrderAmount field error", async () => {
@@ -266,9 +278,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText("Minimum order must be positive")).toBeDefined();
-    });
+    expect(
+      await screen.findByText("Minimum order must be positive", undefined, { timeout: 3000 }),
+    ).toBeDefined();
   });
 
   it("handles clearing numeric inputs and fallback action failure toast", async () => {
@@ -289,17 +301,21 @@ describe("OrderingSettingsForm component (M-63)", () => {
     const submitBtn = screen.getByTestId("save-ordering-button");
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deliveryFee: 0,
-          minOrderAmount: 0,
-          leadTimeValue: 1,
-          leadTimeUnit: "business_days" as const,
-        }),
-      );
-      expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
-    });
+    await waitFor(
+      () => {
+        expect(mockShowError).toHaveBeenCalledWith("Something went wrong. Please try again.");
+        expect((submitBtn as HTMLButtonElement).disabled).toBe(false);
+      },
+      { timeout: 3000 },
+    );
+    expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliveryFee: 0,
+        minOrderAmount: 0,
+        leadTimeValue: 1,
+        leadTimeUnit: "business_days" as const,
+      }),
+    );
   });
 
   it("edits the preparation lead time with a live preview and submits it (#225)", async () => {
@@ -322,14 +338,14 @@ describe("OrderingSettingsForm component (M-63)", () => {
       "minutes",
     );
 
-    fireEvent.click(screen.getByTestId("save-ordering-button"));
-    await waitFor(() =>
-      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          leadTimeValue: 20,
-          leadTimeUnit: "minutes",
-        }),
-      ),
+    const submitBtn = screen.getByTestId("save-ordering-button");
+    fireEvent.click(submitBtn);
+    await waitForSaveCompleted(submitBtn);
+    expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        leadTimeValue: 20,
+        leadTimeUnit: "minutes",
+      }),
     );
   });
 
@@ -354,7 +370,9 @@ describe("OrderingSettingsForm component (M-63)", () => {
     });
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
     fireEvent.click(screen.getByTestId("save-ordering-button"));
-    await waitFor(() => expect(screen.getByText("Lead time must be at least 1")).toBeDefined());
+    expect(
+      await screen.findByText("Lead time must be at least 1", undefined, { timeout: 3000 }),
+    ).toBeDefined();
   });
 
   it("edits the business time zone and submits it (#168)", async () => {
@@ -369,11 +387,11 @@ describe("OrderingSettingsForm component (M-63)", () => {
     expect(select.value).toBe("Europe/Paris");
 
     fireEvent.change(select, { target: { value: "Africa/Douala" } });
-    fireEvent.click(screen.getByTestId("save-ordering-button"));
-    await waitFor(() =>
-      expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
-        expect.objectContaining({ timezone: "Africa/Douala" }),
-      ),
+    const submitBtn = screen.getByTestId("save-ordering-button");
+    fireEvent.click(submitBtn);
+    await waitForSaveCompleted(submitBtn);
+    expect(actions.updateOrderingSettingsAction).toHaveBeenCalledWith(
+      expect.objectContaining({ timezone: "Africa/Douala" }),
     );
   });
 
