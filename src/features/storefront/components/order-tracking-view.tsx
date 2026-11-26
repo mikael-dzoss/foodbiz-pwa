@@ -19,12 +19,17 @@ import {
   formatMoney,
   formatTime,
   publicDeliveryAddress,
+  resolvePickupDisplay,
   type PublicOrder,
   type OrderStatus,
   type SupportedLocale,
 } from "@/domain";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
-import type { OrderTrackingDictionary, StorefrontDictionary } from "@/domain/i18n";
+import {
+  interpolate,
+  type OrderTrackingDictionary,
+  type StorefrontDictionary,
+} from "@/domain/i18n";
 import { cn } from "@/lib/utils";
 
 export interface OrderTrackingViewProps {
@@ -55,12 +60,14 @@ export function OrderTrackingView({
   const isCompleted = order.status === "COMPLETED";
   const isDelivery = order.serviceType === "delivery";
   const deliveryAddress = publicDeliveryAddress(order.serviceType, order.deliveryAddress);
+  const pickupDisplay = resolvePickupDisplay(
+    order.serviceType,
+    order.pickupLocation,
+    business,
+    business.name,
+  );
 
   const cleanPhone = business.phone?.replace(/\D/g, "");
-  const mapsUrl =
-    !isDelivery && business.address
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${business.name}, ${business.address}`)}`
-      : null;
 
   // Stepper milestones
   const steps: TimelineStepConfig[] = [
@@ -390,21 +397,40 @@ export function OrderTrackingView({
                 </dl>
               )}
 
-              {!isDelivery && (
-                <div className="border-border/60 flex items-start justify-between gap-3 border-t pt-2.5">
-                  <div>
-                    <p className="text-foreground text-xs font-bold">{business.name}</p>
-                    <p className="text-muted-foreground mt-0.5 text-xs">{business.address}</p>
-                  </div>
-                  {mapsUrl && (
+              {pickupDisplay && (
+                <div
+                  className="border-border/60 flex items-start justify-between gap-3 border-t pt-2.5"
+                  data-testid="tracking-pickup-location"
+                >
+                  <dl className="min-w-0 flex-1">
+                    <dt className="text-muted-foreground text-xs font-medium">{dict.collectAt}</dt>
+                    <dd className="mt-0.5 space-y-0.5">
+                      <p
+                        className="text-foreground text-xs font-bold wrap-break-word"
+                        data-testid="tracking-pickup-name"
+                      >
+                        {pickupDisplay.name}
+                      </p>
+                      {pickupDisplay.address && (
+                        <p
+                          className="text-muted-foreground text-xs wrap-break-word"
+                          data-testid="tracking-pickup-address"
+                        >
+                          {pickupDisplay.address}
+                        </p>
+                      )}
+                    </dd>
+                  </dl>
+                  {pickupDisplay.directionsUrl && (
                     <a
-                      href={mapsUrl}
+                      href={pickupDisplay.directionsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={interpolate(dict.directionsAria, { place: pickupDisplay.name })}
                       data-testid="tracking-directions-link"
                       className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
                     >
-                      <MapPin className="h-3.5 w-3.5" />
+                      <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span>{dict.directions}</span>
                     </a>
                   )}

@@ -134,6 +134,10 @@ describe("OrderTrackingPage Route", () => {
         .getByRole("link", { name: getDictionary("fr").storefront.trackOrder })
         .getAttribute("href"),
     ).toBe("/fr/order/token-99");
+    expect(screen.getByTestId("confirmation-pickup-name").textContent).toBe(mockBusiness.name);
+    expect(screen.getByTestId("confirmation-pickup-address").textContent).toBe(
+      mockBusiness.address,
+    );
   });
 
   it("does not render a confirmation for an invalid token", async () => {

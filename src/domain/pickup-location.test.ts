@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { HoursException, WeeklyHours } from "./opening-hours";
 
 import {
+  buildDirectionsUrl,
   canDeactivatePickupLocation,
   canDeletePickupLocation,
   canDisableShopPickup,
@@ -11,6 +12,7 @@ import {
   pickupLocationSchema,
   pickupScheduleFor,
   reorderPickupLocationsSchema,
+  resolvePickupDisplay,
   updatePickupLocationSchema,
 } from "./pickup-location";
 
@@ -211,5 +213,91 @@ describe("pickupScheduleFor", () => {
     const before = structuredClone({ business, location });
     pickupScheduleFor(business, location);
     expect({ business, location }).toEqual(before);
+  });
+});
+
+describe("buildDirectionsUrl and resolvePickupDisplay", () => {
+  it("builds an encoded Google Maps search URL and returns null for blank addresses", () => {
+    expect(buildDirectionsUrl("12 Place Jean Jaurès, 93100 Montreuil")).toBe(
+      "https://www.google.com/maps/search/?api=1&query=12%20Place%20Jean%20Jaur%C3%A8s%2C%2093100%20Montreuil",
+    );
+    expect(buildDirectionsUrl("   ")).toBeNull();
+    expect(buildDirectionsUrl(null)).toBeNull();
+    expect(buildDirectionsUrl(undefined)).toBeNull();
+  });
+
+  it("returns null for delivery and non-pickup orders", () => {
+    expect(
+      resolvePickupDisplay(
+        "delivery",
+        { name: "Relay", address: "10 Rue Relay" },
+        { name: "Shop", address: "52 Quai" },
+        "Store Pickup",
+      ),
+    ).toBeNull();
+  });
+
+  it("resolves relay location name and address without leaking shop address when relay address is null", () => {
+    expect(
+      resolvePickupDisplay(
+        "pickup",
+        { name: "Gare RER B", address: "Place du 8 Mai, 93210" },
+        { name: "Les Saveurs", address: "52 Quai de la Rapée" },
+        "Store Pickup",
+      ),
+    ).toEqual({
+      isRelay: true,
+      name: "Gare RER B",
+      address: "Place du 8 Mai, 93210",
+      directionsUrl:
+        "https://www.google.com/maps/search/?api=1&query=Place%20du%208%20Mai%2C%2093210",
+    });
+
+    expect(
+      resolvePickupDisplay(
+        "pickup",
+        { name: "Gare RER B", address: null },
+        { name: "Les Saveurs", address: "52 Quai de la Rapée" },
+        "Store Pickup",
+      ),
+    ).toEqual({
+      isRelay: true,
+      name: "Gare RER B",
+      address: null,
+      directionsUrl: null,
+    });
+  });
+
+  it("falls back to the shop name and address when pickupLocation has null name or is absent", () => {
+    expect(
+      resolvePickupDisplay(
+        "pickup",
+        { name: null, address: "52 Quai de la Rapée, 75012 Paris" },
+        { name: "Les Saveurs", address: "Fallback address" },
+        "Store Pickup",
+      ),
+    ).toEqual({
+      isRelay: false,
+      name: "Les Saveurs",
+      address: "52 Quai de la Rapée, 75012 Paris",
+      directionsUrl:
+        "https://www.google.com/maps/search/?api=1&query=52%20Quai%20de%20la%20Rap%C3%A9e%2C%2075012%20Paris",
+    });
+
+    expect(
+      resolvePickupDisplay("pickup", null, { name: "Les Saveurs", address: "52 Quai" }, "Shop"),
+    ).toEqual({
+      isRelay: false,
+      name: "Les Saveurs",
+      address: "52 Quai",
+      directionsUrl: "https://www.google.com/maps/search/?api=1&query=52%20Quai",
+    });
+
+    expect(resolvePickupDisplay("pickup", null, undefined, "Store Pickup")).toEqual({
+      isRelay: false,
+      name: "Store Pickup",
+      address: null,
+      directionsUrl: null,
+    });
   });
 });

@@ -94,8 +94,8 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
     expect(screen.getByText(DEMO_PRODUCT.folere.name)).toBeDefined();
     expect(screen.getByText(demoBusiness.address!)).toBeDefined();
-    expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toContain(
-      encodeURIComponent(`${demoBusiness.name}, ${demoBusiness.address}`),
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(demoBusiness.address!)}`,
     );
     expect(screen.getByTestId("tracking-pickup-icon")).toBeDefined();
     expect(screen.queryByTestId("tracking-delivery-icon")).toBeNull();
@@ -289,5 +289,81 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     expect(text("Europe/Paris")).toContain("00:45");
     expect(text("America/New_York")).toContain("18:45");
+  });
+
+  it("shows Collect at block with relay name, address, and encoded Directions link (#387)", () => {
+    const relayAddress = "12 Place Jean Jaurès, 93100 Montreuil";
+    const { rerender } = render(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{
+          ...mockActiveOrder,
+          serviceType: "pickup",
+          pickupLocation: { name: "Marché de Montreuil", address: relayAddress },
+        }}
+        business={mockBusiness}
+        locale="en"
+        dict={enDict.orderTracking}
+      />,
+    );
+
+    const pickupBlock = screen.getByTestId("tracking-pickup-location");
+    expect(pickupBlock.querySelector("dt")?.textContent).toBe("Collect at");
+    expect(pickupBlock.querySelectorAll("dd")).toHaveLength(1);
+    expect(screen.getByTestId("tracking-pickup-name").textContent).toBe("Marché de Montreuil");
+    expect(screen.getByTestId("tracking-pickup-address").textContent).toBe(relayAddress);
+    const link = screen.getByTestId("tracking-directions-link");
+    expect(link.getAttribute("href")).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(relayAddress)}`,
+    );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("aria-label")).toBe(
+      "Directions to Marché de Montreuil (opens in a new tab)",
+    );
+
+    // Shop fallback when pickupLocation has null name (tracking RPC shape)
+    rerender(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{
+          ...mockActiveOrder,
+          serviceType: "pickup",
+          pickupLocation: { name: null, address: demoBusiness.address! },
+        }}
+        business={mockBusiness}
+        locale="fr"
+        dict={frDict.orderTracking}
+      />,
+    );
+    expect(screen.getByTestId("tracking-pickup-location").querySelector("dt")?.textContent).toBe(
+      "Retrait à",
+    );
+    expect(screen.getByTestId("tracking-pickup-name").textContent).toBe(mockBusiness.name);
+    expect(screen.getByTestId("tracking-pickup-address").textContent).toBe(demoBusiness.address);
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(demoBusiness.address!)}`,
+    );
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("aria-label")).toBe(
+      `Itinéraire vers ${mockBusiness.name} (ouvre un nouvel onglet)`,
+    );
+
+    // Delivery shows nothing for Collect at even if pickupLocation were present
+    rerender(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{
+          ...mockActiveOrder,
+          serviceType: "delivery",
+          deliveryAddress: "10 Rue de Rivoli, 75001 Paris",
+          pickupLocation: { name: "Marché de Montreuil", address: relayAddress },
+        }}
+        business={mockBusiness}
+        locale="en"
+        dict={enDict.orderTracking}
+      />,
+    );
+    expect(screen.queryByTestId("tracking-pickup-location")).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
   });
 });

@@ -532,18 +532,38 @@ export function OrderList({
                             </>
                           )}
                         </div>
-                        <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
+                        <div className="text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1.5 text-xs">
                           {order.serviceType === "delivery" ? (
                             <>
-                              <MapPin className="text-muted-foreground h-3 w-3 shrink-0" />
-                              <span className="truncate">
+                              <MapPin
+                                className="text-muted-foreground h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
+                              <span className="min-w-0 truncate">
                                 {order.deliveryAddress ?? t.addressPending}
+                              </span>
+                            </>
+                          ) : order.pickupLocation ? (
+                            <>
+                              <MapPin
+                                className="text-muted-foreground h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
+                              <span
+                                className="min-w-0 truncate"
+                                title={order.pickupLocation.name}
+                                data-testid="order-pickup-location"
+                              >
+                                {order.pickupLocation.name}
                               </span>
                             </>
                           ) : (
                             <>
-                              <Store className="text-muted-foreground h-3 w-3 shrink-0" />
-                              <span className="truncate">{t.storePickup}</span>
+                              <Store
+                                className="text-muted-foreground h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />
+                              <span className="min-w-0 truncate">{t.storePickup}</span>
                             </>
                           )}
                         </div>

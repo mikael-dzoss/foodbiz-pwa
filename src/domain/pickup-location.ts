@@ -161,3 +161,43 @@ export function pickupScheduleFor(
   const exceptions: HoursException[] = business.exceptions.filter((ex) => ex.ranges.length === 0);
   return { weekly, exceptions };
 }
+
+/** Google Maps search link for a physical address, or null when the address is empty. */
+export function buildDirectionsUrl(address: string | null | undefined): string | null {
+  const trimmed = address?.trim();
+  if (!trimmed) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
+}
+
+export interface ResolvedPickupDisplay {
+  readonly isRelay: boolean;
+  readonly name: string;
+  readonly address: string | null;
+  readonly directionsUrl: string | null;
+}
+
+/**
+ * Resolves the display name, address and Google Maps directions URL for a pickup order.
+ * Returns null for non-pickup orders. A missing relay name falls back to the shop.
+ */
+export function resolvePickupDisplay(
+  serviceType: string,
+  pickupLocation:
+    { readonly name?: string | null; readonly address?: string | null } | null | undefined,
+  shop: { readonly name?: string | null; readonly address?: string | null } | undefined,
+  fallbackShopLabel: string,
+): ResolvedPickupDisplay | null {
+  if (serviceType !== "pickup") return null;
+  const relayName = pickupLocation?.name?.trim() || null;
+  const isRelay = relayName !== null;
+  const name = relayName ?? shop?.name?.trim() ?? fallbackShopLabel;
+  const address = isRelay
+    ? pickupLocation?.address?.trim() || null
+    : pickupLocation?.address?.trim() || shop?.address?.trim() || null;
+  return {
+    isRelay,
+    name,
+    address,
+    directionsUrl: buildDirectionsUrl(address),
+  };
+}
