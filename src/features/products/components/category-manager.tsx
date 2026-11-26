@@ -138,7 +138,7 @@ export function CategoryManager({ initialCategories, dict: dictOverride }: Categ
               value={newRole}
               onChange={(e) => setNewRole(categoryRoleSchema.parse(e.target.value))}
               disabled={isCreating}
-              className="rounded-lg text-sm"
+              className="rounded-lg"
               data-testid="new-category-role-select"
             >
               {categoryRoleSchema.options.map((role) => (
@@ -222,7 +222,7 @@ export function CategoryManager({ initialCategories, dict: dictOverride }: Categ
                       <NativeSelect
                         value={editRole}
                         onChange={(e) => setEditRole(categoryRoleSchema.parse(e.target.value))}
-                        className="rounded-lg text-sm"
+                        className="rounded-lg"
                         data-testid={`edit-category-role-select-${cat.id}`}
                       >
                         {categoryRoleSchema.options.map((role) => (
@@ -242,7 +242,7 @@ export function CategoryManager({ initialCategories, dict: dictOverride }: Categ
                           setEditName(e.target.value);
                           if (renameError) setRenameError(null);
                         }}
-                        className="min-h-11 flex-1 text-sm"
+                        className="min-h-11 flex-1"
                         aria-label={t.editNameLabel}
                         autoFocus
                       />

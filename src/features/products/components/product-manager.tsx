@@ -269,7 +269,7 @@ export function ProductManager({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t.searchPlaceholder}
-            className="h-11 pr-9 pl-9 text-sm"
+            className="h-11 pr-9 pl-9"
             data-testid="product-search-input"
           />
           {searchQuery && (

@@ -329,7 +329,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   value={openingHours}
                   onChange={(e) => setOpeningHours(e.target.value)}
                   placeholder={x.hoursPlaceholder}
-                  className="min-h-0 rounded-xl py-2 text-sm"
+                  className="min-h-0 rounded-xl py-2"
                 />
               </Field>
               <p className="text-muted-foreground mt-1 text-xs">{x.hoursEmptyHint}</p>
@@ -426,7 +426,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   min="0"
                   value={deliveryFeeEuros}
                   onChange={(e) => setDeliveryFeeEuros(e.target.value)}
-                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono text-sm"
+                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono"
                 />
               </div>
             )}
@@ -453,7 +453,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   min="0"
                   value={minOrderEuros}
                   onChange={(e) => setMinOrderEuros(e.target.value)}
-                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono text-sm"
+                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono"
                 />
               </div>
             )}
@@ -487,7 +487,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                 aria-invalid={errors.leadTimeValue ? true : undefined}
                 value={leadTimeValue}
                 onChange={(e) => setLeadTimeValue(e.target.value)}
-                className="h-11 w-24 shrink-0 rounded-xl py-2 font-mono text-sm"
+                className="h-11 w-24 shrink-0 rounded-xl py-2 font-mono"
               />
               <NativeSelect
                 id="lead-time-unit-select"
@@ -498,7 +498,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   const parsed = leadTimeUnitSchema.safeParse(e.target.value);
                   if (parsed.success) setLeadTimeUnit(parsed.data);
                 }}
-                className="h-11 rounded-xl text-sm"
+                className="h-11 rounded-xl"
               >
                 <option value="minutes">{dict.ordering.leadTimeUnitMinutes}</option>
                 <option value="hours">{dict.ordering.leadTimeUnitHours}</option>
@@ -544,7 +544,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               data-testid="select-timezone"
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              className="h-11 rounded-xl text-sm"
+              className="h-11 rounded-xl"
             >
               {timezoneOptions.map((zone) => (
                 <option key={zone} value={zone}>

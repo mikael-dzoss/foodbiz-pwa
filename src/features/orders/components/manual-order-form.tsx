@@ -348,7 +348,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               onChange={(e) => setGuestPhone(e.target.value)}
               onBlur={handlePhoneBlur}
               placeholder="+33 6 12 34 56 78"
-              className="bg-card h-11 rounded-lg pr-9 pl-9 text-sm tabular-nums"
+              className="bg-card h-11 rounded-lg pr-9 pl-9 tabular-nums"
               required
               data-testid="guest-phone-input"
               {...fieldA11y("phone")}
@@ -400,10 +400,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               disabled={isNameLocked}
               minLength={2}
               maxLength={50}
-              className={cn(
-                "bg-card h-11 rounded-lg pl-9 text-sm",
-                isNameLocked && "pr-11 opacity-80",
-              )}
+              className={cn("bg-card h-11 rounded-lg pl-9", isNameLocked && "pr-11 opacity-80")}
               required
               data-testid="guest-name-input"
               {...fieldA11y("name")}
@@ -588,7 +585,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         {/* Date and Time pickers when Scheduled */}
         {!isAsap && (
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <label
                 htmlFor="reqDate"
                 className="text-muted-foreground text-caption block font-medium"
@@ -600,11 +597,11 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 type="date"
                 value={requestedDate}
                 onChange={(e) => setRequestedDate(e.target.value)}
-                className="h-10 text-xs"
+                className="h-10 w-full min-w-0"
                 data-testid="requested-date-input"
               />
             </div>
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <label
                 htmlFor="reqTime"
                 className="text-muted-foreground text-caption block font-medium"
@@ -616,7 +613,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 type="time"
                 value={requestedTime}
                 onChange={(e) => setRequestedTime(e.target.value)}
-                className="h-10 text-xs"
+                className="h-10 w-full min-w-0"
                 data-testid="requested-time-input"
               />
             </div>
@@ -639,7 +636,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
                 placeholder={t.addressPlaceholder}
-                className="min-h-16 resize-none rounded-lg pl-8 text-xs"
+                className="min-h-16 resize-none rounded-lg pl-8"
                 required
                 data-testid="delivery-address-input"
                 {...fieldA11y("address")}
@@ -658,7 +655,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder={t.notesPlaceholder}
-            className="resize-none rounded-lg text-xs"
+            className="resize-none rounded-lg"
             rows={2}
             data-testid="order-notes-input"
           />
@@ -685,7 +682,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           value={productSearch}
           onChange={(e) => setProductSearch(e.target.value)}
           placeholder={t.searchPlaceholder}
-          className="h-10 rounded-lg text-xs"
+          className="h-10 rounded-lg"
         />
 
         {/* Product List */}

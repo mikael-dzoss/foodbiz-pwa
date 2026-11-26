@@ -302,7 +302,7 @@ export function ProductFormSheet({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t.namePlaceholder}
-                className="h-11 text-sm font-medium"
+                className="h-11 font-medium"
                 data-testid="product-name-input"
                 required
               />
@@ -319,7 +319,7 @@ export function ProductFormSheet({
                 name="categoryId"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="h-11 text-sm font-medium"
+                className="h-11 font-medium"
                 data-testid="product-category-select"
                 required
               >
@@ -339,7 +339,7 @@ export function ProductFormSheet({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t.descriptionPlaceholder}
                 rows={3}
-                className="text-sm font-normal"
+                className="font-normal"
                 data-testid="product-description-input"
               />
             </Field>
@@ -404,7 +404,7 @@ export function ProductFormSheet({
                   value={priceStr}
                   onChange={(e) => setPriceStr(e.target.value)}
                   placeholder="12.50"
-                  className="h-11 text-sm font-semibold tabular-nums"
+                  className="h-11 font-semibold tabular-nums"
                   data-testid="product-price-input"
                   required
                 />
@@ -420,7 +420,7 @@ export function ProductFormSheet({
                   value={unitCostStr}
                   onChange={(e) => setUnitCostStr(e.target.value)}
                   placeholder="4.20"
-                  className="h-11 text-sm font-semibold tabular-nums"
+                  className="h-11 font-semibold tabular-nums"
                   data-testid="product-unit-cost-input"
                 />
               </Field>
@@ -457,7 +457,7 @@ export function ProductFormSheet({
                   step="1"
                   value={stock}
                   onChange={(e) => setStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                  className="h-9 w-16 text-center text-sm font-bold tabular-nums"
+                  className="h-9 w-16 text-center font-bold tabular-nums"
                   data-testid="product-stock-input"
                 />
                 <Button
