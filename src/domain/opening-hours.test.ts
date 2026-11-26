@@ -1384,7 +1384,8 @@ describe("rangesForDate & exception overrides (#375)", () => {
       expected: { ok: true },
     },
     {
-      label: "special hours on normally closed Sunday rejects out-of-range slot -> time_outside_hours",
+      label:
+        "special hours on normally closed Sunday rejects out-of-range slot -> time_outside_hours",
       sched: schedule(STANDARD_WEEK, [specialSunday]),
       now: "2026-07-06T08:00:00Z",
       slot: { date: "2026-07-12", time: "15:00", isAsap: false },

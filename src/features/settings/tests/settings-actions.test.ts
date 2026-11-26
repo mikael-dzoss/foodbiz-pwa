@@ -617,7 +617,9 @@ describe("Settings Server Actions", () => {
       }
 
       const longNoteRes = await updateHoursExceptionsAction({
-        hoursExceptions: [{ from: "2026-08-01", to: "2026-08-01", ranges: [], note: "x".repeat(51) }],
+        hoursExceptions: [
+          { from: "2026-08-01", to: "2026-08-01", ranges: [], note: "x".repeat(51) },
+        ],
       });
       expect(longNoteRes.ok).toBe(false);
       if (!longNoteRes.ok) {

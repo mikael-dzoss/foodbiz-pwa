@@ -67,11 +67,9 @@ function calendarDayDiff(from: string, to: string): number {
   return Math.round((toUtc.getTime() - fromUtc.getTime()) / MS_PER_DAY);
 }
 
-const calendarDaySchema = z
-  .string()
-  .refine((value) => parseCalendarDayUtc(value) !== null, {
-    error: "Date must be a valid YYYY-MM-DD calendar date",
-  });
+const calendarDaySchema = z.string().refine((value) => parseCalendarDayUtc(value) !== null, {
+  error: "Date must be a valid YYYY-MM-DD calendar date",
+});
 
 export const openTimeSchema = z
   .string()
@@ -163,9 +161,7 @@ export const hoursExceptionsSchema = z
   .superRefine((exceptions, ctx) => {
     const indexed = exceptions
       .map((ex, index) => ({ ex, index }))
-      .toSorted(
-        (a, b) => a.ex.from.localeCompare(b.ex.from) || a.ex.to.localeCompare(b.ex.to),
-      );
+      .toSorted((a, b) => a.ex.from.localeCompare(b.ex.from) || a.ex.to.localeCompare(b.ex.to));
     let maxTo: string | null = null;
     for (const item of indexed) {
       if (maxTo !== null && item.ex.from <= maxTo) {
@@ -213,15 +209,10 @@ export interface SlotInput {
 }
 
 export type SlotErrorReason =
-  | "closed_now"
-  | "date_out_of_window"
-  | "closed_day"
-  | "time_outside_hours"
-  | "time_in_past";
+  "closed_now" | "date_out_of_window" | "closed_day" | "time_outside_hours" | "time_in_past";
 
 export type SlotValidationResult =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly reason: SlotErrorReason };
+  { readonly ok: true } | { readonly ok: false; readonly reason: SlotErrorReason };
 
 export interface FormattedDayHours {
   readonly day: DayKey;
@@ -517,7 +508,11 @@ export function upcomingExceptions(
 const longWeekdayFormatters = new Map<string, Intl.DateTimeFormat>();
 const shortWeekdayFormatters = new Map<string, Intl.DateTimeFormat>();
 
-function formatWeekdayLabel(dayIndex: number, locale: "en" | "fr", width: "long" | "short"): string {
+function formatWeekdayLabel(
+  dayIndex: number,
+  locale: "en" | "fr",
+  width: "long" | "short",
+): string {
   const cache = width === "long" ? longWeekdayFormatters : shortWeekdayFormatters;
   let formatter = cache.get(locale);
   if (!formatter) {
