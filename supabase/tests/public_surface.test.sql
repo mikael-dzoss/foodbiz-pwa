@@ -15,7 +15,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(77);
+select plan(82);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (as the migration role)
@@ -786,6 +786,32 @@ create temp table t_tracking on commit drop as
 select public.get_order_by_tracking_token((select res->>'tracking_token' from t_at_limit)) as res;
 grant select on t_tracking to public;
 
+create temp table t_delivery_order on commit drop as
+select public.place_order(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 'Delivery Buyer', '+33699000013',
+  'delivery', 'storefront', current_date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb,
+  null, 'on_handover', '12 Rue de Rivoli, 75001 Paris', 'Door code 4589'
+) as res;
+grant select on t_delivery_order to public;
+
+create temp table t_tracking_delivery on commit drop as
+select public.get_order_by_tracking_token((select res->>'tracking_token' from t_delivery_order)) as res;
+grant select on t_tracking_delivery to public;
+
+create temp table t_pickup_with_address on commit drop as
+select public.place_order(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 'Pickup Buyer', '+33699000014',
+  'pickup', 'storefront', current_date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb,
+  null, 'on_handover', 'Should stay hidden on pickup', null
+) as res;
+grant select on t_pickup_with_address to public;
+
+create temp table t_tracking_pickup_addr on commit drop as
+select public.get_order_by_tracking_token((select res->>'tracking_token' from t_pickup_with_address)) as res;
+grant select on t_tracking_pickup_addr to public;
+
 reset role;
 
 select is(
@@ -795,9 +821,56 @@ select is(
 );
 
 select is(
+  (select array_agg(k order by k) from jsonb_object_keys((select res->'order' from t_tracking)) k),
+  array[
+    'business_id',
+    'cancellation_reason',
+    'created_at',
+    'delivery_address',
+    'id',
+    'order_number',
+    'paid',
+    'payment_preference',
+    'requested_date',
+    'requested_time',
+    'service_type',
+    'status',
+    'total_amount',
+    'tracking_token',
+    'updated_at'
+  ]::text[],
+  'tracking order exposes exactly the explicit allowlisted keys (including delivery_address)'
+);
+
+select is(
   (select array_agg(k order by k) from jsonb_object_keys((select res->'items'->0 from t_tracking)) k),
   array['product_name', 'quantity', 'total_price', 'unit_price']::text[],
   'tracking items expose exactly product_name, quantity, unit_price, total_price'
+);
+
+select is(
+  (select res->'order'->>'delivery_address' from t_tracking_delivery),
+  '12 Rue de Rivoli, 75001 Paris',
+  'delivery order tracking returns the delivery address'
+);
+
+select ok(
+  not ((select res::text from t_tracking_delivery) like '%Door code 4589%'),
+  'delivery order tracking still omits order notes'
+);
+
+select is(
+  (select res->'order'->>'delivery_address' from t_tracking_pickup_addr),
+  null::text,
+  'pickup order tracking returns null for delivery_address even if stored on the row'
+);
+
+select ok(
+  has_function_privilege('anon', 'public.get_order_by_tracking_token(text)', 'execute')
+  and has_function_privilege('authenticated', 'public.get_order_by_tracking_token(text)', 'execute')
+  and has_function_privilege('service_role', 'public.get_order_by_tracking_token(text)', 'execute')
+  and not has_function_privilege('public', 'public.get_order_by_tracking_token(text)', 'execute'),
+  'get_order_by_tracking_token grants execute only to anon, authenticated and service_role'
 );
 
 -- ----------------------------------------------------------------------------

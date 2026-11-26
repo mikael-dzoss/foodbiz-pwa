@@ -8,6 +8,7 @@ import {
   ChefHat,
   PackageCheck,
   Store,
+  Truck,
   MapPin,
   Phone,
   AlertTriangle,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatMoney,
   formatTime,
+  publicDeliveryAddress,
   type PublicOrder,
   type OrderStatus,
   type SupportedLocale,
@@ -51,11 +53,14 @@ export function OrderTrackingView({
 }: OrderTrackingViewProps) {
   const isCancelled = order.status === "CANCELLED";
   const isCompleted = order.status === "COMPLETED";
+  const isDelivery = order.serviceType === "delivery";
+  const deliveryAddress = publicDeliveryAddress(order.serviceType, order.deliveryAddress);
 
   const cleanPhone = business.phone?.replace(/\D/g, "");
-  const mapsUrl = business.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${business.name}, ${business.address}`)}`
-    : null;
+  const mapsUrl =
+    !isDelivery && business.address
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${business.name}, ${business.address}`)}`
+      : null;
 
   // Stepper milestones
   const steps: TimelineStepConfig[] = [
@@ -341,7 +346,19 @@ export function OrderTrackingView({
           >
             <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
               <div className="flex items-center gap-1.5">
-                <Store className="text-primary h-4 w-4" />
+                {isDelivery ? (
+                  <Truck
+                    className="text-primary h-4 w-4"
+                    aria-hidden="true"
+                    data-testid="tracking-delivery-icon"
+                  />
+                ) : (
+                  <Store
+                    className="text-primary h-4 w-4"
+                    aria-hidden="true"
+                    data-testid="tracking-pickup-icon"
+                  />
+                )}
                 <h3 className="text-label-sm text-muted-foreground tracking-wider uppercase">
                   {dict.fulfillmentDetails}
                 </h3>
@@ -361,24 +378,38 @@ export function OrderTrackingView({
                 </p>
               </div>
 
-              <div className="border-border/60 flex items-start justify-between gap-3 border-t pt-2.5">
-                <div>
-                  <p className="text-foreground text-xs font-bold">{business.name}</p>
-                  <p className="text-muted-foreground mt-0.5 text-xs">{business.address}</p>
+              {isDelivery && deliveryAddress && (
+                <dl
+                  className="border-border/60 border-t pt-2.5"
+                  data-testid="tracking-delivery-address"
+                >
+                  <dt className="text-muted-foreground text-xs font-medium">{dict.deliveryTo}</dt>
+                  <dd className="text-foreground mt-0.5 text-xs font-semibold wrap-break-word">
+                    {deliveryAddress}
+                  </dd>
+                </dl>
+              )}
+
+              {!isDelivery && (
+                <div className="border-border/60 flex items-start justify-between gap-3 border-t pt-2.5">
+                  <div>
+                    <p className="text-foreground text-xs font-bold">{business.name}</p>
+                    <p className="text-muted-foreground mt-0.5 text-xs">{business.address}</p>
+                  </div>
+                  {mapsUrl && (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-testid="tracking-directions-link"
+                      className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span>{dict.directions}</span>
+                    </a>
+                  )}
                 </div>
-                {mapsUrl && (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    data-testid="tracking-directions-link"
-                    className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
-                  >
-                    <MapPin className="h-3.5 w-3.5" />
-                    <span>{dict.directions}</span>
-                  </a>
-                )}
-              </div>
+              )}
             </div>
           </section>
 

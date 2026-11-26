@@ -9,6 +9,8 @@ import {
   guestSchema,
   orderItemSchema,
   orderSchema,
+  publicDeliveryAddress,
+  publicOrderSchema,
   orderStatusEventSchema,
   manualOrderInputSchema,
   serviceTypeSchema,
@@ -440,6 +442,65 @@ describe("Order and OrderItem schemas", () => {
       updatedAt: isoNow,
     };
     expect(orderSchema.safeParse(validWithHistory).success).toBe(true);
+  });
+
+  it("publicOrderSchema preserves deliveryAddress while stripping private fields (#352)", () => {
+    const parsed = publicOrderSchema.parse({
+      id: validUuid,
+      businessId: validUuid,
+      orderNumber: 12,
+      guestId: anotherUuid,
+      submittedName: "Secret Alias",
+      serviceType: "delivery",
+      channel: "storefront",
+      status: "NEW",
+      paid: "unpaid",
+      paymentPreference: "on_handover",
+      requestedDate: "2026-10-10",
+      requestedTime: "12:30",
+      totalAmount: 850,
+      cancellationReason: null,
+      deliveryAddress: "  123 Rue de Rivoli, Paris  ",
+      notes: "Door code 1234",
+      statusHistory: [{ status: "NEW", timestamp: isoNow, note: null }],
+      createdAt: isoNow,
+      updatedAt: isoNow,
+      items: [
+        {
+          productId: validUuid,
+          productName: "Burger",
+          quantity: 1,
+          unitPrice: 850,
+          totalPrice: 850,
+        },
+      ],
+    });
+
+    expect(parsed.deliveryAddress).toBe("123 Rue de Rivoli, Paris");
+    expect(parsed).not.toHaveProperty("guestId");
+    expect(parsed).not.toHaveProperty("submittedName");
+    expect(parsed).not.toHaveProperty("notes");
+    expect(parsed).not.toHaveProperty("statusHistory");
+    expect(parsed.items[0]).not.toHaveProperty("productId");
+
+    expect(
+      publicOrderSchema.parse({ ...parsed, deliveryAddress: null }).deliveryAddress,
+    ).toBeNull();
+    const { deliveryAddress: _omit, ...withoutAddress } = parsed;
+    expect(publicOrderSchema.parse(withoutAddress).deliveryAddress).toBeUndefined();
+  });
+
+  it("publicDeliveryAddress exposes trimmed address only for delivery orders (#352)", () => {
+    expect(publicDeliveryAddress("delivery", "  12 Rue de Rivoli, Paris  ")).toBe(
+      "12 Rue de Rivoli, Paris",
+    );
+    expect(publicDeliveryAddress("delivery", "   ")).toBeNull();
+    expect(publicDeliveryAddress("delivery", "")).toBeNull();
+    expect(publicDeliveryAddress("delivery", null)).toBeNull();
+    expect(publicDeliveryAddress("delivery", undefined)).toBeNull();
+    expect(publicDeliveryAddress("pickup", "12 Rue de Rivoli, Paris")).toBeNull();
+    expect(publicDeliveryAddress("dine-in", "12 Rue de Rivoli, Paris")).toBeNull();
+    expect(publicDeliveryAddress(null, "12 Rue de Rivoli, Paris")).toBeNull();
   });
 
   it("validates orderStatusEventSchema", () => {

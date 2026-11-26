@@ -174,14 +174,13 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}\/confirmed$/);
   const confirmationURL = page.url();
   const confirmationResponse = await page.reload();
-  const privateValues = [
-    "E2E Checkout Guest",
-    "+33600000105",
-    "Private delivery 105 Test Street",
-    "Private entry code 10599",
-  ];
+  // The delivery address is shown to the tracking-token holder (#352); the guest's name, phone
+  // and notes never reach these pages.
+  const deliveryAddress = "Private delivery 105 Test Street";
+  const privateValues = ["E2E Checkout Guest", "+33600000105", "Private entry code 10599"];
   const confirmationHTML = await confirmationResponse!.text();
   for (const value of privateValues) expect(confirmationHTML).not.toContain(value);
+  await expect(page.getByTestId("confirmation-delivery-address")).toContainText(deliveryAddress);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   await expect(page.getByTestId("confirmation-payment")).toContainText("cash, Revolut or Wero");
   await expect(page.getByTestId("confirmation-payment")).toContainText("Unpaid");
@@ -194,6 +193,8 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   const trackingResponse = await page.reload();
   const trackingHTML = await trackingResponse!.text();
   for (const value of privateValues) expect(trackingHTML).not.toContain(value);
+  await expect(page.getByTestId("tracking-delivery-address")).toContainText(deliveryAddress);
+  await expect(page.getByTestId("tracking-directions-link")).toHaveCount(0);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   await expect(page.getByTestId("tracking-status-badge")).toContainText("Order Placed");
   const ticket = await page.getByTestId("tracking-order-title").innerText();

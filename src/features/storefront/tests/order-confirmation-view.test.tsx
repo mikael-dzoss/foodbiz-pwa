@@ -133,5 +133,44 @@ for (const locale of ["en", "fr"] as const) {
         expect(screen.getByRole("status").textContent).toBe(dict.orderConfirmation.copyFailed),
       );
     });
+
+    it("shows the delivery address for delivery orders and hides it for pickup (#352)", () => {
+      const deliveryAddress = "42 Avenue des Champs-Élysées, 75008 Paris";
+      const { rerender } = render(
+        <OrderConfirmationView
+          {...props}
+          order={{ ...order, serviceType: "delivery", deliveryAddress }}
+          settings={fixtures.settings}
+        />,
+      );
+
+      const addressSection = screen.getByTestId("confirmation-delivery-address");
+      expect(
+        screen.getByRole("heading", { name: dict.orderTracking.fulfillmentDetails }),
+      ).toBeDefined();
+      expect(addressSection.querySelector("dl dt")?.textContent).toBe(
+        locale === "fr" ? "Livraison à" : "Delivery to",
+      );
+      expect(addressSection.querySelector("dl dd")?.textContent).toBe(deliveryAddress);
+
+      rerender(
+        <OrderConfirmationView
+          {...props}
+          order={{ ...order, serviceType: "pickup", deliveryAddress }}
+          settings={fixtures.settings}
+        />,
+      );
+      expect(screen.queryByTestId("confirmation-delivery-address")).toBeNull();
+      expect(screen.queryByText(deliveryAddress)).toBeNull();
+
+      rerender(
+        <OrderConfirmationView
+          {...props}
+          order={{ ...order, serviceType: "delivery", deliveryAddress: null }}
+          settings={fixtures.settings}
+        />,
+      );
+      expect(screen.queryByTestId("confirmation-delivery-address")).toBeNull();
+    });
   });
 }

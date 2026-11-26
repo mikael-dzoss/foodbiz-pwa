@@ -621,6 +621,7 @@ export interface OrderTrackingDictionary {
   fulfillmentDetails: string;
   pickupWindow: string;
   deliveryAddress: string;
+  deliveryTo: string;
   directions: string;
   orderSummary: string;
   subtotal: string;
