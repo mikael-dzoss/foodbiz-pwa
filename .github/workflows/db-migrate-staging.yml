@@ -1,17 +1,24 @@
 name: Migrate staging database
 
 # Applies supabase/migrations/ to the hosted staging Supabase project, runs pgTAP tests, and checks
-# for invalid indexes. Manual only, restricted to the `staging` branch. Uses repository secrets
-# (not GitHub Environments, which require paid plans on private repositories).
+# for invalid indexes. Runs automatically when a push to `staging` (a merged promotion PR) changes
+# supabase/migrations/, so migrations always come from the new staging tip; it can also be run
+# manually. Restricted to the `staging` branch. Uses repository secrets (not GitHub Environments,
+# which require paid plans on private repositories). A promotion merged with GITHUB_TOKEN triggers no
+# push workflows: run this one manually then.
 # Runbook: docs/DEPLOYMENT.md#applying-migrations-to-a-hosted-project-active
 on:
+  push:
+    branches: [staging]
+    paths: ["supabase/migrations/**"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Shared with "Seed staging database" so a seed waits for a running migration.
 concurrency:
-  group: db-migrate-staging
+  group: staging-db
   cancel-in-progress: false
 
 jobs:
@@ -60,7 +67,19 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
-        run: supabase db push --remote --dry-run
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          out="$(supabase db push --remote --dry-run --agent no 2>&1)" || { printf '%s\n' "$out"; exit 1; }
+          printf '%s\n' "$out"
+          {
+            echo "### Staging migration"
+            echo "Commit: \`$COMMIT_SHA\`"
+            echo
+            echo "Pending migrations:"
+            printf '%s\n' "$out" | grep -oE '[0-9]{14}_[A-Za-z0-9_]+\.sql' | sort -u | sed 's/^/- /' || true
+            printf '%s\n' "$out" | grep -q "Remote database is up to date" && echo "- none (up to date)" || true
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push migrations
         env:
