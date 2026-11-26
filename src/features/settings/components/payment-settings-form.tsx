@@ -171,7 +171,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     value={revolutRevtag.replace(/^@/, "")}
                     onChange={(e) => setRevolutRevtag(e.target.value)}
                     placeholder={dict.payment.revolutPlaceholder.replace(/^@/, "")}
-                    className="h-11 rounded-xl py-2 pr-3 pl-8 text-sm"
+                    className="h-11 rounded-xl py-2 pr-3 pl-8"
                   />
                 </div>
               )}
@@ -191,7 +191,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                 value={weroIdentifier}
                 onChange={(e) => setWeroIdentifier(e.target.value)}
                 placeholder={dict.payment.weroPlaceholder}
-                className="h-11 rounded-xl py-2 text-sm"
+                className="h-11 rounded-xl py-2"
               />
             </Field>
           </div>
@@ -334,7 +334,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     value={paymentInstructionsEn}
                     onChange={(e) => setPaymentInstructionsEn(e.target.value)}
                     placeholder={x.instructionsPlaceholderEn}
-                    className="rounded-xl py-2 text-sm"
+                    className="rounded-xl py-2"
                   />
                 </Field>
               </TabsContent>
@@ -351,7 +351,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     value={paymentInstructionsFr}
                     onChange={(e) => setPaymentInstructionsFr(e.target.value)}
                     placeholder={x.instructionsPlaceholderFr}
-                    className="rounded-xl py-2 text-sm"
+                    className="rounded-xl py-2"
                   />
                 </Field>
               </TabsContent>

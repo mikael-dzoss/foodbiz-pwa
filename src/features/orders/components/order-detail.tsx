@@ -1090,7 +1090,6 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 }
               }}
               placeholder={t.reject.placeholder}
-              className="text-xs"
               data-testid="reject-reason-input"
             />
           </Field>
@@ -1156,7 +1155,6 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
               placeholder={t.cancelDialog.placeholder}
-              className="text-xs"
               data-testid="cancel-reason-input"
             />
           </Field>
@@ -1272,7 +1270,6 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
               placeholder={t.refundDialog.placeholder}
-              className="text-xs"
               data-testid="refund-reason-input"
             />
           </Field>

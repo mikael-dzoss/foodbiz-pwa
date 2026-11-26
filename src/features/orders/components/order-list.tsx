@@ -332,7 +332,7 @@ export function OrderList({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="border-input bg-card h-11 rounded-xl pr-9 pl-10 text-xs"
+              className="border-input bg-card h-11 rounded-xl pr-9 pl-10"
               data-testid="order-search-input"
             />
             {searchQuery && (
