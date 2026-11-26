@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { expect, test, signIn } from "./fixtures";
 import { getDictionary } from "../src/domain/i18n";
 import { formatMoney } from "../src/domain/formatting";
@@ -6,6 +7,17 @@ import {
   DEMO_PRODUCT,
   demoSettings,
 } from "../src/lib/repositories/mock/fixtures";
+
+/**
+ * Outside the mock shop's opening hours the checkout forces "Schedule for later" (#350), so pick a
+ * date two days out; inside hours the date input is hidden and ASAP stays the default.
+ */
+async function scheduleIfClosed(page: Page) {
+  const dateInput = page.getByTestId("checkout-date-input");
+  if (!(await dateInput.isVisible())) return;
+  const date = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  await dateInput.fill(date);
+}
 
 test("storefront sticky category bar appears after scrolling past first category and Menu sheet navigates", async ({
   page,
@@ -128,6 +140,7 @@ for (const [locale, method, recipient, phone] of [
     await page.getByTestId("checkout-name-input").fill(`E2E ${method} Guest`);
     await page.getByTestId("checkout-phone-input").fill(phone);
     await page.getByTestId(`payment-${method}`).click();
+    await scheduleIfClosed(page);
     await page.getByTestId("place-order-button").click();
     await expect(page).toHaveURL(new RegExp(`/${locale}/order/[a-f0-9]{32}/confirmed$`));
     const token = page.url().split("/").at(-2);
@@ -169,6 +182,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await page.getByTestId("service-delivery-button").click();
   await page.getByTestId("checkout-address-input").fill("Private delivery 105 Test Street");
   await page.getByTestId("checkout-notes-input").fill("Private entry code 10599");
+  await scheduleIfClosed(page);
   await page.getByTestId("place-order-button").click();
   await expect(page.getByTestId("checkout-success-view")).toBeVisible();
   await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}\/confirmed$/);
