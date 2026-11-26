@@ -8,8 +8,10 @@ import {
   type SupportedLocale,
 } from "@/domain/i18n";
 import { resolveStorefrontLocale, storefrontAlternates } from "@/features/storefront/metadata";
+import { isOpenAt } from "@/domain/opening-hours";
 import {
   evaluateStoreOperatingStatus,
+  hasStructuredHours,
   getStorefrontCatalog,
   CheckoutView,
   type StorefrontCatalogData,
@@ -47,7 +49,21 @@ async function CheckoutContent({
   dict: StorefrontDictionary;
 }) {
   await connection();
-  const { isOpen, isAcceptingOrders } = evaluateStoreOperatingStatus(catalog.settings, new Date());
+  const now = new Date();
+  const status = evaluateStoreOperatingStatus(catalog.settings, now);
+  const { isAcceptingOrders } = status;
+  const isOpen =
+    catalog.settings && hasStructuredHours(catalog.settings)
+      ? isAcceptingOrders &&
+        isOpenAt(
+          {
+            weekly: catalog.settings.weeklyHours ?? null,
+            exceptions: catalog.settings.hoursExceptions ?? [],
+          },
+          catalog.settings.timezone,
+          now,
+        )
+      : status.isOpen;
 
   return (
     <CheckoutView

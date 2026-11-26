@@ -179,7 +179,6 @@ export interface StorefrontDictionary {
   freeDelivery: string;
   weeklyOpeningHours: string;
   holidayScheduleTitle: string;
-  holidayScheduleNotice: string;
   deliveryPolicy: string;
   policyMinOrder: string;
   policyDeliveryFee: string;
@@ -306,6 +305,13 @@ export interface StorefrontDictionary {
   payOnHandoverCardSubtext: string;
   cardOnPickup: string;
   walletTapSoon: string;
+
+  // Structured opening hours (#372, #375)
+  opensOnDayAt: string;
+  upcomingExceptionsTitle: string;
+  todayExceptionLabel: string;
+  todayExceptionClosed: string;
+  todayExceptionOpen: string;
 }
 
 export interface QuickAddDictionary {
@@ -594,6 +600,96 @@ export interface SettingsDictionary {
     saveButton: string;
     saveSuccess: string;
     discardButton: string;
+  };
+
+  // Opening hours (#372)
+  openingHours: {
+    title: string;
+    description: string;
+    navDescription: string;
+    overviewSummarySection: string;
+    optionsSection: string;
+    regularTitle: string;
+    regularDescription: string;
+    regularConfigured: string;
+    regularNotSet: string;
+    closed: string;
+    open: string;
+    emptyTitle: string;
+    emptyHint: string;
+    legacyTextLabel: string;
+    upcomingExceptionsTitle: string;
+    manageStructuredLink: string;
+    structuredActiveHint: string;
+    presetLabel: string;
+    presetEveryDay: string;
+    presetWeekdaysWeekend: string;
+    presetCustom: string;
+    groupEveryDay: string;
+    groupWeekdays: string;
+    groupWeekend: string;
+    openTimeLabel: string;
+    closeTimeLabel: string;
+    addRange: string;
+    removeRangeAria: string;
+    toggleDayAria: string;
+    rangeAria: string;
+    overnightHint: string;
+    errorCloseAfterOpen: string;
+    errorRangeOverlap: string;
+    errorMaxRanges: string;
+    errorInvalidTime: string;
+    errorFixBeforeSave: string;
+    saveButton: string;
+    discardButton: string;
+    saveSuccess: string;
+    clearButton: string;
+    clearConfirmTitle: string;
+    clearConfirmDescription: string;
+    clearConfirmAction: string;
+    clearSuccess: string;
+  };
+  hoursExceptions: {
+    title: string;
+    description: string;
+    rowNone: string;
+    rowUpcoming: string;
+    upcomingSection: string;
+    pastSection: string;
+    showPast: string;
+    hidePast: string;
+    emptyTitle: string;
+    emptyHint: string;
+    addButton: string;
+    editAria: string;
+    sheetAddTitle: string;
+    sheetEditTitle: string;
+    sheetDescription: string;
+    startDateLabel: string;
+    endDateLabel: string;
+    endDateHint: string;
+    statusLabel: string;
+    statusClosed: string;
+    statusCustom: string;
+    customHoursGroup: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    noteCounter: string;
+    saveButton: string;
+    cancelButton: string;
+    deleteButton: string;
+    saveSuccess: string;
+    deleteSuccess: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    errorFixBeforeSave: string;
+    errorDateRequired: string;
+    errorEndBeforeStart: string;
+    errorSpan: string;
+    errorOverlap: string;
+    errorNoteTooLong: string;
+    errorTooMany: string;
+    errorNoRanges: string;
   };
 }
 

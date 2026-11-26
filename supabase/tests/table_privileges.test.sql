@@ -144,6 +144,7 @@ select results_eq(
     'business_id',
     'currency',
     'delivery_fee',
+    'hours_exceptions',
     'id',
     'lead_time_unit',
     'lead_time_value',
@@ -158,6 +159,7 @@ select results_eq(
     'revolut_revtag',
     'service_types',
     'timezone',
+    'weekly_hours',
     'wero_identifier'
   ]::text[],
   'anon has column SELECT on exactly the storefront columns of business_settings'

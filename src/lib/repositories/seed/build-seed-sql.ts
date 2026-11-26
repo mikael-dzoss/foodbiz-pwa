@@ -1,6 +1,7 @@
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { Expense } from "@/domain/expense";
 import type { Guest } from "@/domain/guest";
+import type { HoursException, WeeklyHours } from "@/domain/opening-hours";
 import type { Order, OrderStatusEvent } from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
 
@@ -24,9 +25,75 @@ export interface SeedFixtures {
   expenses: readonly Expense[];
 }
 
+/**
+ * Realistic structured weekly opening hours for the staging demo shop "Les Saveurs du Continent" (#372):
+ *   - Mon: closed
+ *   - Tue–Thu: 11:30–14:30 and 18:00–22:00
+ *   - Fri: 11:30–14:30 and 18:00–24:00
+ *   - Sat: 00:00–01:00, 11:30–15:00 and 18:00–24:00
+ *   - Sun: 00:00–01:00 and 12:00–16:00
+ */
+export const DEMO_STAGING_WEEKLY_HOURS: WeeklyHours = {
+  mon: [],
+  tue: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  wed: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  thu: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  fri: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "24:00" },
+  ],
+  sat: [
+    { open: "00:00", close: "01:00" },
+    { open: "11:30", close: "15:00" },
+    { open: "18:00", close: "24:00" },
+  ],
+  sun: [
+    { open: "00:00", close: "01:00" },
+    { open: "12:00", close: "16:00" },
+  ],
+};
+
+/**
+ * Upcoming exceptional days for the seeded demo shop "Les Saveurs du Continent" (#375),
+ * anchored relative to the demo orders' anchor date (`2026-10-09`, shifted to today in
+ * Europe/Paris by `v_days` when `supabase/seed.sql` runs):
+ *   - +7 days: special continuous hours day ("Ouverture exceptionnelle")
+ *   - +14..+16 days: 3-day closed holiday ("Congés annuels")
+ */
+export const DEMO_STAGING_HOURS_EXCEPTIONS: readonly HoursException[] = [
+  {
+    from: "2026-10-16",
+    to: "2026-10-16",
+    ranges: [{ open: "11:00", close: "16:00" }],
+    note: "Ouverture exceptionnelle",
+  },
+  {
+    from: "2026-10-23",
+    to: "2026-10-25",
+    ranges: [],
+    note: "Congés annuels",
+  },
+];
+
 const DEFAULT_FIXTURES: SeedFixtures = {
   business: demoBusiness,
-  settings: demoSettings,
+  settings: {
+    ...demoSettings,
+    weeklyHours: DEMO_STAGING_WEEKLY_HOURS,
+    hoursExceptions: DEMO_STAGING_HOURS_EXCEPTIONS.map((ex) => ({
+      ...ex,
+      ranges: ex.ranges.map((r) => ({ ...r })),
+    })),
+  },
   categories: demoCategories,
   products: demoProducts,
   guests: demoGuests,
@@ -98,6 +165,26 @@ export function sqlTextArray(values: readonly string[]): string {
 
 export function sqlJsonb(value: unknown): string {
   return `${sqlText(JSON.stringify(value))}::jsonb`;
+}
+
+export function sqlNullableJsonb(value: unknown): string {
+  return value == null ? "null" : sqlJsonb(value);
+}
+
+function sqlShiftedHoursExceptions(exceptions: readonly HoursException[] | undefined): string {
+  if (!exceptions || exceptions.length === 0) {
+    return "'[]'::jsonb";
+  }
+  const entries = exceptions.map((ex) => {
+    const fields = [
+      `'from', to_char(${sqlShiftedDate(ex.from)}, 'YYYY-MM-DD')`,
+      `'to', to_char(${sqlShiftedDate(ex.to)}, 'YYYY-MM-DD')`,
+      `'ranges', ${sqlJsonb(ex.ranges)}`,
+      ...(ex.note !== undefined ? [`'note', ${sqlText(ex.note)}`] : []),
+    ];
+    return `      jsonb_build_object(${fields.join(", ")})`;
+  });
+  return `jsonb_build_array(\n${entries.join(",\n")}\n    )`;
 }
 
 function sqlTimestamp(iso: string): string {
@@ -230,6 +317,8 @@ function renderBusinessSettingsInsert(settings: BusinessSettings): string {
     ["accepting_orders", sqlBoolean(settings.acceptingOrders)],
     ["service_types", sqlJsonb(settings.serviceTypes)],
     ["opening_hours", sqlText(settings.openingHours ?? "")],
+    ["weekly_hours", sqlNullableJsonb(settings.weeklyHours ?? null)],
+    ["hours_exceptions", sqlShiftedHoursExceptions(settings.hoursExceptions)],
     ["order_timing_asap", sqlBoolean(settings.orderTimingAsap)],
     ["order_timing_scheduled", sqlBoolean(settings.orderTimingScheduled)],
     ["order_timing_time_optional", sqlBoolean(settings.orderTimingTimeOptional)],

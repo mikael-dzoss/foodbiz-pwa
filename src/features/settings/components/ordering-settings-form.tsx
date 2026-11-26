@@ -333,6 +333,21 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                 />
               </Field>
               <p className="text-muted-foreground mt-1 text-xs">{x.hoursEmptyHint}</p>
+              {settings.weeklyHours && (
+                <p
+                  className="text-muted-foreground mt-1 text-xs"
+                  data-testid="structured-hours-active-hint"
+                >
+                  {dict.openingHours.structuredActiveHint}
+                </p>
+              )}
+              <Link
+                href="/manage/settings/opening-hours"
+                data-testid="link-manage-opening-hours"
+                className="text-primary focus-visible:ring-ring mt-1 inline-flex min-h-9 items-center rounded text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+              >
+                {dict.openingHours.manageStructuredLink}
+              </Link>
             </div>
           </div>
         </div>

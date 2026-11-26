@@ -6,6 +6,8 @@ import {
   updateBusinessProfileSchema,
   businessSettingsSchema,
   updatePaymentSettingsSchema,
+  updateOpeningHoursSchema,
+  updateHoursExceptionsSchema,
   expenseSchema,
   guestSchema,
   orderItemSchema,
@@ -207,6 +209,160 @@ describe("Business schemas", () => {
       paymentMethods: { cash: true, revolut: true, wero: true },
     });
     expect(missingCard.success).toBe(false);
+  });
+
+  it("validates BusinessSettings weeklyHours (valid, null, and rejects invalid)", () => {
+    const validHours = {
+      mon: [],
+      tue: [{ open: "11:30", close: "14:30" }],
+      wed: [{ open: "11:30", close: "14:30" }],
+      thu: [{ open: "11:30", close: "14:30" }],
+      fri: [{ open: "18:00", close: "24:00" }],
+      sat: [{ open: "00:00", close: "01:00" }],
+      sun: [],
+    };
+    const withHours = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      weeklyHours: validHours,
+    });
+    expect(withHours.success).toBe(true);
+    if (withHours.success) {
+      expect(withHours.data.weeklyHours).toEqual(validHours);
+    }
+
+    const withNull = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      weeklyHours: null,
+    });
+    expect(withNull.success).toBe(true);
+    if (withNull.success) {
+      expect(withNull.data.weeklyHours).toBeNull();
+    }
+
+    const withInvalid = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      weeklyHours: { mon: [] },
+    });
+    expect(withInvalid.success).toBe(false);
+  });
+
+  it("validates updateOpeningHoursSchema with structured weeklyHours and optional openingHours text", () => {
+    const validHours = {
+      mon: [],
+      tue: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: [],
+    };
+
+    const withBoth = updateOpeningHoursSchema.safeParse({
+      weeklyHours: validHours,
+      openingHours: "  Mar–Dim 11:30–22:00  ",
+    });
+    expect(withBoth.success).toBe(true);
+    if (withBoth.success) {
+      expect(withBoth.data).toEqual({
+        weeklyHours: validHours,
+        openingHours: "Mar–Dim 11:30–22:00",
+      });
+    }
+
+    const clearOnly = updateOpeningHoursSchema.safeParse({ weeklyHours: null });
+    expect(clearOnly.success).toBe(true);
+    if (clearOnly.success) {
+      expect(clearOnly.data.weeklyHours).toBeNull();
+      expect(clearOnly.data.openingHours).toBeUndefined();
+    }
+
+    expect(
+      updateOpeningHoursSchema.safeParse({
+        weeklyHours: null,
+        openingHours: "a".repeat(501),
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateOpeningHoursSchema.safeParse({
+        weeklyHours: {
+          ...validHours,
+          tue: [
+            { open: "11:30", close: "14:30" },
+            { open: "14:30", close: "18:00" },
+          ],
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(updateOpeningHoursSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("validates BusinessSettings hoursExceptions and updateHoursExceptionsSchema (#375)", () => {
+    const validExceptions = [
+      {
+        from: "2026-07-30",
+        to: "2026-08-03",
+        ranges: [],
+        note: "  Congés annuels  ",
+      },
+      {
+        from: "2026-08-15",
+        to: "2026-08-15",
+        ranges: [{ open: "10:00", close: "14:00" }],
+        note: "Ouverture exceptionnelle",
+      },
+    ];
+
+    const settingsParsed = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      hoursExceptions: validExceptions,
+    });
+    expect(settingsParsed.success).toBe(true);
+    if (settingsParsed.success) {
+      expect(settingsParsed.data.hoursExceptions).toEqual([
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+        {
+          from: "2026-08-15",
+          to: "2026-08-15",
+          ranges: [{ open: "10:00", close: "14:00" }],
+          note: "Ouverture exceptionnelle",
+        },
+      ]);
+    }
+
+    expect(
+      businessSettingsSchema.safeParse({
+        businessId: validUuid,
+        hoursExceptions: [{ from: "2026-08-05", to: "2026-08-01", ranges: [] }],
+      }).success,
+    ).toBe(false);
+
+    const combinedUpdate = updateOpeningHoursSchema.safeParse({
+      weeklyHours: null,
+      hoursExceptions: validExceptions,
+    });
+    expect(combinedUpdate.success).toBe(true);
+    if (combinedUpdate.success) {
+      expect(combinedUpdate.data.hoursExceptions).toHaveLength(2);
+    }
+
+    const exceptionsUpdate = updateHoursExceptionsSchema.safeParse({
+      hoursExceptions: validExceptions,
+    });
+    expect(exceptionsUpdate.success).toBe(true);
+    expect(updateHoursExceptionsSchema.safeParse({}).success).toBe(false);
+    expect(
+      updateHoursExceptionsSchema.safeParse({
+        hoursExceptions: [
+          { from: "2026-08-01", to: "2026-08-05", ranges: [] },
+          { from: "2026-08-05", to: "2026-08-06", ranges: [] },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });
 

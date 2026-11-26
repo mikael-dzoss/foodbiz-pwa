@@ -5,6 +5,8 @@ import { demoBusiness, demoSettings } from "@/lib/repositories/mock/fixtures";
 import {
   updateBusinessProfileAction,
   updateOrderingSettingsAction,
+  updateOpeningHoursAction,
+  updateHoursExceptionsAction,
   updatePaymentSettingsAction,
   updateInventoryFinanceSettingsAction,
   updateNotificationSettingsAction,
@@ -396,6 +398,251 @@ describe("Settings Server Actions", () => {
       if (!res.ok) {
         expect(res.fieldErrors?.leadTimeValue).toBeDefined();
         expect(res.fieldErrors?.leadTimeUnit).toBeDefined();
+      }
+    });
+  });
+
+  describe("updateOpeningHoursAction (#372)", () => {
+    const validHours = {
+      mon: [],
+      tue: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      wed: [{ open: "11:30", close: "14:30" }],
+      thu: [{ open: "11:30", close: "14:30" }],
+      fri: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sat: [
+        { open: "00:00", close: "01:00" },
+        { open: "11:30", close: "15:00" },
+      ],
+      sun: [],
+    };
+
+    it("persists structured weeklyHours and optional openingHours text and revalidates settings and storefront", async () => {
+      const res = await updateOpeningHoursAction({
+        weeklyHours: validHours,
+        openingHours: "  Mar–Dim 11:30–22:00  ",
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.weeklyHours).toEqual(validHours);
+        expect(res.data.openingHours).toBe("Mar–Dim 11:30–22:00");
+      }
+
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/opening-hours");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/ordering");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+      expect(mockUpdateTag).toHaveBeenCalledWith(`storefront-catalog-${testBusinessId}`);
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/[locale]", "layout");
+    });
+
+    it("clears weeklyHours with null while keeping existing openingHours text when omitted", async () => {
+      mockSettings = {
+        ...structuredClone(demoSettings),
+        openingHours: "Existing fallback text",
+        weeklyHours: validHours,
+      };
+
+      const res = await updateOpeningHoursAction({ weeklyHours: null });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.weeklyHours).toBeNull();
+        expect(res.data.openingHours).toBe("Existing fallback text");
+      }
+      expect(mockBusinessRepo.updateSettings).toHaveBeenCalledWith(testBusinessId, {
+        weeklyHours: null,
+      });
+    });
+
+    it.each(["manager", "staff"] as const)(
+      "allows a %s member to update opening hours",
+      async (role) => {
+        authState.role = role;
+        const res = await updateOpeningHoursAction({ weeklyHours: validHours });
+        expect(res.ok).toBe(true);
+      },
+    );
+
+    it("rejects invalid weeklyHours and writes nothing", async () => {
+      const res = await updateOpeningHoursAction({
+        weeklyHours: {
+          ...validHours,
+          tue: [
+            { open: "11:30", close: "14:30" },
+            { open: "14:00", close: "18:00" },
+          ],
+        },
+      });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
+        expect(res.fieldErrors?.weeklyHours).toBeDefined();
+      }
+      expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("rejects openingHours text longer than 500 characters", async () => {
+      const res = await updateOpeningHoursAction({
+        weeklyHours: null,
+        openingHours: "x".repeat(501),
+      });
+
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("VALIDATION");
+        expect(res.fieldErrors?.openingHours).toBeDefined();
+      }
+      expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unauthenticated caller without writing", async () => {
+      vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
+      await expect(updateOpeningHoursAction({ weeklyHours: validHours })).rejects.toThrow(
+        "Unauthorized",
+      );
+      expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("maps repository failures to INTERNAL", async () => {
+      mockBusinessRepo.updateSettings.mockRejectedValueOnce(new Error("DB write failed"));
+      const res = await updateOpeningHoursAction({ weeklyHours: validHours });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
+      }
+    });
+
+    it("persists optional hoursExceptions when provided with weeklyHours", async () => {
+      const exceptions = [
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "  Congés annuels  " },
+      ];
+      const res = await updateOpeningHoursAction({
+        weeklyHours: validHours,
+        hoursExceptions: exceptions,
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.hoursExceptions).toEqual([
+          { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+        ]);
+      }
+    });
+  });
+
+  describe("updateHoursExceptionsAction (#375)", () => {
+    const sampleExceptions = [
+      { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "  Congés annuels  " },
+      {
+        from: "2026-08-15",
+        to: "2026-08-15",
+        ranges: [{ open: "10:00", close: "14:00" }],
+        note: "Ouverture exceptionnelle",
+      },
+    ];
+
+    it("persists valid exceptions, trims notes, and revalidates settings and storefront", async () => {
+      const res = await updateHoursExceptionsAction({ hoursExceptions: sampleExceptions });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.hoursExceptions).toEqual([
+          { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+          {
+            from: "2026-08-15",
+            to: "2026-08-15",
+            ranges: [{ open: "10:00", close: "14:00" }],
+            note: "Ouverture exceptionnelle",
+          },
+        ]);
+      }
+
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/opening-hours");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings/ordering");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage/settings");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
+      expect(mockUpdateTag).toHaveBeenCalledWith("storefront-catalog");
+      expect(mockUpdateTag).toHaveBeenCalledWith(`storefront-catalog-${testBusinessId}`);
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/[locale]", "layout");
+    });
+
+    it("clears exceptions with [] without altering weeklyHours or openingHours", async () => {
+      mockSettings = {
+        ...structuredClone(demoSettings),
+        openingHours: "Existing text",
+        hoursExceptions: sampleExceptions,
+      };
+
+      const res = await updateHoursExceptionsAction({ hoursExceptions: [] });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.hoursExceptions).toEqual([]);
+        expect(res.data.openingHours).toBe("Existing text");
+      }
+      expect(mockBusinessRepo.updateSettings).toHaveBeenCalledWith(testBusinessId, {
+        hoursExceptions: [],
+      });
+    });
+
+    it.each(["manager", "staff"] as const)(
+      "allows a %s member to update hours exceptions",
+      async (role) => {
+        authState.role = role;
+        const res = await updateHoursExceptionsAction({ hoursExceptions: sampleExceptions });
+        expect(res.ok).toBe(true);
+      },
+    );
+
+    it("rejects overlapping exceptions and notes over 50 chars without writing", async () => {
+      const overlapRes = await updateHoursExceptionsAction({
+        hoursExceptions: [
+          { from: "2026-08-01", to: "2026-08-05", ranges: [] },
+          { from: "2026-08-05", to: "2026-08-07", ranges: [] },
+        ],
+      });
+      expect(overlapRes.ok).toBe(false);
+      if (!overlapRes.ok) {
+        expect(overlapRes.code).toBe("VALIDATION");
+        expect(overlapRes.fieldErrors?.hoursExceptions).toBeDefined();
+      }
+
+      const longNoteRes = await updateHoursExceptionsAction({
+        hoursExceptions: [
+          { from: "2026-08-01", to: "2026-08-01", ranges: [], note: "x".repeat(51) },
+        ],
+      });
+      expect(longNoteRes.ok).toBe(false);
+      if (!longNoteRes.ok) {
+        expect(longNoteRes.code).toBe("VALIDATION");
+        expect(longNoteRes.fieldErrors?.hoursExceptions).toBeDefined();
+      }
+      expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unauthenticated caller without writing", async () => {
+      vi.mocked(requireAuthenticatedAction).mockRejectedValueOnce(new Error("Unauthorized"));
+      await expect(
+        updateHoursExceptionsAction({ hoursExceptions: sampleExceptions }),
+      ).rejects.toThrow("Unauthorized");
+      expect(mockBusinessRepo.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it("maps repository failures to INTERNAL", async () => {
+      mockBusinessRepo.updateSettings.mockRejectedValueOnce(new Error("DB write failed"));
+      const res = await updateHoursExceptionsAction({ hoursExceptions: sampleExceptions });
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.code).toBe("INTERNAL");
       }
     });
   });

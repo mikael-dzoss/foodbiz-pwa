@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hoursExceptionsSchema, weeklyHoursSchema } from "@/domain/opening-hours";
 
 import {
   demoBusiness,
@@ -11,7 +12,10 @@ import {
 } from "../mock/fixtures";
 import {
   buildSeedSql,
+  DEMO_STAGING_HOURS_EXCEPTIONS,
+  DEMO_STAGING_WEEKLY_HOURS,
   sqlJsonb,
+  sqlNullableJsonb,
   sqlNullableText,
   sqlNumber,
   sqlText,
@@ -179,10 +183,14 @@ describe("buildSeedSql", () => {
     }
   });
 
-  it("includes timezone in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
+  it("includes timezone, weekly_hours, and hours_exceptions in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
     const stmt = extractTableInsert(buildSeedSql(), "business_settings");
     expect(stmt).toMatch(/\btimezone\b/);
     expect(stmt).toContain(sqlText(demoSettings.timezone));
+    expect(stmt).toMatch(/\bweekly_hours\b/);
+    expect(stmt).toContain("weekly_hours = excluded.weekly_hours");
+    expect(stmt).toMatch(/\bhours_exceptions\b/);
+    expect(stmt).toContain("hours_exceptions = excluded.hours_exceptions");
 
     const colMatch = stmt.match(/insert into public\.business_settings \(([\s\S]*?)\)\s*values/);
     expect(colMatch).not.toBeNull();
@@ -200,6 +208,54 @@ describe("buildSeedSql", () => {
         `${col} = excluded.${col}`,
       );
     }
+  });
+
+  it("seeds realistic weekly_hours and relative-dated upcoming hours_exceptions for Les Saveurs du Continent while keeping mock fixtures null / []", () => {
+    // Mock fixtures stay unconstrained so mock-mode tests/e2e never depend on time of day
+    expect(demoSettings.weeklyHours).toBeNull();
+    expect(demoSettings.hoursExceptions).toEqual([]);
+
+    expect(weeklyHoursSchema.parse(DEMO_STAGING_WEEKLY_HOURS)).toEqual({
+      mon: [],
+      tue: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      wed: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      thu: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      fri: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sat: [
+        { open: "00:00", close: "01:00" },
+        { open: "11:30", close: "15:00" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sun: [
+        { open: "00:00", close: "01:00" },
+        { open: "12:00", close: "16:00" },
+      ],
+    });
+
+    const parsedExceptions = hoursExceptionsSchema.parse(DEMO_STAGING_HOURS_EXCEPTIONS);
+    expect(parsedExceptions).toHaveLength(2);
+    expect(parsedExceptions.some((e) => e.ranges.length === 0 && e.note === "Congés annuels")).toBe(
+      true,
+    );
+    expect(parsedExceptions.some((e) => e.ranges.length > 0 && Boolean(e.note))).toBe(true);
+
+    const stmt = extractTableInsert(buildSeedSql(), "business_settings");
+    expect(stmt).toContain(sqlJsonb(DEMO_STAGING_WEEKLY_HOURS));
+    expect(stmt).toContain("Congés annuels");
+    expect(stmt).toContain("to_char(date '");
+    expect(stmt).toContain("+ v_days, 'YYYY-MM-DD')");
   });
 
   it("uses plain inserts without on conflict or where exists for replaced child tables", () => {
@@ -261,6 +317,9 @@ describe("SQL literal escaping helpers", () => {
     expect(sqlJsonb({ note: "L'atelier", ok: true })).toBe(
       `'{"note":"L''atelier","ok":true}'::jsonb`,
     );
+    expect(sqlNullableJsonb(null)).toBe("null");
+    expect(sqlNullableJsonb(undefined)).toBe("null");
+    expect(sqlNullableJsonb({ ok: true })).toBe(`'{"ok":true}'::jsonb`);
   });
 
   it("formats finite numbers and rejects non-finite numbers", () => {
@@ -293,6 +352,7 @@ describe("buildSeedSql edge cases", () => {
         ...demoSettings,
         id: undefined,
         openingHours: "Mon's: 08:00-18:00",
+        hoursExceptions: [{ from: "2026-11-01", to: "2026-11-01", ranges: [] }],
         paymentInstructionsEn: "Pay at L'Atelier",
         paymentInstructionsFr: "Payer à l'atelier",
       },
@@ -384,6 +444,7 @@ describe("buildSeedSql edge cases", () => {
     // business_settings without id omits the id column so DB default applies
     const settingsStmt = extractTableInsert(sql, "business_settings");
     expect(settingsStmt).not.toMatch(/insert into public\.business_settings \(\s*id,/);
+    expect(settingsStmt).not.toContain("'note'");
   });
 
   it("rejects orders without status history and text containing the $seed$ tag", () => {
@@ -422,6 +483,7 @@ describe("buildSeedSql edge cases", () => {
     expect(sql).toContain("v_days := 0;");
     expect(sql).toContain("insert into public.businesses (");
     expect(sql).toContain("insert into public.business_settings (");
+    expect(extractTableInsert(sql, "business_settings")).toContain("'[]'::jsonb");
     expect(sql).not.toContain("insert into public.product_categories (");
     expect(sql).not.toContain("insert into public.products (");
     expect(sql).not.toContain("insert into public.guests (");

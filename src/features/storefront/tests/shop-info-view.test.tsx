@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ShopInfoView } from "../components/shop-info-view";
 import { formatMoney } from "@/domain/formatting/money";
 import { DEFAULT_LEAD_TIME, formatLeadTime } from "@/domain/lead-time";
@@ -127,7 +127,7 @@ describe("ShopInfoView (#83)", () => {
     expect(screen.getByText(frDictionary.storefront.address)).toBeDefined();
   });
 
-  it("renders Stitch C-03 elements: weekly hours table with Today badge, holiday panel with SoonBadge, and return button", () => {
+  it("renders Stitch C-03 elements: legacy hours text, no invented holiday panel, card-tap SoonBadge and return button", () => {
     render(
       <ShopInfoView
         business={mockBusiness}
@@ -139,18 +139,15 @@ describe("ShopInfoView (#83)", () => {
 
     // Weekly opening hours header & Today badge
     expect(screen.getByText(enDictionary.storefront.weeklyOpeningHours)).toBeDefined();
-    expect(screen.getByText(enDictionary.storefront.today)).toBeDefined();
-
-    // Holiday schedule notice
-    expect(screen.getByText(enDictionary.storefront.holidayScheduleNotice)).toBeDefined();
+    expect(screen.getByTestId("hours-summary-fallback")).toBeDefined();
+    expect(screen.queryByText("08:00 – 13:00")).toBeNull();
 
     // Accepted payments & card tap soon badge
     expect(screen.getByText(enDictionary.storefront.acceptedPayments)).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.cashOnPickup)).toBeDefined();
 
-    // Soon badges on holiday schedule & card tap
-    const soonBadges = screen.getAllByText("Soon");
-    expect(soonBadges.length).toBeGreaterThanOrEqual(2);
+    // Soon badge on card tap only
+    expect(screen.getAllByText("Soon").length).toBe(1);
 
     // Sticky Return to Catalog CTA
     const returnLink = screen.getByRole("link", {
@@ -465,6 +462,109 @@ describe("ShopInfoView (#83)", () => {
       expect(screen.getByTestId("shop-payment-card").textContent).toBe("Carte au retrait");
       expect(screen.getByTestId("shop-payment-revolut").textContent).toBe("Revolut (Revtag)");
       expect(screen.getByTestId("shop-payment-wero").textContent).toBe("Wero");
+    });
+  });
+
+  describe("structured hours (#372, #375)", () => {
+    const range = [{ open: "11:00", close: "14:00" }];
+    const weekly = {
+      mon: range,
+      tue: range,
+      wed: range,
+      thu: range,
+      fri: range,
+      sat: range,
+      sun: [],
+    };
+
+    it("renders the grouped summary instead of the placeholder table", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{ ...mockSettings, weeklyHours: weekly, hoursExceptions: [] }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(screen.getByTestId("hours-summary-weekly")).toBeDefined();
+      expect(screen.queryByText("07:30 – 19:30")).toBeNull();
+    });
+
+    it("does not render legacy free text next to structured hours", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{
+            ...mockSettings,
+            openingHours: "LEGACY-HOURS-TEXT",
+            weeklyHours: weekly,
+            hoursExceptions: [],
+          }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(screen.queryByText("LEGACY-HOURS-TEXT")).toBeNull();
+    });
+
+    it("hides the hours section when no hours are configured", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{ ...mockSettings, openingHours: "", weeklyHours: null, hoursExceptions: [] }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(screen.queryByText(enDictionary.storefront.weeklyOpeningHours)).toBeNull();
+    });
+
+    it("shows today's exception note on the day it applies", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-12-25T10:00:00Z"));
+      try {
+        render(
+          <ShopInfoView
+            business={mockBusiness}
+            settings={{
+              ...mockSettings,
+              timezone: "Europe/Paris",
+              weeklyHours: weekly,
+              hoursExceptions: [{ from: "2026-12-25", to: "2026-12-25", ranges: [], note: "Noel" }],
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />,
+        );
+        const note = screen.getByTestId("today-exception");
+        expect(note.textContent).toContain(enDictionary.storefront.todayExceptionClosed);
+        expect(note.textContent).toContain("Noel");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("hides the exception note on other days", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-12-24T10:00:00Z"));
+      try {
+        render(
+          <ShopInfoView
+            business={mockBusiness}
+            settings={{
+              ...mockSettings,
+              timezone: "Europe/Paris",
+              weeklyHours: weekly,
+              hoursExceptions: [{ from: "2026-12-25", to: "2026-12-25", ranges: [], note: "Noel" }],
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />,
+        );
+        expect(screen.queryByTestId("today-exception")).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

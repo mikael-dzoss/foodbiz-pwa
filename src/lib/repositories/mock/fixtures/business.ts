@@ -40,6 +40,11 @@ export const demoSettings: BusinessSettings = {
   acceptingOrders: DEMO_CATALOG_SETTINGS.acceptingOrders,
   serviceTypes: { ...DEMO_CATALOG_SETTINGS.serviceTypes },
   openingHours: DEMO_CATALOG_SETTINGS.openingHours,
+  weeklyHours: DEMO_CATALOG_SETTINGS.weeklyHours,
+  hoursExceptions: DEMO_CATALOG_SETTINGS.hoursExceptions.map((ex) => ({
+    ...ex,
+    ranges: ex.ranges.map((r) => ({ ...r })),
+  })),
   orderTimingAsap: DEMO_CATALOG_SETTINGS.orderTimingAsap,
   orderTimingScheduled: DEMO_CATALOG_SETTINGS.orderTimingScheduled,
   orderTimingTimeOptional: DEMO_CATALOG_SETTINGS.orderTimingTimeOptional,
