@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getDictionary, SUPPORTED_LOCALES } from "@/domain/i18n";
+import { connection } from "next/server";
+import {
+  getDictionary,
+  SUPPORTED_LOCALES,
+  type StorefrontDictionary,
+  type SupportedLocale,
+} from "@/domain/i18n";
 import { resolveStorefrontLocale, storefrontAlternates } from "@/features/storefront/metadata";
-import { getStorefrontCatalog, CheckoutView } from "@/features/storefront";
+import {
+  evaluateStoreOperatingStatus,
+  getStorefrontCatalog,
+  CheckoutView,
+  type StorefrontCatalogData,
+} from "@/features/storefront";
 
 // Awaits route params (locale/id/token) before rendering, so a navigation here genuinely blocks.
 export const instant = false;
@@ -26,6 +37,30 @@ export async function generateMetadata({ params }: CheckoutPageProps): Promise<M
   };
 }
 
+async function CheckoutContent({
+  catalog,
+  locale,
+  dict,
+}: {
+  catalog: StorefrontCatalogData;
+  locale: SupportedLocale;
+  dict: StorefrontDictionary;
+}) {
+  await connection();
+  const { isOpen, isAcceptingOrders } = evaluateStoreOperatingStatus(catalog.settings, new Date());
+
+  return (
+    <CheckoutView
+      business={catalog.business}
+      settings={catalog.settings}
+      locale={locale}
+      dict={dict}
+      isOpen={isOpen}
+      isAcceptingOrders={isAcceptingOrders}
+    />
+  );
+}
+
 export default async function CheckoutPage({ params }: CheckoutPageProps) {
   const locale = resolveStorefrontLocale((await params).locale);
   const dict = getDictionary(locale);
@@ -35,12 +70,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
 
   return (
     <Suspense fallback={null}>
-      <CheckoutView
-        business={catalog.business}
-        settings={catalog.settings}
-        locale={locale}
-        dict={dict.storefront}
-      />
+      <CheckoutContent catalog={catalog} locale={locale} dict={dict.storefront} />
     </Suspense>
   );
 }

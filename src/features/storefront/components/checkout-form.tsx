@@ -16,6 +16,7 @@ import {
   Lock,
   Pencil,
   CheckCircle2,
+  Clock,
   Store,
   Truck,
   CreditCard,
@@ -154,6 +155,8 @@ export interface CheckoutFormProps {
   settings: BusinessSettings | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
+  isOpen?: boolean;
+  isAcceptingOrders?: boolean;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   onOrderSuccess?: () => void;
   redirectDelayMs?: number;
@@ -164,6 +167,8 @@ export function CheckoutForm({
   settings,
   locale,
   dict,
+  isOpen,
+  isAcceptingOrders,
   onSubmitOrder,
   onOrderSuccess,
   redirectDelayMs,
@@ -214,7 +219,11 @@ export function CheckoutForm({
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
   // Timing State
-  const [isAsap, setIsAsap] = useState(true);
+  const resolvedAcceptingOrders = isAcceptingOrders ?? settings?.acceptingOrders ?? true;
+  const resolvedIsOpen = isOpen ?? true;
+  const closedButAccepting = resolvedAcceptingOrders && !resolvedIsOpen;
+  const [selectedAsap, setSelectedAsap] = useState(!closedButAccepting);
+  const isAsap = closedButAccepting ? false : selectedAsap;
   const [requestedDate, setRequestedDate] = useState("");
   const [requestedTime, setRequestedTime] = useState("");
 
@@ -261,7 +270,8 @@ export function CheckoutForm({
   };
 
   const handleSelectTiming = (asap: boolean) => {
-    setIsAsap(asap);
+    if (asap === isAsap) return;
+    setSelectedAsap(asap);
     setTouchedFields((prev) => omitKey(prev, "requestedDate", "requestedTime"));
   };
 
@@ -801,44 +811,57 @@ export function CheckoutForm({
           {dict.orderTiming}
         </h2>
 
+        {closedButAccepting && (
+          <div
+            role="status"
+            data-testid="checkout-closed-schedule-notice"
+            className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
+          >
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{dict.checkoutClosedScheduleNotice}</span>
+          </div>
+        )}
+
         <div className="space-y-2.5">
           {/* ASAP Option */}
-          <label
-            data-testid="timing-asap-option"
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
-              isAsap
-                ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
-                : "border-border bg-card text-muted-foreground hover:border-border/80"
-            }`}
-          >
-            <div className="pt-0.5">
-              <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                  isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
-                }`}
-              >
-                {isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
-              </span>
-            </div>
-            <input
-              type="radio"
-              name="orderTiming"
-              checked={isAsap}
-              onChange={() => handleSelectTiming(true)}
-              className="sr-only"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-foreground text-xs font-semibold">
-                  {dict.asap.replace("{leadTime}", leadTimeText)}
-                </span>
-                <span className="bg-primary/10 text-primary text-micro rounded px-1.5 py-0.5 font-bold">
-                  {dict.recommended}
+          {!closedButAccepting && (
+            <label
+              data-testid="timing-asap-option"
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+                isAsap
+                  ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
+                  : "border-border bg-card text-muted-foreground hover:border-border/80"
+              }`}
+            >
+              <div className="pt-0.5">
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                    isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
+                  }`}
+                >
+                  {isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
                 </span>
               </div>
-              <p className="text-muted-foreground mt-0.5 text-xs">{dict.asapEstimatedReady}</p>
-            </div>
-          </label>
+              <input
+                type="radio"
+                name="orderTiming"
+                checked={isAsap}
+                onChange={() => handleSelectTiming(true)}
+                className="sr-only"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-foreground text-xs font-semibold">
+                    {dict.asap.replace("{leadTime}", leadTimeText)}
+                  </span>
+                  <span className="bg-primary/10 text-primary text-micro rounded px-1.5 py-0.5 font-bold">
+                    {dict.recommended}
+                  </span>
+                </div>
+                <p className="text-muted-foreground mt-0.5 text-xs">{dict.asapEstimatedReady}</p>
+              </div>
+            </label>
+          )}
 
           {/* Schedule Later Option */}
           <div
