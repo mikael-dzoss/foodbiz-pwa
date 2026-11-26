@@ -120,6 +120,8 @@ export const businessSettingsSchema = z.object({
   openingHours: openingHoursTextSchema.optional().default(""),
   weeklyHours: weeklyHoursSchema.nullable().optional(),
   hoursExceptions: hoursExceptionsSchema.optional(),
+  // Whether the shop itself is a pickup option next to relay locations (#385); absent means true
+  shopPickupEnabled: z.boolean().optional(),
   orderTimingAsap: z.boolean().default(true),
   orderTimingScheduled: z.boolean().default(true),
   orderTimingTimeOptional: z.boolean().default(true),
