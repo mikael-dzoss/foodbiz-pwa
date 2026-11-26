@@ -10,6 +10,7 @@ import { revalidateStorefrontCatalog } from "@/features/storefront/catalog-data"
 import {
   updateBusinessProfileSchema,
   updateOrderingSettingsSchema,
+  updateOpeningHoursSchema,
   updatePaymentSettingsSchema,
   updateInventoryFinanceSettingsSchema,
   updateNotificationSettingsSchema,
@@ -89,6 +90,21 @@ export const updateOrderingSettingsAction = defineAction(
   async ({ input, businessId }) => {
     const updated = await getRepositories().business.updateSettings(businessId, input);
     revalidateSettings(businessId, "ordering");
+    return updated;
+  },
+);
+
+/** Structured weekly opening hours and optional fallback free-text schedule (#372). */
+export const updateOpeningHoursAction = defineAction(
+  "updateOpeningHours",
+  { input: updateOpeningHoursSchema },
+  async ({ input, businessId }) => {
+    const updated = await getRepositories().business.updateSettings(businessId, {
+      weeklyHours: input.weeklyHours,
+      ...(input.openingHours !== undefined ? { openingHours: input.openingHours } : {}),
+    });
+    revalidateSettings(businessId, "opening-hours");
+    revalidatePath("/manage/settings/ordering");
     return updated;
   },
 );
