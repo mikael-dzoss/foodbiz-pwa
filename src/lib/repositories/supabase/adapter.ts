@@ -94,7 +94,7 @@ export const PUBLIC_PRODUCT_COLUMNS =
   "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
 
 export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
-  "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
+  "id, business_id, currency, accepting_orders, service_types, opening_hours, weekly_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
 type OrderRowWithItems = Tables<"orders"> & {
   order_items: Tables<"order_items">[];
@@ -248,6 +248,7 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
     acceptingOrders: row.accepting_orders,
     serviceTypes: row.service_types,
     openingHours: row.opening_hours,
+    weeklyHours: row.weekly_hours ?? null,
     orderTimingAsap: row.order_timing_asap,
     orderTimingScheduled: row.order_timing_scheduled,
     orderTimingTimeOptional: row.order_timing_time_optional,
@@ -1265,6 +1266,8 @@ export function createSupabaseRepositories(
       if (input.acceptingOrders !== undefined) updateData.accepting_orders = input.acceptingOrders;
       if (input.serviceTypes !== undefined) updateData.service_types = input.serviceTypes as Json;
       if (input.openingHours !== undefined) updateData.opening_hours = input.openingHours;
+      if (input.weeklyHours !== undefined)
+        updateData.weekly_hours = (input.weeklyHours ?? null) as Json | null;
       if (input.orderTimingAsap !== undefined) updateData.order_timing_asap = input.orderTimingAsap;
       if (input.orderTimingScheduled !== undefined)
         updateData.order_timing_scheduled = input.orderTimingScheduled;

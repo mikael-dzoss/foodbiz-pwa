@@ -852,7 +852,10 @@ export function createMockRepositories(
           JSON.stringify(input[key]) !== JSON.stringify(fixtures.settings[key]),
       );
       if (touchesOwnerOnly) requireOwner();
-      fixtures.settings = { ...fixtures.settings, ...input };
+      const definedPatch = Object.fromEntries(
+        Object.entries(input).filter(([, value]) => value !== undefined),
+      ) as Partial<typeof fixtures.settings>;
+      fixtures.settings = { ...fixtures.settings, ...structuredClone(definedPatch) };
       return structuredClone(fixtures.settings);
     },
   };

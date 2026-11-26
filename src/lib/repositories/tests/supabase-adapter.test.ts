@@ -78,6 +78,7 @@ function createFakeSupabaseClient(
         accepting_orders: fixtures.settings.acceptingOrders,
         service_types: structuredClone(fixtures.settings.serviceTypes) as Json,
         opening_hours: fixtures.settings.openingHours,
+        weekly_hours: structuredClone(fixtures.settings.weeklyHours ?? null) as Json | null,
         order_timing_asap: fixtures.settings.orderTimingAsap,
         order_timing_scheduled: fixtures.settings.orderTimingScheduled,
         order_timing_time_optional: fixtures.settings.orderTimingTimeOptional,
@@ -85,6 +86,7 @@ function createFakeSupabaseClient(
         min_order_amount: fixtures.settings.minOrderAmount,
         lead_time_value: fixtures.settings.leadTimeValue,
         lead_time_unit: fixtures.settings.leadTimeUnit,
+        timezone: fixtures.settings.timezone,
         revolut_revtag: fixtures.settings.revolutRevtag,
         wero_identifier: fixtures.settings.weroIdentifier,
         payment_methods: structuredClone(fixtures.settings.paymentMethods) as Json,
@@ -306,6 +308,7 @@ function createFakeSupabaseClient(
               accepting_orders: true,
               service_types: { pickup: true, delivery: true, dineIn: true },
               opening_hours: "",
+              weekly_hours: null,
               order_timing_asap: true,
               order_timing_scheduled: true,
               order_timing_time_optional: true,
@@ -313,6 +316,7 @@ function createFakeSupabaseClient(
               min_order_amount: 0,
               lead_time_value: 1,
               lead_time_unit: "business_days",
+              timezone: "Europe/Paris",
               revolut_revtag: "",
               wero_identifier: "",
               payment_methods: { cash: true, card: false, revolut: true, wero: true },
@@ -927,6 +931,29 @@ describe("Supabase Repository Adapter", () => {
       expect(settings?.lowStockThreshold).toBe(5);
       expect(settings?.taxPercentage).toBe(0);
       expect(settings?.notifications).toBe(true);
+      expect(settings?.weeklyHours).toBeNull();
+      expect(settings?.timezone).toBe("Europe/Paris");
+    });
+
+    it("carries configured weeklyHours and timezone through publicOnly settings reads", async () => {
+      const fixtures = createDefaultFixtures();
+      const customHours = {
+        mon: [],
+        tue: [{ open: "11:30", close: "14:30" }],
+        wed: [],
+        thu: [],
+        fri: [{ open: "18:00", close: "24:00" }],
+        sat: [{ open: "00:00", close: "01:00" }],
+        sun: [],
+      };
+      fixtures.settings.weeklyHours = customHours;
+      fixtures.settings.timezone = "Africa/Douala";
+      const fakeClient = createFakeSupabaseClient(fixtures);
+      const repos = createSupabaseRepositories(fakeClient, { publicOnly: true });
+
+      const settings = await repos.business.getSettings(DEMO_BUSINESS_ID);
+      expect(settings?.weeklyHours).toEqual(customHours);
+      expect(settings?.timezone).toBe("Africa/Douala");
     });
 
     it("selects full settings row when publicOnly is false or omitted", async () => {

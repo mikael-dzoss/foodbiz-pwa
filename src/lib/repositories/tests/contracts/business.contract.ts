@@ -111,6 +111,48 @@ export function describeBusinessRepositoryContract(
       ).rejects.toThrow();
     });
 
+    it("round-trips weeklyHours on updateSettings and clears it back to null", async () => {
+      const repos = await getRepositories();
+      const before = await repos.business.getSettings(businessId);
+      expect(before?.weeklyHours).toBeNull();
+
+      const sampleHours = {
+        mon: [],
+        tue: [
+          { open: "11:30", close: "14:30" },
+          { open: "18:00", close: "22:00" },
+        ],
+        wed: [{ open: "11:30", close: "14:30" }],
+        thu: [{ open: "11:30", close: "14:30" }],
+        fri: [
+          { open: "11:30", close: "14:30" },
+          { open: "18:00", close: "24:00" },
+        ],
+        sat: [
+          { open: "00:00", close: "01:00" },
+          { open: "11:30", close: "15:00" },
+        ],
+        sun: [],
+      };
+
+      const saved = await repos.business.updateSettings(businessId, {
+        weeklyHours: sampleHours,
+      });
+      expect(saved.weeklyHours).toEqual(sampleHours);
+      expect(saved.openingHours).toBe(before?.openingHours);
+
+      const refetched = await repos.business.getSettings(businessId);
+      expect(refetched?.weeklyHours).toEqual(sampleHours);
+
+      const cleared = await repos.business.updateSettings(businessId, {
+        weeklyHours: null,
+      });
+      expect(cleared.weeklyHours).toBeNull();
+
+      const refetchedCleared = await repos.business.getSettings(businessId);
+      expect(refetchedCleared?.weeklyHours).toBeNull();
+    });
+
     it.runIf(Boolean(getNonOwnerRepositories))(
       "a member who is not an owner cannot change payment settings or the slug (FORBIDDEN)",
       async () => {

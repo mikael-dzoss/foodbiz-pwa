@@ -27,6 +27,7 @@ const baseSettings: BusinessSettings = {
     dineIn: true,
   },
   openingHours: "08:00 - 18:00",
+  weeklyHours: null,
   orderTimingAsap: true,
   orderTimingScheduled: true,
   orderTimingTimeOptional: true,
@@ -185,6 +186,40 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
         for (const prod of group.products) {
           expect(prod.stock).toBeGreaterThanOrEqual(0);
         }
+      }
+    });
+
+    it("carries weeklyHours and timezone through settings on catalog and product queries", async () => {
+      const customHours = {
+        mon: [],
+        tue: [{ open: "11:30", close: "14:30" }],
+        wed: [],
+        thu: [],
+        fri: [{ open: "18:00", close: "24:00" }],
+        sat: [{ open: "00:00", close: "01:00" }],
+        sun: [],
+      };
+      const repos = getMockRepositories();
+      try {
+        const initialCatalog = await getStorefrontCatalog();
+        expect(initialCatalog.settings?.weeklyHours).toBeNull();
+        expect(initialCatalog.settings?.timezone).toBe("Europe/Paris");
+
+        await repos.business.updateSettings(DEMO_BUSINESS_ID, {
+          weeklyHours: customHours,
+          timezone: "Africa/Douala",
+        });
+
+        const updatedCatalog = await getStorefrontCatalog();
+        expect(updatedCatalog.settings?.weeklyHours).toEqual(customHours);
+        expect(updatedCatalog.settings?.timezone).toBe("Africa/Douala");
+
+        const firstProductId = updatedCatalog.groupedCategories[0].products[0].id;
+        const productData = await getStorefrontProduct(firstProductId);
+        expect(productData?.settings?.weeklyHours).toEqual(customHours);
+        expect(productData?.settings?.timezone).toBe("Africa/Douala");
+      } finally {
+        repos.reset();
       }
     });
 

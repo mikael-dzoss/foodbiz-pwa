@@ -545,6 +545,29 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       expect(publicSettings).not.toBeNull();
       expect(publicSettings?.currency).toBe("EUR");
       expect(publicSettings?.acceptingOrders).toBe(true);
+      expect(publicSettings?.weeklyHours).toBeNull();
+      expect(publicSettings?.timezone).toBe("Europe/Paris");
+
+      // Manager updates weeklyHours, anon public storefront reads it, manager clears it back to null
+      const schedule = {
+        mon: [],
+        tue: [{ open: "11:30", close: "14:30" }],
+        wed: [],
+        thu: [],
+        fri: [{ open: "18:00", close: "24:00" }],
+        sat: [{ open: "00:00", close: "01:00" }],
+        sun: [],
+      };
+      const updated = await memberARepos.business.updateSettings(businessAId, {
+        weeklyHours: schedule,
+      });
+      expect(updated.weeklyHours).toEqual(schedule);
+      const anonWithHours = await anonPublicRepos.business.getSettings(businessAId);
+      expect(anonWithHours?.weeklyHours).toEqual(schedule);
+      const cleared = await memberARepos.business.updateSettings(businessAId, {
+        weeklyHours: null,
+      });
+      expect(cleared.weeklyHours).toBeNull();
 
       // 2. Without publicOnly (select * on business_settings), column-level grant revokes private columns for anon
       await expect(anonRepos.business.getSettings(businessAId)).rejects.toThrow();
