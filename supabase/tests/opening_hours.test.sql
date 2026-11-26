@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(121);
+select plan(128);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (run as migration/table owner)
@@ -1096,6 +1096,74 @@ select is(
   ),
   'time_in_past',
   'slot_error: p_lead_minutes = 30 rejects a slot 20 minutes ahead'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T05:00:00Z'::timestamptz, date '2026-07-06', null, false
+  ),
+  'closed_now',
+  'slot_error: time-less order today before opening is closed_now'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-06', null, false
+  ),
+  'closed_now',
+  'slot_error: time-less order today in lunch gap is closed_now'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', null, false
+  ),
+  null::text,
+  'slot_error: time-less order today while open now is accepted'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-07', null, false
+  ),
+  null::text,
+  'slot_error: time-less order on future open day unaffected while closed now'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
+    'Europe/Paris', '2026-07-06T16:00:00Z'::timestamptz, date '2026-07-06', null, false
+  ),
+  'time_in_past',
+  'slot_error: time-less order today with no slots left stays time_in_past'
+);
+
+select is(
+  public.slot_error(
+    null, '[]'::jsonb, 'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-06', null, false
+  ),
+  null::text,
+  'slot_error: time-less order today with null hours and no exception is skipped'
+);
+
+select is(
+  public.slot_error(
+    null,
+    '[{"from":"2026-07-06","to":"2026-07-06","ranges":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}]}]'::jsonb,
+    'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-06', null, false
+  ),
+  'closed_now',
+  'slot_error: time-less order today honours exception ranges (closed now)'
 );
 
 select * from finish();

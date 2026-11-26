@@ -419,6 +419,7 @@ export function allowedDates(
  * Validates an ASAP or scheduled order slot against the booking window, weekly opening hours,
  * and exception overrides. The `[today, today + horizonDays]` window always applies; hours checks
  * are skipped only when a date has no structured data (`weekly === null` and no exception).
+ * A scheduled order for today without a time behaves like ASAP: `closed_now` unless open now.
  */
 export function validateSlot(
   schedule: OpeningSchedule,
@@ -476,6 +477,12 @@ export function validateSlot(
 
   if (allowedTimes(schedule, slot.date, tz, now, opts).length === 0) {
     return { ok: false, reason: "time_in_past" };
+  }
+
+  // A time-less order for today is dispatched like ASAP (views treat null time as ASAP), so it
+  // must not slip through while the shop is closed now (before opening, lunch gap).
+  if (slot.date === today && !isOpenAt(schedule, tz, now)) {
+    return { ok: false, reason: "closed_now" };
   }
 
   return { ok: true };

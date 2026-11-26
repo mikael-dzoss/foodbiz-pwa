@@ -27,6 +27,9 @@
 --     `p_horizon_days` mirrors `horizonDays`. A `p_time` with non-zero seconds is
 --     `time_outside_hours` (TS `OPEN_TIME_REGEX` only accepts HH:MM). NULL
 --     `p_now` / `p_at` / `p_tz` raise INVALID_ARGUMENT (22023); never fail open.
+--     A scheduled order for TODAY without a time is treated like ASAP: after the
+--     closed_day / time_in_past checks, `closed_now` unless the shop is open at
+--     `p_now` (both sides). Future dates without time and null-data dates unchanged.
 --
 --   Access: manager-editable (not owner-only) and readable by `anon` via the
 --   storefront column-level SELECT grant on `business_settings`.
@@ -557,6 +560,12 @@ begin
       and (bounds.open_min + ((bounds.close_min - 1 - bounds.open_min) / p_step_minutes) * p_step_minutes) >= v_min_min
   ) then
     return 'time_in_past';
+  end if;
+
+  -- Time-less order for today is dispatched like ASAP (null time = ASAP in order views):
+  -- reject with closed_now unless open now (after time_in_past, mirrors validateSlot).
+  if p_date = v_today and not public.is_open_at(p_hours, p_exceptions, p_tz, p_now) then
+    return 'closed_now';
   end if;
 
   return null;
