@@ -376,6 +376,8 @@ export const frDictionary: Dictionary = {
     recommended: "Recommandé",
     scheduleLater: "Commander pour plus tard",
     scheduleLaterSubtext: "Choisissez la date et le créneau",
+    checkoutClosedScheduleNotice:
+      "La boutique est actuellement fermée. Votre commande sera préparée pour le créneau choisi.",
     selectDateTime: "Sélectionnez date & heure",
     scheduledDate: "Date",
     scheduledTime: "Heure (optionnel)",
