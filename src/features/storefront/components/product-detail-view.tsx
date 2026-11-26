@@ -13,6 +13,7 @@ import {
   type SupportedLocale,
   type StorefrontDictionary,
 } from "@/domain/i18n";
+import { Alert } from "@/components/ui";
 import { ActionBar } from "@/components/ui/action-bar";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import type { StorefrontProductData } from "../catalog-data";
@@ -190,13 +191,13 @@ export function ProductDetailView({
 
       {/* Closed-hours Scheduling Notice (#350) */}
       {isClosedButAccepting && (
-        <div
+        <Alert
+          tone="warning"
+          icon={<Clock className="h-4 w-4" />}
           data-testid="product-closed-schedule-notice"
-          className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
         >
-          <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{dict.storeClosedBanner}</span>
-        </div>
+          {dict.storeClosedBanner}
+        </Alert>
       )}
 
       {/* Description, Allergen Badges & Cook's Recommendation Card (Stitch C-02) */}

@@ -3,7 +3,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
   ArrowLeft,
   ShoppingBag,
   ShoppingCart,
@@ -24,7 +23,7 @@ import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useToastOptional } from "@/components/ui";
+import { Alert, useToastOptional } from "@/components/ui";
 import { SoonBadge } from "@/components/feedback";
 import { resolveServiceMode, useCart } from "../context/cart-context";
 import { storefrontPricing } from "../storefront-pricing";
@@ -319,15 +318,9 @@ export function CartView({
             </div>
           </>
         ) : (
-          <div
-            id={pricingErrorId}
-            role="alert"
-            data-testid="cart-pricing-error"
-            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 wrap-anywhere">{dict.pricingUnavailableError}</span>
-          </div>
+          <Alert tone="error" id={pricingErrorId} data-testid="cart-pricing-error">
+            {dict.pricingUnavailableError}
+          </Alert>
         )}
 
         {isBelowMinimum && (

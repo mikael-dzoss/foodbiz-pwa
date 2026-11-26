@@ -1,12 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { AlertCircle, Loader2, Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { INITIAL_ORDER_LOOKUP_STATE, type OrderLookupState } from "@/domain/order-lookup";
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Alert, Button, Field, Input } from "@/components/ui";
 
 export interface OrderLookupFormProps {
   locale: SupportedLocale;
@@ -95,15 +93,9 @@ export function OrderLookupForm({ locale, dict, action }: OrderLookupFormProps) 
         </Field>
 
         {errorMessage && (
-          <p
-            id="order-lookup-error"
-            role="alert"
-            data-testid="order-lookup-error"
-            className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{errorMessage}</span>
-          </p>
+          <Alert tone="error" id="order-lookup-error" data-testid="order-lookup-error">
+            {errorMessage}
+          </Alert>
         )}
 
         <Button
