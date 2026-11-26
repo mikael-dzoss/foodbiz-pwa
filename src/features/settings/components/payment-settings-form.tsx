@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { ChevronLeft, CreditCard, Banknote, Smartphone, QrCode, AlertCircle } from "lucide-react";
+import {
+  ChevronLeft,
+  CreditCard,
+  Banknote,
+  Nfc,
+  Smartphone,
+  QrCode,
+  AlertCircle,
+} from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
@@ -43,6 +51,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
   // 2. Handover payment toggles
   const [cash, setCash] = useState(settings.paymentMethods?.cash ?? true);
+  const [card, setCard] = useState(settings.paymentMethods?.card ?? false);
   const [revolut, setRevolut] = useState(settings.paymentMethods?.revolut ?? true);
   const [wero, setWero] = useState(settings.paymentMethods?.wero ?? true);
 
@@ -63,6 +72,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
     setRevolutRevtag(settings.revolutRevtag ?? "");
     setWeroIdentifier(settings.weroIdentifier ?? "");
     setCash(settings.paymentMethods?.cash ?? true);
+    setCard(settings.paymentMethods?.card ?? false);
     setRevolut(settings.paymentMethods?.revolut ?? true);
     setWero(settings.paymentMethods?.wero ?? true);
     setPaymentInstructionsEn(settings.paymentInstructionsEn ?? "");
@@ -73,7 +83,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
 
   const [result, formAction, isPending] = useActionState(async (): Promise<SaveResult> => {
     // Acceptance criterion: At least one payment option must be enabled
-    if (!cash && !revolut && !wero) {
+    if (!cash && !card && !revolut && !wero) {
       showError(dict.payment.atLeastOneMethodError);
       return {
         ok: false,
@@ -88,6 +98,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
       weroIdentifier: weroIdentifier.trim(),
       paymentMethods: {
         cash,
+        card,
         revolut,
         wero,
       },
@@ -171,7 +182,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     value={revolutRevtag.replace(/^@/, "")}
                     onChange={(e) => setRevolutRevtag(e.target.value)}
                     placeholder={dict.payment.revolutPlaceholder.replace(/^@/, "")}
-                    className="h-11 rounded-xl py-2 pr-3 pl-8 text-sm"
+                    className="h-11 rounded-xl py-2 pr-3 pl-8"
                   />
                 </div>
               )}
@@ -191,7 +202,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                 value={weroIdentifier}
                 onChange={(e) => setWeroIdentifier(e.target.value)}
                 placeholder={dict.payment.weroPlaceholder}
-                className="h-11 rounded-xl py-2 text-sm"
+                className="h-11 rounded-xl py-2"
               />
             </Field>
           </div>
@@ -226,6 +237,29 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                 onCheckedChange={setCash}
                 data-testid="switch-payment-cash"
                 aria-label={dict.payment.cashLabel}
+              />
+            </div>
+
+            {/* Card on Handover */}
+            <div className="flex items-center justify-between gap-4 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                  <Nfc className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-foreground block text-sm font-semibold">
+                    {dict.payment.cardLabel}
+                  </span>
+                  <span className="text-body-sm text-muted-foreground block truncate">
+                    {dict.payment.cardDesc}
+                  </span>
+                </div>
+              </div>
+              <Switch
+                checked={card}
+                onCheckedChange={setCard}
+                data-testid="switch-payment-card"
+                aria-label={dict.payment.cardLabel}
               />
             </div>
 
@@ -334,7 +368,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     value={paymentInstructionsEn}
                     onChange={(e) => setPaymentInstructionsEn(e.target.value)}
                     placeholder={x.instructionsPlaceholderEn}
-                    className="rounded-xl py-2 text-sm"
+                    className="rounded-xl py-2"
                   />
                 </Field>
               </TabsContent>
@@ -351,7 +385,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
                     value={paymentInstructionsFr}
                     onChange={(e) => setPaymentInstructionsFr(e.target.value)}
                     placeholder={x.instructionsPlaceholderFr}
-                    className="rounded-xl py-2 text-sm"
+                    className="rounded-xl py-2"
                   />
                 </Field>
               </TabsContent>

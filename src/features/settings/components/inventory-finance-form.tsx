@@ -124,7 +124,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
               step="1"
               value={lowStockThreshold}
               onChange={(e) => setLowStockThreshold(parseInt(e.target.value, 10) || 0)}
-              className="h-11 rounded-xl px-3 py-2 font-mono text-sm"
+              className="h-11 rounded-xl px-3 py-2 font-mono"
             />
           </Field>
 
@@ -211,7 +211,7 @@ export function InventoryFinanceForm({ settings, dict }: InventoryFinanceFormPro
                   step="0.1"
                   value={taxPercentage}
                   onChange={(e) => setTaxPercentage(parseFloat(e.target.value) || 0)}
-                  className="h-11 rounded-xl py-2 pr-8 pl-3 font-mono text-sm"
+                  className="h-11 rounded-xl py-2 pr-8 pl-3 font-mono"
                 />
                 <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-medium">
                   %

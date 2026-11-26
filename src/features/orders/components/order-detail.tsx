@@ -18,6 +18,7 @@ import {
   Check,
   Printer,
   ShoppingBag,
+  Store,
   Truck,
   PhoneCall,
   CircleDot,
@@ -42,7 +43,10 @@ import {
   formatDate,
   formatDateTime,
   formatTime,
+  resolvePickupDisplay,
+  splitOrderTotal,
   type OrderStatus,
+  type PaymentMethod,
 } from "@/domain";
 import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import {
@@ -52,7 +56,7 @@ import {
   markOrderUnpaidAction,
   markPaidAndCompleteAction,
 } from "../order-actions";
-import type { EnrichedOrder } from "../order-data";
+import type { EnrichedOrder, OrderShopInfo } from "../order-data";
 import { cn } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { useManagerLocale } from "@/components/i18n";
@@ -60,6 +64,8 @@ import { interpolate, type OrdersDictionary, type SupportedLocale } from "@/doma
 
 export interface OrderDetailProps {
   order: EnrichedOrder;
+  /** Business name and address for shop-pickup orders (when `order.pickupLocation` is absent). */
+  shop?: OrderShopInfo;
   /** Set for a member who is not an owner: refunds are owner-only, the control is disabled with this reason. */
   refundDisabledReason?: string;
 }
@@ -112,7 +118,7 @@ function formatRequestedDateTime(
   return interpolate(t.dateAsap, { date });
 }
 
-export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
+export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailProps) {
   const timeZone = useBusinessTimeZone();
   const router = useRouter();
   const { locale, dict } = useManagerLocale();
@@ -130,9 +136,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [rejectionError, setRejectionError] = React.useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
-    "cash" | "revolut" | "wero"
-  >("cash");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<PaymentMethod>("cash");
   const [paymentDialogMode, setPaymentDialogMode] = React.useState<"record" | "shortcut">("record");
   const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
   const [refundReason, setRefundReason] = React.useState("");
@@ -337,9 +341,19 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const cleanPhone = currentOrder.guestPhone?.replace(/\D/g, "");
   const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : null;
 
-  // Tax calculation for breakdown (10% VAT on food)
-  const includedTax = Math.round(currentOrder.totalAmount * 0.1 * 100) / 100;
-  const subtotal = currentOrder.totalAmount - includedTax;
+  // Pickup location display (relay snapshot or shop fallback; null for non-pickup orders)
+  const pickupDisplay = resolvePickupDisplay(
+    currentOrder.serviceType,
+    currentOrder.pickupLocation,
+    shop,
+    o.storePickup,
+  );
+
+  // Totals breakdown (pre-tax food subtotal, 10% included VAT, and relay pickup fee)
+  const { subtotal, includedTax, pickupFeeCents } = splitOrderTotal(
+    currentOrder.totalAmount,
+    currentOrder.pickupFeeCents,
+  );
 
   // Predictive Full Journey Timeline
   const timelineSteps = React.useMemo(() => {
@@ -601,15 +615,57 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             </div>
 
             {/* Delivery address directly below when delivery */}
-            {currentOrder.deliveryAddress && (
+            {currentOrder.serviceType === "delivery" && currentOrder.deliveryAddress && (
               <div className="border-border/60 flex items-start justify-between gap-2 border-t pt-1">
                 <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1.5 font-medium">
-                  <MapPin className="h-3.5 w-3.5" />
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{t.address}</span>
                 </span>
                 <span className="text-foreground text-right font-semibold">
                   {currentOrder.deliveryAddress}
                 </span>
+              </div>
+            )}
+
+            {/* Pickup location directly below when pickup */}
+            {pickupDisplay && (
+              <div
+                className="border-border/60 flex items-start justify-between gap-2 border-t pt-2"
+                data-testid="order-pickup-location"
+              >
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
+                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>{t.pickupLocation}</span>
+                  </span>
+                  <p
+                    className="text-foreground font-semibold wrap-break-word"
+                    data-testid="order-pickup-name"
+                  >
+                    {pickupDisplay.name}
+                  </p>
+                  {pickupDisplay.address && (
+                    <p
+                      className="text-muted-foreground wrap-break-word"
+                      data-testid="order-pickup-address"
+                    >
+                      {pickupDisplay.address}
+                    </p>
+                  )}
+                </div>
+                {pickupDisplay.directionsUrl && (
+                  <a
+                    href={pickupDisplay.directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={interpolate(t.directionsAria, { place: pickupDisplay.name })}
+                    data-testid="order-pickup-directions"
+                    className="border-border bg-card hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
+                  >
+                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>{t.directions}</span>
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -684,6 +740,17 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               {formatMoney(includedTax, locale)}
             </span>
           </div>
+          {pickupFeeCents > 0 && (
+            <div
+              className="text-muted-foreground flex items-center justify-between"
+              data-testid="order-pickup-fee"
+            >
+              <span>{t.pickupFee}</span>
+              <span className="text-foreground font-medium tabular-nums">
+                {formatMoney(pickupFeeCents, locale)}
+              </span>
+            </div>
+          )}
           <div className="border-border/60 flex items-center justify-between border-t pt-2">
             <span className="text-foreground text-sm font-bold">{t.total}</span>
             <span className="text-foreground text-base font-bold tabular-nums">
@@ -1090,7 +1157,6 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 }
               }}
               placeholder={t.reject.placeholder}
-              className="text-xs"
               data-testid="reject-reason-input"
             />
           </Field>
@@ -1156,7 +1222,6 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
               placeholder={t.cancelDialog.placeholder}
-              className="text-xs"
               data-testid="cancel-reason-input"
             />
           </Field>
@@ -1210,7 +1275,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           </DialogHeader>
 
           <div className="flex flex-col gap-2 py-3">
-            {(["cash", "revolut", "wero"] as const).map((method) => (
+            {(["cash", "card", "revolut", "wero"] as const).map((method) => (
               <Button
                 variant="unstyled"
                 size="none"
@@ -1218,7 +1283,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
                 className={cn(
-                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold capitalize transition-colors",
+                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold transition-colors",
                   selectedPaymentMethod === method
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",
@@ -1272,7 +1337,6 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
               placeholder={t.refundDialog.placeholder}
-              className="text-xs"
               data-testid="refund-reason-input"
             />
           </Field>

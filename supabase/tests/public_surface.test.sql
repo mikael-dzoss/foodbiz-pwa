@@ -15,7 +15,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(77);
+select plan(86);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (as the migration role)
@@ -243,7 +243,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 51}]'::jsonb)$$,
   'MAX_LINE_QUANTITY_EXCEEDED%',
   'quantity 51 on one line is rejected (max 50)'
@@ -251,7 +251,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 30}, {"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 30}]'::jsonb)$$,
   'MAX_LINE_QUANTITY_EXCEEDED%',
   'duplicate lines of one product are merged before the per-line cap'
@@ -259,7 +259,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 50}, {"product_id": "d1000000-0000-0000-0000-000000000002", "quantity": 50}, {"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
   'MAX_ORDER_QUANTITY_EXCEEDED%',
   'total quantity 101 is rejected (max 100 per order)'
@@ -267,7 +267,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     (select jsonb_agg(jsonb_build_object('product_id', 'd1000000-0000-0000-0000-000000000001', 'quantity', 1)) from generate_series(1, 51)))$$,
   'MAX_LINES_EXCEEDED%',
   '51 lines are rejected (max 50)'
@@ -275,7 +275,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'delivery', 'storefront', current_date,
+    'delivery', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null, 'on_handover', repeat('a', 301))$$,
   'INVALID_DELIVERY_ADDRESS%',
@@ -284,7 +284,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null, 'on_handover', null, repeat('n', 501))$$,
   'INVALID_NOTES%',
@@ -293,7 +293,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     null, 'wero')$$,
   'INVALID_PAYMENT_PREFERENCE%',
@@ -302,23 +302,23 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date + 61,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date + 31,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
-  'INVALID_REQUESTED_DATE%',
-  'a requested date more than 60 days ahead is rejected'
+  'SLOT_INVALID: date_out_of_window',
+  'a requested date more than 30 days ahead is rejected'
 );
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date - 2,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date - 2,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
-  'INVALID_REQUESTED_DATE%',
+  'SLOT_INVALID: date_out_of_window',
   'a requested date in the past is rejected'
 );
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
     '10:00:30')$$,
   'INVALID_REQUESTED_TIME%',
@@ -327,7 +327,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', 'not-a-phone',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
   'INVALID_GUEST_PHONE%',
   'a phone that is not E.164 is rejected'
@@ -335,17 +335,17 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000001',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": "1.5"}]'::jsonb)$$,
   'INVALID_ITEM_QUANTITY%',
   'a fractional quantity is rejected'
 );
 
--- At the limits everything is accepted: 50 on a line, 60 days ahead, whole-minute time, cash.
+-- At the limits everything is accepted: 50 on a line, 30 days ahead, whole-minute time, cash.
 create temp table t_at_limit on commit drop as
 select public.place_order(
   'b1000000-0000-0000-0000-000000000001'::uuid, 'Limit Tester', '+33699000002',
-  'pickup', 'storefront', current_date + 60,
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date + 30,
   '[{"product_id": "d1000000-0000-0000-0000-000000000001", "quantity": 50}]'::jsonb,
   '10:30', 'on_handover'
 ) as res;
@@ -356,7 +356,7 @@ reset role;
 select is(
   (select (res->>'total_amount')::int from t_at_limit),
   25000,
-  'an order exactly at the limits (50 units, +60 days) is accepted'
+  'an order exactly at the limits (50 units, +30 days) is accepted'
 );
 
 select is(
@@ -382,7 +382,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 create temp table t_idem_1 on commit drop as
 select public.place_order(
   'b1000000-0000-0000-0000-000000000001'::uuid, 'Idem Buyer', '+33699000003',
-  'pickup', 'storefront', current_date,
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "d1000000-0000-0000-0000-000000000002", "quantity": 2}]'::jsonb,
   null, 'on_handover', null, null, false,
   'f0000000-0000-4000-8000-000000000001'::uuid
@@ -392,7 +392,7 @@ grant select on t_idem_1 to public;
 create temp table t_idem_2 on commit drop as
 select public.place_order(
   'b1000000-0000-0000-0000-000000000001'::uuid, 'Idem Buyer', '+33699000003',
-  'pickup', 'storefront', current_date,
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "d1000000-0000-0000-0000-000000000002", "quantity": 2}]'::jsonb,
   null, 'on_handover', null, null, false,
   'f0000000-0000-4000-8000-000000000001'::uuid
@@ -401,7 +401,7 @@ grant select on t_idem_2 to public;
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Someone Else', '+33699000004',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000002", "quantity": 2}]'::jsonb,
     null, 'on_handover', null, null, false, 'f0000000-0000-4000-8000-000000000001'::uuid)$$,
   'INVALID_IDEMPOTENCY_KEY%',
@@ -410,7 +410,7 @@ select throws_like(
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Idem Buyer', '+33699000003',
-    'pickup', 'storefront', current_date,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
     '[{"product_id": "d1000000-0000-0000-0000-000000000002", "quantity": 3}]'::jsonb,
     null, 'on_handover', null, null, false, 'f0000000-0000-4000-8000-000000000001'::uuid)$$,
   'INVALID_IDEMPOTENCY_KEY%',
@@ -489,17 +489,17 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 select lives_ok(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Rate Buyer', '+33699000005',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb);
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb);
     select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Rate Buyer', '+33699000005',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb);
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb);
     select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Rate Buyer', '+33699000005',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
   'three orders from one phone within the window are accepted'
 );
 
 select throws_like(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Rate Buyer', '+33699000005',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
   'RATE_LIMITED%',
   'the fourth order from the same phone raises RATE_LIMITED'
 );
@@ -540,7 +540,7 @@ set local "request.jwt.claims" = '{"sub": "a1111111-1111-1111-1111-111111111111"
 
 select lives_ok(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Rate Buyer', '+33699000005',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
   'a business member is exempt from the visitor rate limit'
 );
 
@@ -558,7 +558,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 select lives_ok(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Prune Buyer', '+33699000006',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
   'an order from a fresh phone is accepted'
 );
 
@@ -587,7 +587,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 select lives_ok(
   $$select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Prune Buyer', '+33699000010',
-    'pickup', 'storefront', current_date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb)$$,
   'an order from another fresh phone is accepted'
 );
 
@@ -613,7 +613,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 select throws_like(
   $$select public.place_order('b3000000-0000-0000-0000-000000000003'::uuid, 'Flood Buyer', '+33699000007',
-    'pickup', 'storefront', current_date, '[{"product_id": "d3000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d3000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
   'RATE_LIMITED%',
   'the business-wide ceiling (120 / 10 min) raises RATE_LIMITED for any phone'
 );
@@ -638,7 +638,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 select lives_ok(
   $$select public.place_order('b3000000-0000-0000-0000-000000000003'::uuid, 'Flood Buyer', '+33699000007',
-    'pickup', 'storefront', current_date, '[{"product_id": "d3000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
+    'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date, '[{"product_id": "d3000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb)$$,
   'one below the ceiling (119 recorded) still accepts an order'
 );
 
@@ -730,7 +730,7 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 
 create temp table t_below_order on commit drop as
 select public.place_order('b1000000-0000-0000-0000-000000000001'::uuid, 'Below Limit', '+33699000011',
-  'pickup', 'storefront', current_date,
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
   '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb) as res;
 grant select on t_below_order to public;
 
@@ -777,6 +777,10 @@ reset role;
 -- ----------------------------------------------------------------------------
 -- Section I: get_order_by_tracking_token exposes only the explicit keys
 -- ----------------------------------------------------------------------------
+update public.businesses set address = '9 Rue du Four, 75006 Paris' where id = 'b1000000-0000-0000-0000-000000000001';
+insert into public.pickup_locations (id, business_id, name, address, postcode)
+values ('f1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'Gare du Nord', '18 Rue de Dunkerque', '75010');
+
 set local role anon;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claim.role" = 'anon';
@@ -785,6 +789,45 @@ set local "request.jwt.claims" = '{"role": "anon"}';
 create temp table t_tracking on commit drop as
 select public.get_order_by_tracking_token((select res->>'tracking_token' from t_at_limit)) as res;
 grant select on t_tracking to public;
+
+create temp table t_delivery_order on commit drop as
+select public.place_order(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 'Delivery Buyer', '+33699000013',
+  'delivery', 'storefront', (now() at time zone 'Europe/Paris')::date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb,
+  null, 'on_handover', '12 Rue de Rivoli, 75001 Paris', 'Door code 4589'
+) as res;
+grant select on t_delivery_order to public;
+
+create temp table t_tracking_delivery on commit drop as
+select public.get_order_by_tracking_token((select res->>'tracking_token' from t_delivery_order)) as res;
+grant select on t_tracking_delivery to public;
+
+create temp table t_pickup_with_address on commit drop as
+select public.place_order(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 'Pickup Buyer', '+33699000014',
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb,
+  null, 'on_handover', 'Should stay hidden on pickup', null
+) as res;
+grant select on t_pickup_with_address to public;
+
+create temp table t_relay_order on commit drop as
+select public.place_order(
+  'b1000000-0000-0000-0000-000000000001'::uuid, 'Relay Buyer', '+33699000015',
+  'pickup', 'storefront', (now() at time zone 'Europe/Paris')::date,
+  '[{"product_id": "d1000000-0000-0000-0000-000000000003", "quantity": 1}]'::jsonb,
+  p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001'
+) as res;
+grant select on t_relay_order to public;
+
+create temp table t_tracking_relay on commit drop as
+select public.get_order_by_tracking_token((select res->>'tracking_token' from t_relay_order)) as res;
+grant select on t_tracking_relay to public;
+
+create temp table t_tracking_pickup_addr on commit drop as
+select public.get_order_by_tracking_token((select res->>'tracking_token' from t_pickup_with_address)) as res;
+grant select on t_tracking_pickup_addr to public;
 
 reset role;
 
@@ -795,9 +838,84 @@ select is(
 );
 
 select is(
+  (select array_agg(k order by k) from jsonb_object_keys((select res->'order' from t_tracking)) k),
+  array[
+    'business_id',
+    'cancellation_reason',
+    'created_at',
+    'delivery_address',
+    'id',
+    'order_number',
+    'paid',
+    'payment_preference',
+    'pickup_location_address',
+    'pickup_location_name',
+    'requested_date',
+    'requested_time',
+    'service_type',
+    'status',
+    'total_amount',
+    'tracking_token',
+    'updated_at'
+  ]::text[],
+  'tracking order exposes exactly the explicit allowlisted keys (including delivery_address and the pickup location)'
+);
+
+select is(
   (select array_agg(k order by k) from jsonb_object_keys((select res->'items'->0 from t_tracking)) k),
   array['product_name', 'quantity', 'total_price', 'unit_price']::text[],
   'tracking items expose exactly product_name, quantity, unit_price, total_price'
+);
+
+select is(
+  (select res->'order'->>'delivery_address' from t_tracking_delivery),
+  '12 Rue de Rivoli, 75001 Paris',
+  'delivery order tracking returns the delivery address'
+);
+
+select ok(
+  not ((select res::text from t_tracking_delivery) like '%Door code 4589%'),
+  'delivery order tracking still omits order notes'
+);
+
+select is(
+  (select res->'order'->>'delivery_address' from t_tracking_pickup_addr),
+  null::text,
+  'pickup order tracking returns null for delivery_address even if stored on the row'
+);
+
+select is(
+  (select res->'order'->>'pickup_location_name' from t_tracking_relay),
+  'Gare du Nord',
+  'relay order tracking returns the pickup location name'
+);
+
+select is(
+  (select res->'order'->>'pickup_location_address' from t_tracking_relay),
+  '18 Rue de Dunkerque, 75010',
+  'relay order tracking returns the pickup location address and postcode'
+);
+
+select ok(
+  (select (res->'order'->'pickup_location_name') = 'null'::jsonb
+      and res->'order'->>'pickup_location_address' = '9 Rue du Four, 75006 Paris'
+   from t_tracking_pickup_addr),
+  'shop pickup tracking returns no location name and the shop address'
+);
+
+select ok(
+  (select (res->'order'->'pickup_location_name') = 'null'::jsonb
+      and (res->'order'->'pickup_location_address') = 'null'::jsonb
+   from t_tracking_delivery),
+  'delivery order tracking returns no pickup location'
+);
+
+select ok(
+  has_function_privilege('anon', 'public.get_order_by_tracking_token(text)', 'execute')
+  and has_function_privilege('authenticated', 'public.get_order_by_tracking_token(text)', 'execute')
+  and has_function_privilege('service_role', 'public.get_order_by_tracking_token(text)', 'execute')
+  and not has_function_privilege('public', 'public.get_order_by_tracking_token(text)', 'execute'),
+  'get_order_by_tracking_token grants execute only to anon, authenticated and service_role'
 );
 
 -- ----------------------------------------------------------------------------

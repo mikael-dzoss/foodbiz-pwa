@@ -45,6 +45,37 @@ import {
   useToast,
 } from "@/components/ui";
 import { SoonItem, EmptyState, ErrorState } from "@/components/feedback";
+import { InstallGuide } from "@/components/pwa";
+import { enDictionary } from "@/domain/i18n";
+import type { InstallGuidePlatform } from "@/lib/pwa/platform";
+
+const INSTALL_GUIDE_VARIANTS: ReadonlyArray<{
+  id: string;
+  label: string;
+  platform: InstallGuidePlatform;
+}> = [
+  { id: "native-prompt", label: "native-prompt", platform: "native-prompt" },
+  { id: "ios-safari", label: "ios-safari", platform: "ios-safari" },
+  { id: "ios-other", label: "ios-other", platform: "ios-other" },
+  { id: "android-manual", label: "android-manual", platform: "android-manual" },
+  { id: "macos-safari", label: "macos-safari", platform: "macos-safari" },
+  { id: "generic", label: "generic", platform: "generic" },
+  {
+    id: "in-app-ios",
+    label: "in-app (iOS · Instagram)",
+    platform: { kind: "in-app", os: "ios", app: "Instagram" },
+  },
+  {
+    id: "in-app-android",
+    label: "in-app (Android · TikTok)",
+    platform: { kind: "in-app", os: "android", app: "TikTok" },
+  },
+  {
+    id: "in-app-generic",
+    label: "in-app (generic)",
+    platform: { kind: "in-app", os: "ios", app: null },
+  },
+];
 
 export default function PatternsPage() {
   const { theme, resolvedTheme, setTheme, mounted } = useTheme();
@@ -56,6 +87,10 @@ export default function PatternsPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = React.useState(false);
+  const [installVariantId, setInstallVariantId] = React.useState<string>("ios-safari");
+  const installPlatform: InstallGuidePlatform =
+    INSTALL_GUIDE_VARIANTS.find((v) => v.id === installVariantId)?.platform ?? "ios-safari";
   const [segment, setSegment] = React.useState<"pickup" | "delivery">("pickup");
   const [fieldValue, setFieldValue] = React.useState("");
 
@@ -641,6 +676,49 @@ export default function PatternsPage() {
             </Button>
             <Button className="flex-1">Save changes</Button>
           </ActionBar>
+        </section>
+
+        {/* 17. INSTALL GUIDE (PWA) */}
+        <section className="space-y-3" data-testid="section-install-guide">
+          <div className="text-label-sm text-muted-foreground tracking-wider uppercase">
+            17. Install Guide (PWA)
+          </div>
+          <Card className="space-y-3 p-4">
+            <div className="flex flex-wrap gap-2">
+              {INSTALL_GUIDE_VARIANTS.map((variant) => (
+                <Button
+                  key={variant.id}
+                  type="button"
+                  size="sm"
+                  variant={installVariantId === variant.id ? "secondary" : "outline"}
+                  onClick={() => setInstallVariantId(variant.id)}
+                  data-testid={`pattern-install-variant-${variant.id}`}
+                >
+                  {variant.label}
+                </Button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => setIsInstallGuideOpen(true)}
+              data-testid="trigger-install-guide"
+            >
+              Open Install Guide
+            </Button>
+          </Card>
+          <InstallGuide
+            open={isInstallGuideOpen}
+            onOpenChange={setIsInstallGuideOpen}
+            appName="FoodBiz Manager"
+            platform={installPlatform}
+            copy={enDictionary.installGuide}
+            onInstall={() => {
+              setIsInstallGuideOpen(false);
+              showToast("Install prompt triggered");
+            }}
+            data-testid="pattern-install-guide"
+          />
         </section>
       </main>
     </div>

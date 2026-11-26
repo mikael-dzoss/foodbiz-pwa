@@ -230,7 +230,10 @@ export function AccountSettings({ session, dict, currentLocale }: AccountSetting
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="text-primary h-4 w-4" />
             <span>
-              {interpolate(x.posLine, { name: APP_METADATA.name, version: dict.about.version })}
+              {interpolate(x.posLine, {
+                name: APP_METADATA.manager.name,
+                version: dict.about.version,
+              })}
             </span>
           </div>
         </div>

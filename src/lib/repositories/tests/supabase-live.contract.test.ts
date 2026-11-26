@@ -162,10 +162,12 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         business_id: businessAId,
         currency: "EUR",
         accepting_orders: true,
+        weekly_hours: null, // no opening-hours checks: placement must not depend on the time of day
+        hours_exceptions: [],
         min_order_amount: 500, // 5.00 EUR
         delivery_fee: 200, // 2.00 EUR
         service_types: { pickup: true, delivery: true, dineIn: true },
-        payment_methods: { cash: true, revolut: true, wero: true },
+        payment_methods: { cash: true, card: false, revolut: true, wero: true },
         low_stock_threshold: 5,
         tax_percentage: 10,
         notifications: true,
@@ -177,6 +179,8 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         business_id: businessBId,
         currency: "EUR",
         accepting_orders: true,
+        weekly_hours: null,
+        hours_exceptions: [],
         min_order_amount: 500,
         delivery_fee: 200,
         service_types: { pickup: true, delivery: false, dineIn: false },
@@ -426,6 +430,16 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   // SQL constants and the domain constants diverge.
   describeOrderPlacementContract(() => anonPublicRepos, businessAId, {
     boundaryProductId: () => prodABulkId,
+    managerRepositories: () => ownerARepos,
+    // Business A is created without opening hours (null), so placement never depends on the
+    // time of day; the contract's opening-hours cases set hours relative to now and reset them.
+    setOpeningHours: async ({ weeklyHours, hoursExceptions }) => {
+      const { error } = await adminClient
+        .from("business_settings")
+        .update({ weekly_hours: weeklyHours, hours_exceptions: hoursExceptions })
+        .eq("business_id", businessAId);
+      if (error) throw error;
+    },
   });
 
   // Lifecycle transitions (every pair against the domain table), payments, refunds and item
@@ -545,6 +559,38 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
       expect(publicSettings).not.toBeNull();
       expect(publicSettings?.currency).toBe("EUR");
       expect(publicSettings?.acceptingOrders).toBe(true);
+      expect(publicSettings?.weeklyHours).toBeNull();
+      expect(publicSettings?.hoursExceptions).toEqual([]);
+      expect(publicSettings?.timezone).toBe("Europe/Paris");
+
+      // Manager updates weeklyHours & hoursExceptions, anon public storefront reads them, manager clears them
+      const schedule = {
+        mon: [],
+        tue: [{ open: "11:30", close: "14:30" }],
+        wed: [],
+        thu: [],
+        fri: [{ open: "18:00", close: "24:00" }],
+        sat: [{ open: "00:00", close: "01:00" }],
+        sun: [],
+      };
+      const exceptions = [
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+      ];
+      const updated = await memberARepos.business.updateSettings(businessAId, {
+        weeklyHours: schedule,
+        hoursExceptions: exceptions,
+      });
+      expect(updated.weeklyHours).toEqual(schedule);
+      expect(updated.hoursExceptions).toEqual(exceptions);
+      const anonWithHours = await anonPublicRepos.business.getSettings(businessAId);
+      expect(anonWithHours?.weeklyHours).toEqual(schedule);
+      expect(anonWithHours?.hoursExceptions).toEqual(exceptions);
+      const cleared = await memberARepos.business.updateSettings(businessAId, {
+        weeklyHours: null,
+        hoursExceptions: [],
+      });
+      expect(cleared.weeklyHours).toBeNull();
+      expect(cleared.hoursExceptions).toEqual([]);
 
       // 2. Without publicOnly (select * on business_settings), column-level grant revokes private columns for anon
       await expect(anonRepos.business.getSettings(businessAId)).rejects.toThrow();
@@ -901,7 +947,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     const paymentChanges = [
       { revolutRevtag: "@intruder" },
       { weroIdentifier: "intruder-wero" },
-      { paymentMethods: { cash: true, revolut: false, wero: false } },
+      { paymentMethods: { cash: true, card: false, revolut: false, wero: false } },
       { paymentInstructionsEn: "Pay the intruder" },
       { paymentInstructionsFr: "Payez l'intrus" },
     ];

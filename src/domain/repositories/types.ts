@@ -13,6 +13,7 @@ import type {
   PublicOrder,
   ReplaceOrderItemInput,
 } from "../order";
+import type { PickupLocation } from "../pickup-location";
 import type { Product, ProductCategory } from "../product";
 
 export type { CancelOrderResult, PlaceOrderRepoInput, PlacedOrderSummary } from "../order";
@@ -227,6 +228,34 @@ export interface MemberRepository {
   remove(businessId: string, id: string): Promise<void>;
 }
 
+export interface CreatePickupLocationInput {
+  readonly id?: string;
+  readonly name: string;
+  readonly description?: string | null;
+  readonly address: string;
+  readonly postcode: string;
+  readonly feeCents?: number;
+  readonly weeklyHours?: PickupLocation["weeklyHours"];
+  readonly isActive?: boolean;
+  /** Defaults to after the last location. */
+  readonly sortOrder?: number;
+}
+
+export type UpdatePickupLocationInput = Partial<Omit<CreatePickupLocationInput, "id">>;
+
+export interface PickupLocationRepository {
+  /** Ordered by `sortOrder`; `activeOnly` is what the storefront shows. */
+  listByBusiness(
+    businessId: string,
+    options?: { readonly activeOnly?: boolean },
+  ): Promise<PickupLocation[]>;
+  create(businessId: string, input: CreatePickupLocationInput): Promise<PickupLocation>;
+  update(businessId: string, id: string, input: UpdatePickupLocationInput): Promise<PickupLocation>;
+  delete(businessId: string, id: string): Promise<void>;
+  /** Sets `sortOrder` to the position in `ids`; every id must belong to the business. */
+  reorder(businessId: string, ids: readonly string[]): Promise<PickupLocation[]>;
+}
+
 export interface Repositories {
   readonly products: ProductRepository;
   readonly categories: CategoryRepository;
@@ -235,4 +264,5 @@ export interface Repositories {
   readonly expenses: ExpenseRepository;
   readonly business: BusinessRepository;
   readonly members: MemberRepository;
+  readonly pickupLocations: PickupLocationRepository;
 }

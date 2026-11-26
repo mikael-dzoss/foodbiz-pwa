@@ -43,7 +43,7 @@ description: Next.js App Router, rendering, styling, accessibility and PWA rules
 
 ## PWA
 
-- Manifest: `src/app/manifest.ts`; icons: `public/icons/`. There is no service worker yet; if one is added (`public/sw.js`), keep it excluded from the proxy matcher and never let it cache authenticated responses.
+- Manifests: separate route handlers for the two installable apps — storefront (`src/app/[locale]/manifest.webmanifest/route.ts`, `id: "/"`) and manager (`src/app/manage/manifest.webmanifest/route.ts`, `id: "/manage"`) — linked via `metadata.manifest` in their layouts and excluded from the proxy matcher (`*.webmanifest`); icons: `public/icons/`. There is no service worker yet; if one is added (`public/sw.js`), keep it excluded from the proxy matcher and never let it cache authenticated responses.
 - Offline degrades gracefully with a clear offline state.
 
 ## Performance

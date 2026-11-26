@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Folder, Receipt, Users, BarChart3, Settings, LogOut } from "lucide-react";
+import { Folder, Receipt, Users, BarChart3, Settings, Clock, MapPin, LogOut } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -22,7 +22,7 @@ export interface MoreMenuSheetProps {
 }
 
 export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetProps) {
-  const { nav, manager } = useManagerLocale().dict;
+  const { nav, manager, settings } = useManagerLocale().dict;
   const menuItems = [
     {
       title: manager.categories,
@@ -43,6 +43,20 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
       href: "/manage/customers",
       icon: Users,
       description: manager.moreItems.customers,
+      isReady: true,
+    },
+    {
+      title: settings.openingHours.title,
+      href: "/manage/settings/opening-hours",
+      icon: Clock,
+      description: settings.openingHours.navDescription,
+      isReady: true,
+    },
+    {
+      title: settings.pickupLocations.title,
+      href: "/manage/settings/pickup-locations",
+      icon: MapPin,
+      description: settings.pickupLocations.navDescription,
       isReady: true,
     },
     {

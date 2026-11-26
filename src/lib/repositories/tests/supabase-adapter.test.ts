@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Order, OrderStatus } from "@/domain/order";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
+import { validateSlot, type HoursException, type WeeklyHours } from "@/domain/opening-hours";
+import { pickupScheduleFor } from "@/domain/pickup-location";
+import { DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
@@ -78,6 +81,9 @@ function createFakeSupabaseClient(
         accepting_orders: fixtures.settings.acceptingOrders,
         service_types: structuredClone(fixtures.settings.serviceTypes) as Json,
         opening_hours: fixtures.settings.openingHours,
+        weekly_hours: structuredClone(fixtures.settings.weeklyHours ?? null) as Json | null,
+        hours_exceptions: structuredClone(fixtures.settings.hoursExceptions ?? []) as Json,
+        shop_pickup_enabled: fixtures.settings.shopPickupEnabled ?? true,
         order_timing_asap: fixtures.settings.orderTimingAsap,
         order_timing_scheduled: fixtures.settings.orderTimingScheduled,
         order_timing_time_optional: fixtures.settings.orderTimingTimeOptional,
@@ -85,6 +91,7 @@ function createFakeSupabaseClient(
         min_order_amount: fixtures.settings.minOrderAmount,
         lead_time_value: fixtures.settings.leadTimeValue,
         lead_time_unit: fixtures.settings.leadTimeUnit,
+        timezone: fixtures.settings.timezone,
         revolut_revtag: fixtures.settings.revolutRevtag,
         wero_identifier: fixtures.settings.weroIdentifier,
         payment_methods: structuredClone(fixtures.settings.paymentMethods) as Json,
@@ -157,6 +164,10 @@ function createFakeSupabaseClient(
       cancellation_reason: o.cancellationReason,
       notes: o.notes,
       delivery_address: o.deliveryAddress,
+      pickup_location_id: o.pickupLocation?.id ?? null,
+      pickup_location_name: o.pickupLocation?.name ?? null,
+      pickup_location_address: o.pickupLocation?.address ?? null,
+      pickup_fee_cents: o.pickupFeeCents ?? 0,
       status_history: structuredClone(o.statusHistory ?? []) as Json,
       created_at: o.createdAt,
       updated_at: o.updatedAt,
@@ -174,6 +185,20 @@ function createFakeSupabaseClient(
         created_at: o.createdAt,
       })),
     ),
+    pickup_locations: fixtures.pickupLocations.map((l) => ({
+      id: l.id,
+      business_id: l.businessId,
+      name: l.name,
+      description: l.description,
+      address: l.address,
+      postcode: l.postcode,
+      fee_cents: l.feeCents,
+      weekly_hours: structuredClone(l.weeklyHours) as Json | null,
+      is_active: l.isActive,
+      sort_order: l.sortOrder,
+      created_at: l.createdAt,
+      updated_at: l.updatedAt,
+    })),
     expenses: fixtures.expenses.map((e) => ({
       id: e.id,
       business_id: e.businessId,
@@ -289,6 +314,14 @@ function createFakeSupabaseClient(
             }
           }
 
+          if (table === "pickup_locations") {
+            // Table defaults and the 23514 limit trigger of migration 035.
+            if (list.filter((l) => l.business_id === row.business_id).length >= 20) {
+              throw { code: "23514", message: "PICKUP_LOCATIONS_LIMIT" };
+            }
+            row.updated_at ??= row.created_at;
+          }
+
           if (table === "businesses") {
             if (!row.currency) row.currency = "EUR";
             if (!row.created_at) row.created_at = new Date().toISOString();
@@ -306,6 +339,9 @@ function createFakeSupabaseClient(
               accepting_orders: true,
               service_types: { pickup: true, delivery: true, dineIn: true },
               opening_hours: "",
+              weekly_hours: null,
+              hours_exceptions: [],
+              shop_pickup_enabled: true,
               order_timing_asap: true,
               order_timing_scheduled: true,
               order_timing_time_optional: true,
@@ -313,9 +349,10 @@ function createFakeSupabaseClient(
               min_order_amount: 0,
               lead_time_value: 1,
               lead_time_unit: "business_days",
+              timezone: "Europe/Paris",
               revolut_revtag: "",
               wero_identifier: "",
-              payment_methods: { cash: true, revolut: true, wero: true },
+              payment_methods: { cash: true, card: false, revolut: true, wero: true },
               payment_instructions_en: "",
               payment_instructions_fr: "",
               in_app_alerts: true,
@@ -338,6 +375,14 @@ function createFakeSupabaseClient(
           if (filters.every((f) => f(list[i]))) {
             matched.push(list[i]);
             list.splice(i, 1);
+          }
+        }
+        if (table === "pickup_locations") {
+          const removedIds = new Set(matched.map((r) => r.id));
+          for (const order of tables.orders) {
+            if (order.pickup_location_id && removedIds.has(order.pickup_location_id)) {
+              order.pickup_location_id = null;
+            }
           }
         }
         return { data: matched.length === 1 ? matched[0] : (matched[0] ?? null), error: null };
@@ -370,7 +415,8 @@ function createFakeSupabaseClient(
               table === "products" ||
               table === "businesses" ||
               table === "orders" ||
-              table === "business_settings"
+              table === "business_settings" ||
+              table === "pickup_locations"
             ) {
               row.updated_at = new Date().toISOString();
             }
@@ -448,12 +494,44 @@ function createFakeSupabaseClient(
       return queryBuilder(tableName);
     },
     async rpc(fnName: string, args: Record<string, unknown>) {
+      if (fnName === "reorder_pickup_locations") {
+        // Mirrors the SQL function: ids must be exactly the business's locations.
+        const ids = args.p_ids as string[];
+        const own = tables.pickup_locations.filter((l) => l.business_id === args.p_business_id);
+        if (
+          new Set(ids).size !== ids.length ||
+          own.length !== ids.length ||
+          !ids.every((id) => own.some((l) => l.id === id))
+        ) {
+          return { data: null, error: { code: "22023", message: "PICKUP_REORDER_MISMATCH" } };
+        }
+        for (const [position, id] of ids.entries()) {
+          const row = own.find((l) => l.id === id);
+          if (row) row.sort_order = position;
+        }
+        return { data: null, error: null };
+      }
       if (fnName === "get_order_by_tracking_token") {
         const order = tables.orders.find((o) => o.tracking_token === args.p_tracking_token);
         if (!order) return { data: null, error: null };
         const items = tables.order_items.filter((it) => it.order_id === order.id);
         return {
-          data: { order: structuredClone(order), items: structuredClone(items) },
+          data: {
+            order: {
+              ...structuredClone(order),
+              delivery_address:
+                order.service_type === "delivery" ? (order.delivery_address ?? null) : null,
+              pickup_location_name:
+                order.service_type === "pickup" ? order.pickup_location_name : null,
+              pickup_location_address:
+                order.service_type === "pickup"
+                  ? (order.pickup_location_address ??
+                    tables.businesses.find((b) => b.id === order.business_id)?.address ??
+                    null)
+                  : null,
+            },
+            items: structuredClone(items),
+          },
           error: null,
         };
       }
@@ -508,6 +586,8 @@ function createFakeSupabaseClient(
               args.p_requested_date,
               args.p_requested_time ?? "",
               args.p_payment_preference ?? "on_handover",
+              args.p_is_asap ?? false,
+              args.p_pickup_location_id ?? null,
             ]);
             if (
               priorGuest?.phone !== args.p_guest_phone ||
@@ -531,6 +611,26 @@ function createFakeSupabaseClient(
             };
           }
         }
+        // Mirrors place_order's pickup location check (all channels, migration 036).
+        const pickupLocationId = (args.p_pickup_location_id as string | undefined) ?? null;
+        let pickupRow: (typeof tables.pickup_locations)[number] | null = null;
+        if (pickupLocationId) {
+          pickupRow =
+            args.p_service_type === "pickup"
+              ? (tables.pickup_locations.find(
+                  (l) => l.id === pickupLocationId && l.business_id === businessId && l.is_active,
+                ) ?? null)
+              : null;
+          if (!pickupRow) {
+            return {
+              data: null,
+              error: {
+                message: `INVALID_PICKUP_LOCATION: pickup location ${pickupLocationId} is not available`,
+                code: "22023",
+              },
+            };
+          }
+        }
         if (args.p_channel === "storefront") {
           const perProduct = new Map<string, number>();
           for (const it of items) {
@@ -540,6 +640,57 @@ function createFakeSupabaseClient(
             data: null,
             error: { message, code },
           });
+          const bizSettings = tables.business_settings.find((s) => s.business_id === businessId);
+          // Mirrors place_order's pickup options rules (migration 036).
+          if (args.p_service_type === "pickup") {
+            const activeRelays = tables.pickup_locations
+              .filter((l) => l.business_id === businessId && l.is_active)
+              .toSorted((a, b) => a.sort_order - b.sort_order);
+            const shopEnabled = bizSettings?.shop_pickup_enabled ?? true;
+            if ((shopEnabled ? 1 : 0) + activeRelays.length === 0) {
+              return fail("PICKUP_NOT_AVAILABLE: no pickup option is available");
+            }
+            if (!pickupRow && !shopEnabled) {
+              if (activeRelays.length === 1) {
+                pickupRow = activeRelays[0];
+              } else {
+                return fail("PICKUP_LOCATION_REQUIRED: choose a pickup location");
+              }
+            }
+          }
+          // Mirrors place_order's slot rules (migrations 034 & 036) with the domain's validateSlot.
+          if (bizSettings) {
+            const businessSchedule = {
+              weekly: bizSettings.weekly_hours as WeeklyHours | null,
+              exceptions: (bizSettings.hours_exceptions ?? []) as HoursException[],
+            };
+            const schedule = pickupRow
+              ? pickupScheduleFor(
+                  businessSchedule,
+                  (pickupRow.weekly_hours as WeeklyHours | null) ?? null,
+                )
+              : businessSchedule;
+            const slot = validateSlot(
+              schedule,
+              bizSettings.timezone ?? DEFAULT_TIMEZONE,
+              new Date(),
+              {
+                date: String(args.p_requested_date),
+                time: (args.p_requested_time as string | undefined) ?? null,
+                isAsap: (args.p_is_asap as boolean | undefined) ?? false,
+              },
+            );
+            if (!slot.ok) return fail(`SLOT_INVALID: ${slot.reason}`);
+          }
+          const pm = bizSettings?.payment_methods as Record<string, boolean> | undefined;
+          const pref = String(args.p_payment_preference ?? "on_handover");
+          if (pm) {
+            const allowed =
+              pref === "on_handover" ? (pm.cash ?? true) || (pm.card ?? false) : (pm[pref] ?? true);
+            if (!allowed) {
+              return fail(`INVALID_PAYMENT_PREFERENCE: ${pref} is not an enabled payment method`);
+            }
+          }
           if (items.length > MAX_LINES_PER_ORDER) return fail("MAX_LINES_EXCEEDED: too many");
           if ([...perProduct.values()].some((q) => q > MAX_QUANTITY_PER_LINE)) {
             return fail("MAX_LINE_QUANTITY_EXCEEDED: too many");
@@ -657,7 +808,12 @@ function createFakeSupabaseClient(
             (args.p_service_type === "delivery"
               ? (tables.business_settings.find((st) => st.business_id === args.p_business_id)
                   ?.delivery_fee ?? 0)
-              : 0),
+              : 0) +
+            (pickupRow?.fee_cents ?? 0),
+          pickup_location_id: pickupRow?.id ?? null,
+          pickup_location_name: pickupRow?.name ?? null,
+          pickup_location_address: pickupRow ? `${pickupRow.address}, ${pickupRow.postcode}` : null,
+          pickup_fee_cents: pickupRow?.fee_cents ?? 0,
           tracking_token: crypto.randomUUID().replace(/-/g, ""),
           cancellation_reason: null,
           notes: args.p_notes ? String(args.p_notes) : null,
@@ -677,6 +833,8 @@ function createFakeSupabaseClient(
             args.p_requested_date,
             args.p_requested_time ?? "",
             args.p_payment_preference ?? "on_handover",
+            args.p_is_asap ?? false,
+            args.p_pickup_location_id ?? null,
           ]),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -871,7 +1029,9 @@ function createFakeSupabaseClient(
           (st) => st.business_id === order.business_id,
         );
         order.total_amount =
-          subtotal + (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0);
+          subtotal +
+          (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0) +
+          (order.service_type === "pickup" ? Math.max(0, order.pickup_fee_cents ?? 0) : 0);
         order.updated_at = new Date().toISOString();
         return { data: { order_id: order.id, total_amount: order.total_amount }, error: null };
       }
@@ -894,7 +1054,12 @@ describe("Supabase Repository Adapter", () => {
       mockRepos = createSupabaseRepositories(fakeClient);
     });
 
-    describeRepositoryContracts("Supabase Adapter (Mocked Client)", () => mockRepos);
+    describeRepositoryContracts("Supabase Adapter (Mocked Client)", () => mockRepos, {
+      // The demo hours make storefront orders depend on the time of day; the suite clears them.
+      setOpeningHours: async (hours) => {
+        await mockRepos.business.updateSettings(DEMO_BUSINESS_ID, hours);
+      },
+    });
   });
 
   describe("publicOnly option on createSupabaseRepositories", () => {
@@ -910,6 +1075,35 @@ describe("Supabase Repository Adapter", () => {
       expect(settings?.lowStockThreshold).toBe(5);
       expect(settings?.taxPercentage).toBe(0);
       expect(settings?.notifications).toBe(true);
+      expect(settings?.weeklyHours).toBeNull();
+      expect(settings?.hoursExceptions).toEqual([]);
+      expect(settings?.timezone).toBe("Europe/Paris");
+    });
+
+    it("carries configured weeklyHours, hoursExceptions and timezone through publicOnly settings reads", async () => {
+      const fixtures = createDefaultFixtures();
+      const customHours = {
+        mon: [],
+        tue: [{ open: "11:30", close: "14:30" }],
+        wed: [],
+        thu: [],
+        fri: [{ open: "18:00", close: "24:00" }],
+        sat: [{ open: "00:00", close: "01:00" }],
+        sun: [],
+      };
+      const customExceptions = [
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+      ];
+      fixtures.settings.weeklyHours = customHours;
+      fixtures.settings.hoursExceptions = customExceptions;
+      fixtures.settings.timezone = "Africa/Douala";
+      const fakeClient = createFakeSupabaseClient(fixtures);
+      const repos = createSupabaseRepositories(fakeClient, { publicOnly: true });
+
+      const settings = await repos.business.getSettings(DEMO_BUSINESS_ID);
+      expect(settings?.weeklyHours).toEqual(customHours);
+      expect(settings?.hoursExceptions).toEqual(customExceptions);
+      expect(settings?.timezone).toBe("Africa/Douala");
     });
 
     it("selects full settings row when publicOnly is false or omitted", async () => {
@@ -924,9 +1118,49 @@ describe("Supabase Repository Adapter", () => {
   });
 
   describe("error mapping in Supabase adapter", () => {
+    it("maps pickup rule violations to CONFLICT ActionErrors with a reason", async () => {
+      const repos = createSupabaseRepositories(createFakeSupabaseClient());
+      const failing = (message: string) =>
+        createSupabaseRepositories({
+          from: () => {
+            const builder: Record<string, unknown> = {};
+            for (const m of ["update", "delete", "select", "eq"]) builder[m] = () => builder;
+            builder.maybeSingle = async () => ({ data: null, error: { code: "23514", message } });
+            return builder;
+          },
+        } as unknown as SupabaseClient<Database>);
+
+      const last = failing("LAST_PICKUP_OPTION: pickup needs at least one active option");
+      await expect(
+        last.pickupLocations.update(DEMO_BUSINESS_ID, "e1000000-0000-4000-8000-000000000001", {
+          isActive: false,
+        }),
+      ).rejects.toMatchObject({
+        name: "ActionError",
+        code: "CONFLICT",
+        options: { reason: "LAST_PICKUP_OPTION" },
+      });
+      await expect(
+        last.pickupLocations.delete(DEMO_BUSINESS_ID, "e1000000-0000-4000-8000-000000000001"),
+      ).rejects.toMatchObject({ code: "CONFLICT", options: { reason: "LAST_PICKUP_OPTION" } });
+      await expect(
+        last.business.updateSettings(DEMO_BUSINESS_ID, { shopPickupEnabled: false }),
+      ).rejects.toMatchObject({ code: "CONFLICT", options: { reason: "LAST_PICKUP_OPTION" } });
+
+      // A reorder with a partial id set surfaces the raw database error.
+      await expect(
+        repos.pickupLocations.reorder(DEMO_BUSINESS_ID, ["e1000000-0000-4000-8000-000000000001"]),
+      ).rejects.toMatchObject({ code: "22023" });
+    });
+
     it("maps place_order errors accurately", async () => {
       const fakeClient = createFakeSupabaseClient();
       const repos = createSupabaseRepositories(fakeClient);
+      // The demo hours would make these placements depend on the time of day.
+      await repos.business.updateSettings(DEMO_BUSINESS_ID, {
+        weeklyHours: null,
+        hoursExceptions: [],
+      });
 
       // P0001 insufficient stock
       await expect(
@@ -935,7 +1169,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [
             // Above the demo stock (45) but within the per-line cap that place_order also enforces.
             { productId: "33333333-3333-4333-8333-333333333301", quantity: MAX_QUANTITY_PER_LINE },
@@ -953,7 +1187,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "99999999-9999-4999-8999-999999999999", quantity: 1 }],
         }),
       ).rejects.toMatchObject({
@@ -977,7 +1211,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "STORE_CLOSED" });
@@ -993,7 +1227,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "MINIMUM_ORDER_UNMET" });
@@ -1009,7 +1243,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -1025,7 +1259,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "INVALID_INPUT" });
@@ -1042,7 +1276,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({
@@ -1051,6 +1285,93 @@ describe("Supabase Repository Adapter", () => {
       });
       expect(errorSpy).toHaveBeenCalled();
       errorSpy.mockRestore();
+    });
+
+    it("maps SLOT_INVALID reasons to typed slot errors and passes p_is_asap", async () => {
+      const rpc = vi.fn(async (_fn: string, _args: unknown) => ({
+        data: null,
+        error: { code: "22023", message: "SLOT_INVALID: closed_now" } as {
+          code: string;
+          message: string;
+        },
+      }));
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+      const place = () =>
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
+          isAsap: true,
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        });
+
+      await expect(place()).rejects.toMatchObject({ code: "SLOT_CLOSED_NOW" });
+      expect(rpc).toHaveBeenCalledWith("place_order", expect.objectContaining({ p_is_asap: true }));
+
+      const expected = {
+        closed_day: "SLOT_CLOSED_DAY",
+        date_out_of_window: "SLOT_DATE_OUT_OF_WINDOW",
+        time_outside_hours: "SLOT_TIME_OUTSIDE_HOURS",
+        time_in_past: "SLOT_TIME_IN_PAST",
+      };
+      for (const [reason, code] of Object.entries(expected)) {
+        rpc.mockResolvedValueOnce({
+          data: null,
+          error: { code: "22023", message: `SLOT_INVALID: ${reason}` },
+        });
+        await expect(place()).rejects.toMatchObject({ code });
+      }
+
+      // An unknown reason never leaks: it is a generic invalid-input error.
+      rpc.mockResolvedValueOnce({
+        data: null,
+        error: { code: "22023", message: "SLOT_INVALID: secret details" },
+      });
+      await expect(place()).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    });
+
+    it("passes p_pickup_location_id and maps the pickup location errors", async () => {
+      const locationId = "44444444-4444-4444-8444-444444444444";
+      const rpc = vi.fn(async (_fn: string, _args: unknown) => ({
+        data: null,
+        error: { code: "22023", message: "INVALID_PICKUP_LOCATION: gone" } as {
+          code: string;
+          message: string;
+        },
+      }));
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+      const place = (pickupLocationId?: string | null) =>
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
+          pickupLocationId,
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        });
+
+      await expect(place(locationId)).rejects.toMatchObject({ code: "PICKUP_LOCATION_INVALID" });
+      expect(rpc).toHaveBeenCalledWith(
+        "place_order",
+        expect.objectContaining({ p_pickup_location_id: locationId }),
+      );
+
+      await place(null).catch(() => undefined);
+      expect(rpc).toHaveBeenLastCalledWith(
+        "place_order",
+        expect.objectContaining({ p_pickup_location_id: undefined }),
+      );
+
+      for (const [message, code] of [
+        ["PICKUP_LOCATION_REQUIRED: choose a pickup location", "PICKUP_LOCATION_REQUIRED"],
+        ["PICKUP_NOT_AVAILABLE: no pickup option is available", "PICKUP_NOT_AVAILABLE"],
+      ] as const) {
+        rpc.mockResolvedValueOnce({ data: null, error: { code: "22023", message } });
+        await expect(place()).rejects.toMatchObject({ code });
+      }
     });
 
     it("maps place_order error prefixes to codes without leaking database text", async () => {
@@ -1067,7 +1388,7 @@ describe("Supabase Repository Adapter", () => {
             guestPhone: "+33612345678",
             serviceType: "pickup",
             channel: "storefront",
-            requestedDate: "2026-10-15",
+            requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
             items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
           })
           .catch((err: unknown) => err);
@@ -1141,7 +1462,7 @@ describe("Supabase Repository Adapter", () => {
         guestPhone: "+33612345678",
         serviceType: "pickup",
         channel: "storefront",
-        requestedDate: "2026-10-15",
+        requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
         items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         idempotencyKey,
       });
@@ -1268,6 +1589,218 @@ describe("Supabase Repository Adapter", () => {
         expect((err as Error).message).not.toContain("secret detail");
         expect((err as Error).message.length).toBeGreaterThan(0);
       }
+    });
+
+    it("maps delivery_address in findByTrackingToken only for delivery orders (#352)", async () => {
+      const baseRow = {
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 42,
+        status: "CONFIRMED",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        requested_date: "2026-10-17",
+        requested_time: "12:30:00",
+        total_amount: 1500,
+        cancellation_reason: null,
+        created_at: "2026-10-17T10:00:00+00:00",
+      };
+      const items = [
+        { product_name: "Poulet Braisé", quantity: 1, unit_price: 1500, total_price: 1500 },
+      ];
+      const rpc = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "delivery",
+              delivery_address: "42 Avenue des Champs-Élysées, 75008 Paris",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              delivery_address: "Stale address on pickup row",
+            },
+            items,
+          },
+          error: null,
+        });
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+
+      const delivery = await repos.orders.findByTrackingToken("tk-delivery");
+      expect(delivery?.deliveryAddress).toBe("42 Avenue des Champs-Élysées, 75008 Paris");
+
+      const pickup = await repos.orders.findByTrackingToken("tk-pickup");
+      expect(pickup?.deliveryAddress).toBeNull();
+    });
+
+    it("maps pickup_location in findByTrackingToken only for pickup orders (#386)", async () => {
+      const baseRow = {
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 43,
+        status: "NEW",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        requested_date: "2026-10-17",
+        requested_time: null,
+        total_amount: 1650,
+        cancellation_reason: null,
+        created_at: "2026-10-17T10:00:00+00:00",
+      };
+      const items = [
+        { product_name: "Poulet Braisé", quantity: 1, unit_price: 1500, total_price: 1500 },
+      ];
+      const rpc = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              pickup_location_name: "Gare du Nord",
+              pickup_location_address: "18 Rue de Dunkerque, 75010",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              pickup_location_name: null,
+              pickup_location_address: "9 Rue du Four, 75006 Paris",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "delivery",
+              delivery_address: "1 rue X, 75001 Paris",
+              pickup_location_name: "Stale",
+              pickup_location_address: "Stale",
+            },
+            items,
+          },
+          error: null,
+        });
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+
+      expect((await repos.orders.findByTrackingToken("tk-relay"))?.pickupLocation).toEqual({
+        name: "Gare du Nord",
+        address: "18 Rue de Dunkerque, 75010",
+      });
+      expect((await repos.orders.findByTrackingToken("tk-shop"))?.pickupLocation).toEqual({
+        name: null,
+        address: "9 Rue du Four, 75006 Paris",
+      });
+      expect((await repos.orders.findByTrackingToken("tk-delivery"))?.pickupLocation).toBeNull();
+    });
+
+    it("maps pickup location snapshots on order rows, including missing address and deleted location (#386, #387)", async () => {
+      const orderId = "77777777-7777-4777-8777-777777777701";
+      const locationId = "44444444-4444-4444-8444-444444444444";
+      const baseRow = {
+        id: orderId,
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 99,
+        guest_id: "55555555-5555-4555-8555-555555555501",
+        submitted_name: null,
+        service_type: "pickup",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        payment_method: null,
+        paid_at: null,
+        refunded_at: null,
+        requested_date: "2026-10-17",
+        requested_time: null,
+        total_amount: 1650,
+        tracking_token: "a1b2c3d4e5f6789012345678abcdef01",
+        cancellation_reason: null,
+        notes: null,
+        delivery_address: null,
+        pickup_location_id: locationId as string | null,
+        pickup_location_name: "Gare du Nord" as string | null,
+        pickup_location_address: "18 Rue de Dunkerque, 75010" as string | null,
+        pickup_fee_cents: 150,
+        status_history: [],
+        created_at: "2026-10-17T10:00:00+00:00",
+        updated_at: "2026-10-17T10:00:00+00:00",
+        order_items: [
+          {
+            id: "88888888-8888-4888-8888-888888888801",
+            order_id: orderId,
+            business_id: DEMO_BUSINESS_ID,
+            product_id: "33333333-3333-4333-8333-333333333301",
+            product_name: "Poulet Braisé",
+            quantity: 1,
+            unit_price: 1500,
+            total_price: 1500,
+          },
+        ],
+      };
+
+      const fetchMapped = async (override: Partial<typeof baseRow>) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.maybeSingle = async () => ({ data: { ...baseRow, ...override }, error: null });
+        const repos = createSupabaseRepositories({
+          from: () => chain,
+        } as unknown as SupabaseClient<Database>);
+        return repos.orders.findById(DEMO_BUSINESS_ID, orderId);
+      };
+
+      const full = await fetchMapped({});
+      expect(full?.pickupLocation).toEqual({
+        id: locationId,
+        name: "Gare du Nord",
+        address: "18 Rue de Dunkerque, 75010",
+      });
+      expect(full?.pickupFeeCents).toBe(150);
+
+      // Deleted location: id is null, snapshot stays; missing/blank address maps to null without throwing.
+      const withoutAddress = await fetchMapped({
+        pickup_location_id: null,
+        pickup_location_name: "Deleted Relay",
+        pickup_location_address: null,
+      });
+      expect(withoutAddress?.pickupLocation).toEqual({
+        id: null,
+        name: "Deleted Relay",
+        address: null,
+      });
+
+      const blankAddress = await fetchMapped({
+        pickup_location_address: "   ",
+      });
+      expect(blankAddress?.pickupLocation).toEqual({
+        id: locationId,
+        name: "Gare du Nord",
+        address: null,
+      });
+
+      const shopOrder = await fetchMapped({
+        pickup_location_id: null,
+        pickup_location_name: null,
+        pickup_location_address: null,
+        pickup_fee_cents: 0,
+      });
+      expect(shopOrder?.pickupLocation).toBeNull();
+      expect(shopOrder?.pickupFeeCents).toBe(0);
     });
   });
 });

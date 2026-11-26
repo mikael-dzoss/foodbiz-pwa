@@ -1,6 +1,9 @@
 import type { Allergen } from "@/domain/allergen";
 import type { CategoryRole } from "@/domain/category";
+import type { InstallGuideDictionary } from "./areas/install-guide";
 import type { ManagerExtras } from "./manager-types";
+
+export type { InstallGuideDictionary };
 
 export const SUPPORTED_LOCALES = ["en", "fr"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -91,10 +94,6 @@ export interface StorefrontDictionary {
   installAppTitle: string;
   installAppSubtitle: string;
   installAppButton: string;
-  installIosTitle: string;
-  installIosStep1: string;
-  installIosStep2: string;
-  installIosStep3: string;
   installAppDone: string;
   footerShopInformation: string;
   footerContactUs: string;
@@ -180,7 +179,6 @@ export interface StorefrontDictionary {
   freeDelivery: string;
   weeklyOpeningHours: string;
   holidayScheduleTitle: string;
-  holidayScheduleNotice: string;
   deliveryPolicy: string;
   policyMinOrder: string;
   policyDeliveryFee: string;
@@ -245,6 +243,7 @@ export interface StorefrontDictionary {
   recommended: string;
   scheduleLater: string;
   scheduleLaterSubtext: string;
+  checkoutClosedScheduleNotice: string;
   selectDateTime: string;
   scheduledDate: string;
   scheduledTime: string;
@@ -278,6 +277,27 @@ export interface StorefrontDictionary {
   orderErrorMinimum: string;
   orderErrorStock: string;
   orderErrorInternal: string;
+  orderErrorSlotClosedNow: string;
+  orderErrorSlotClosedDay: string;
+  orderErrorSlotDateOutOfWindow: string;
+  orderErrorSlotTimeOutsideHours: string;
+  orderErrorSlotTimeInPast: string;
+  orderErrorPickupLocationInvalid: string;
+  orderErrorPickupLocationRequired: string;
+  orderErrorPickupNotAvailable: string;
+  checkoutDateTomorrow: string;
+  checkoutChooseDate: string;
+  checkoutChooseTime: string;
+  scheduledTimeRequired: string;
+  checkoutTimeRequired: string;
+  /** "{day} at {time}" */
+  checkoutSlotAt: string;
+  /** "{value} (unavailable)" for a stale pick kept in a list */
+  checkoutSlotUnavailable: string;
+  checkoutClosedNextOpening: string;
+  checkoutBlockedNotAccepting: string;
+  checkoutNoSlots: string;
+  checkoutDayNote: string;
   pageErrorTitle: string;
   pageErrorMessage: string;
   pageErrorRetry: string;
@@ -288,9 +308,50 @@ export interface StorefrontDictionary {
   viewConfirmation: string;
   trackOrder: string;
   nameRequiredError: string;
+  nameTooLongError: string;
   phoneRequiredError: string;
+  phoneInvalidError: string;
   addressRequiredError: string;
+  addressTooLongError: string;
   dateRequiredError: string;
+  dateInvalidError: string;
+  timeInvalidError: string;
+  notesTooLongError: string;
+  fieldInvalidError: string;
+  formValidationSummary: string;
+  // Handover payment option variants (#377)
+  payOnHandoverCash: string;
+  payOnHandoverCashSubtext: string;
+  payOnHandoverCard: string;
+  payOnHandoverCardSubtext: string;
+  cardOnPickup: string;
+  walletTapSoon: string;
+
+  // Structured opening hours (#372, #375)
+  opensOnDayAt: string;
+  upcomingExceptionsTitle: string;
+  todayExceptionLabel: string;
+  todayExceptionClosed: string;
+  todayExceptionOpen: string;
+
+  // Storefront pickup location picker (#386)
+  pickupLocationSectionTitle: string;
+  pickupLocationChoosePrompt: string;
+  pickupLocationShopFallback: string;
+  pickupLocationFeeFree: string;
+  pickupLocationFeeLabel: string;
+  pickupLocationFeePending: string;
+  pickupLocationFeeShort: string;
+  pickupLocationSameAsShopHours: string;
+  pickupLocationShowAll: string;
+  pickupLocationShowFewer: string;
+  pickupLocationChooseTile: string;
+  pickupLocationCount: string;
+  pickupLocationClosedNextOpening: string;
+  pickupLocationClosedScheduleNotice: string;
+  pickupLocationWithFee: string;
+  cartIncludedVat: string;
+  pricingUnavailableError: string;
 }
 
 export interface QuickAddDictionary {
@@ -398,6 +459,8 @@ export interface CommonDictionary {
   actionReasons: {
     STOCK_ERROR: string;
     ORDER_STATE_CONFLICT: string;
+    LAST_PICKUP_OPTION: string;
+    PICKUP_LOCATIONS_LIMIT: string;
   };
   /** Manager area error boundary (a page read failed). */
   pageError: {
@@ -540,6 +603,9 @@ export interface SettingsDictionary {
     saveSuccess: string;
     discardButton: string;
     atLeastOneMethodError: string;
+    // Card on handover toggle (#377)
+    cardLabel: string;
+    cardDesc: string;
   };
   inventoryFinance: {
     title: string;
@@ -571,12 +637,159 @@ export interface SettingsDictionary {
     installAppTitle: string;
     installAppDesc: string;
     installAppButton: string;
-    installedBadge: string;
     aboutLinkText: string;
     soonSection: string;
     saveButton: string;
     saveSuccess: string;
     discardButton: string;
+  };
+
+  // Opening hours (#372)
+  openingHours: {
+    title: string;
+    description: string;
+    navDescription: string;
+    overviewSummarySection: string;
+    optionsSection: string;
+    regularTitle: string;
+    regularDescription: string;
+    regularConfigured: string;
+    regularNotSet: string;
+    closed: string;
+    open: string;
+    emptyTitle: string;
+    emptyHint: string;
+    legacyTextLabel: string;
+    upcomingExceptionsTitle: string;
+    manageStructuredLink: string;
+    structuredActiveHint: string;
+    presetLabel: string;
+    presetEveryDay: string;
+    presetWeekdaysWeekend: string;
+    presetCustom: string;
+    groupEveryDay: string;
+    groupWeekdays: string;
+    groupWeekend: string;
+    openTimeLabel: string;
+    closeTimeLabel: string;
+    addRange: string;
+    removeRangeAria: string;
+    toggleDayAria: string;
+    rangeAria: string;
+    overnightHint: string;
+    errorCloseAfterOpen: string;
+    errorRangeOverlap: string;
+    errorMaxRanges: string;
+    errorInvalidTime: string;
+    errorFixBeforeSave: string;
+    saveButton: string;
+    discardButton: string;
+    saveSuccess: string;
+    clearButton: string;
+    clearConfirmTitle: string;
+    clearConfirmDescription: string;
+    clearConfirmAction: string;
+    clearSuccess: string;
+  };
+  hoursExceptions: {
+    title: string;
+    description: string;
+    rowNone: string;
+    rowUpcoming: string;
+    upcomingSection: string;
+    pastSection: string;
+    showPast: string;
+    hidePast: string;
+    emptyTitle: string;
+    emptyHint: string;
+    addButton: string;
+    editAria: string;
+    sheetAddTitle: string;
+    sheetEditTitle: string;
+    sheetDescription: string;
+    startDateLabel: string;
+    endDateLabel: string;
+    endDateHint: string;
+    statusLabel: string;
+    statusClosed: string;
+    statusCustom: string;
+    customHoursGroup: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    noteCounter: string;
+    saveButton: string;
+    cancelButton: string;
+    deleteButton: string;
+    saveSuccess: string;
+    deleteSuccess: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    errorFixBeforeSave: string;
+    errorDateRequired: string;
+    errorEndBeforeStart: string;
+    errorSpan: string;
+    errorOverlap: string;
+    errorNoteTooLong: string;
+    errorTooMany: string;
+    errorNoRanges: string;
+  };
+  pickupLocations: {
+    title: string;
+    description: string;
+    navDescription: string;
+    shopName: string;
+    shopHint: string;
+    shopPickupLabel: string;
+    relaySection: string;
+    addButton: string;
+    emptyTitle: string;
+    emptyHint: string;
+    free: string;
+    sameAsShopHours: string;
+    inactive: string;
+    editAria: string;
+    moveUpAria: string;
+    moveDownAria: string;
+    sheetAddTitle: string;
+    sheetEditTitle: string;
+    sheetDescription: string;
+    nameLabel: string;
+    descriptionLabel: string;
+    addressLabel: string;
+    postcodeLabel: string;
+    postcodeHint: string;
+    feeLabel: string;
+    feeHint: string;
+    activeLabel: string;
+    activeHint: string;
+    hoursSection: string;
+    editHoursRow: string;
+    editHoursNewHint: string;
+    saveButton: string;
+    cancelButton: string;
+    deleteButton: string;
+    saveSuccess: string;
+    deleteSuccess: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    errorName: string;
+    errorAddress: string;
+    errorPostcode: string;
+    errorFee: string;
+    backToLocations: string;
+    hoursTitle: string;
+    hoursDescription: string;
+    hoursFooterNote: string;
+    clearButton: string;
+    clearConfirmTitle: string;
+    clearConfirmDescription: string;
+    clearConfirmAction: string;
+    clearSuccess: string;
+    manageLink: string;
+    movedAnnouncement: string;
+    limitHint: string;
+    pickupOffNotice: string;
+    pickupOffHint: string;
   };
 }
 
@@ -585,7 +798,6 @@ export interface OrderConfirmationDictionary {
   awaiting: string;
   receivedHelp: string;
   paymentTitle: string;
-  handover: string;
   revtag: string;
   weroIdentifier: string;
   amount: string;
@@ -598,6 +810,11 @@ export interface OrderConfirmationDictionary {
   copyFailed: string;
   noPaymentNeeded: string;
   nextSteps: string;
+  // Handover payment variants (#377)
+  handoverCash: string;
+  handoverCard: string;
+  handoverCashCard: string;
+  handoverPrepareCard: string;
 }
 
 export interface OrderTrackingDictionary {
@@ -621,7 +838,11 @@ export interface OrderTrackingDictionary {
   fulfillmentDetails: string;
   pickupWindow: string;
   deliveryAddress: string;
+  deliveryTo: string;
+  // Pickup location (#387)
+  collectAt: string;
   directions: string;
+  directionsAria: string;
   orderSummary: string;
   subtotal: string;
   taxIncluded: string;
@@ -732,6 +953,7 @@ export interface Dictionary extends ManagerExtras {
   customers: CustomersDictionary;
   products: ProductsDictionary;
   auth: AuthDictionary;
+  installGuide: InstallGuideDictionary;
 }
 
 export * from "./manager-types";

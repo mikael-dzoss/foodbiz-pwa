@@ -124,6 +124,9 @@ export type Database = {
           sound_alerts: boolean;
           updated_at: string;
           timezone: string;
+          weekly_hours: Json | null;
+          hours_exceptions: Json;
+          shop_pickup_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -152,6 +155,9 @@ export type Database = {
           sound_alerts?: boolean;
           updated_at?: string;
           timezone?: string;
+          weekly_hours?: Json | null;
+          hours_exceptions?: Json;
+          shop_pickup_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -180,6 +186,9 @@ export type Database = {
           sound_alerts?: boolean;
           updated_at?: string;
           timezone?: string;
+          weekly_hours?: Json | null;
+          hours_exceptions?: Json;
+          shop_pickup_enabled?: boolean;
         };
         Relationships: [
           {
@@ -360,6 +369,10 @@ export type Database = {
           updated_at: string;
           idempotency_key: string | null;
           idempotency_payload_hash: string | null;
+          pickup_location_id: string | null;
+          pickup_location_name: string | null;
+          pickup_location_address: string | null;
+          pickup_fee_cents: number;
         };
         Insert: {
           id?: string;
@@ -387,6 +400,10 @@ export type Database = {
           updated_at?: string;
           idempotency_key?: string | null;
           idempotency_payload_hash?: string | null;
+          pickup_location_id?: string | null;
+          pickup_location_name?: string | null;
+          pickup_location_address?: string | null;
+          pickup_fee_cents?: number;
         };
         Update: {
           id?: string;
@@ -414,6 +431,10 @@ export type Database = {
           updated_at?: string;
           idempotency_key?: string | null;
           idempotency_payload_hash?: string | null;
+          pickup_location_id?: string | null;
+          pickup_location_name?: string | null;
+          pickup_location_address?: string | null;
+          pickup_fee_cents?: number;
         };
         Relationships: [
           {
@@ -549,6 +570,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      pickup_locations: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          description: string | null;
+          address: string;
+          postcode: string;
+          fee_cents: number;
+          weekly_hours: Json | null;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          description?: string | null;
+          address: string;
+          postcode: string;
+          fee_cents?: number;
+          weekly_hours?: Json | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          description?: string | null;
+          address?: string;
+          postcode?: string;
+          fee_cents?: number;
+          weekly_hours?: Json | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pickup_locations_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -617,6 +691,8 @@ export type Database = {
           p_notes?: string;
           p_update_guest_name?: boolean;
           p_idempotency_key?: string;
+          p_is_asap?: boolean;
+          p_pickup_location_id?: string;
         };
         Returns: Json;
       };
@@ -671,6 +747,7 @@ export type Database = {
           p_business_id: string;
           p_service_type: Database["public"]["Enums"]["order_service_type"];
           p_subtotal: number;
+          p_pickup_fee?: number;
         };
         Returns: number;
       };
@@ -726,6 +803,60 @@ export type Database = {
         };
         Returns: Json;
       };
+      valid_weekly_hours: {
+        Args: {
+          p: Json;
+        };
+        Returns: boolean;
+      };
+      valid_hours_exceptions: {
+        Args: {
+          p: Json;
+        };
+        Returns: boolean;
+      };
+      is_open_at: {
+        Args: {
+          p_hours: Json;
+          p_exceptions: Json;
+          p_tz: string;
+          p_at: string;
+        };
+        Returns: boolean;
+      };
+      slot_error: {
+        Args: {
+          p_hours: Json;
+          p_exceptions: Json;
+          p_tz: string;
+          p_now: string;
+          p_date: string;
+          p_time: string;
+          p_is_asap: boolean;
+          p_horizon_days?: number;
+          p_step_minutes?: number;
+          p_lead_minutes?: number;
+        };
+        Returns: string;
+      };
+      reorder_pickup_locations: {
+        Args: {
+          p_business_id: string;
+          p_ids: string[];
+        };
+        Returns: undefined;
+      };
+      pickup_schedule_hours: {
+        Args: {
+          p_business_weekly: Json;
+          p_business_exceptions: Json;
+          p_location_weekly: Json;
+        };
+        Returns: {
+          weekly: Json;
+          exceptions: Json;
+        }[];
+      };
     };
     Enums: {
       category_role: "regular" | "drinks" | "snacks";
@@ -736,7 +867,7 @@ export type Database = {
       order_service_type: "pickup" | "delivery" | "dine-in";
       order_channel: "storefront" | "phone" | "whatsapp" | "in-person";
       order_payment_preference: "revolut" | "wero" | "on_handover";
-      order_payment_method: "cash" | "revolut" | "wero";
+      order_payment_method: "cash" | "revolut" | "wero" | "card";
     };
     CompositeTypes: {
       [_ in never]: never;

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPin, Store, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { BusinessSettings } from "@/domain/business";
-import type { PublicOrder } from "@/domain/order";
-import type { Dictionary, SupportedLocale } from "@/domain/i18n";
+import { publicDeliveryAddress, type PublicOrder } from "@/domain/order";
+import { resolvePickupDisplay } from "@/domain/pickup-location";
+import { interpolate, type Dictionary, type SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { CopyPaymentRecipient } from "./copy-payment-recipient";
 
@@ -13,6 +14,7 @@ export function OrderConfirmationView({
   order,
   settings,
   businessName,
+  businessAddress,
   token,
   locale,
   dict,
@@ -20,9 +22,14 @@ export function OrderConfirmationView({
   order: PublicOrder;
   settings: Pick<
     BusinessSettings,
-    "revolutRevtag" | "weroIdentifier" | "paymentInstructionsEn" | "paymentInstructionsFr"
+    | "revolutRevtag"
+    | "weroIdentifier"
+    | "paymentMethods"
+    | "paymentInstructionsEn"
+    | "paymentInstructionsFr"
   > | null;
   businessName: string;
+  businessAddress?: string | null;
   token: string;
   locale: SupportedLocale;
   dict: Dictionary;
@@ -32,9 +39,25 @@ export function OrderConfirmationView({
   const reference = `#${order.orderNumber ?? "—"}`;
   const method = order.paymentPreference;
   const recipient = method === "revolut" ? settings?.revolutRevtag : settings?.weroIdentifier;
+  const cashAllowed = settings?.paymentMethods?.cash ?? true;
+  const cardAllowed = settings?.paymentMethods?.card ?? false;
+  const handoverCopy =
+    cashAllowed && cardAllowed
+      ? copy.handoverCashCard
+      : cardAllowed
+        ? copy.handoverCard
+        : copy.handoverCash;
+  const handoverPrepareCopy = cashAllowed ? copy.handoverPrepare : copy.handoverPrepareCard;
   const instructions =
     locale === "fr" ? settings?.paymentInstructionsFr : settings?.paymentInstructionsEn;
   const needsPayment = order.paid === "unpaid" && order.status !== "CANCELLED";
+  const deliveryAddress = publicDeliveryAddress(order.serviceType, order.deliveryAddress);
+  const pickupDisplay = resolvePickupDisplay(
+    order.serviceType,
+    order.pickupLocation,
+    { name: businessName, address: businessAddress },
+    businessName,
+  );
   const paymentStatus =
     order.paid === "paid"
       ? tracking.paidBadge
@@ -84,6 +107,69 @@ export function OrderConfirmationView({
         </div>
       </section>
 
+      {deliveryAddress && (
+        <section
+          className="border-border bg-card space-y-3 rounded-lg border p-4"
+          aria-labelledby="confirmation-delivery-title"
+          data-testid="confirmation-delivery-address"
+        >
+          <h2 id="confirmation-delivery-title" className="text-title-sm flex items-center gap-1.5">
+            <Truck className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{tracking.fulfillmentDetails}</span>
+          </h2>
+          <dl>
+            <dt className="text-muted-foreground text-xs font-medium">{tracking.deliveryTo}</dt>
+            <dd className="text-foreground mt-0.5 text-xs font-semibold wrap-break-word">
+              {deliveryAddress}
+            </dd>
+          </dl>
+        </section>
+      )}
+
+      {pickupDisplay && (
+        <section
+          className="border-border bg-card space-y-3 rounded-lg border p-4"
+          aria-labelledby="confirmation-pickup-title"
+          data-testid="confirmation-pickup-location"
+        >
+          <h2 id="confirmation-pickup-title" className="text-title-sm flex items-center gap-1.5">
+            <Store className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{tracking.collectAt}</span>
+          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p
+                className="text-foreground text-xs font-bold wrap-break-word"
+                data-testid="confirmation-pickup-name"
+              >
+                {pickupDisplay.name}
+              </p>
+              {pickupDisplay.address && (
+                <p
+                  className="text-muted-foreground text-xs wrap-break-word"
+                  data-testid="confirmation-pickup-address"
+                >
+                  {pickupDisplay.address}
+                </p>
+              )}
+            </div>
+            {pickupDisplay.directionsUrl && (
+              <a
+                href={pickupDisplay.directionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={interpolate(tracking.directionsAria, { place: pickupDisplay.name })}
+                data-testid="confirmation-directions-link"
+                className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
+              >
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{tracking.directions}</span>
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
       <section
         className="border-border bg-card space-y-3 rounded-lg border p-4"
         aria-labelledby="confirmation-payment-title"
@@ -99,9 +185,9 @@ export function OrderConfirmationView({
           <>
             {method === "on_handover" ? (
               <>
-                <p className="text-sm">{copy.handover}</p>
+                <p className="text-sm">{handoverCopy}</p>
                 <ImportantNote testId="confirmation-handover-prepare">
-                  {copy.handoverPrepare}
+                  {handoverPrepareCopy}
                 </ImportantNote>
               </>
             ) : recipient?.trim() ? (

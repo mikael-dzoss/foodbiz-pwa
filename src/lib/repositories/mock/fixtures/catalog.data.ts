@@ -9,6 +9,7 @@ import type { DateFormat } from "@/domain/business";
 import type { CategoryRole } from "@/domain/category";
 import type { StandardExpenseTag } from "@/domain/expense";
 import type { LeadTimeUnit } from "@/domain/lead-time";
+import type { HoursException, WeeklyHours } from "@/domain/opening-hours";
 
 export type DemoCategoryKey = "meatFish" | "traditional" | "fritters" | "drinks";
 
@@ -45,6 +46,9 @@ export interface DemoCatalogSettings {
     readonly dineIn: boolean;
   };
   readonly openingHours: string;
+  readonly weeklyHours: WeeklyHours | null;
+  readonly hoursExceptions: readonly HoursException[];
+  readonly shopPickupEnabled: boolean;
   readonly orderTimingAsap: boolean;
   readonly orderTimingScheduled: boolean;
   readonly orderTimingTimeOptional: boolean;
@@ -57,6 +61,7 @@ export interface DemoCatalogSettings {
   readonly weroIdentifier: string;
   readonly paymentMethods: {
     readonly cash: boolean;
+    readonly card: boolean;
     readonly revolut: boolean;
     readonly wero: boolean;
   };
@@ -141,6 +146,9 @@ export const DEMO_CATALOG_SETTINGS: DemoCatalogSettings = {
     dineIn: false,
   },
   openingHours: "Mar–Dim 11:00–21:00 · fermé le lundi",
+  weeklyHours: null,
+  hoursExceptions: [],
+  shopPickupEnabled: true,
   orderTimingAsap: true,
   orderTimingScheduled: true,
   orderTimingTimeOptional: false,
@@ -153,6 +161,7 @@ export const DEMO_CATALOG_SETTINGS: DemoCatalogSettings = {
   weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },

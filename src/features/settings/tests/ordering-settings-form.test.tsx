@@ -30,6 +30,7 @@ const mockSettings: BusinessSettings = {
   weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },
@@ -85,6 +86,22 @@ describe("OrderingSettingsForm component (M-63)", () => {
     );
     expect((screen.getByTestId("input-delivery-fee") as HTMLInputElement).value).toBe("3.50");
     expect((screen.getByTestId("input-min-order") as HTMLInputElement).value).toBe("15.00");
+  });
+
+  it("links to the pickup locations area", () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+    expect(screen.getByTestId("link-pickup-locations").getAttribute("href")).toBe(
+      "/manage/settings/pickup-locations",
+    );
+  });
+
+  it("hints that pickup locations are not offered while pickup is off", () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+    expect(screen.queryByTestId("pickup-locations-off-hint")).toBeNull();
+    fireEvent.click(screen.getByTestId("switch-service-pickup"));
+    expect(screen.getByTestId("pickup-locations-off-hint").textContent).toBe(
+      dict.pickupLocations.pickupOffHint,
+    );
   });
 
   it("toggles accepting orders and updates status badge", () => {
@@ -198,7 +215,7 @@ describe("OrderingSettingsForm component (M-63)", () => {
       leadTimeUnit: "business_days" as const,
       revolutRevtag: "",
       weroIdentifier: "",
-      paymentMethods: { cash: true, revolut: false, wero: false },
+      paymentMethods: { cash: true, card: false, revolut: false, wero: false },
       paymentInstructionsEn: "",
       paymentInstructionsFr: "",
       inAppAlerts: false,

@@ -204,6 +204,17 @@ export function parseSqlSchema(rawSql) {
     enums[name] = values;
   }
 
+  // 1b. Parse `alter type ... add value` (enum values added by later migrations)
+  const alterEnumRegex =
+    /alter\s+type\s+(?:public\.)?([a-zA-Z0-9_]+)\s+add\s+value\s+(?:if\s+not\s+exists\s+)?'((?:''|[^'])*)'(?:\s+(?:before|after)\s+'(?:''|[^'])*')?\s*;/gi;
+  for (const match of sql.matchAll(alterEnumRegex)) {
+    const name = match[1].toLowerCase();
+    const val = match[2].replace(/''/g, "'");
+    if (enums[name] && !enums[name].includes(val)) {
+      enums[name].push(val);
+    }
+  }
+
   // 2. Parse TABLEs
   const tableHeaderRegex =
     /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-zA-Z0-9_]+)\s*\(/gi;

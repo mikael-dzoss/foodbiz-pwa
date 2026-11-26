@@ -7,6 +7,13 @@ import {
   promptPwaInstall,
   subscribePwaInstall,
 } from "./install-store";
+import {
+  detectManualPlatform,
+  isInAppPlatform,
+  isIosUserAgent,
+  type InstallPlatform,
+  type ManualInstallPlatform,
+} from "./platform";
 
 function subscribeStandalone(callback: () => void) {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -26,19 +33,45 @@ function getStandaloneSnapshot(): boolean {
   );
 }
 
+let cachedManualPlatformKey: string | null = null;
+let cachedManualPlatform: ManualInstallPlatform | null = "generic";
+
+/**
+ * Reads the navigator and standalone snapshot for manual install guidance.
+ * Returns `null` when running standalone and falls back to `"generic"` on SSR.
+ */
+export function getManualPlatformSnapshot(): ManualInstallPlatform | null {
+  if (typeof navigator === "undefined") return "generic";
+  const userAgent = navigator.userAgent ?? "";
+  const platform = navigator.platform ?? "";
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isStandalone = getStandaloneSnapshot();
+  const key = `${userAgent}\0${platform}\0${maxTouchPoints}\0${isStandalone ? "1" : "0"}`;
+  if (key === cachedManualPlatformKey) return cachedManualPlatform;
+  cachedManualPlatformKey = key;
+  cachedManualPlatform = detectManualPlatform({
+    userAgent,
+    platform,
+    maxTouchPoints,
+    isStandalone,
+  });
+  return cachedManualPlatform;
+}
+
 function getIosSnapshot(): boolean {
   if (typeof navigator === "undefined") return false;
-  return (
-    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
+  return isIosUserAgent({
+    userAgent: navigator.userAgent ?? "",
+    platform: navigator.platform ?? "",
+    maxTouchPoints: navigator.maxTouchPoints ?? 0,
+  });
 }
 
 const noopSubscribe = () => () => {};
 
 export type PwaInstallOutcome = "accepted" | "dismissed" | "unavailable";
 
-/** Shared PWA install state: native prompt (Chromium), iOS detection and standalone mode. */
+/** Shared PWA install state: native prompt (Chromium), platform detection and standalone mode. */
 export function usePwaInstall() {
   const { deferredPrompt, installed } = useSyncExternalStore(
     subscribePwaInstall,
@@ -50,12 +83,29 @@ export function usePwaInstall() {
     getStandaloneSnapshot,
     () => false,
   );
+  const manualPlatform = useSyncExternalStore(
+    subscribeStandalone,
+    getManualPlatformSnapshot,
+    () => "generic" as const,
+  );
   const isIos = useSyncExternalStore(noopSubscribe, getIosSnapshot, () => false);
 
+  const isStandalone = isRunningStandalone || installed;
+  const canPrompt = deferredPrompt !== null;
+  const platform: InstallPlatform =
+    isStandalone || manualPlatform === null
+      ? "standalone"
+      : isInAppPlatform(manualPlatform)
+        ? manualPlatform
+        : canPrompt
+          ? "native-prompt"
+          : manualPlatform;
+
   return {
-    isStandalone: isRunningStandalone || installed,
-    canPrompt: deferredPrompt !== null,
+    isStandalone,
+    canPrompt,
     isIos,
+    platform,
     promptInstall: promptPwaInstall,
   };
 }

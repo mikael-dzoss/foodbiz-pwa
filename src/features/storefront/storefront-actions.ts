@@ -9,6 +9,8 @@ import { getStorefrontBusinessId, getStorefrontRepositories } from "@/lib/reposi
 import {
   mergeDuplicateItems,
   placeOrderInputSchema,
+  SLOT_ERROR_MESSAGES,
+  SLOT_ERROR_REASONS,
   type PlaceOrderReason,
   type PlaceOrderSuccessData,
 } from "@/domain/checkout";
@@ -25,6 +27,8 @@ import {
   type PlacedOrderSummary,
   type Product,
 } from "@/domain";
+import { validateSlot } from "@/domain/opening-hours";
+import { pickupScheduleFor, type PickupLocation } from "@/domain/pickup-location";
 import { validateOrderStock } from "@/domain/stock";
 import { calculateOrderTotals, type PricingLineItem } from "@/domain/pricing";
 import { logAntiAbuseRejection } from "@/lib/anti-abuse-log";
@@ -121,9 +125,8 @@ export const placeOrderAction = defineAction(
     ]);
 
     // 5. Order request for the repository (also used to replay a retry, see rejectOrReplay)
-    // place_order checks "past" and the horizon against the database's UTC current_date with a
-    // one-day slack; every IANA zone is within a day of UTC, so this default always passes. Don't
-    // tighten that slack without making place_order zone-aware (far-east zones would break).
+    // place_order enforces the same slot rules (booking window and opening hours in the business
+    // timezone), see validateSlot below.
     const todayDate = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
     const placeInput = {
       guestName: data.name,
@@ -137,6 +140,8 @@ export const placeOrderAction = defineAction(
       deliveryAddress: data.deliveryAddress ?? null,
       notes: data.notes ?? null,
       allowRename: false,
+      isAsap: data.isAsap,
+      pickupLocationId: data.pickupLocationId ?? null,
       // The database returns the original order for a repeated key (no second order, no second
       // stock decrement), also across server instances.
       idempotencyKey: data.idempotencyKey,
@@ -177,12 +182,64 @@ export const placeOrderAction = defineAction(
     };
 
     // 6. Business & Settings Verification (read above, public columns only: anonymous visitors)
+    let pickupLocation: PickupLocation | null = null;
     if (!business) throw new ActionError("VALIDATION", "Business was not found.");
 
     if (settings) {
       if (settings.acceptingOrders === false) {
         return rejectOrReplay(
           reject("CONFLICT", "STORE_CLOSED", "This store is currently not accepting orders."),
+        );
+      }
+      // Pickup options (#386, mirrors place_order): the shop (when enabled) plus the active relay
+      // locations. A chosen location must be active; several options without a valid choice need
+      // one; a lone relay is implied.
+      if (data.serviceType === "pickup" && settings.serviceTypes?.pickup !== false) {
+        const relays = await repos.pickupLocations.listByBusiness(businessId, { activeOnly: true });
+        const shopEnabled = settings.shopPickupEnabled ?? true;
+        if (data.pickupLocationId) {
+          pickupLocation = relays.find((l) => l.id === data.pickupLocationId) ?? null;
+          if (!pickupLocation) {
+            return rejectOrReplay(
+              reject(
+                "CONFLICT",
+                "PICKUP_LOCATION_INVALID",
+                "The chosen pickup location is no longer available.",
+              ),
+            );
+          }
+        } else if (!shopEnabled) {
+          if (relays.length === 0) {
+            return rejectOrReplay(
+              reject("CONFLICT", "PICKUP_NOT_AVAILABLE", "Pickup is currently not available."),
+            );
+          }
+          if (relays.length > 1) {
+            return rejectOrReplay(
+              reject("CONFLICT", "PICKUP_LOCATION_REQUIRED", "Please choose a pickup location."),
+            );
+          }
+          pickupLocation = relays[0];
+        }
+      }
+      // Closed shop = scheduled orders only; a scheduled slot must be on an open day/time within
+      // [today, today + 30] (place_order enforces the same rules). A relay follows its own hours
+      // minus the business closed days and closures.
+      const businessSchedule = {
+        weekly: settings.weeklyHours ?? null,
+        exceptions: settings.hoursExceptions ?? [],
+      };
+      const slot = validateSlot(
+        pickupLocation
+          ? pickupScheduleFor(businessSchedule, pickupLocation.weeklyHours)
+          : businessSchedule,
+        settings.timezone ?? DEFAULT_TIMEZONE,
+        new Date(),
+        { date: placeInput.requestedDate, time: placeInput.requestedTime, isAsap: data.isAsap },
+      );
+      if (!slot.ok) {
+        return rejectOrReplay(
+          reject("CONFLICT", SLOT_ERROR_REASONS[slot.reason], SLOT_ERROR_MESSAGES[slot.reason]),
         );
       }
       if (settings.serviceTypes && settings.serviceTypes[data.serviceType] === false) {
@@ -248,6 +305,7 @@ export const placeOrderAction = defineAction(
       items: pricingLineItems,
       serviceType: data.serviceType,
       deliveryFee: settings?.deliveryFee ?? 0,
+      pickupFee: pickupLocation?.feeCents ?? 0,
       minimumOrderAmount: settings?.minOrderAmount ?? 0,
     });
     if (!totalsResult.ok) {

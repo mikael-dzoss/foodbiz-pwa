@@ -94,6 +94,12 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
     expect(screen.getByText(DEMO_PRODUCT.folere.name)).toBeDefined();
     expect(screen.getByText(demoBusiness.address!)).toBeDefined();
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(demoBusiness.address!)}`,
+    );
+    expect(screen.getByTestId("tracking-pickup-icon")).toBeDefined();
+    expect(screen.queryByTestId("tracking-delivery-icon")).toBeNull();
+    expect(screen.queryByTestId("tracking-delivery-address")).toBeNull();
     expect(screen.getByTestId("tracking-contact-button").getAttribute("href")).toContain(
       `tel:${demoBusiness.phone!.replace(/\D/g, "")}`,
     );
@@ -146,7 +152,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
   });
 
-  it("renders delivery progress and unpaid status without private address or notes", () => {
+  it("renders delivery address under Delivery to without shop address, Directions link, or notes (#352)", () => {
     const deliveryOrder: Order = {
       ...mockActiveOrder,
       id: "ord-deliv",
@@ -169,10 +175,61 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
 
     expect(screen.getByText("Delivery")).toBeDefined();
-    expect(screen.queryByText("42 Avenue des Champs-Élysées, 75008 Paris")).toBeNull();
+    expect(screen.getByTestId("tracking-delivery-icon")).toBeDefined();
+    expect(screen.queryByTestId("tracking-pickup-icon")).toBeNull();
+    const deliverySection = screen.getByTestId("tracking-delivery-address");
+    expect(deliverySection.tagName).toBe("DL");
+    expect(deliverySection.querySelector("dt")?.textContent).toBe("Delivery to");
+    expect(deliverySection.querySelector("dd")?.textContent).toBe(
+      "42 Avenue des Champs-Élysées, 75008 Paris",
+    );
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
     expect(screen.queryByText("Please ring door code 4589B")).toBeNull();
     expect(screen.getByText(enDict.orderTracking.unpaidBadge)).toBeDefined();
     expect(screen.getByTestId("tracking-status-badge").textContent).toContain("Preparing");
+  });
+
+  it("renders French delivery label and hides shop address when delivery address is missing (#352)", () => {
+    const frDeliveryOrder: Order = {
+      ...mockActiveOrder,
+      id: "ord-deliv-fr",
+      orderNumber: 56,
+      serviceType: "delivery",
+      deliveryAddress: "12 Rue de Rivoli, 75001 Paris",
+    };
+
+    const { rerender } = render(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={frDeliveryOrder}
+        business={mockBusiness}
+        locale="fr"
+        dict={frDict.orderTracking}
+      />,
+    );
+
+    expect(screen.getByText("Détails de la commande")).toBeDefined();
+    const deliverySection = screen.getByTestId("tracking-delivery-address");
+    expect(deliverySection.tagName).toBe("DL");
+    expect(deliverySection.querySelector("dt")?.textContent).toBe("Livraison à");
+    expect(deliverySection.querySelector("dd")?.textContent).toBe("12 Rue de Rivoli, 75001 Paris");
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
+
+    rerender(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{ ...frDeliveryOrder, deliveryAddress: null }}
+        business={mockBusiness}
+        locale="fr"
+        dict={frDict.orderTracking}
+      />,
+    );
+
+    expect(screen.queryByTestId("tracking-delivery-address")).toBeNull();
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
   });
 
   it("renders COMPLETED and READY order statuses", () => {
@@ -232,5 +289,81 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
 
     expect(text("Europe/Paris")).toContain("00:45");
     expect(text("America/New_York")).toContain("18:45");
+  });
+
+  it("shows Collect at block with relay name, address, and encoded Directions link (#387)", () => {
+    const relayAddress = "12 Place Jean Jaurès, 93100 Montreuil";
+    const { rerender } = render(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{
+          ...mockActiveOrder,
+          serviceType: "pickup",
+          pickupLocation: { name: "Marché de Montreuil", address: relayAddress },
+        }}
+        business={mockBusiness}
+        locale="en"
+        dict={enDict.orderTracking}
+      />,
+    );
+
+    const pickupBlock = screen.getByTestId("tracking-pickup-location");
+    expect(pickupBlock.querySelector("dt")?.textContent).toBe("Collect at");
+    expect(pickupBlock.querySelectorAll("dd")).toHaveLength(1);
+    expect(screen.getByTestId("tracking-pickup-name").textContent).toBe("Marché de Montreuil");
+    expect(screen.getByTestId("tracking-pickup-address").textContent).toBe(relayAddress);
+    const link = screen.getByTestId("tracking-directions-link");
+    expect(link.getAttribute("href")).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(relayAddress)}`,
+    );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("aria-label")).toBe(
+      "Directions to Marché de Montreuil (opens in a new tab)",
+    );
+
+    // Shop fallback when pickupLocation has null name (tracking RPC shape)
+    rerender(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{
+          ...mockActiveOrder,
+          serviceType: "pickup",
+          pickupLocation: { name: null, address: demoBusiness.address! },
+        }}
+        business={mockBusiness}
+        locale="fr"
+        dict={frDict.orderTracking}
+      />,
+    );
+    expect(screen.getByTestId("tracking-pickup-location").querySelector("dt")?.textContent).toBe(
+      "Retrait à",
+    );
+    expect(screen.getByTestId("tracking-pickup-name").textContent).toBe(mockBusiness.name);
+    expect(screen.getByTestId("tracking-pickup-address").textContent).toBe(demoBusiness.address);
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(demoBusiness.address!)}`,
+    );
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("aria-label")).toBe(
+      `Itinéraire vers ${mockBusiness.name} (ouvre un nouvel onglet)`,
+    );
+
+    // Delivery shows nothing for Collect at even if pickupLocation were present
+    rerender(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{
+          ...mockActiveOrder,
+          serviceType: "delivery",
+          deliveryAddress: "10 Rue de Rivoli, 75001 Paris",
+          pickupLocation: { name: "Marché de Montreuil", address: relayAddress },
+        }}
+        business={mockBusiness}
+        locale="en"
+        dict={enDict.orderTracking}
+      />,
+    );
+    expect(screen.queryByTestId("tracking-pickup-location")).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
   });
 });

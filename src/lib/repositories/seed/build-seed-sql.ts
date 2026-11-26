@@ -1,7 +1,9 @@
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { Expense } from "@/domain/expense";
 import type { Guest } from "@/domain/guest";
+import type { HoursException, WeeklyHours } from "@/domain/opening-hours";
 import type { Order, OrderStatusEvent } from "@/domain/order";
+import type { PickupLocation } from "@/domain/pickup-location";
 import type { Product, ProductCategory } from "@/domain/product";
 
 import {
@@ -22,16 +24,136 @@ export interface SeedFixtures {
   guests: readonly Guest[];
   orders: readonly Order[];
   expenses: readonly Expense[];
+  /** Relay pickup locations (#385); omitted means none. */
+  pickupLocations?: readonly PickupLocation[];
 }
+
+/**
+ * Realistic structured weekly opening hours for the staging demo shop "Les Saveurs du Continent" (#372):
+ *   - Mon: closed
+ *   - Tue–Thu: 11:30–14:30 and 18:00–22:00
+ *   - Fri: 11:30–14:30 and 18:00–24:00
+ *   - Sat: 00:00–01:00, 11:30–15:00 and 18:00–24:00
+ *   - Sun: 00:00–01:00 and 12:00–16:00
+ */
+export const DEMO_STAGING_WEEKLY_HOURS: WeeklyHours = {
+  mon: [],
+  tue: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  wed: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  thu: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  fri: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "24:00" },
+  ],
+  sat: [
+    { open: "00:00", close: "01:00" },
+    { open: "11:30", close: "15:00" },
+    { open: "18:00", close: "24:00" },
+  ],
+  sun: [
+    { open: "00:00", close: "01:00" },
+    { open: "12:00", close: "16:00" },
+  ],
+};
+
+/**
+ * Upcoming exceptional days for the seeded demo shop "Les Saveurs du Continent" (#375),
+ * anchored relative to the demo orders' anchor date (`2026-10-09`, shifted to today in
+ * Europe/Paris by `v_days` when `supabase/seed.sql` runs):
+ *   - +7 days: special continuous hours day ("Ouverture exceptionnelle")
+ *   - +14..+16 days: 3-day closed holiday ("Congés annuels")
+ */
+export const DEMO_STAGING_HOURS_EXCEPTIONS: readonly HoursException[] = [
+  {
+    from: "2026-10-16",
+    to: "2026-10-16",
+    ranges: [{ open: "11:00", close: "16:00" }],
+    note: "Ouverture exceptionnelle",
+  },
+  {
+    from: "2026-10-23",
+    to: "2026-10-25",
+    ranges: [],
+    note: "Congés annuels",
+  },
+];
+
+const NO_HOURS: WeeklyHours = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+
+/**
+ * Two Ile-de-France RER relay points for the seeded demo shop (#385): a free one open on
+ * weekday evenings and a paid one open on weekend lunchtimes. Both use their own weekly hours;
+ * the business closing days and holidays override them.
+ */
+export const DEMO_STAGING_PICKUP_LOCATIONS: readonly PickupLocation[] = [
+  {
+    id: "14000000-0000-4000-8000-000000000001",
+    businessId: demoBusiness.id,
+    name: "Gare RER B – La Plaine Stade de France",
+    description: "Meeting point at the station forecourt, side of the Stade de France.",
+    address: "Place de la Gare, La Plaine Stade de France",
+    postcode: "93210",
+    feeCents: 0,
+    weeklyHours: {
+      ...NO_HOURS,
+      tue: [{ open: "18:00", close: "20:00" }],
+      wed: [{ open: "18:00", close: "20:00" }],
+      thu: [{ open: "18:00", close: "20:00" }],
+      fri: [{ open: "18:00", close: "20:00" }],
+      sat: [{ open: "18:00", close: "20:00" }],
+    },
+    isActive: true,
+    sortOrder: 0,
+    createdAt: "2026-10-01T09:00:00.000Z",
+    updatedAt: "2026-10-01T09:00:00.000Z",
+  },
+  {
+    id: "14000000-0000-4000-8000-000000000002",
+    businessId: demoBusiness.id,
+    name: "Gare RER D – Saint-Denis",
+    description: "Meeting point at the main station entrance.",
+    address: "Place Pierre Semard, Saint-Denis",
+    postcode: "93200",
+    feeCents: 150,
+    weeklyHours: {
+      ...NO_HOURS,
+      fri: [{ open: "12:00", close: "14:00" }],
+      sat: [{ open: "12:00", close: "14:00" }],
+      sun: [{ open: "12:00", close: "14:00" }],
+    },
+    isActive: true,
+    sortOrder: 1,
+    createdAt: "2026-10-01T09:00:00.000Z",
+    updatedAt: "2026-10-01T09:00:00.000Z",
+  },
+];
 
 const DEFAULT_FIXTURES: SeedFixtures = {
   business: demoBusiness,
-  settings: demoSettings,
+  settings: {
+    ...demoSettings,
+    weeklyHours: DEMO_STAGING_WEEKLY_HOURS,
+    shopPickupEnabled: true,
+    hoursExceptions: DEMO_STAGING_HOURS_EXCEPTIONS.map((ex) => ({
+      ...ex,
+      ranges: ex.ranges.map((r) => ({ ...r })),
+    })),
+  },
   categories: demoCategories,
   products: demoProducts,
   guests: demoGuests,
   orders: demoOrders,
   expenses: demoExpenses,
+  pickupLocations: DEMO_STAGING_PICKUP_LOCATIONS,
 };
 
 const HEADER_COMMENT = [
@@ -56,6 +178,7 @@ const DELETE_TABLES_FK_ORDER = [
   "expenses",
   "products",
   "product_categories",
+  "pickup_locations",
 ] as const;
 
 export function sqlText(value: string): string {
@@ -98,6 +221,26 @@ export function sqlTextArray(values: readonly string[]): string {
 
 export function sqlJsonb(value: unknown): string {
   return `${sqlText(JSON.stringify(value))}::jsonb`;
+}
+
+export function sqlNullableJsonb(value: unknown): string {
+  return value == null ? "null" : sqlJsonb(value);
+}
+
+function sqlShiftedHoursExceptions(exceptions: readonly HoursException[] | undefined): string {
+  if (!exceptions || exceptions.length === 0) {
+    return "'[]'::jsonb";
+  }
+  const entries = exceptions.map((ex) => {
+    const fields = [
+      `'from', to_char(${sqlShiftedDate(ex.from)}, 'YYYY-MM-DD')`,
+      `'to', to_char(${sqlShiftedDate(ex.to)}, 'YYYY-MM-DD')`,
+      `'ranges', ${sqlJsonb(ex.ranges)}`,
+      ...(ex.note !== undefined ? [`'note', ${sqlText(ex.note)}`] : []),
+    ];
+    return `      jsonb_build_object(${fields.join(", ")})`;
+  });
+  return `jsonb_build_array(\n${entries.join(",\n")}\n    )`;
 }
 
 function sqlTimestamp(iso: string): string {
@@ -230,6 +373,9 @@ function renderBusinessSettingsInsert(settings: BusinessSettings): string {
     ["accepting_orders", sqlBoolean(settings.acceptingOrders)],
     ["service_types", sqlJsonb(settings.serviceTypes)],
     ["opening_hours", sqlText(settings.openingHours ?? "")],
+    ["weekly_hours", sqlNullableJsonb(settings.weeklyHours ?? null)],
+    ["hours_exceptions", sqlShiftedHoursExceptions(settings.hoursExceptions)],
+    ["shop_pickup_enabled", sqlBoolean(settings.shopPickupEnabled ?? true)],
     ["order_timing_asap", sqlBoolean(settings.orderTimingAsap)],
     ["order_timing_scheduled", sqlBoolean(settings.orderTimingScheduled)],
     ["order_timing_time_optional", sqlBoolean(settings.orderTimingTimeOptional)],
@@ -523,6 +669,47 @@ function renderExpensesInsert(expenses: readonly Expense[]): string | null {
   ].join("\n");
 }
 
+function renderPickupLocationsInsert(locations: readonly PickupLocation[]): string | null {
+  if (locations.length === 0) return null;
+
+  const columns = [
+    "id",
+    "business_id",
+    "name",
+    "description",
+    "address",
+    "postcode",
+    "fee_cents",
+    "weekly_hours",
+    "is_active",
+    "sort_order",
+  ] as const;
+
+  const rows = locations.map(
+    (location) =>
+      `    (${[
+        sqlUuid(location.id),
+        sqlUuid(location.businessId),
+        sqlText(location.name),
+        sqlNullableText(location.description),
+        sqlText(location.address),
+        sqlText(location.postcode),
+        sqlNumber(location.feeCents),
+        sqlNullableJsonb(location.weeklyHours),
+        sqlBoolean(location.isActive),
+        sqlNumber(location.sortOrder),
+      ].join(", ")})`,
+  );
+
+  return [
+    "  -- 9. Pickup Locations",
+    `  insert into public.pickup_locations (`,
+    `    ${columns.join(",\n    ")}`,
+    `  ) values`,
+    `${rows.join(",\n")};`,
+  ].join("\n");
+}
+
 export function buildSeedSql(fixtures: SeedFixtures = DEFAULT_FIXTURES): string {
   const anchorDate = findAnchorDate(fixtures.orders);
   const shiftAssignment =
@@ -541,6 +728,7 @@ export function buildSeedSql(fixtures: SeedFixtures = DEFAULT_FIXTURES): string 
     renderOrdersInsert(fixtures.orders),
     renderOrderItemsInsert(fixtures.orders),
     renderExpensesInsert(fixtures.expenses),
+    renderPickupLocationsInsert(fixtures.pickupLocations ?? []),
   ].filter((stmt): stmt is string => stmt !== null);
 
   return [

@@ -10,6 +10,10 @@ import {
   type StorefrontBusiness,
   type StorefrontCategory,
 } from "@/domain/storefront-business";
+import {
+  toStorefrontPickupLocation,
+  type StorefrontPickupLocation,
+} from "@/domain/pickup-location";
 import { toStorefrontProduct, type StorefrontProduct } from "@/domain/storefront-product";
 
 export interface GroupedCategory {
@@ -22,6 +26,10 @@ export interface GroupedCategory {
 export interface StorefrontCatalogData {
   business: StorefrontBusiness;
   settings: BusinessSettings | null;
+  /** Whether the shop itself is a pickup option (true when settings are missing). */
+  shopPickupEnabled: boolean;
+  /** Active relay pickup locations, ordered; public fields only. */
+  pickupLocations: StorefrontPickupLocation[];
   categories: StorefrontCategory[];
   groupedCategories: GroupedCategory[];
   featuredProducts: StorefrontProduct[];
@@ -41,9 +49,15 @@ export interface StorefrontProductData {
   isOpen: boolean;
 }
 
+/** True when the business configured weekly hours or any exceptional day (#372, #375). */
+export function hasStructuredHours(settings: BusinessSettings | null): boolean {
+  return Boolean(settings?.weeklyHours) || (settings?.hoursExceptions?.length ?? 0) > 0;
+}
+
 /**
  * Checks if the store is currently open based on opening hours and the current time on the
  * business clock (`settings.timezone`), not the server's.
+ * With structured weekly hours or exceptions, `isOpen` is neutral (see `hasStructuredHours`).
  * If no opening hours are set, defaults to open (unless acceptingOrders is explicitly false).
  */
 export function evaluateStoreOperatingStatus(
@@ -52,6 +66,12 @@ export function evaluateStoreOperatingStatus(
 ): { isOpen: boolean; isAcceptingOrders: boolean; scheduleText: string | null } {
   const isAcceptingOrders = settings?.acceptingOrders ?? true;
   const openingHours = settings?.openingHours?.trim() || null;
+
+  // Structured hours (#372) are evaluated at request/client time against the business clock, never
+  // here: cached fetchers only report whether orders are accepted. `isOpen` is a neutral value.
+  if (hasStructuredHours(settings)) {
+    return { isOpen: isAcceptingOrders, isAcceptingOrders, scheduleText: openingHours };
+  }
 
   if (!openingHours) {
     return {
@@ -96,11 +116,12 @@ export async function getStorefrontCatalog(): Promise<StorefrontCatalogData> {
 
   // Read failures propagate to the route error boundary: never serve placeholder data.
   const repos = getStorefrontRepositories();
-  const [business, settings, categories, products] = await Promise.all([
+  const [business, settings, categories, products, pickupLocations] = await Promise.all([
     repos.business.findById(businessId),
     repos.business.getSettings(businessId),
     repos.categories.list(businessId),
     repos.products.list(businessId, { visibleOnly: true }),
+    repos.pickupLocations.listByBusiness(businessId, { activeOnly: true }),
   ]);
 
   if (!business) {
@@ -167,6 +188,8 @@ export async function getStorefrontCatalog(): Promise<StorefrontCatalogData> {
   return {
     business: toStorefrontBusiness(business),
     settings,
+    shopPickupEnabled: settings?.shopPickupEnabled ?? true,
+    pickupLocations: pickupLocations.map(toStorefrontPickupLocation),
     categories: categories.map(toStorefrontCategory),
     groupedCategories,
     featuredProducts,

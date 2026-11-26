@@ -381,4 +381,46 @@ describe("OrderList Component", () => {
     expect(screen.queryByText("(-1d)")).toBeNull();
     expect(screen.queryByText("(-overdue)")).toBeNull();
   });
+
+  it("shows relay pickup location name (truncated) while leaving shop pickup and delivery unchanged (#387)", () => {
+    const relayName = "Gare RER B - La Plaine Stade de France (Sortie Nord)";
+    const dataWithRelay: ListOrdersResult = {
+      ...mockInitialData,
+      orders: [
+        {
+          ...mockInitialData.orders[0],
+          id: "ord-relay",
+          orderNumber: 99,
+          serviceType: "pickup",
+          pickupLocation: {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: relayName,
+            address: "Place du 8 mai 1945, 93210",
+          },
+          pickupFeeCents: 150,
+        },
+        mockInitialData.orders[0], // shop pickup (pickupLocation absent)
+        mockInitialData.orders[1], // delivery
+      ],
+    };
+
+    render(<OrderList now="2026-10-15T12:00:00.000Z" initialData={dataWithRelay} />);
+
+    // Relay pickup card shows the relay location name with truncate class
+    const relayCard = screen.getByTestId("order-card-ord-relay");
+    const relayBadge = relayCard.querySelector('[data-testid="order-pickup-location"]');
+    expect(relayBadge?.textContent).toBe(relayName);
+    expect(relayBadge?.className).toContain("truncate");
+    expect(relayCard.textContent).not.toContain("Store Pickup");
+
+    // Shop pickup card unchanged
+    const shopCard = screen.getByTestId("order-card-ord-1");
+    expect(shopCard.textContent).toContain("Store Pickup");
+    expect(shopCard.querySelector('[data-testid="order-pickup-location"]')).toBeNull();
+
+    // Delivery card shows delivery address, never pickup location
+    const deliveryCard = screen.getByTestId("order-card-ord-2");
+    expect(deliveryCard.textContent).toContain("123 Rue de la Paix");
+    expect(deliveryCard.querySelector('[data-testid="order-pickup-location"]')).toBeNull();
+  });
 });

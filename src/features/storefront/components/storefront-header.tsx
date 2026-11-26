@@ -107,7 +107,7 @@ export function StorefrontHeader({
               locale={locale}
               dict={dict}
               businessName={businessName}
-              footer={<InstallAppCard dict={dict} />}
+              footer={<InstallAppCard dict={dict} businessName={businessName} locale={locale} />}
             />
             <span
               data-testid="header-brand"

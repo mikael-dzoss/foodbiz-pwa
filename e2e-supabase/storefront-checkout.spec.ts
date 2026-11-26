@@ -13,19 +13,29 @@ const serviceKey = process.env.E2E_SUPABASE_SERVICE_KEY ?? "";
 // Service-role client used only to make the seeded store orderable around the clock and
 // restore it afterwards; the journey itself is anonymous.
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
-let original: { opening_hours: string | null; min_order_amount: number } | null = null;
+let original: {
+  opening_hours: string | null;
+  min_order_amount: number;
+  weekly_hours: unknown;
+  hours_exceptions: unknown;
+} | null = null;
 
 test.beforeAll(async () => {
   const { data, error } = await admin
     .from("business_settings")
-    .select("opening_hours, min_order_amount")
+    .select("opening_hours, min_order_amount, weekly_hours, hours_exceptions")
     .eq("business_id", BUSINESS_ID)
     .single();
   if (error) throw error;
   original = data;
   const { error: updateError } = await admin
     .from("business_settings")
-    .update({ opening_hours: "00:00 - 23:59", min_order_amount: 0 })
+    .update({
+      opening_hours: "00:00 - 23:59",
+      min_order_amount: 0,
+      weekly_hours: null,
+      hours_exceptions: [],
+    })
     .eq("business_id", BUSINESS_ID);
   if (updateError) throw updateError;
 
@@ -73,6 +83,8 @@ test("anonymous visitor orders from the Supabase catalog and tracks the order", 
   await page.getByTestId("proceed-checkout-button").click();
   await page.getByTestId("checkout-name-input").fill("E2E Supabase Guest");
   await page.getByTestId("checkout-phone-input").fill("+33600000999");
+  // The seeded business offers the shop and two relay points, so a pickup point must be chosen.
+  await page.getByTestId("pickup-location-option-shop").click();
   await page.getByTestId("place-order-button").click();
 
   await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}\/confirmed$/);

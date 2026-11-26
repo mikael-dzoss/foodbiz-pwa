@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDictionary } from "@/domain/i18n";
 import { DEMO_PRODUCT } from "@/lib/repositories/mock/fixtures";
 import { ToastProvider } from "@/components/ui";
@@ -7,6 +7,7 @@ import { CartProvider, resetCartStore } from "../context/cart-context";
 import { CartView } from "../components/cart-view";
 
 const enDict = getDictionary("en").storefront;
+const frDict = getDictionary("fr").storefront;
 
 describe("CartView", () => {
   beforeEach(() => {
@@ -58,8 +59,12 @@ describe("CartView", () => {
     expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
     expect(screen.getByText(DEMO_PRODUCT.chaudChaudNoyaux.name)).toBeDefined();
     expect(screen.getByTestId("cart-count-badge").textContent).toContain("3");
-    // Subtotal: 2 * 220 + 140 = 580 cents = €5.80 >= 500
+    // Food total: 2 * 220 + 140 = 580 cents = €5.80 >= 500 -> split via splitOrderTotal into €5.22 + €0.58 (incl. VAT)
     expect(screen.getByText(enDict.minimumOrderReached)).toBeDefined();
+    expect(screen.getByText(enDict.cartIncludedVat)).toBeDefined();
+    expect(screen.getByTestId("cart-subtotal-value").textContent).toBe("€5.22");
+    expect(screen.getByTestId("cart-tax-value").textContent).toBe("€0.58");
+    expect(screen.getByTestId("cart-order-total").textContent).toBe("€5.80");
 
     // #237: actions bar is in-flow sticky, never a fixed overlay over the footer
     const bar = screen.getByTestId("cart-action-bar");
@@ -245,5 +250,74 @@ describe("CartView", () => {
     // Type notes
     fireEvent.change(textarea, { target: { value: "Please pack fritters separately" } });
     expect(textarea.value).toBe("Please pack fritters separately");
+  });
+
+  it("splits VAT-inclusive food prices with splitOrderTotal so subtotal + incl. VAT + delivery fee equals total", () => {
+    const initialItems = [
+      {
+        productId: "p1",
+        name: DEMO_PRODUCT.pouletBraise.name,
+        price: 1000,
+        quantity: 2,
+        maxStock: 5,
+        imageUrl: null,
+      },
+    ];
+
+    render(
+      <CartProvider initialItems={initialItems} initialServiceMode="delivery">
+        <CartView
+          locale="fr"
+          dict={frDict}
+          settings={{
+            serviceTypes: { delivery: true, pickup: true, dineIn: false },
+            deliveryFee: 250,
+            shopPickupEnabled: true,
+          }}
+        />
+      </CartProvider>,
+    );
+
+    // 2000 food (1800 pre-tax + 200 VAT) + 250 delivery = 2250 -> lines sum exactly to total
+    expect(screen.getByText(frDict.cartIncludedVat)).toBeDefined();
+    expect(screen.getByTestId("cart-subtotal-value").textContent).toMatch(/^18,00\s€$/);
+    expect(screen.getByTestId("cart-tax-value").textContent).toMatch(/^2,00\s€$/);
+    expect(screen.getByTestId("cart-fee-value").textContent).toMatch(/^2,50\s€$/);
+    expect(screen.getByTestId("cart-order-total").textContent).toMatch(/^22,50\s€$/);
+  });
+
+  it("blocks checkout with a visible alert and logs when pricing fails (no fallback total)", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const corruptedItems = [
+      {
+        productId: "p-bad",
+        name: DEMO_PRODUCT.pouletBraise.name,
+        price: -50,
+        quantity: 1,
+        maxStock: 5,
+        imageUrl: null,
+      },
+    ];
+
+    render(
+      <CartProvider initialItems={corruptedItems}>
+        <CartView locale="en" dict={enDict} minOrderAmount={500} />
+      </CartProvider>,
+    );
+
+    const alert = screen.getByTestId("cart-pricing-error");
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(alert.textContent).toBe(enDict.pricingUnavailableError);
+    expect(screen.queryByTestId("cart-order-total")).toBeNull();
+    expect(screen.queryByTestId("minimum-order-banner")).toBeNull();
+
+    const proceedBtn = screen.getByTestId("proceed-checkout-button") as HTMLButtonElement;
+    expect(proceedBtn.disabled).toBe(true);
+    expect(proceedBtn.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(proceedBtn.textContent).toBe(enDict.proceedToCheckout);
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(String(errorSpy.mock.calls[0][0])).toContain("storefront_pricing_failed");
+    errorSpy.mockRestore();
   });
 });

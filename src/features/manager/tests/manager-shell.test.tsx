@@ -140,6 +140,9 @@ describe("Manager App Shell & Navigation (#29)", () => {
     expect(screen.getByRole("link", { name: /Categories/i })).toBeDefined();
     expect(screen.getByRole("link", { name: /Expenses/i })).toBeDefined();
     expect(screen.getByRole("link", { name: /Settings/i })).toBeDefined();
+    expect(screen.getByRole("link", { name: /Pickup locations/i }).getAttribute("href")).toBe(
+      "/manage/settings/pickup-locations",
+    );
     expect(screen.getByRole("button", { name: /Sign out/i })).toBeDefined();
   });
 });

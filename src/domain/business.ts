@@ -2,6 +2,9 @@ import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
 import { timeZoneSchema, DEFAULT_TIMEZONE } from "./timezone";
 import { leadTimeUnitSchema, leadTimeValueSchema } from "./lead-time";
+import { hoursExceptionsSchema, weeklyHoursSchema } from "./opening-hours";
+
+const openingHoursTextSchema = z.string().trim().max(500);
 
 const socialUrlSchema = z
   .url({ protocol: /^https$/ })
@@ -114,7 +117,11 @@ export const businessSettingsSchema = z.object({
       dineIn: z.boolean().default(true),
     })
     .default({ pickup: true, delivery: true, dineIn: true }),
-  openingHours: z.string().trim().max(500).optional().default(""),
+  openingHours: openingHoursTextSchema.optional().default(""),
+  weeklyHours: weeklyHoursSchema.nullable().optional(),
+  hoursExceptions: hoursExceptionsSchema.optional(),
+  // Whether the shop itself is a pickup option next to relay locations (#385); absent means true
+  shopPickupEnabled: z.boolean().optional(),
   orderTimingAsap: z.boolean().default(true),
   orderTimingScheduled: z.boolean().default(true),
   orderTimingTimeOptional: z.boolean().default(true),
@@ -131,10 +138,11 @@ export const businessSettingsSchema = z.object({
   paymentMethods: z
     .object({
       cash: z.boolean().default(true),
+      card: z.boolean().default(false),
       revolut: z.boolean().default(true),
       wero: z.boolean().default(true),
     })
-    .default({ cash: true, revolut: true, wero: true }),
+    .default({ cash: true, card: false, revolut: true, wero: true }),
   paymentInstructionsEn: z.string().trim().max(1000).optional().default(""),
   paymentInstructionsFr: z.string().trim().max(1000).optional().default(""),
 
@@ -153,7 +161,7 @@ export const updateOrderingSettingsSchema = z
       delivery: z.boolean(),
       dineIn: z.boolean(),
     }),
-    openingHours: z.string().trim().max(500).optional().default(""),
+    openingHours: openingHoursTextSchema.optional().default(""),
     orderTimingAsap: z.boolean().default(true),
     orderTimingScheduled: z.boolean().default(true),
     orderTimingTimeOptional: z.boolean().default(true),
@@ -177,12 +185,27 @@ export const updateOrderingSettingsSchema = z
 
 export type UpdateOrderingSettingsInput = z.infer<typeof updateOrderingSettingsSchema>;
 
+export const updateOpeningHoursSchema = z.object({
+  weeklyHours: weeklyHoursSchema.nullable(),
+  hoursExceptions: hoursExceptionsSchema.optional(),
+  openingHours: openingHoursTextSchema.optional(),
+});
+
+export type UpdateOpeningHoursInput = z.infer<typeof updateOpeningHoursSchema>;
+
+export const updateHoursExceptionsSchema = z.object({
+  hoursExceptions: hoursExceptionsSchema,
+});
+
+export type UpdateHoursExceptionsInput = z.infer<typeof updateHoursExceptionsSchema>;
+
 export const updatePaymentSettingsSchema = z
   .object({
     revolutRevtag: z.string().trim().optional().default(""),
     weroIdentifier: z.string().trim().optional().default(""),
     paymentMethods: z.object({
       cash: z.boolean(),
+      card: z.boolean(),
       revolut: z.boolean(),
       wero: z.boolean(),
     }),
@@ -190,7 +213,11 @@ export const updatePaymentSettingsSchema = z
     paymentInstructionsFr: z.string().trim().max(1000).optional().default(""),
   })
   .refine(
-    (data) => data.paymentMethods.cash || data.paymentMethods.revolut || data.paymentMethods.wero,
+    (data) =>
+      data.paymentMethods.cash ||
+      data.paymentMethods.card ||
+      data.paymentMethods.revolut ||
+      data.paymentMethods.wero,
     {
       error: "At least one payment option must be enabled",
       path: ["paymentMethods"],

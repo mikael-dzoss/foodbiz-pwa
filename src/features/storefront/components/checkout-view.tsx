@@ -6,6 +6,7 @@ import { ArrowLeft, ShoppingBag, User } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import type { StorefrontPickupLocation } from "@/domain/pickup-location";
 import { Button } from "@/components/ui/button";
 import { useCart } from "../context/cart-context";
 import { CheckoutForm } from "./checkout-form";
@@ -14,8 +15,14 @@ import type { CheckoutFormData } from "@/domain/checkout";
 export interface CheckoutViewProps {
   business: StorefrontBusiness;
   settings: BusinessSettings | null;
+  shopPickupEnabled?: boolean;
+  pickupLocations?: readonly StorefrontPickupLocation[];
   locale: SupportedLocale;
   dict: StorefrontDictionary;
+  isOpen: boolean;
+  isAcceptingOrders: boolean;
+  /** Request time (ISO) from the server page; seeds the checkout slot lists. */
+  nowIso?: string;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   redirectDelayMs?: number;
 }
@@ -23,8 +30,13 @@ export interface CheckoutViewProps {
 export function CheckoutView({
   business,
   settings,
+  shopPickupEnabled,
+  pickupLocations,
   locale,
   dict,
+  isOpen,
+  isAcceptingOrders,
+  nowIso,
   onSubmitOrder,
   redirectDelayMs,
 }: CheckoutViewProps) {
@@ -77,8 +89,13 @@ export function CheckoutView({
       <CheckoutForm
         business={business}
         settings={settings}
+        shopPickupEnabled={shopPickupEnabled}
+        pickupLocations={pickupLocations}
         locale={locale}
         dict={dict}
+        isOpen={isOpen}
+        isAcceptingOrders={isAcceptingOrders}
+        nowIso={nowIso}
         onSubmitOrder={onSubmitOrder}
         onOrderSuccess={() => setIsOrderSubmitted(true)}
         redirectDelayMs={redirectDelayMs}

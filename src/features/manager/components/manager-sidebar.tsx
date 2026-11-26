@@ -65,7 +65,7 @@ export function ManagerSidebar({ navDict, quickAddDict }: ManagerSidebarProps) {
         </div>
         <div className="flex flex-col">
           <span className="text-foreground text-sm leading-tight font-semibold">
-            {APP_METADATA.name}
+            {APP_METADATA.manager.name}
           </span>
           <span className="text-muted-foreground text-xs">{manager.brandRole}</span>
         </div>

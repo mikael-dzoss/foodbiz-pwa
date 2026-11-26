@@ -185,7 +185,7 @@ create type order_paid_status as enum ('paid', 'unpaid');
 create type order_service_type as enum ('pickup', 'delivery', 'dine-in');
 create type order_channel as enum ('storefront', 'phone', 'whatsapp', 'in-person');
 create type order_payment_preference as enum ('revolut', 'wero', 'on_handover');
-create type order_payment_method as enum ('cash', 'revolut', 'wero');
+create type order_payment_method as enum ('cash', 'revolut', 'wero', 'card');
 
 -- ----------------------------------------------------------------------------
 -- 1. Businesses & Tenancy
@@ -231,9 +231,36 @@ create table business_settings (
     check (lead_time_unit in ('minutes', 'hours', 'business_days')),
   -- Business operating time zone (#168): IANA name, validated by trigger (see 5.2.3)
   timezone text not null default 'Europe/Paris',
+  -- Enabled payment options (#377 adds "card": false by default)
+  payment_methods jsonb not null default '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb,
+  -- Structured weekly opening hours (#372): nullable jsonb validated by valid_weekly_hours (see 5.2.4)
+  -- Structured weekly opening hours (#372) and exceptions (#375) (see 5.2.4)
+  weekly_hours jsonb null constraint business_settings_weekly_hours_valid check (weekly_hours is null or public.valid_weekly_hours(weekly_hours)),
+  hours_exceptions jsonb not null default '[]'::jsonb constraint business_settings_hours_exceptions_valid check (public.valid_hours_exceptions(hours_exceptions)),
+  -- The shop itself as a pickup option next to relay locations (#385, see 5.2.5)
+  shop_pickup_enabled boolean not null default true,
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );
+
+-- Relay pickup locations (#385, migration 20260101000035; see 5.2.5)
+create table pickup_locations (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 80 and name = btrim(name)),
+  description text null check (char_length(description) <= 200),
+  address text not null check (char_length(address) between 1 and 200),
+  postcode text not null check (postcode ~ '^[0-9]{5}$'),
+  fee_cents integer not null default 0 check (fee_cents between 0 and 10000), -- 0 = free
+  weekly_hours jsonb null check (weekly_hours is null or public.valid_weekly_hours(weekly_hours)),
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint pickup_locations_business_id_id_key unique (business_id, id)
+);
+
+create index idx_pickup_locations_business_sort on pickup_locations(business_id, sort_order);
 
 -- ----------------------------------------------------------------------------
 -- 2. Product Catalog & Inventory
@@ -316,12 +343,19 @@ create table orders (
   idempotency_payload_hash text, -- added by 20260101000012; SHA-256 of the placed payload, NULL on legacy rows
   cancellation_reason text,
   notes text,
+  pickup_location_id uuid, -- added by 20260101000036; relay pickup location (null = the shop); composite FK (business_id, pickup_location_id) -> pickup_locations, on delete set null (pickup_location_id)
+  pickup_location_name text, -- 20260101000036: snapshot at placement
+  pickup_location_address text, -- 20260101000036: snapshot at placement, "<address>, <postcode>"
+  pickup_fee_cents integer not null default 0 check (pickup_fee_cents >= 0), -- 20260101000036: relay fee stored on the order (already in total_amount)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint orders_business_number_unique unique (business_id, order_number),
   constraint orders_tracking_token_unique unique (tracking_token),
   constraint orders_paid_consistency check (
     paid = 'unpaid' or (payment_method is not null and paid_at is not null)
+  ),
+  constraint orders_pickup_location_consistency check (
+    service_type = 'pickup' or (pickup_location_id is null and pickup_fee_cents = 0)
   )
 );
 
@@ -333,6 +367,8 @@ create index idx_orders_business_created on orders(business_id, created_at desc)
 create index idx_orders_guest_id on orders(guest_id); -- FK check on guest delete (20260101000009)
 create unique index idx_orders_business_idempotency_key
   on orders(business_id, idempotency_key) where idempotency_key is not null; -- 20260101000013 (created concurrently)
+create index idx_orders_pickup_location_id
+  on orders(pickup_location_id) where pickup_location_id is not null; -- 20260101000036 (FK check on pickup_location delete)
 
 create table order_items (
   id uuid primary key default gen_random_uuid(),
@@ -463,6 +499,7 @@ $$ language sql stable;
 | `guests`              | Direct read denied; inserted via atomic checkout function (#121)                                             | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
 | `orders`              | No direct access: RPC only (`place_order`, `get_order_by_tracking_token`, `storefront_order_tracking_token`) | `SELECT` via `is_business_member(business_id)`; **no direct `INSERT`/`UPDATE`** (functions only, see 5.6); `DELETE` for `owner` only           |
 | `order_items`         | No direct access: item snapshots only inside the `get_order_by_tracking_token` RPC payload                   | `SELECT` via `is_business_member(business_id)`; no direct write (`place_order`, `replace_order_items`)                                         |
+| `pickup_locations`    | `SELECT` where `is_active` (storefront; explicit `SELECT`-only grant)                                        | `SELECT` active rows or any row of own business; `INSERT`/`UPDATE`/`DELETE` via `is_business_member(business_id)` (max 20 per business)        |
 | `rate_limit_attempts` | No access (RLS, no policies, privileges revoked); written by `SECURITY DEFINER` functions only               | No access                                                                                                                                      |
 | `expenses`            | Deny all                                                                                                     | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
 
@@ -483,6 +520,23 @@ See [5.6](#56-order-state-functions).
 ### 5.2.3 Business time zone
 
 `business_settings.timezone` (`text not null default 'Europe/Paris'`, migration `20260101000029_business_timezone.sql`) is the IANA zone every date is computed and rendered in: KPI day boundaries, "today", opening hours, order timestamps. The default fits the euro-only currency and makes the migration safe on existing rows. A `CHECK` cannot look a name up (`pg_timezone_names` is a view, so an `IMMUTABLE` wrapper would be a lie), so the `BEFORE INSERT OR UPDATE` trigger `business_settings_validate_timezone` raises `INVALID_TIMEZONE` (SQLSTATE `22023`) for a name missing from `pg_timezone_names`; it only runs when the value changes. Manager-editable (not owner-only) and readable by `anon` (column grant) because the storefront formats pickup and order times in the shop's zone. The zod schema (`timeZoneSchema`, `src/domain/timezone.ts`) mirrors the check.
+
+### 5.2.4 Structured weekly opening hours & exceptions
+
+`business_settings.weekly_hours` (`jsonb null`, #372) and `business_settings.hours_exceptions` (`jsonb not null default '[]'::jsonb`, #375) — both added in migration `20260101000033_weekly_opening_hours.sql` — store structured per-weekday opening ranges (`mon`..`sun`) and exceptional day/holiday overrides (`[{from, to, ranges, note?}]`). `weekly_hours` stays nullable so existing shops keep their legacy free-text `opening_hours` until a manager configures structured hours, while exceptions always override weekly hours for the dates they cover (even when `weekly_hours` is `null`). Both columns are manager-editable (not owner-only) and readable by `anon` (storefront column-level `SELECT` grant). Four SQL helpers mirror [`src/domain/opening-hours.ts`](../../src/domain/opening-hours.ts) (`revoke execute from public`, granted to `anon`, `authenticated`, `service_role`, `set search_path = ''`):
+
+- `public.valid_weekly_hours(p jsonb) returns boolean` (`IMMUTABLE`, no `::time` casts): validates the exact 7 keys `mon`..`sun`, each an array of at most 4 `{open, close}` objects where `open` matches `00:00`–`23:59`, `close` matches `00:00`–`23:59` or `24:00`, `close > open` (`COLLATE "C"`), and ranges are strictly sorted and non-touching (`prev.close < next.open`). Used by `business_settings_weekly_hours_valid`.
+- `public.valid_hours_exceptions(p jsonb) returns boolean` (`IMMUTABLE`, no `::time`/`::date` casts — uses regex, calendar validation and `IMMUTABLE` `pg_catalog.make_date`): validates an array of at most 100 non-overlapping `{from, to, ranges, note?}` objects with valid `YYYY-MM-DD` dates, `to >= from`, inclusive span ≤ 60 days, optional `note` ≤ 50 characters, and `ranges` following the same per-day rules as `weekly_hours`. Used by `business_settings_hours_exceptions_valid`.
+- `public.is_open_at(p_hours jsonb, p_exceptions jsonb, p_tz text, p_at timestamptz) returns boolean` (`STABLE`): resolves any covering exception on the local date in `p_tz` first; if none matches and `p_hours` is `null`, returns `true`; otherwise evaluates half-open `[open, close)` membership in `p_tz` (DST-safe, supports `24:00` close).
+- `public.slot_error(p_hours jsonb, p_exceptions jsonb, p_tz text, p_now timestamptz, p_date date, p_time time, p_is_asap boolean, p_horizon_days integer default 30) returns text` (`STABLE`): returns `null` when valid, or one of `'date_out_of_window'`, `'closed_now'`, `'closed_day'`, `'time_outside_hours'`, `'time_in_past'` in the same order and semantics as `validateSlot` (booking window `[today, today + p_horizon_days]` always checked in `p_tz`; exceptions override weekly hours even when `p_hours` is `null`; dates with neither skip opening-hour checks; time-optional checks remaining 15-minute stepped slots with lead 0). Enforced by `place_order` for the storefront channel (migration 034).
+
+### 5.2.5 Pickup locations (#385)
+
+`pickup_locations` (migration `20260101000035_pickup_locations.sql`) stores relay points (for example RER stations) a business offers next to its own shop: name, description, address, 5-digit French postcode, fee in integer cents (`0` = free), optional `weekly_hours` (same shape and `valid_weekly_hours` check as `business_settings.weekly_hours`), `is_active` and `sort_order`. Locations have no exceptions of their own: the business `hours_exceptions` (closing days, holidays) override every location's hours. A `BEFORE INSERT` trigger (`enforce_pickup_locations_limit`, serialised per business with an advisory transaction lock) rejects a 21st location with SQLSTATE `23514`.
+
+RLS: `anon` and `authenticated` read active rows (storefront); members of the business read all their rows and insert, update and delete their own (`is_business_member`). Grants are explicit: `anon` `SELECT`; `authenticated` and `service_role` `SELECT`/`INSERT`/`UPDATE`/`DELETE`.
+
+`business_settings.shop_pickup_enabled` (`boolean not null default true`, readable by `anon`) turns the shop itself off as a pickup option so a business can offer relay locations only. The rule "Pickup stays offered while at least one option (shop or relay location) is active" (only while `service_types.pickup` is on) is enforced in the Server Actions of `src/features/settings/pickup-location-actions.ts` using the pure helpers in [`src/domain/pickup-location.ts`](../../src/domain/pickup-location.ts), not in SQL.
 
 ### 5.3 Public Guest Tracking & Verification
 
@@ -581,29 +635,49 @@ fields, address, coordinates, logo) and `product_categories` (menu structure) ha
 `using (true)` for `anon`; every column of both is public storefront data, so no column
 grants are needed (note: anon can list all businesses).
 
-**`place_order(..., p_idempotency_key uuid default null)`** is the only overload (the
-12-argument one is dropped); executable by `anon`, `authenticated`, `service_role`.
+**`place_order(..., p_idempotency_key uuid default null, p_is_asap boolean default false, p_pickup_location_id uuid default null)`** is the
+only overload (the 13-argument one is dropped by migration 034, the 14-argument one by 036); executable by `anon`, `authenticated`, `service_role`.
 
-| Rule (storefront channel unless noted)               | Limit                                                                                    | Error prefix (SQLSTATE)                                                             |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Quantity per product (duplicate lines merged)        | 50 (`MAX_QUANTITY_PER_LINE`)                                                             | `MAX_LINE_QUANTITY_EXCEEDED` (22023)                                                |
-| Total quantity per order                             | 100 (`MAX_QUANTITY_PER_ORDER`)                                                           | `MAX_ORDER_QUANTITY_EXCEEDED` (22023)                                               |
-| Lines in `p_items`                                   | 50 (`MAX_LINES_PER_ORDER`)                                                               | `MAX_LINES_EXCEEDED` (22023)                                                        |
-| Delivery address / notes (all channels)              | 300 / 500 characters                                                                     | `INVALID_DELIVERY_ADDRESS` / `INVALID_NOTES`                                        |
-| Guest name (all channels)                            | 2 to 50 characters                                                                       | `INVALID_GUEST_NAME`                                                                |
-| Guest phone (all channels)                           | E.164                                                                                    | `INVALID_GUEST_PHONE`                                                               |
-| Requested date                                       | yesterday to today + 60 days (no horizon exists in the spec or settings; 60 days chosen) | `INVALID_REQUESTED_DATE`                                                            |
-| Requested time                                       | whole minutes                                                                            | `INVALID_REQUESTED_TIME`                                                            |
-| Payment preference                                   | an enabled method (`on_handover` = `cash`)                                               | `INVALID_PAYMENT_PREFERENCE`                                                        |
-| Service type, store open, minimum order              | as before                                                                                | `SERVICE_TYPE_NOT_AVAILABLE`, `ORDERS_NOT_ACCEPTED`, `MINIMUM_ORDER_AMOUNT_NOT_MET` |
-| Orders per phone (anonymous callers)                 | 3 per 10 minutes (`RATE_LIMIT_PHONE_MAX_REQUESTS`)                                       | `RATE_LIMITED` (P0006)                                                              |
-| Orders per business (anonymous callers, flood brake) | 120 per 10 minutes (`RATE_LIMIT_BUSINESS_MAX_ORDERS`)                                    | `RATE_LIMITED` (P0006)                                                              |
+| Rule (storefront channel unless noted)                    | Limit                                                                                                                                                               | Error prefix (SQLSTATE)                                                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Quantity per product (duplicate lines merged)             | 50 (`MAX_QUANTITY_PER_LINE`)                                                                                                                                        | `MAX_LINE_QUANTITY_EXCEEDED` (22023)                                                                                              |
+| Total quantity per order                                  | 100 (`MAX_QUANTITY_PER_ORDER`)                                                                                                                                      | `MAX_ORDER_QUANTITY_EXCEEDED` (22023)                                                                                             |
+| Lines in `p_items`                                        | 50 (`MAX_LINES_PER_ORDER`)                                                                                                                                          | `MAX_LINES_EXCEEDED` (22023)                                                                                                      |
+| Delivery address / notes (all channels)                   | 300 / 500 characters                                                                                                                                                | `INVALID_DELIVERY_ADDRESS` / `INVALID_NOTES`                                                                                      |
+| Guest name (all channels)                                 | 2 to 50 characters                                                                                                                                                  | `INVALID_GUEST_NAME`                                                                                                              |
+| Guest phone (all channels)                                | E.164                                                                                                                                                               | `INVALID_GUEST_PHONE`                                                                                                             |
+| Requested date and slot (`slot_error`, business timezone) | today to today + 30 days; ASAP only while open; scheduled slot on an open day, time within hours and in the future; no structured hours = window only               | `SLOT_INVALID: <reason>` (22023), reason `date_out_of_window`, `closed_now`, `closed_day`, `time_outside_hours` or `time_in_past` |
+| Pickup location (all channels)                            | `p_pickup_location_id` only on pickup orders; the location must exist, belong to the business and be active; its name, address and fee are snapshotted on the order | `INVALID_PICKUP_LOCATION` (22023)                                                                                                 |
+| Pickup option (storefront, pickup)                        | at least one option (shop pickup enabled or an active relay); a choice when no shop pickup and several relays (a lone relay is selected automatically)              | `PICKUP_NOT_AVAILABLE` / `PICKUP_LOCATION_REQUIRED` (22023)                                                                       |
+| Requested time                                            | whole minutes                                                                                                                                                       | `INVALID_REQUESTED_TIME`                                                                                                          |
+| Payment preference                                        | an enabled method (`on_handover` = `cash` or `card`)                                                                                                                | `INVALID_PAYMENT_PREFERENCE`                                                                                                      |
+| Service type, store open, minimum order                   | as before                                                                                                                                                           | `SERVICE_TYPE_NOT_AVAILABLE`, `ORDERS_NOT_ACCEPTED`, `MINIMUM_ORDER_AMOUNT_NOT_MET`                                               |
+| Orders per phone (anonymous callers)                      | 3 per 10 minutes (`RATE_LIMIT_PHONE_MAX_REQUESTS`)                                                                                                                  | `RATE_LIMITED` (P0006)                                                                                                            |
+| Orders per business (anonymous callers, flood brake)      | 120 per 10 minutes (`RATE_LIMIT_BUSINESS_MAX_ORDERS`)                                                                                                               | `RATE_LIMITED` (P0006)                                                                                                            |
 
 The limits mirror `src/domain/anti-abuse.ts` (both sides document the pairing; the shared
 contract suite `order-placement.contract.ts`, run against the mock, the fake client and
 the live database, fails when they diverge). The app maps `MAX_*` and `RATE_LIMITED` to
 `ANTI_ABUSE_REJECTION` (localized `orderErrorAntiAbuse`) and every `INVALID_*` prefix to
-`INVALID_INPUT`.
+`INVALID_INPUT`. `SLOT_INVALID: <reason>` becomes a typed `SLOT_*` error code (`SLOT_CLOSED_NOW`,
+`SLOT_CLOSED_DAY`, `SLOT_DATE_OUT_OF_WINDOW`, `SLOT_TIME_OUTSIDE_HOURS`, `SLOT_TIME_IN_PAST`), each with a
+localized checkout message. Manager (non-storefront) orders skip the slot rules. `p_is_asap` is part of
+the idempotency payload hash, and so is `p_pickup_location_id` when one is given (a payload without
+one hashes exactly as before migration 036, so in-flight retries keep replaying; an idempotency key
+must be retried with the same input, so retrying an auto-selected null-location call with the chosen
+relay id raises `INVALID_IDEMPOTENCY_KEY`, by design).
+
+**Relay pickup (#386).** A relay order stores `pickup_location_id`, a name/address snapshot and
+`pickup_fee_cents`; `total_amount` = items + delivery fee (delivery) + the relay fee, computed by
+`order_total_cents(business, service_type, subtotal, pickup_fee default 0)`. `replace_order_items`
+passes the order's stored `pickup_fee_cents`, so editing items keeps the fee in the total. A null location
+means the shop (also all orders placed before migration 036). Slots for a relay are checked with
+`pickup_schedule_hours(business_weekly, business_exceptions, location_weekly)` (service_role only,
+`IMMUTABLE`): a location without hours uses the business schedule unchanged; otherwise its weekly hours
+with every weekday the business has closed emptied, and only the business closed exceptions (empty
+`ranges`), never its special-hours ones. Mirrored by `pickupScheduleFor` in
+[`src/domain/pickup-location.ts`](../../src/domain/pickup-location.ts). Shop pickup and delivery keep the
+business schedule.
 
 **Idempotency.** `orders.idempotency_key` (nullable `uuid`) with a unique partial index on
 `(business_id, idempotency_key)`. A repeated call with the same key returns the original
@@ -646,7 +720,9 @@ seeing a false "not found". The function is `VOLATILE`.
 
 **Tracking payload.** `get_order_by_tracking_token` returns `items` as explicit objects
 `{product_name, quantity, unit_price, total_price}` (what the tracking and confirmation UI
-read), not `to_jsonb(order_items)`.
+read), not `to_jsonb(order_items)`. For pickup orders the `order` object also carries
+`pickup_location_name` (null = the shop) and `pickup_location_address` (the relay snapshot, or the
+shop address when no relay); both are null for other service types.
 
 **Hygiene.** `set_updated_at()` pins `search_path`; `auth.role()` (deprecated) is replaced
 by `coalesce(auth.jwt() ->> 'role', '')` in `place_order`, `find_or_create_guest`,
@@ -672,20 +748,21 @@ Direct `INSERT`/`UPDATE` on `orders` and `INSERT`/`UPDATE`/`DELETE` on `order_it
 | `record_order_refund(business, order, reason)`                    | Refund a paid order (any status)                                                                                                                                                                                                                                                                                                                                                                                                      | `INVALID_PAYMENT_STATE` `22023`                                                                                                                  |
 | `replace_order_items(business, order, items)`                     | Items are `[{product_id, quantity}]` only. Names and prices come from `products` of the same business (lines already on the order keep their snapshot name and unit price), duplicates are summed, quantity 1 to 9999, 1 to 100 lines. Stock moves by the per-product delta under row locks in id order; `orders.total_amount` is recomputed with `order_total_cents`. Refused once the order is `COMPLETED`, `CANCELLED` or refunded | `ORDER_STATE_CONFLICT` `P0007`, `INSUFFICIENT_STOCK` `P0001`, `PRODUCT_NOT_FOUND` `P0002`, `INVALID_ORDER_ITEMS`/`INVALID_ITEM_QUANTITY` `22023` |
 
-Internal helpers, executable by no API role: `apply_order_transition` (core of every status change), `order_total_cents(business, service_type, subtotal)` (items subtotal plus the delivery fee of a delivery order; tax is not part of the total), `order_history_entry`.
+Internal helpers, executable by no API role: `apply_order_transition` (core of every status change), `order_total_cents(business, service_type, subtotal, pickup_fee default 0)` (items subtotal plus the delivery fee for delivery orders and the relay pickup fee for pickup orders; tax is not part of the total), `pickup_schedule_hours(business_weekly, business_exceptions, location_weekly)` (relay schedule helper), `order_history_entry`.
 
 ---
 
 ## 6. Domain Model Mapping
 
-| PostgreSQL Table     | TypeScript Domain Model (`src/domain/`)                                       | Repository Interface (`src/domain/repositories/types.ts`) |
-| :------------------- | :---------------------------------------------------------------------------- | :-------------------------------------------------------- |
-| `businesses`         | [`Business`](../../src/domain/business.ts) (`businessSchema`)                 | `BusinessRepository`                                      |
-| `business_members`   | [`BusinessMember`](../../src/domain/business.ts) (`businessMemberSchema`)     | `MemberRepository`                                        |
-| `business_settings`  | [`BusinessSettings`](../../src/domain/business.ts) (`businessSettingsSchema`) | `BusinessRepository.getSettings`                          |
-| `product_categories` | [`ProductCategory`](../../src/domain/product.ts) (`productCategorySchema`)    | `CategoryRepository`                                      |
-| `products`           | [`Product`](../../src/domain/product.ts) (`productSchema`)                    | `ProductRepository`                                       |
-| `guests`             | [`Guest`](../../src/domain/guest.ts) (`guestSchema`)                          | `GuestRepository`                                         |
-| `orders`             | [`Order`](../../src/domain/order.ts) (`orderSchema`)                          | `OrderRepository`                                         |
-| `order_items`        | [`OrderItem`](../../src/domain/order.ts) (`orderItemSchema`)                  | Nested within `OrderRepository`                           |
-| `expenses`           | [`Expense`](../../src/domain/expense.ts) (`expenseSchema`)                    | `ExpenseRepository`                                       |
+| PostgreSQL Table     | TypeScript Domain Model (`src/domain/`)                                          | Repository Interface (`src/domain/repositories/types.ts`) |
+| :------------------- | :------------------------------------------------------------------------------- | :-------------------------------------------------------- |
+| `businesses`         | [`Business`](../../src/domain/business.ts) (`businessSchema`)                    | `BusinessRepository`                                      |
+| `business_members`   | [`BusinessMember`](../../src/domain/business.ts) (`businessMemberSchema`)        | `MemberRepository`                                        |
+| `business_settings`  | [`BusinessSettings`](../../src/domain/business.ts) (`businessSettingsSchema`)    | `BusinessRepository.getSettings`                          |
+| `product_categories` | [`ProductCategory`](../../src/domain/product.ts) (`productCategorySchema`)       | `CategoryRepository`                                      |
+| `products`           | [`Product`](../../src/domain/product.ts) (`productSchema`)                       | `ProductRepository`                                       |
+| `guests`             | [`Guest`](../../src/domain/guest.ts) (`guestSchema`)                             | `GuestRepository`                                         |
+| `orders`             | [`Order`](../../src/domain/order.ts) (`orderSchema`)                             | `OrderRepository`                                         |
+| `order_items`        | [`OrderItem`](../../src/domain/order.ts) (`orderItemSchema`)                     | Nested within `OrderRepository`                           |
+| `expenses`           | [`Expense`](../../src/domain/expense.ts) (`expenseSchema`)                       | `ExpenseRepository`                                       |
+| `pickup_locations`   | [`PickupLocation`](../../src/domain/pickup-location.ts) (`pickupLocationSchema`) | `PickupLocationRepository`                                |

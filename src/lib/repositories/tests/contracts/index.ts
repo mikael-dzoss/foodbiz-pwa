@@ -1,5 +1,6 @@
 import type { Repositories } from "@/domain/repositories";
-import { describe } from "vitest";
+import { beforeEach, describe } from "vitest";
+import type { OpeningHoursSetter } from "./order-placement.contract";
 
 import { DEMO_BUSINESS_ID } from "../../mock/fixtures";
 import { describeBusinessRepositoryContract } from "./business.contract";
@@ -10,6 +11,7 @@ import { describeMemberRepositoryContract } from "./member.contract";
 import { describeOrderRepositoryContract } from "./order.contract";
 import { describeOrderPlacementContract } from "./order-placement.contract";
 import { describeOrderStateContract } from "./order-state.contract";
+import { describePickupLocationRepositoryContract } from "./pickup-location.contract";
 import { describeProductRepositoryContract } from "./product.contract";
 
 export interface ContractSuiteOptions {
@@ -20,6 +22,12 @@ export interface ContractSuiteOptions {
    * must be refused with code FORBIDDEN while everything else keeps working.
    */
   nonOwnerRepositories?: () => Promise<Repositories> | Repositories;
+  /**
+   * Sets the business's weekly opening hours and exceptions (as its owner). The storefront rules
+   * depend on the current time, so the suite clears the hours before every test (nothing to
+   * check) and the placement contract sets what each of its cases needs.
+   */
+  setOpeningHours?: OpeningHoursSetter;
 }
 
 export function describeRepositoryContracts(
@@ -30,15 +38,23 @@ export function describeRepositoryContracts(
   const businessId = options.businessId ?? DEMO_BUSINESS_ID;
 
   describe(`Repository Contracts Suite [${adapterName}]`, () => {
+    beforeEach(async () => {
+      await options.setOpeningHours?.({ weeklyHours: null, hoursExceptions: [] });
+    });
+
     describeProductRepositoryContract(getRepositories, businessId);
     describeCategoryRepositoryContract(getRepositories, businessId);
     describeOrderRepositoryContract(getRepositories, businessId);
     describeOrderStateContract(getRepositories, businessId, options.nonOwnerRepositories);
-    describeOrderPlacementContract(getRepositories, businessId);
+    describeOrderPlacementContract(getRepositories, businessId, {
+      setOpeningHours: options.setOpeningHours,
+      managerRepositories: getRepositories,
+    });
     describeGuestRepositoryContract(getRepositories, businessId);
     describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeBusinessRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeMemberRepositoryContract(getRepositories, businessId);
+    describePickupLocationRepositoryContract(getRepositories, businessId);
   });
 }
 
@@ -51,5 +67,6 @@ export {
   describeGuestRepositoryContract,
   describeMemberRepositoryContract,
   describeOrderRepositoryContract,
+  describePickupLocationRepositoryContract,
   describeProductRepositoryContract,
 };

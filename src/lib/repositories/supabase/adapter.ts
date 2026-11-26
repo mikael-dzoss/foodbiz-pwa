@@ -12,7 +12,10 @@ import {
   type BusinessMemberRole,
   type BusinessSettings,
 } from "@/domain/business";
+import { SLOT_ERROR_MESSAGES, SLOT_ERROR_REASONS } from "@/domain/checkout";
+import type { SlotErrorReason } from "@/domain/opening-hours";
 import { uuidSchema } from "@/domain/common";
+import { ActionError } from "@/lib/actions/types";
 import { expenseSchema, type Expense } from "@/domain/expense";
 import { sumOrderProductQuantities, type ProductQuantityFilter } from "@/domain/featured";
 import { guestSchema, normalizeGuestName, normalizePhoneNumber, type Guest } from "@/domain/guest";
@@ -21,7 +24,9 @@ import {
   orderSchema,
   OrderRepoError,
   placedOrderSummarySchema,
+  publicDeliveryAddress,
   publicOrderSchema,
+  publicPickupLocation,
   type CancelOrderResult,
   type Order,
   type OrderPaymentInput,
@@ -32,6 +37,11 @@ import {
   type PublicOrder,
   type ReplaceOrderItemInput,
 } from "@/domain/order";
+import {
+  MAX_PICKUP_LOCATIONS,
+  pickupLocationSchema,
+  type PickupLocation,
+} from "@/domain/pickup-location";
 import {
   productCategorySchema,
   productSchema,
@@ -46,6 +56,7 @@ import type {
   CreateExpenseInput,
   CreateGuestInput,
   CreateMemberInput,
+  CreatePickupLocationInput,
   CreateProductInput,
   ExpenseFilter,
   ExpenseRepository,
@@ -53,6 +64,7 @@ import type {
   MemberRepository,
   OrderFilter,
   OrderRepository,
+  PickupLocationRepository,
   ProductFilter,
   ProductRepository,
   Repositories,
@@ -93,7 +105,7 @@ export const PUBLIC_PRODUCT_COLUMNS =
   "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
 
 export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
-  "id, business_id, currency, accepting_orders, service_types, opening_hours, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
+  "id, business_id, currency, accepting_orders, service_types, opening_hours, weekly_hours, hours_exceptions, shop_pickup_enabled, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
 type OrderRowWithItems = Tables<"orders"> & {
   order_items: Tables<"order_items">[];
@@ -140,6 +152,34 @@ function mapCategoryRow(row: Tables<"product_categories">): ProductCategory {
   });
 }
 
+/** Database rule violations (23514 with a reason prefix) become localizable CONFLICTs. */
+export function mapPickupError(error: { code?: string; message?: string }): Error {
+  const reason = ["LAST_PICKUP_OPTION", "PICKUP_LOCATIONS_LIMIT"].find((r) =>
+    error.message?.startsWith(r),
+  );
+  if (error.code === "23514" && reason) {
+    return new ActionError("CONFLICT", error.message, { reason });
+  }
+  return error as Error;
+}
+
+function mapPickupLocationRow(row: Tables<"pickup_locations">): PickupLocation {
+  return pickupLocationSchema.parse({
+    id: row.id,
+    businessId: row.business_id,
+    name: row.name,
+    description: row.description,
+    address: row.address,
+    postcode: row.postcode,
+    feeCents: row.fee_cents,
+    weeklyHours: row.weekly_hours ?? null,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    createdAt: toIsoUtc(row.created_at),
+    updatedAt: toIsoUtc(row.updated_at),
+  });
+}
+
 function mapOrderRow(row: OrderRowWithItems): Order {
   const items = (row.order_items ?? []).map((it) => ({
     id: it.id,
@@ -156,6 +196,9 @@ function mapOrderRow(row: OrderRowWithItems): Order {
         timestamp: toIsoUtc(entry.timestamp),
       }))
     : [];
+
+  const pickupName = row.pickup_location_name?.trim() || null;
+  const pickupAddress = row.pickup_location_address?.trim() || null;
 
   return orderSchema.parse({
     id: row.id,
@@ -179,6 +222,14 @@ function mapOrderRow(row: OrderRowWithItems): Order {
     cancellationReason: row.cancellation_reason,
     notes: row.notes,
     deliveryAddress: row.delivery_address,
+    pickupLocation: pickupName
+      ? {
+          id: row.pickup_location_id,
+          name: pickupName,
+          address: pickupAddress,
+        }
+      : null,
+    pickupFeeCents: row.pickup_fee_cents,
     statusHistory,
     createdAt: toIsoUtc(row.created_at),
     updatedAt: toIsoUtc(row.updated_at),
@@ -247,6 +298,9 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
     acceptingOrders: row.accepting_orders,
     serviceTypes: row.service_types,
     openingHours: row.opening_hours,
+    weeklyHours: row.weekly_hours ?? null,
+    hoursExceptions: row.hours_exceptions ?? [],
+    shopPickupEnabled: row.shop_pickup_enabled ?? undefined,
     orderTimingAsap: row.order_timing_asap,
     orderTimingScheduled: row.order_timing_scheduled,
     orderTimingTimeOptional: row.order_timing_time_optional,
@@ -288,6 +342,15 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
   const sqlState = error.code;
 
   const build = (message: string, code: string) => new OrderRepoError(message, code);
+  if (reason === "SLOT_INVALID") {
+    // "SLOT_INVALID: <reason>": only an allowlisted slot reason is mapped, never free text.
+    const slotReason = /^SLOT_INVALID:\s*([a-z_]+)/.exec(raw)?.[1];
+    if (slotReason && Object.hasOwn(SLOT_ERROR_REASONS, slotReason)) {
+      const key = slotReason as SlotErrorReason;
+      return build(SLOT_ERROR_MESSAGES[key], SLOT_ERROR_REASONS[key]);
+    }
+    return build("Please check your order details.", "INVALID_INPUT");
+  }
   switch (reason) {
     case "INSUFFICIENT_STOCK":
     case "PRODUCT_NOT_AVAILABLE":
@@ -297,6 +360,12 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
       return build("This store is currently not accepting orders.", "STORE_CLOSED");
     case "SERVICE_TYPE_NOT_AVAILABLE":
       return build("This service type is currently not available.", "SERVICE_TYPE_DISABLED");
+    case "INVALID_PICKUP_LOCATION":
+      return build("The chosen pickup location is no longer available.", "PICKUP_LOCATION_INVALID");
+    case "PICKUP_LOCATION_REQUIRED":
+      return build("Please choose a pickup location.", "PICKUP_LOCATION_REQUIRED");
+    case "PICKUP_NOT_AVAILABLE":
+      return build("Pickup is currently not available.", "PICKUP_NOT_AVAILABLE");
     case "MINIMUM_ORDER_AMOUNT_NOT_MET":
       return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
     case "MAX_LINE_QUANTITY_EXCEEDED":
@@ -605,6 +674,104 @@ export function createSupabaseRepositories(
     },
   };
 
+  const pickupLocations: PickupLocationRepository = {
+    async listByBusiness(businessId: string, options): Promise<PickupLocation[]> {
+      const client = await getClient();
+      let query = client.from("pickup_locations").select().eq("business_id", businessId);
+      if (options?.activeOnly) query = query.eq("is_active", true);
+      const { data, error } = await query
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map(mapPickupLocationRow);
+    },
+
+    async create(businessId: string, input: CreatePickupLocationInput): Promise<PickupLocation> {
+      const client = await getClient();
+      let sortOrder = input.sortOrder;
+      if (sortOrder === undefined) {
+        const { data: last, error: lastError } = await client
+          .from("pickup_locations")
+          .select("sort_order")
+          .eq("business_id", businessId)
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastError) throw lastError;
+        sortOrder = last ? last.sort_order + 1 : 0;
+      }
+      const insertData: TablesInsert<"pickup_locations"> = {
+        id: input.id ?? crypto.randomUUID(),
+        business_id: businessId,
+        name: input.name,
+        description: input.description ?? null,
+        address: input.address,
+        postcode: input.postcode,
+        fee_cents: input.feeCents ?? 0,
+        weekly_hours: (input.weeklyHours ?? null) as Json | null,
+        is_active: input.isActive ?? true,
+        sort_order: sortOrder,
+      };
+      const { data, error } = await client
+        .from("pickup_locations")
+        .insert(insertData)
+        .select()
+        .single();
+      if (error) throw mapPickupError(error);
+      return mapPickupLocationRow(data);
+    },
+
+    async update(businessId, id, input): Promise<PickupLocation> {
+      const client = await getClient();
+      const updateData: TablesUpdate<"pickup_locations"> = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.address !== undefined) updateData.address = input.address;
+      if (input.postcode !== undefined) updateData.postcode = input.postcode;
+      if (input.feeCents !== undefined) updateData.fee_cents = input.feeCents;
+      if (input.weeklyHours !== undefined)
+        updateData.weekly_hours = (input.weeklyHours ?? null) as Json | null;
+      if (input.isActive !== undefined) updateData.is_active = input.isActive;
+      if (input.sortOrder !== undefined) updateData.sort_order = input.sortOrder;
+
+      const { data, error } = await client
+        .from("pickup_locations")
+        .update(updateData)
+        .eq("business_id", businessId)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
+      if (error) throw mapPickupError(error);
+      if (!data) throw new Error(`Pickup location ${id} not found`);
+      return mapPickupLocationRow(data);
+    },
+
+    async delete(businessId: string, id: string): Promise<void> {
+      const client = await getClient();
+      const { data, error } = await client
+        .from("pickup_locations")
+        .delete()
+        .eq("business_id", businessId)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
+      if (error) throw mapPickupError(error);
+      if (!data) throw new Error(`Pickup location ${id} not found`);
+    },
+
+    async reorder(businessId: string, ids: readonly string[]): Promise<PickupLocation[]> {
+      if (ids.length > MAX_PICKUP_LOCATIONS) throw new Error("Too many pickup locations");
+      const client = await getClient();
+      // One atomic statement; the function requires `ids` to be the business's full set.
+      const { error } = await client.rpc("reorder_pickup_locations", {
+        p_business_id: businessId,
+        p_ids: [...ids],
+      });
+      if (error) throw mapPickupError(error);
+      return pickupLocations.listByBusiness(businessId);
+    },
+  };
+
   const orders: OrderRepository = {
     async sumQuantitiesByProduct(
       businessId: string,
@@ -673,11 +840,12 @@ export function createSupabaseRepositories(
 
       const order = raw.order as Record<string, unknown>;
       const items = Array.isArray(raw.items) ? raw.items : [];
+      const serviceType = order.service_type ?? order.serviceType;
 
       return publicOrderSchema.parse({
         businessId: order.business_id ?? order.businessId,
         orderNumber: order.order_number ?? order.orderNumber,
-        serviceType: order.service_type ?? order.serviceType,
+        serviceType,
         status: order.status,
         paid: order.paid,
         paymentPreference: order.payment_preference ?? order.paymentPreference ?? "on_handover",
@@ -689,7 +857,16 @@ export function createSupabaseRepositories(
             : null,
         totalAmount: order.total_amount ?? order.totalAmount,
         cancellationReason: order.cancellation_reason ?? order.cancellationReason ?? null,
+        deliveryAddress: publicDeliveryAddress(
+          serviceType,
+          order.delivery_address ?? order.deliveryAddress,
+        ),
         createdAt: toIsoUtc(order.created_at ?? order.createdAt),
+        pickupLocation: publicPickupLocation(
+          serviceType,
+          order.pickup_location_name ?? order.pickupLocationName,
+          order.pickup_location_address ?? order.pickupLocationAddress,
+        ),
         items: items.map((it) => ({
           productName: it.product_name ?? it.productName,
           quantity: it.quantity,
@@ -727,6 +904,8 @@ export function createSupabaseRepositories(
         p_notes: input.notes ?? undefined,
         p_update_guest_name: input.allowRename ?? false,
         p_idempotency_key: input.idempotencyKey,
+        p_is_asap: input.isAsap ?? false,
+        p_pickup_location_id: input.pickupLocationId ?? undefined,
       });
 
       if (error) {
@@ -1259,6 +1438,12 @@ export function createSupabaseRepositories(
       if (input.acceptingOrders !== undefined) updateData.accepting_orders = input.acceptingOrders;
       if (input.serviceTypes !== undefined) updateData.service_types = input.serviceTypes as Json;
       if (input.openingHours !== undefined) updateData.opening_hours = input.openingHours;
+      if (input.weeklyHours !== undefined)
+        updateData.weekly_hours = (input.weeklyHours ?? null) as Json | null;
+      if (input.hoursExceptions !== undefined)
+        updateData.hours_exceptions = input.hoursExceptions as Json;
+      if (input.shopPickupEnabled !== undefined)
+        updateData.shop_pickup_enabled = input.shopPickupEnabled;
       if (input.orderTimingAsap !== undefined) updateData.order_timing_asap = input.orderTimingAsap;
       if (input.orderTimingScheduled !== undefined)
         updateData.order_timing_scheduled = input.orderTimingScheduled;
@@ -1287,7 +1472,10 @@ export function createSupabaseRepositories(
         .select()
         .maybeSingle();
 
-      if (error) throw mapOwnerOnlyError(error);
+      if (error) {
+        const pickupError = mapPickupError(error);
+        throw pickupError instanceof ActionError ? pickupError : mapOwnerOnlyError(error);
+      }
       if (!data) throw new Error(`Settings for business ${businessId} not found`);
       return mapSettingsRow(data);
     },
@@ -1438,5 +1626,5 @@ export function createSupabaseRepositories(
     },
   };
 
-  return { products, categories, orders, guests, expenses, business, members };
+  return { products, categories, orders, guests, expenses, business, members, pickupLocations };
 }

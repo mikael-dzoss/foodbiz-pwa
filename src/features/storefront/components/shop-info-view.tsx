@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
+import { interpolate } from "@/domain/i18n";
+import { rangesForDate } from "@/domain/opening-hours";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
+import { HoursSummary } from "@/features/settings/components/opening-hours";
 import { useZonedToday } from "@/components/time/business-timezone";
 import type { SupportedLocale, StorefrontDictionary } from "@/domain/i18n";
 import { buildOpenStreetMapEmbedUrl, type BusinessSettings } from "@/domain/business";
@@ -33,6 +36,19 @@ export interface ShopInfoViewProps {
 }
 
 export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewProps) {
+  const paymentMethods = settings?.paymentMethods ?? {
+    cash: true,
+    card: false,
+    revolut: true,
+    wero: true,
+  };
+  const enabledPaymentBadges: readonly { id: string; label: string }[] = [
+    ...(paymentMethods.cash ? [{ id: "cash", label: dict.cashOnPickup }] : []),
+    ...(paymentMethods.card ? [{ id: "card", label: dict.cardOnPickup }] : []),
+    ...(paymentMethods.revolut ? [{ id: "revolut", label: dict.revolutPay }] : []),
+    ...(paymentMethods.wero ? [{ id: "wero", label: "Wero" }] : []),
+  ];
+
   // Service types enabled status (#83 AC)
   const pickupEnabled = settings?.serviceTypes?.pickup ?? true;
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
@@ -43,7 +59,10 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
   const hasEmail = Boolean(business.email?.trim());
   const hasWhatsApp = Boolean(business.whatsappNumber?.trim());
   const hasAddress = Boolean(business.address?.trim());
-  const hasOpeningHours = Boolean(settings?.openingHours?.trim());
+  const weeklyHours = settings?.weeklyHours ?? null;
+  const hoursExceptions = settings?.hoursExceptions ?? [];
+  const hasStructuredHours = weeklyHours !== null || hoursExceptions.length > 0;
+  const hasOpeningHours = Boolean(settings?.openingHours?.trim()) || hasStructuredHours;
 
   // WhatsApp clean link (strip spaces, dashes, parentheses)
   const cleanWhatsAppNumber = business.whatsappNumber?.replace(/[^\d+]/g, "") ?? "";
@@ -65,24 +84,24 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
     ? buildOpenStreetMapEmbedUrl(business.latitude!, business.longitude!)
     : null;
 
-  // Days for the weekly schedule
-  const days = [
-    { key: "monday", label: "Monday", fr: "Lundi" },
-    { key: "tuesday", label: "Tuesday", fr: "Mardi" },
-    { key: "wednesday", label: "Wednesday", fr: "Mercredi" },
-    { key: "thursday", label: "Thursday", fr: "Jeudi" },
-    { key: "friday", label: "Friday", fr: "Vendredi" },
-    { key: "saturday", label: "Saturday", fr: "Samedi" },
-    { key: "sunday", label: "Sunday", fr: "Dimanche" },
-  ];
-
   // Today in the business zone (null until hydrated, so server and client render the same)
   const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
-  // JS weekday (0=Sun, 1=Mon...6=Sat) mapped to our Monday-indexed list; -1 = unknown yet
-  const currentDayIndex = today ? new Date(`${today}T12:00:00Z`).getUTCDay() : -1;
-  const currentMondayIndex = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
 
   const isOpen = settings?.acceptingOrders ?? true;
+
+  // Today's exceptional day (holiday / special hours) with its note, shown on that day only (#375)
+  const todayHours =
+    today && hasStructuredHours
+      ? rangesForDate({ weekly: weeklyHours, exceptions: hoursExceptions }, today)
+      : null;
+  const todayException = todayHours?.source === "exception" ? todayHours : null;
+  const todayExceptionText = todayException
+    ? todayException.ranges.length === 0
+      ? dict.todayExceptionClosed
+      : interpolate(dict.todayExceptionOpen, {
+          hours: todayException.ranges.map((r) => `${r.open}–${r.close}`).join(" · "),
+        })
+    : null;
 
   // Ordering policy tiles: amounts only when configured, never invented (#302)
   const policyTiles = [
@@ -295,41 +314,34 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             <span className="sr-only">{dict.openHours}</span>
           </div>
 
-          <div className="border-border/40 divide-border/40 divide-y border-t text-xs">
-            {days.map((day, idx) => {
-              const isToday = idx === currentMondayIndex;
-              const isSunday = idx === 6;
-              return (
-                <div
-                  key={day.key}
-                  className={`flex items-center justify-between py-2 ${
-                    isToday ? "text-foreground font-semibold" : "text-muted-foreground"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>{locale === "fr" ? day.fr : day.label}</span>
-                    {isToday && (
-                      <span className="bg-primary text-primary-foreground text-micro rounded px-1.5 font-semibold">
-                        {dict.today}
-                      </span>
-                    )}
-                  </div>
-                  <span className="font-normal tabular-nums">
-                    {isSunday ? "08:00 – 13:00" : "07:30 – 19:30"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* TODO(business): Dynamic holiday closures & seasonal calendar exceptions (#83) */}
-          <div className="border-border/50 bg-muted/60 text-muted-foreground text-caption flex items-start justify-between gap-2 rounded-lg border p-2.5">
-            <div className="flex items-start gap-2">
+          {todayExceptionText && (
+            <div
+              data-testid="today-exception"
+              className="border-border/50 bg-muted/60 text-foreground text-caption flex items-start gap-2 rounded-lg border p-2.5"
+            >
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <span>{dict.holidayScheduleNotice}</span>
+              <div>
+                <p className="font-semibold">{todayExceptionText}</p>
+                {todayException?.note && (
+                  <p className="text-muted-foreground">{todayException.note}</p>
+                )}
+              </div>
             </div>
-            <SoonBadge />
-          </div>
+          )}
+
+          <HoursSummary
+            weekly={weeklyHours}
+            exceptions={hoursExceptions}
+            locale={locale}
+            timeZone={settings?.timezone ?? DEFAULT_TIMEZONE}
+            highlightToday
+            fallbackText={hasStructuredHours ? null : settings?.openingHours}
+            labels={{
+              closed: dict.storeClosedBadge,
+              todayBadge: dict.today,
+              upcomingExceptionsTitle: dict.upcomingExceptionsTitle,
+            }}
+          />
         </section>
       )}
 
@@ -445,18 +457,21 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             {dict.acceptedPayments}
           </span>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
-              {dict.cashOnPickup}
-            </span>
-            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
-              Revolut Pay
-            </span>
-            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
-              Wero / Paylib
-            </span>
+            {enabledPaymentBadges.map((badge) => (
+              <span
+                key={badge.id}
+                data-testid={`shop-payment-${badge.id}`}
+                className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium"
+              >
+                {badge.label}
+              </span>
+            ))}
             {/* TODO(payments): Tap to pay with Apple Pay & Google Wallet (#72) */}
-            <span className="border-border/60 bg-muted text-muted-foreground text-caption flex items-center gap-1 rounded border px-2 py-1">
-              <span>Card Tap</span>
+            <span
+              data-testid="shop-payment-wallet-tap"
+              className="border-border/60 bg-muted text-muted-foreground text-caption flex items-center gap-1 rounded border px-2 py-1"
+            >
+              <span>{dict.walletTapSoon}</span>
               <SoonBadge />
             </span>
           </div>

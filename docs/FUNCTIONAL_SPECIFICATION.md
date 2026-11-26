@@ -32,10 +32,10 @@ A web app for small, part-time food business owners (home bakers, meal prep, foo
 
 ## 2. Roles
 
-| Role         | Surface                        | Capabilities                                                         |
-| ------------ | ------------------------------ | -------------------------------------------------------------------- |
-| **Manager**  | Dashboard (installable PWA)    | Manage products, orders, expenses; view dashboard and analytics      |
-| **Customer** | Storefront (SSR, SEO-friendly) | Browse visible products, place orders without app-store installation |
+| Role         | Surface                                         | Capabilities                                                         |
+| ------------ | ----------------------------------------------- | -------------------------------------------------------------------- |
+| **Manager**  | Dashboard (installable PWA)                     | Manage products, orders, expenses; view dashboard and analytics      |
+| **Customer** | Storefront (SSR, SEO-friendly, installable PWA) | Browse visible products, place orders without app-store installation |
 
 Data segregation between roles is enforced with Supabase Row Level Security (see [`architecture.md`](architecture.md)). The exact customer sign-in/checkout flow is not yet defined.
 
@@ -90,7 +90,11 @@ Open questions (undecided): customer accounts vs guest checkout, payment handlin
      - Only an authenticated manager can overwrite `guests.name`, and only with explicit intent (`updateGuestName: true` after unlocking the prefilled name field). When an unprivileged or unlocked submission supplies a differing name for an existing phone, the canonical `guests.name` is preserved and the differing name is recorded in `orders.submitted_name` for audit.
    - **Single source of truth on orders:** `Order` stores `guestId` (required) and never duplicates `guestName`; UI read-models resolve the guest's current name by joining on `guestId`.
 7. **Storefront order limits (`place_order`):**
-   - **Requested date & time:** `requestedDate` must fall within `[yesterday, today + 60 days]`; `requestedTime` (when provided) must be at whole minutes.
+   - **Requested date & time:** `requestedTime` (when provided) must be at whole minutes. The slot rules below use the business timezone and are enforced by `place_order` and, first, by the Server Action (`validateSlot`); manager (manual) orders are exempt.
+     - **Closed shop = scheduled only:** an ASAP order is accepted only while the shop is open; while it is closed, only a scheduled order is possible (`closed_now`). With accepting orders switched off, no order is accepted at all.
+     - **Window:** `requestedDate` must fall within `[today, today + 30 days]` (`date_out_of_window`).
+     - **Opening hours:** a scheduled date must be an opening day (`closed_day`); a given time must lie inside that day's opening ranges (`time_outside_hours`) and in the future (`time_in_past`). Exceptions (closures or special hours) override the weekly hours for their dates.
+     - **No structured hours = no hours check:** when no weekly hours are configured (and no exception covers the date) only the window applies.
    - **Item & quantity caps:** at most 50 lines per order, 50 units per product, and 100 total units per order (after merging duplicate lines).
    - **Rate limits (anonymous callers):** at most 3 orders per 10 minutes per hashed phone number and 120 orders per 10 minutes per business.
    - **Text & availability checks:** delivery address ≤ 300 characters (required for `delivery`), notes ≤ 500 characters, guest name 2–50 characters; business must have `accepting_orders = true` and the chosen service type, payment preference, and minimum order amount satisfied.
@@ -117,7 +121,7 @@ Service types: `pickup` and `delivery` (`dine-in` exists only as a stored legacy
 
 - **Performance:** fast first load; storefront pages server-rendered.
 - **Accessibility:** WCAG AA, 44px touch targets, high contrast.
-- **Platform:** modern mobile and desktop browsers; manager dashboard installable as a PWA (manifest implemented; offline support **Planned**).
+- **Platform:** modern mobile and desktop browsers; both the customer storefront and the manager dashboard are installable as separate PWAs with distinct manifests (offline support **Planned**).
 - **Security:** authorisation enforced by RLS; no secrets in `NEXT_PUBLIC_*`.
 
 ## 8. Known gaps and planned improvements

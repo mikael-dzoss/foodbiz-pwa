@@ -55,6 +55,10 @@ describe("P-01 Patterns Component Inventory Screen", () => {
     fireEvent.click(screen.getByTestId("trigger-confirm-dialog"));
     expect(screen.getByTestId("pattern-confirm-dialog")).toBeDefined();
 
+    expect(screen.getByTestId("section-install-guide")).toBeDefined();
+    fireEvent.click(screen.getByTestId("trigger-install-guide"));
+    expect(screen.getByTestId("pattern-install-guide")).toBeDefined();
+
     fireEvent.click(screen.getByTestId("trigger-error-toast"));
     expect(screen.getByTestId("toast-error")).toBeDefined();
   });

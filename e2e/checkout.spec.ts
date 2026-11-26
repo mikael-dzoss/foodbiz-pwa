@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { expect, test, signIn } from "./fixtures";
 import { getDictionary } from "../src/domain/i18n";
 import { formatMoney } from "../src/domain/formatting";
@@ -6,6 +7,17 @@ import {
   DEMO_PRODUCT,
   demoSettings,
 } from "../src/lib/repositories/mock/fixtures";
+
+/**
+ * Outside the mock shop's opening hours the checkout forces "Schedule for later" (#350). The date
+ * picker only lists bookable days (#374), so pick the first one (index 0 is the placeholder);
+ * inside hours the date select is hidden and ASAP stays the default.
+ */
+async function scheduleIfClosed(page: Page) {
+  const dateSelect = page.getByTestId("checkout-date-input");
+  if (!(await dateSelect.isVisible())) return;
+  await dateSelect.selectOption({ index: 1 });
+}
 
 test("storefront sticky category bar appears after scrolling past first category and Menu sheet navigates", async ({
   page,
@@ -128,6 +140,7 @@ for (const [locale, method, recipient, phone] of [
     await page.getByTestId("checkout-name-input").fill(`E2E ${method} Guest`);
     await page.getByTestId("checkout-phone-input").fill(phone);
     await page.getByTestId(`payment-${method}`).click();
+    await scheduleIfClosed(page);
     await page.getByTestId("place-order-button").click();
     await expect(page).toHaveURL(new RegExp(`/${locale}/order/[a-f0-9]{32}/confirmed$`));
     const token = page.url().split("/").at(-2);
@@ -169,21 +182,23 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   await page.getByTestId("service-delivery-button").click();
   await page.getByTestId("checkout-address-input").fill("Private delivery 105 Test Street");
   await page.getByTestId("checkout-notes-input").fill("Private entry code 10599");
+  await scheduleIfClosed(page);
   await page.getByTestId("place-order-button").click();
   await expect(page.getByTestId("checkout-success-view")).toBeVisible();
   await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}\/confirmed$/);
   const confirmationURL = page.url();
   const confirmationResponse = await page.reload();
-  const privateValues = [
-    "E2E Checkout Guest",
-    "+33600000105",
-    "Private delivery 105 Test Street",
-    "Private entry code 10599",
-  ];
+  // The delivery address is shown to the tracking-token holder (#352); the guest's name, phone
+  // and notes never reach these pages.
+  const deliveryAddress = "Private delivery 105 Test Street";
+  const privateValues = ["E2E Checkout Guest", "+33600000105", "Private entry code 10599"];
   const confirmationHTML = await confirmationResponse!.text();
   for (const value of privateValues) expect(confirmationHTML).not.toContain(value);
+  await expect(page.getByTestId("confirmation-delivery-address")).toContainText(deliveryAddress);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
-  await expect(page.getByTestId("confirmation-payment")).toContainText("cash, Revolut or Wero");
+  await expect(page.getByTestId("confirmation-payment")).toContainText(
+    "Pay in cash at pickup or delivery",
+  );
   await expect(page.getByTestId("confirmation-payment")).toContainText("Unpaid");
   // Once hydrated and idle the confirmation must have stayed put (no redirect away).
   await page.waitForLoadState("networkidle");
@@ -194,6 +209,8 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   const trackingResponse = await page.reload();
   const trackingHTML = await trackingResponse!.text();
   for (const value of privateValues) expect(trackingHTML).not.toContain(value);
+  await expect(page.getByTestId("tracking-delivery-address")).toContainText(deliveryAddress);
+  await expect(page.getByTestId("tracking-directions-link")).toHaveCount(0);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   await expect(page.getByTestId("tracking-status-badge")).toContainText("Order Placed");
   const ticket = await page.getByTestId("tracking-order-title").innerText();
@@ -217,4 +234,72 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   } finally {
     await managerContext.close();
   }
+});
+
+test("customer chooses a relay pickup location and its fee is included in cart, checkout, and confirmation (#386)", async ({
+  page,
+  browser,
+}) => {
+  const relayName = "E2E Gare RER B";
+  const relayFeeCents = 150;
+  const managerContext = await browser.newContext();
+  try {
+    const manager = await managerContext.newPage();
+    await signIn(manager);
+    await manager.goto("/manage/settings/pickup-locations");
+    await manager.getByTestId("pickup-location-add").click();
+    await manager.getByTestId("pickup-location-name").fill(relayName);
+    await manager.getByTestId("pickup-location-description").fill("North exit");
+    await manager.getByTestId("pickup-location-address").fill("Place de la gare");
+    await manager.getByTestId("pickup-location-postcode").fill("93210");
+    await manager.getByTestId("pickup-location-fee").fill("1.50");
+    await manager.getByTestId("pickup-location-save").click();
+    await expect(manager.getByTestId("pickup-location-edit-hours")).toBeVisible();
+  } finally {
+    await managerContext.close();
+  }
+
+  const product = DEMO_PRODUCT.boulettes;
+  const expectedTotal = product.price + relayFeeCents;
+  await page.goto("/en");
+  await page.getByTestId("service-mode-pickup").click();
+  await expect(page.getByTestId("service-info-tile")).toContainText("Choose pickup point");
+  await page.getByTestId("service-info-tile").click();
+
+  const dialog = page.getByTestId("ordering-details-dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByText(relayName).click();
+  await expect(page.getByTestId("service-info-tile")).toContainText(relayName);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  await page
+    .getByTestId(`product-row-${product.id}`)
+    .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
+    .click();
+  await page.goto("/en/cart");
+  await expect(page.getByTestId("cart-fee-row")).toContainText(relayName);
+  await expect(page.getByTestId("cart-fee-value")).toContainText(formatMoney(relayFeeCents, "en"));
+  await expect(page.getByTestId("cart-order-total")).toContainText(
+    formatMoney(expectedTotal, "en"),
+  );
+
+  await page.getByTestId("proceed-checkout-button").click();
+  await expect(page.getByTestId("checkout-pickup-picker")).toContainText(relayName);
+  await expect(page.getByTestId("checkout-fee-value")).toContainText(
+    formatMoney(relayFeeCents, "en"),
+  );
+  await expect(page.getByTestId("checkout-order-total")).toContainText(
+    formatMoney(expectedTotal, "en"),
+  );
+
+  await page.getByTestId("checkout-name-input").fill("E2E Relay Guest");
+  await page.getByTestId("checkout-phone-input").fill("+33600000108");
+  await scheduleIfClosed(page);
+  await page.getByTestId("place-order-button").click();
+
+  await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}\/confirmed$/);
+  await expect(page.getByTestId("order-confirmation-view")).toContainText(
+    formatMoney(expectedTotal, "en"),
+  );
 });

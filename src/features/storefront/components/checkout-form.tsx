@@ -1,12 +1,23 @@
 "use client";
 
-import { useActionState, useState, useId, useMemo, useSyncExternalStore } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Lock,
   Pencil,
   CheckCircle2,
+  Clock,
   Store,
   Truck,
   CreditCard,
@@ -21,10 +32,13 @@ import {
 } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
-import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import { interpolate, type StorefrontDictionary, type SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import {
+  checkoutFieldIssues,
   checkoutFormSchema,
+  mapCheckoutIssueToDictKey,
+  type CheckoutFieldName,
   type CheckoutFormData,
   type PlaceOrderReason,
   type PlaceOrderSuccessData,
@@ -32,7 +46,7 @@ import {
   guestContactStorageSchema,
   type GuestContactStorage,
 } from "@/domain/checkout";
-import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
+import { normalizePhoneNumber } from "@/domain/guest";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -41,10 +55,29 @@ import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
-import { useZonedToday } from "@/components/time/business-timezone";
+import { NativeSelect } from "@/components/ui/native-select";
+import { getZonedDay } from "@/domain/timezone";
+import { isOpenAt, type OpeningSchedule } from "@/domain/opening-hours";
+import { pickupScheduleFor, type StorefrontPickupLocation } from "@/domain/pickup-location";
+import { logEvent } from "@/lib/log";
 import { useCart, resolveServiceMode } from "../context/cart-context";
+import { storefrontPricing } from "../storefront-pricing";
+import { usePickupLocation } from "../use-pickup-location";
 import type { ActionCode, ActionFailure } from "@/lib/actions/types";
 import { placeOrderAction } from "../storefront-actions";
+import {
+  buildSlotOptions,
+  closedNextOpeningLabelForSchedule,
+  formatSlotDate,
+  scheduleFromSettings,
+  slotIssue,
+} from "../checkout-slots";
+import { PickupLocationPicker } from "./pickup-location-picker";
+
+const EMPTY_PICKUP_LOCATIONS: readonly StorefrontPickupLocation[] = [];
+
+/** How often the form re-evaluates the slot lists against the running clock (stale picks, #374). */
+const SLOT_CLOCK_TICK_MS = 30_000;
 
 /** Dictionary key for a place-order failure: its domain `reason` first, then its action code. */
 const PLACE_ORDER_ERROR_KEYS = {
@@ -53,10 +86,19 @@ const PLACE_ORDER_ERROR_KEYS = {
   SERVICE_TYPE_DISABLED: "orderErrorServiceDisabled",
   MINIMUM_ORDER_UNMET: "orderErrorMinimum",
   STOCK_ERROR: "orderErrorStock",
+  SLOT_CLOSED_NOW: "orderErrorSlotClosedNow",
+  SLOT_CLOSED_DAY: "orderErrorSlotClosedDay",
+  SLOT_DATE_OUT_OF_WINDOW: "orderErrorSlotDateOutOfWindow",
+  SLOT_TIME_OUTSIDE_HOURS: "orderErrorSlotTimeOutsideHours",
+  SLOT_TIME_IN_PAST: "orderErrorSlotTimeInPast",
+  PICKUP_LOCATION_INVALID: "orderErrorPickupLocationInvalid",
+  PICKUP_LOCATION_REQUIRED: "orderErrorPickupLocationRequired",
+  PICKUP_NOT_AVAILABLE: "orderErrorPickupNotAvailable",
   VALIDATION: "orderErrorValidation",
   RATE_LIMITED: "orderErrorAntiAbuse",
   FORBIDDEN: "orderErrorAntiAbuse",
-} as const satisfies Partial<Record<PlaceOrderReason | ActionCode, keyof StorefrontDictionary>>;
+} as const satisfies Record<PlaceOrderReason, keyof StorefrontDictionary> &
+  Partial<Record<ActionCode, keyof StorefrontDictionary>>;
 
 function placeOrderErrorKey(failure: ActionFailure): keyof StorefrontDictionary {
   const keys: Partial<Record<string, keyof StorefrontDictionary>> = PLACE_ORDER_ERROR_KEYS;
@@ -65,6 +107,35 @@ function placeOrderErrorKey(failure: ActionFailure): keyof StorefrontDictionary 
     keys[failure.code] ??
     "orderErrorInternal"
   );
+}
+
+const PICKUP_SERVER_ERROR_REASONS = new Set<string>([
+  "PICKUP_LOCATION_INVALID",
+  "PICKUP_LOCATION_REQUIRED",
+  "PICKUP_NOT_AVAILABLE",
+]);
+
+const FOCUSABLE_FIELD_ORDER = [
+  "name",
+  "phone",
+  "deliveryAddress",
+  "requestedDate",
+  "requestedTime",
+  "notes",
+] as const;
+
+type FocusableCheckoutField = (typeof FOCUSABLE_FIELD_ORDER)[number];
+type CheckoutFocusTarget = FocusableCheckoutField | "pickupLocation";
+
+function omitKey(
+  record: Partial<Record<CheckoutFieldName, boolean>>,
+  ...keys: ReadonlyArray<CheckoutFieldName>
+): Partial<Record<CheckoutFieldName, boolean>> {
+  if (!keys.some((key) => record[key])) return record;
+  const omitted = new Set<string>(keys);
+  return Object.fromEntries(Object.entries(record).filter(([key]) => !omitted.has(key))) as Partial<
+    Record<CheckoutFieldName, boolean>
+  >;
 }
 
 const guestContactListeners = new Set<() => void>();
@@ -118,8 +189,14 @@ function getStoredGuestContact(): GuestContactStorage | null {
 export interface CheckoutFormProps {
   business: StorefrontBusiness;
   settings: BusinessSettings | null;
+  shopPickupEnabled?: boolean;
+  pickupLocations?: readonly StorefrontPickupLocation[];
   locale: SupportedLocale;
   dict: StorefrontDictionary;
+  isOpen?: boolean;
+  isAcceptingOrders?: boolean;
+  /** Request time (ISO) the server evaluated; seeds the slot lists so SSR and hydration agree. */
+  nowIso?: string;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   onOrderSuccess?: () => void;
   redirectDelayMs?: number;
@@ -128,8 +205,13 @@ export interface CheckoutFormProps {
 export function CheckoutForm({
   business,
   settings,
+  shopPickupEnabled,
+  pickupLocations = EMPTY_PICKUP_LOCATIONS,
   locale,
   dict,
+  isOpen,
+  isAcceptingOrders,
+  nowIso,
   onSubmitOrder,
   onOrderSuccess,
   redirectDelayMs,
@@ -137,7 +219,6 @@ export function CheckoutForm({
   const router = useRouter();
   const {
     items,
-    totalAmountInCents,
     notes: cartNotes,
     setNotes: setCartNotes,
     serviceMode,
@@ -167,8 +248,21 @@ export function CheckoutForm({
 
   // Fulfillment State
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
-  // Earliest schedulable day: today in the business zone (null until hydrated)
-  const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
+  // Slot clock: seeded from the server request time, then advanced by the elapsed browser time
+  const timeZone = settings?.timezone ?? DEFAULT_TIMEZONE;
+  const [clock] = useState(() => {
+    const base = nowIso ? new Date(nowIso) : new Date();
+    return { baseMs: base.getTime(), mountedMs: Date.now() };
+  });
+  const [now, setNow] = useState(() => new Date(clock.baseMs));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setNow(new Date(clock.baseMs + (Date.now() - clock.mountedMs)));
+    }, SLOT_CLOCK_TICK_MS);
+    return () => clearInterval(id);
+  }, [clock]);
+  const today = getZonedDay(now, timeZone);
+  const businessSchedule = useMemo(() => scheduleFromSettings(settings), [settings]);
   const pickupAllowed = settings?.serviceTypes.pickup ?? true;
   const deliveryAllowed = settings?.serviceTypes.delivery ?? true;
   const preselectedService = resolveServiceMode(serviceMode, {
@@ -177,23 +271,121 @@ export function CheckoutForm({
   });
   const [customServiceType, setCustomServiceType] = useState<"pickup" | "delivery" | null>(null);
   const serviceType = customServiceType ?? preselectedService;
-  const handleSelectServiceType = (mode: "pickup" | "delivery") => {
-    setCustomServiceType(mode);
-    setServiceMode(mode);
-  };
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
+  // Pickup Location State (#386)
+  const resolvedShopPickupEnabled = shopPickupEnabled ?? settings?.shopPickupEnabled ?? true;
+  const pickupState = usePickupLocation(resolvedShopPickupEnabled, pickupLocations);
+  const selectedRelay = serviceType === "pickup" ? pickupState.selectedRelay : null;
+  const effectiveSchedule = useMemo(
+    () =>
+      selectedRelay
+        ? pickupScheduleFor(businessSchedule, selectedRelay.weeklyHours)
+        : businessSchedule,
+    [businessSchedule, selectedRelay],
+  );
+
   // Timing State
-  const [isAsap, setIsAsap] = useState(true);
+  const resolvedAcceptingOrders = isAcceptingOrders ?? settings?.acceptingOrders ?? true;
+  // Structured hours drive open/closed on the ticking slot clock; the prop only covers legacy shops.
+  const structuredHours =
+    effectiveSchedule.weekly !== null || effectiveSchedule.exceptions.length > 0;
+  const resolvedIsOpen = structuredHours
+    ? isOpenAt(effectiveSchedule, timeZone, now)
+    : (isOpen ?? true);
+  const closedButAccepting = resolvedAcceptingOrders && !resolvedIsOpen;
+  const [selectedAsap, setSelectedAsap] = useState(!closedButAccepting);
+  const isAsap = closedButAccepting ? false : selectedAsap;
   const [requestedDate, setRequestedDate] = useState("");
   const [requestedTime, setRequestedTime] = useState("");
+  const slotOptions = useMemo(
+    () => buildSlotOptions(effectiveSchedule, timeZone, now, requestedDate),
+    [effectiveSchedule, timeZone, now, requestedDate],
+  );
+  const slotProblem = isAsap
+    ? null
+    : slotIssue(
+        effectiveSchedule,
+        timeZone,
+        now,
+        requestedDate,
+        requestedTime,
+        slotOptions.timeRequired,
+      );
+  const noSlotsAvailable = !isAsap && slotOptions.dates.length === 0;
+  // A stale pick stays in its sorted position, disabled and flagged, so the error points at it.
+  const withStalePick = (values: string[], pick: string): string[] =>
+    pick && !values.includes(pick) ? [...values, pick].toSorted() : values;
+  const dateOptions = withStalePick(slotOptions.dates, requestedDate);
+  const timeOptions = withStalePick(slotOptions.times, requestedTime);
+  const closedNextOpening = closedButAccepting
+    ? closedNextOpeningLabelForSchedule(effectiveSchedule, timeZone, now, locale, dict)
+    : null;
+  // Compute pricing via shared storefront pricing helper (#386)
+  const pricing = useMemo(
+    () =>
+      storefrontPricing({
+        items,
+        serviceType,
+        deliveryFee: settings?.deliveryFee ?? 0,
+        pickupFee: selectedRelay?.feeCents ?? 0,
+      }),
+    [items, serviceType, settings?.deliveryFee, selectedRelay?.feeCents],
+  );
+  const pricingUnavailable = !pricing.ok;
+  const pricingErrorReason = pricing.ok ? null : pricing.reason;
+  useEffect(() => {
+    if (!pricingErrorReason) return;
+    logEvent("error", "storefront_pricing_failed", {
+      screen: "checkout",
+      serviceType,
+      reason: pricingErrorReason,
+    });
+  }, [pricingErrorReason, serviceType]);
+
+  const pickupUnavailable = serviceType === "pickup" && pickupState.unavailable;
+  const pickupChoiceRequired = serviceType === "pickup" && pickupState.requiresChoice;
+  // Only states that make ordering impossible block the button; the not-accepting sentence is
+  // already announced by the top alert, so it is not repeated here.
+  const blockedReason = !resolvedAcceptingOrders
+    ? null
+    : pricingUnavailable
+      ? dict.pricingUnavailableError
+      : pickupUnavailable
+        ? dict.orderErrorPickupNotAvailable
+        : pickupChoiceRequired
+          ? dict.orderErrorPickupLocationRequired
+          : noSlotsAvailable
+            ? dict.checkoutNoSlots
+            : null;
+  const orderingBlocked =
+    !resolvedAcceptingOrders ||
+    pricingUnavailable ||
+    pickupUnavailable ||
+    pickupChoiceRequired ||
+    noSlotsAvailable;
 
   // Payment State
   const revolutAllowed = settings?.paymentMethods.revolut ?? true;
   const weroAllowed = settings?.paymentMethods.wero ?? true;
   const cashAllowed = settings?.paymentMethods.cash ?? true;
+  const cardAllowed = settings?.paymentMethods.card ?? false;
+  const handoverAllowed = cashAllowed || cardAllowed;
 
-  const defaultPaymentPref = cashAllowed ? "on_handover" : revolutAllowed ? "revolut" : "wero";
+  const handoverTitle =
+    cashAllowed && cardAllowed
+      ? dict.payOnHandover
+      : cardAllowed
+        ? dict.payOnHandoverCard
+        : dict.payOnHandoverCash;
+  const handoverSubtext =
+    cashAllowed && cardAllowed
+      ? dict.payOnHandoverSubtext
+      : cardAllowed
+        ? dict.payOnHandoverCardSubtext
+        : dict.payOnHandoverCashSubtext;
+
+  const defaultPaymentPref = handoverAllowed ? "on_handover" : revolutAllowed ? "revolut" : "wero";
   const [paymentPreference, setPaymentPreference] = useState<"on_handover" | "revolut" | "wero">(
     defaultPaymentPref,
   );
@@ -203,6 +395,78 @@ export function CheckoutForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
+  const [pickupServerError, setPickupServerError] = useState<string | null>(null);
+  const [touchedFields, setTouchedFields] = useState<Partial<Record<CheckoutFieldName, boolean>>>(
+    {},
+  );
+  const [hasInvalidSubmit, setHasInvalidSubmit] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<{
+    field: CheckoutFocusTarget;
+    seq: number;
+  } | null>(null);
+
+  // Refs for focusing the first invalid control in DOM order on failed submit
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLSelectElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
+  const timeSelectRef = useRef<HTMLSelectElement>(null);
+  const notesInputRef = useRef<HTMLTextAreaElement>(null);
+  const pickupPickerRef = useRef<HTMLElement | null>(null);
+  const setPickupPickerNode = useCallback((node: HTMLElement | null) => {
+    pickupPickerRef.current = node;
+  }, []);
+
+  const markTouched = (field: CheckoutFieldName) => {
+    setTouchedFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  };
+
+  const syncSlotForSchedule = (nextSchedule: OpeningSchedule) => {
+    if (!requestedDate) return;
+    const nextSlotOptions = buildSlotOptions(nextSchedule, timeZone, now, requestedDate);
+    if (!nextSlotOptions.dates.includes(requestedDate)) {
+      setRequestedDate("");
+      setRequestedTime("");
+      setTouchedFields((prev) => omitKey(prev, "requestedDate", "requestedTime"));
+    } else if (
+      requestedTime &&
+      nextSlotOptions.structured &&
+      !nextSlotOptions.times.includes(requestedTime)
+    ) {
+      setRequestedTime("");
+      setTouchedFields((prev) => omitKey(prev, "requestedTime"));
+    }
+  };
+
+  const handleSelectServiceType = (mode: "pickup" | "delivery") => {
+    setCustomServiceType(mode);
+    setServiceMode(mode);
+    setPickupServerError(null);
+    setTouchedFields((prev) => omitKey(prev, "deliveryAddress"));
+    const nextSchedule =
+      mode === "pickup" && pickupState.selectedRelay
+        ? pickupScheduleFor(businessSchedule, pickupState.selectedRelay.weeklyHours)
+        : businessSchedule;
+    syncSlotForSchedule(nextSchedule);
+  };
+
+  const handleSelectPickupLocation = (choice: string) => {
+    pickupState.selectPickupLocation(choice);
+    setPickupServerError(null);
+    setErrorFeedback(null);
+    const nextRelay = pickupLocations.find((location) => location.id === choice) ?? null;
+    const nextSchedule = nextRelay
+      ? pickupScheduleFor(businessSchedule, nextRelay.weeklyHours)
+      : businessSchedule;
+    syncSlotForSchedule(nextSchedule);
+  };
+
+  const handleSelectTiming = (asap: boolean) => {
+    if (asap === isAsap) return;
+    setSelectedAsap(asap);
+    setTouchedFields((prev) => omitKey(prev, "requestedDate", "requestedTime"));
+  };
 
   // Unique IDs for accessibility
   const nameId = useId();
@@ -211,19 +475,10 @@ export function CheckoutForm({
   const dateId = useId();
   const timeId = useId();
   const notesId = useId();
+  const blockedReasonId = useId();
 
-  // Compute pricing
-  const deliveryFee = serviceType === "delivery" ? (settings?.deliveryFee ?? 0) : 0;
-  const finalTotal = totalAmountInCents + deliveryFee;
-
-  // Normalized phone formatting check
-  const isPhoneValid = useMemo(() => {
-    if (!phone.trim()) return false;
-    return isValidPhoneNumber(phone);
-  }, [phone]);
-
-  // Form Validation Preview
-  const validationResult = useMemo(() => {
+  // Form Validation Preview + Localized Per-Field Errors
+  const { validationResult, fieldErrors } = useMemo(() => {
     let normalizedPhone = phone.trim();
     if (normalizedPhone.length > 0 && !normalizedPhone.startsWith("+")) {
       try {
@@ -239,12 +494,28 @@ export function CheckoutForm({
       serviceType,
       deliveryAddress: serviceType === "delivery" ? deliveryAddress : undefined,
       isAsap,
-      requestedDate: isAsap ? undefined : requestedDate,
+      requestedDate: isAsap ? undefined : requestedDate || undefined,
       requestedTime: isAsap ? undefined : requestedTime || undefined,
       paymentPreference,
       notes: notes || undefined,
     };
-    return checkoutFormSchema.safeParse(rawForm);
+    const result = checkoutFormSchema.safeParse(rawForm);
+    if (result.success) {
+      return {
+        validationResult: result,
+        fieldErrors: {} as Partial<Record<CheckoutFieldName, string>>,
+      };
+    }
+
+    const issuesByField = checkoutFieldIssues(rawForm, result);
+    const errors: Partial<Record<CheckoutFieldName, string>> = {};
+    for (const [field, issue] of Object.entries(issuesByField)) {
+      if (issue) {
+        errors[field as CheckoutFieldName] = dict[mapCheckoutIssueToDictKey(issue, name)];
+      }
+    }
+
+    return { validationResult: result, fieldErrors: errors };
   }, [
     name,
     phone,
@@ -255,18 +526,84 @@ export function CheckoutForm({
     requestedTime,
     paymentPreference,
     notes,
+    dict,
   ]);
 
-  const canSubmit = validationResult.success && items.length > 0 && !isSubmitting;
+  // Slot rules join the zod errors so the submit/focus/summary flow treats them like any field.
+  const slotField: CheckoutFieldName | null = slotProblem
+    ? slotProblem.field === "date"
+      ? "requestedDate"
+      : "requestedTime"
+    : null;
+  const allFieldErrors: Partial<Record<CheckoutFieldName, string>> =
+    slotProblem && slotField && !fieldErrors[slotField]
+      ? { ...fieldErrors, [slotField]: dict[slotProblem.messageKey] }
+      : fieldErrors;
+  const formValid = validationResult.success && slotProblem === null;
+  // "Choose a time" waits for interaction; stale or closed picks are explained immediately.
+  const slotErrorVisible =
+    slotProblem !== null &&
+    (slotProblem.messageKey !== "checkoutTimeRequired" || Boolean(touchedFields.requestedTime));
 
-  const [, formAction] = useActionState(async (): Promise<null> => {
-    if (!validationResult.success) {
-      const firstIssue = validationResult.error.issues[0];
-      setErrorFeedback(firstIssue?.message || "Please check the form fields.");
+  const visibleErrors: Partial<Record<CheckoutFieldName, string>> = {
+    name: touchedFields.name ? fieldErrors.name : undefined,
+    phone: touchedFields.phone ? fieldErrors.phone : undefined,
+    serviceType: touchedFields.serviceType ? fieldErrors.serviceType : undefined,
+    deliveryAddress: touchedFields.deliveryAddress ? fieldErrors.deliveryAddress : undefined,
+    requestedDate:
+      touchedFields.requestedDate || (slotErrorVisible && slotField === "requestedDate")
+        ? allFieldErrors.requestedDate
+        : undefined,
+    requestedTime:
+      touchedFields.requestedTime || (slotErrorVisible && slotField === "requestedTime")
+        ? allFieldErrors.requestedTime
+        : undefined,
+    paymentPreference: touchedFields.paymentPreference ? fieldErrors.paymentPreference : undefined,
+    notes: touchedFields.notes ? fieldErrors.notes : undefined,
+  };
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (focusRequest.field === "pickupLocation") {
+      const container = pickupPickerRef.current;
+      if (!container) return;
+      const firstRadio = container.querySelector<HTMLInputElement>('input[type="radio"]');
+      const target = firstRadio ?? container;
+      container.scrollIntoView?.({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      target.focus();
+      return;
+    }
+    const refMap: Record<FocusableCheckoutField, HTMLElement | null> = {
+      name: nameInputRef.current,
+      phone: phoneInputRef.current,
+      deliveryAddress: addressInputRef.current,
+      requestedDate: dateInputRef.current,
+      requestedTime: timeInputRef.current ?? timeSelectRef.current,
+      notes: notesInputRef.current,
+    };
+    const target = refMap[focusRequest.field];
+    if (!target) return;
+    target.scrollIntoView?.({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
+    target.focus();
+  }, [focusRequest]);
+
+  const [, formAction, isPending] = useActionState(async (): Promise<null> => {
+    if (!validationResult.success || orderingBlocked) {
       return null;
     }
 
     setErrorFeedback(null);
+    setPickupServerError(null);
     setIsSubmitting(true);
 
     try {
@@ -282,6 +619,9 @@ export function CheckoutForm({
           // Local storage write failed (e.g. private mode)
         }
       }
+
+      const pickupLocationId =
+        validationResult.data.serviceType === "pickup" ? (selectedRelay?.id ?? null) : null;
 
       if (onSubmitOrder) {
         await onSubmitOrder(validationResult.data);
@@ -299,12 +639,32 @@ export function CheckoutForm({
           requestedTime: validationResult.data.requestedTime,
           paymentPreference: validationResult.data.paymentPreference,
           notes: validationResult.data.notes,
+          pickupLocationId,
           idempotencyKey,
           honeypot,
         });
 
         if (!orderResult.ok) {
-          setErrorFeedback(dict[placeOrderErrorKey(orderResult)]);
+          const message = dict[placeOrderErrorKey(orderResult)];
+          if (
+            validationResult.data.serviceType === "pickup" &&
+            orderResult.reason &&
+            PICKUP_SERVER_ERROR_REASONS.has(orderResult.reason)
+          ) {
+            setPickupServerError(message);
+            if (
+              orderResult.reason === "PICKUP_LOCATION_INVALID" ||
+              orderResult.reason === "PICKUP_LOCATION_REQUIRED"
+            ) {
+              pickupState.selectPickupLocation(null);
+            }
+            setFocusRequest((prev) => ({
+              field: "pickupLocation",
+              seq: (prev?.seq ?? 0) + 1,
+            }));
+          } else {
+            setErrorFeedback(message);
+          }
           setIsSubmitting(false);
           return null;
         }
@@ -335,6 +695,61 @@ export function CheckoutForm({
     }
     return null;
   }, null);
+
+  const submitting = isSubmitting || isPending;
+  const canSubmit = items.length > 0 && !submitting && !orderingBlocked;
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (!canSubmit) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!validationResult.success || slotProblem !== null) {
+      event.preventDefault();
+      setErrorFeedback(null);
+      setPickupServerError(null);
+      setHasInvalidSubmit(true);
+
+      const activeFields: CheckoutFieldName[] = [
+        "name",
+        "phone",
+        "serviceType",
+        "paymentPreference",
+        "notes",
+      ];
+      if (serviceType === "delivery") {
+        activeFields.push("deliveryAddress");
+      }
+      if (!isAsap) {
+        activeFields.push("requestedDate", "requestedTime");
+      }
+
+      setTouchedFields((prev) => {
+        const next = { ...prev };
+        for (const field of activeFields) {
+          next[field] = true;
+        }
+        return next;
+      });
+
+      const firstInvalidField = FOCUSABLE_FIELD_ORDER.find((field) =>
+        Boolean(allFieldErrors[field]),
+      );
+      if (firstInvalidField) {
+        if (firstInvalidField === "name" && isNameLocked) {
+          setIsUnlocked(true);
+        }
+        setFocusRequest((prev) => ({
+          field: firstInvalidField,
+          seq: (prev?.seq ?? 0) + 1,
+        }));
+      }
+      return;
+    }
+
+    setHasInvalidSubmit(false);
+  };
 
   // Confirmation view displayed upon order submission announcing redirection
   if (submittedSuccess || confirmedOrder) {
@@ -381,7 +796,25 @@ export function CheckoutForm({
   }
 
   return (
-    <form action={formAction} className="space-y-6" data-testid="checkout-form" noValidate>
+    <form
+      action={formAction}
+      onSubmit={handleSubmit}
+      className="space-y-6"
+      data-testid="checkout-form"
+      noValidate
+    >
+      {/* Single polite live region for invalid submit summary (avoids double announcements with focused aria-describedby) */}
+      <p
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="checkout-validation-summary"
+      >
+        {/* Keyed per submit so a repeated invalid submit replaces the node and is re-announced */}
+        {hasInvalidSubmit && !formValid ? (
+          <span key={focusRequest?.seq ?? 0}>{dict.formValidationSummary}</span>
+        ) : null}
+      </p>
       {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
       <div
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
@@ -400,6 +833,17 @@ export function CheckoutForm({
           data-testid="checkout-honeypot-input"
         />
       </div>
+
+      {!resolvedAcceptingOrders && (
+        <div
+          role="alert"
+          data-testid="checkout-not-accepting-notice"
+          className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{dict.checkoutBlockedNotAccepting}</span>
+        </div>
+      )}
 
       {/* 1. Customer Contact (Guest) */}
       <section className="border-border bg-card space-y-4 rounded-xl border p-4 shadow-2xs sm:p-5">
@@ -434,7 +878,14 @@ export function CheckoutForm({
             </div>
           )}
 
-          <Field id={nameId} label={dict.fullName} required>
+          <Field
+            id={nameId}
+            label={dict.fullName}
+            required
+            error={visibleErrors.name}
+            announceError={false}
+            data-testid="checkout-name-field"
+          >
             {(control) => (
               <div className="relative">
                 {isNameLocked && (
@@ -444,10 +895,12 @@ export function CheckoutForm({
                 )}
                 <Input
                   {...control}
+                  ref={nameInputRef}
                   type="text"
                   value={name}
                   disabled={isNameLocked}
                   onChange={(e) => setCustomName(e.target.value)}
+                  onBlur={() => markTouched("name")}
                   placeholder={dict.fullNamePlaceholder}
                   className={isNameLocked ? "pl-9 font-medium" : ""}
                   data-testid="checkout-name-input"
@@ -474,6 +927,9 @@ export function CheckoutForm({
           id={phoneId}
           label={dict.phone}
           required
+          error={visibleErrors.phone}
+          announceError={false}
+          data-testid="checkout-phone-field"
           hint={
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
@@ -488,12 +944,13 @@ export function CheckoutForm({
               </span>
               <Input
                 {...control}
+                ref={phoneInputRef}
                 type="tel"
                 value={phone}
                 onChange={(e) => setCustomPhone(e.target.value)}
+                onBlur={() => markTouched("phone")}
                 placeholder={dict.phonePlaceholder}
                 data-testid="checkout-phone-input"
-                error={phone.length > 0 && !isPhoneValid}
                 className="pl-20 tabular-nums"
                 required
               />
@@ -527,7 +984,15 @@ export function CheckoutForm({
                     label: (
                       <>
                         <Store className="h-4 w-4" />
-                        <span>{dict.pickupFree}</span>
+                        <span>
+                          {pickupState.hasPaidOption
+                            ? pickupState.isSingleOption && pickupState.selectedRelay
+                              ? interpolate(dict.pickupLocationWithFee, {
+                                  amount: formatMoney(pickupState.selectedRelay.feeCents, locale),
+                                })
+                              : dict.pickupToggleLabel
+                            : dict.pickupFree}
+                        </span>
                       </>
                     ),
                   },
@@ -556,41 +1021,54 @@ export function CheckoutForm({
           ]}
         />
 
+        {visibleErrors.serviceType && (
+          <p
+            data-testid="checkout-service-type-error"
+            className="text-body-sm text-destructive flex items-start gap-1.5"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{visibleErrors.serviceType}</span>
+          </p>
+        )}
+
         {/* Conditional Address or Pickup Location */}
         {serviceType === "pickup" ? (
-          <div className="border-border bg-muted/40 flex items-start gap-3 rounded-lg border p-3 text-xs">
-            <div className="border-border bg-card text-primary mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
-              <Store className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-0.5">
-              <div className="flex items-center justify-between">
-                <p className="text-foreground truncate font-semibold">{business.name}</p>
-                <span className="bg-muted text-muted-foreground text-micro rounded px-1.5 py-0.5 font-bold tracking-wider uppercase">
-                  {dict.inStore}
-                </span>
-              </div>
-              <p className="text-muted-foreground">{business.address}</p>
-              <p className="text-muted-foreground text-caption flex items-center gap-1.5">
-                <span className="bg-primary inline-block h-1.5 w-1.5 rounded-full" />
-                <span>{dict.pickupExpressNotice}</span>
-              </p>
-            </div>
-          </div>
+          <PickupLocationPicker
+            shopPickupEnabled={resolvedShopPickupEnabled}
+            pickupLocations={pickupLocations}
+            businessName={business.name}
+            businessAddress={business.address}
+            businessSchedule={businessSchedule}
+            openingHoursText={settings?.openingHours}
+            selectedChoice={pickupState.selectedChoice}
+            onSelect={handleSelectPickupLocation}
+            locale={locale}
+            dict={dict}
+            showRequiredPrompt
+            error={pickupServerError}
+            pickerRef={setPickupPickerNode}
+            data-testid="checkout-pickup-picker"
+          />
         ) : (
-          <div className="space-y-1.5" data-testid="delivery-address-container">
-            <label htmlFor={addressId} className="text-foreground text-xs font-medium">
-              {dict.deliveryAddress} <span className="text-destructive">*</span>
-            </label>
+          <Field
+            id={addressId}
+            label={dict.deliveryAddress}
+            required
+            error={visibleErrors.deliveryAddress}
+            announceError={false}
+            data-testid="delivery-address-container"
+          >
             <Input
-              id={addressId}
+              ref={addressInputRef}
               type="text"
               value={deliveryAddress}
               onChange={(e) => setDeliveryAddress(e.target.value)}
+              onBlur={() => markTouched("deliveryAddress")}
               placeholder={dict.deliveryAddressPlaceholder}
               data-testid="checkout-address-input"
               required
             />
-          </div>
+          </Field>
         )}
       </section>
 
@@ -601,112 +1079,194 @@ export function CheckoutForm({
           {dict.orderTiming}
         </h2>
 
+        {closedButAccepting && (
+          <div
+            role="status"
+            data-testid="checkout-closed-schedule-notice"
+            className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
+          >
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              {selectedRelay
+                ? closedNextOpening
+                  ? dict.pickupLocationClosedNextOpening.replace("{when}", closedNextOpening)
+                  : dict.pickupLocationClosedScheduleNotice
+                : closedNextOpening
+                  ? dict.checkoutClosedNextOpening.replace("{when}", closedNextOpening)
+                  : dict.checkoutClosedScheduleNotice}
+            </span>
+          </div>
+        )}
+
         <div className="space-y-2.5">
           {/* ASAP Option */}
-          <label
-            data-testid="timing-asap-option"
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
-              isAsap
-                ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
-                : "border-border bg-card text-muted-foreground hover:border-border/80"
-            }`}
-          >
-            <div className="pt-0.5">
-              <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                  isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
-                }`}
-              >
-                {isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
-              </span>
-            </div>
-            <input
-              type="radio"
-              name="orderTiming"
-              checked={isAsap}
-              onChange={() => setIsAsap(true)}
-              className="sr-only"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-foreground text-xs font-semibold">
-                  {dict.asap.replace("{leadTime}", leadTimeText)}
-                </span>
-                <span className="bg-primary/10 text-primary text-micro rounded px-1.5 py-0.5 font-bold">
-                  {dict.recommended}
+          {!closedButAccepting && (
+            <label
+              data-testid="timing-asap-option"
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+                isAsap
+                  ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
+                  : "border-border bg-card text-muted-foreground hover:border-border/80"
+              }`}
+            >
+              <div className="pt-0.5">
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                    isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
+                  }`}
+                >
+                  {isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
                 </span>
               </div>
-              <p className="text-muted-foreground mt-0.5 text-xs">{dict.asapEstimatedReady}</p>
-            </div>
-          </label>
+              <input
+                type="radio"
+                name="orderTiming"
+                checked={isAsap}
+                onChange={() => handleSelectTiming(true)}
+                className="sr-only"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-foreground text-xs font-semibold">
+                    {dict.asap.replace("{leadTime}", leadTimeText)}
+                  </span>
+                  <span className="bg-primary/10 text-primary text-micro rounded px-1.5 py-0.5 font-bold">
+                    {dict.recommended}
+                  </span>
+                </div>
+                <p className="text-muted-foreground mt-0.5 text-xs">{dict.asapEstimatedReady}</p>
+              </div>
+            </label>
+          )}
 
           {/* Schedule Later Option */}
-          <label
-            data-testid="timing-scheduled-option"
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+          <div
+            data-testid="timing-scheduled-card"
+            className={`relative rounded-xl border p-3.5 transition-all ${
               !isAsap
                 ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
                 : "border-border bg-card text-muted-foreground hover:border-border/80"
             }`}
           >
-            <div className="pt-0.5">
-              <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                  !isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
-                }`}
-              >
-                {!isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
-              </span>
-            </div>
-            <input
-              type="radio"
-              name="orderTiming"
-              checked={!isAsap}
-              onChange={() => setIsAsap(false)}
-              className="sr-only"
-            />
-            <div className="min-w-0 flex-1">
-              <span className="text-foreground text-xs font-semibold">{dict.scheduleLater}</span>
-              <p className="text-muted-foreground mt-0.5 text-xs">{dict.scheduleLaterSubtext}</p>
-
-              {!isAsap && (
-                <div
-                  data-testid="scheduled-timing-inputs"
-                  className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2"
+            <label
+              data-testid="timing-scheduled-option"
+              className="flex cursor-pointer items-start gap-3 after:absolute after:inset-0"
+            >
+              <div className="pt-0.5">
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                    !isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
+                  }`}
                 >
-                  <div className="space-y-1">
-                    <label htmlFor={dateId} className="text-foreground text-caption font-medium">
-                      {dict.scheduledDate} <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      id={dateId}
-                      type="date"
-                      min={today ?? undefined}
-                      value={requestedDate}
-                      onChange={(e) => setRequestedDate(e.target.value)}
-                      data-testid="checkout-date-input"
-                      className="h-9 text-xs"
-                      required
-                    />
-                  </div>
+                  {!isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
+                </span>
+              </div>
+              <input
+                type="radio"
+                name="orderTiming"
+                checked={!isAsap}
+                onChange={() => handleSelectTiming(false)}
+                className="sr-only"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-foreground text-xs font-semibold">{dict.scheduleLater}</span>
+                <p className="text-muted-foreground mt-0.5 text-xs">{dict.scheduleLaterSubtext}</p>
+              </div>
+            </label>
 
-                  <div className="space-y-1">
-                    <label htmlFor={timeId} className="text-foreground text-caption font-medium">
-                      {dict.scheduledTime}
-                    </label>
-                    <Input
-                      id={timeId}
-                      type="time"
-                      value={requestedTime}
-                      onChange={(e) => setRequestedTime(e.target.value)}
-                      data-testid="checkout-time-input"
-                      className="h-9 text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </label>
+            {!isAsap && (
+              <div
+                data-testid="scheduled-timing-inputs"
+                className="relative z-10 grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2 sm:pl-7"
+              >
+                <Field
+                  id={dateId}
+                  label={dict.scheduledDate}
+                  required
+                  error={visibleErrors.requestedDate}
+                  announceError={false}
+                  className="min-w-0"
+                  data-testid="checkout-date-field"
+                >
+                  {(control) => (
+                    <NativeSelect
+                      {...control}
+                      ref={dateInputRef}
+                      value={requestedDate}
+                      onChange={(e) => {
+                        setRequestedDate(e.target.value);
+                        setRequestedTime("");
+                      }}
+                      onBlur={() => markTouched("requestedDate")}
+                      data-testid="checkout-date-input"
+                      className="min-w-0"
+                    >
+                      <option value="">{dict.checkoutChooseDate}</option>
+                      {dateOptions.map((date) => {
+                        const label = formatSlotDate(date, today, locale, dict);
+                        const stale = !slotOptions.dates.includes(date);
+                        return (
+                          <option key={date} value={date} disabled={stale}>
+                            {stale ? dict.checkoutSlotUnavailable.replace("{value}", label) : label}
+                          </option>
+                        );
+                      })}
+                    </NativeSelect>
+                  )}
+                </Field>
+
+                <Field
+                  id={timeId}
+                  label={slotOptions.timeRequired ? dict.scheduledTimeRequired : dict.scheduledTime}
+                  required={slotOptions.timeRequired}
+                  error={visibleErrors.requestedTime}
+                  hint={
+                    slotOptions.note
+                      ? dict.checkoutDayNote.replace("{note}", slotOptions.note)
+                      : undefined
+                  }
+                  announceError={false}
+                  className="min-w-0"
+                  data-testid="checkout-time-field"
+                >
+                  {(control) =>
+                    slotOptions.structured ? (
+                      <NativeSelect
+                        {...control}
+                        ref={timeSelectRef}
+                        value={requestedTime}
+                        onChange={(e) => setRequestedTime(e.target.value)}
+                        onBlur={() => markTouched("requestedTime")}
+                        data-testid="checkout-time-input"
+                        className="min-w-0"
+                      >
+                        <option value="">{dict.checkoutChooseTime}</option>
+                        {timeOptions.map((time) => {
+                          const stale = !slotOptions.times.includes(time);
+                          return (
+                            <option key={time} value={time} disabled={stale}>
+                              {stale ? dict.checkoutSlotUnavailable.replace("{value}", time) : time}
+                            </option>
+                          );
+                        })}
+                      </NativeSelect>
+                    ) : (
+                      <Input
+                        {...control}
+                        ref={timeInputRef}
+                        type="time"
+                        value={requestedTime}
+                        onChange={(e) => setRequestedTime(e.target.value)}
+                        onBlur={() => markTouched("requestedTime")}
+                        data-testid="checkout-time-input"
+                        className="w-full min-w-0"
+                      />
+                    )
+                  }
+                </Field>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -722,7 +1282,7 @@ export function CheckoutForm({
 
         <div className="space-y-2">
           {/* Pay on Handover */}
-          {cashAllowed && (
+          {handoverAllowed && (
             <label
               data-testid="payment-on-handover"
               className={`flex cursor-pointer items-start justify-between rounded-xl border p-3.5 transition-all ${
@@ -754,20 +1314,28 @@ export function CheckoutForm({
                 />
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-foreground text-xs font-semibold">
-                      {dict.payOnHandover}
-                    </span>
+                    <span className="text-foreground text-xs font-semibold">{handoverTitle}</span>
                   </div>
-                  <p className="text-primary text-xs font-medium">{dict.payOnHandoverSubtext}</p>
+                  <p className="text-primary text-xs font-medium">{handoverSubtext}</p>
                   <div className="text-muted-foreground text-caption flex items-center gap-2 pt-1">
-                    <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
-                      <Banknote className="text-muted-foreground h-3 w-3" />
-                      {dict.cashBadge}
-                    </span>
-                    <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
-                      <CreditCard className="text-muted-foreground h-3 w-3" />
-                      {dict.contactlessBadge}
-                    </span>
+                    {cashAllowed && (
+                      <span
+                        data-testid="payment-badge-cash"
+                        className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5"
+                      >
+                        <Banknote className="text-muted-foreground h-3 w-3" />
+                        {dict.cashBadge}
+                      </span>
+                    )}
+                    {cardAllowed && (
+                      <span
+                        data-testid="payment-badge-card"
+                        className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5"
+                      >
+                        <CreditCard className="text-muted-foreground h-3 w-3" />
+                        {dict.contactlessBadge}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -872,29 +1440,44 @@ export function CheckoutForm({
             </label>
           )}
         </div>
+        {visibleErrors.paymentPreference && (
+          <p
+            data-testid="checkout-payment-preference-error"
+            className="text-body-sm text-destructive flex items-start gap-1.5"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{visibleErrors.paymentPreference}</span>
+          </p>
+        )}
       </section>
 
       {/* 5. Notes */}
-      <section className="border-border bg-card space-y-2 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <label
-          htmlFor={notesId}
-          className="text-foreground flex items-center gap-1.5 text-sm font-semibold"
-        >
+      <section className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-2xs sm:p-5">
+        <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
           <span className="text-primary font-bold">5.</span>
           {dict.orderNotes}
-        </label>
-        <Textarea
+        </h2>
+        <Field
           id={notesId}
-          value={notes}
-          onChange={(e) => {
-            const val = e.target.value;
-            setNotes(val);
-            setCartNotes(val);
-          }}
-          placeholder={dict.notesPlaceholder}
-          className="min-h-20"
-          data-testid="checkout-notes-input"
-        />
+          label={dict.addKitchenNote}
+          error={visibleErrors.notes}
+          announceError={false}
+          data-testid="checkout-notes-field"
+        >
+          <Textarea
+            ref={notesInputRef}
+            value={notes}
+            onChange={(e) => {
+              const val = e.target.value;
+              setNotes(val);
+              setCartNotes(val);
+            }}
+            onBlur={() => markTouched("notes")}
+            placeholder={dict.notesPlaceholder}
+            className="min-h-20"
+            data-testid="checkout-notes-input"
+          />
+        </Field>
       </section>
 
       {/* 6. Order Summary Card */}
@@ -916,34 +1499,72 @@ export function CheckoutForm({
               <span className="truncate pr-2">
                 {item.quantity}× {item.name}
               </span>
-              <span className="shrink-0 font-medium tabular-nums">
-                {formatMoney(item.price * item.quantity, locale)}
-              </span>
+              {pricing.ok && (
+                <span className="shrink-0 font-medium tabular-nums">
+                  {formatMoney(item.price * item.quantity, locale)}
+                </span>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="border-border/60 space-y-1.5 border-t pt-2 text-xs">
-          <div className="text-muted-foreground flex justify-between">
-            <span>{dict.subtotal}</span>
-            <span className="text-foreground font-medium tabular-nums">
-              {formatMoney(totalAmountInCents, locale)}
-            </span>
-          </div>
-          <div className="text-muted-foreground flex justify-between">
-            <span>{serviceType === "delivery" ? dict.deliveryPaid : dict.pickupFree}</span>
-            <span className="text-primary font-medium tabular-nums">
-              {deliveryFee > 0 ? formatMoney(deliveryFee, locale) : `€0.00 (${dict.serviceFree})`}
-            </span>
-          </div>
-        </div>
+        {pricing.ok ? (
+          <>
+            <div className="border-border/60 space-y-1.5 border-t pt-2 text-xs">
+              <div className="text-muted-foreground flex justify-between">
+                <span>{dict.subtotal}</span>
+                <span className="text-foreground font-medium tabular-nums">
+                  {formatMoney(pricing.subtotal, locale)}
+                </span>
+              </div>
+              <div
+                data-testid="checkout-fee-row"
+                className="text-muted-foreground flex justify-between gap-2"
+              >
+                <span className="truncate">
+                  {serviceType === "delivery"
+                    ? dict.deliveryPaid
+                    : selectedRelay
+                      ? `${dict.pickupLocationFeeLabel} · ${selectedRelay.name}`
+                      : dict.pickupLocationFeeLabel}
+                </span>
+                <span
+                  data-testid="checkout-fee-value"
+                  className="text-primary shrink-0 font-medium tabular-nums"
+                >
+                  {serviceType === "delivery"
+                    ? pricing.deliveryFee > 0
+                      ? formatMoney(pricing.deliveryFee, locale)
+                      : dict.pickupLocationFeeFree
+                    : pricing.pickupFee > 0
+                      ? formatMoney(pricing.pickupFee, locale)
+                      : pickupChoiceRequired && pickupState.hasPaidOption
+                        ? dict.pickupLocationFeePending
+                        : dict.pickupLocationFeeFree}
+                </span>
+              </div>
+            </div>
 
-        <div className="border-border/60 flex items-center justify-between border-t pt-2.5">
-          <span className="text-foreground text-sm font-bold">{dict.orderTotal}</span>
-          <span className="text-primary text-lg font-bold tabular-nums">
-            {formatMoney(finalTotal, locale)}
-          </span>
-        </div>
+            <div className="border-border/60 flex items-center justify-between border-t pt-2.5">
+              <span className="text-foreground text-sm font-bold">{dict.orderTotal}</span>
+              <span
+                data-testid="checkout-order-total"
+                className="text-primary text-lg font-bold tabular-nums"
+              >
+                {formatMoney(pricing.total, locale)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div
+            role="alert"
+            data-testid="checkout-pricing-error"
+            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 wrap-anywhere">{dict.pricingUnavailableError}</span>
+          </div>
+        )}
       </section>
 
       {/* Error Feedback Message if any */}
@@ -967,17 +1588,40 @@ export function CheckoutForm({
         <Button
           type="submit"
           disabled={!canSubmit}
-          loading={isSubmitting}
+          loading={submitting}
+          aria-describedby={blockedReason ? blockedReasonId : undefined}
           className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
           data-testid="place-order-button"
         >
           <span>
-            {isSubmitting
+            {submitting
               ? dict.placingOrder
-              : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
+              : pricing.ok
+                ? `${dict.placeOrder} • ${formatMoney(pricing.total, locale)}`
+                : dict.placeOrder}
           </span>
           <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>
+
+        {/* Always mounted so a reason appearing later is announced; keyed so a change re-announces */}
+        <p
+          id={blockedReasonId}
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="checkout-blocked-reason-region"
+          className="text-destructive text-caption text-center"
+        >
+          {blockedReason ? (
+            <span
+              key={blockedReason}
+              data-testid="checkout-blocked-reason"
+              className="flex items-start justify-center gap-1.5"
+            >
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{blockedReason}</span>
+            </span>
+          ) : null}
+        </p>
 
         <p className="text-muted-foreground text-caption text-center">
           🔒 {dict.pickupPolicyNotice}

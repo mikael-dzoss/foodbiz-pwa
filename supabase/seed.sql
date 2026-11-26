@@ -24,6 +24,7 @@ begin
   delete from public.expenses where business_id = '11111111-1111-4111-8111-111111111111'::uuid;
   delete from public.products where business_id = '11111111-1111-4111-8111-111111111111'::uuid;
   delete from public.product_categories where business_id = '11111111-1111-4111-8111-111111111111'::uuid;
+  delete from public.pickup_locations where business_id = '11111111-1111-4111-8111-111111111111'::uuid;
 
   -- 1. Business
   insert into public.businesses (
@@ -89,6 +90,9 @@ begin
     accepting_orders,
     service_types,
     opening_hours,
+    weekly_hours,
+    hours_exceptions,
+    shop_pickup_enabled,
     order_timing_asap,
     order_timing_scheduled,
     order_timing_time_optional,
@@ -115,6 +119,12 @@ begin
     true,
     '{"pickup":true,"delivery":true,"dineIn":false}'::jsonb,
     'Mar–Dim 11:00–21:00 · fermé le lundi',
+    '{"mon":[],"tue":[{"open":"11:30","close":"14:30"},{"open":"18:00","close":"22:00"}],"wed":[{"open":"11:30","close":"14:30"},{"open":"18:00","close":"22:00"}],"thu":[{"open":"11:30","close":"14:30"},{"open":"18:00","close":"22:00"}],"fri":[{"open":"11:30","close":"14:30"},{"open":"18:00","close":"24:00"}],"sat":[{"open":"00:00","close":"01:00"},{"open":"11:30","close":"15:00"},{"open":"18:00","close":"24:00"}],"sun":[{"open":"00:00","close":"01:00"},{"open":"12:00","close":"16:00"}]}'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object('from', to_char(date '2026-10-16' + v_days, 'YYYY-MM-DD'), 'to', to_char(date '2026-10-16' + v_days, 'YYYY-MM-DD'), 'ranges', '[{"open":"11:00","close":"16:00"}]'::jsonb, 'note', 'Ouverture exceptionnelle'),
+      jsonb_build_object('from', to_char(date '2026-10-23' + v_days, 'YYYY-MM-DD'), 'to', to_char(date '2026-10-25' + v_days, 'YYYY-MM-DD'), 'ranges', '[]'::jsonb, 'note', 'Congés annuels')
+    ),
+    true,
     true,
     true,
     false,
@@ -125,7 +135,7 @@ begin
     'Europe/Paris',
     '@saveurscontinent',
     '+33639980001',
-    '{"cash":true,"revolut":true,"wero":true}'::jsonb,
+    '{"cash":true,"card":false,"revolut":true,"wero":true}'::jsonb,
     'Pay with Revolut or Wero when you order, or in cash at pickup or delivery. Questions? Message us on WhatsApp.',
     'Payez par Revolut ou Wero à la commande, ou en espèces au retrait ou à la livraison. Une question ? Écrivez-nous sur WhatsApp.',
     true,
@@ -139,6 +149,9 @@ begin
     accepting_orders = excluded.accepting_orders,
     service_types = excluded.service_types,
     opening_hours = excluded.opening_hours,
+    weekly_hours = excluded.weekly_hours,
+    hours_exceptions = excluded.hours_exceptions,
+    shop_pickup_enabled = excluded.shop_pickup_enabled,
     order_timing_asap = excluded.order_timing_asap,
     order_timing_scheduled = excluded.order_timing_scheduled,
     order_timing_time_optional = excluded.order_timing_time_optional,
@@ -1992,5 +2005,21 @@ begin
       array['Equipment']::text[],
       '2026-10-08T13:45:00.000Z'::timestamptz + make_interval(days => v_days)
     );
+
+  -- 9. Pickup Locations
+  insert into public.pickup_locations (
+    id,
+    business_id,
+    name,
+    description,
+    address,
+    postcode,
+    fee_cents,
+    weekly_hours,
+    is_active,
+    sort_order
+  ) values
+    ('14000000-0000-4000-8000-000000000001'::uuid, '11111111-1111-4111-8111-111111111111'::uuid, 'Gare RER B – La Plaine Stade de France', 'Meeting point at the station forecourt, side of the Stade de France.', 'Place de la Gare, La Plaine Stade de France', '93210', 0, '{"mon":[],"tue":[{"open":"18:00","close":"20:00"}],"wed":[{"open":"18:00","close":"20:00"}],"thu":[{"open":"18:00","close":"20:00"}],"fri":[{"open":"18:00","close":"20:00"}],"sat":[{"open":"18:00","close":"20:00"}],"sun":[]}'::jsonb, true, 0),
+    ('14000000-0000-4000-8000-000000000002'::uuid, '11111111-1111-4111-8111-111111111111'::uuid, 'Gare RER D – Saint-Denis', 'Meeting point at the main station entrance.', 'Place Pierre Semard, Saint-Denis', '93200', 150, '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[{"open":"12:00","close":"14:00"}],"sat":[{"open":"12:00","close":"14:00"}],"sun":[{"open":"12:00","close":"14:00"}]}'::jsonb, true, 1);
 end
 $seed$;

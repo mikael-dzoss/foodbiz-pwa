@@ -25,7 +25,7 @@ npm run db:status    # prints the API URL and keys
 
 In `.env.local`, set `DATA_SOURCE=supabase`, `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the status output, and keep `STOREFRONT_BUSINESS_ID` as in `.env.example` (the seeded demo business). Then `npm run dev`. Other commands: `npm run db:reset` (reapply migrations and seed), `npm run db:stop`.
 
-Manager sign-in uses Google OAuth. Locally, copy `supabase/.env.example` to `supabase/.env` and add a Google client ID and secret ([setup](docs/DEPLOYMENT.md#google-sign-in-supabase-auth-active-locally-planned-for-hosted)). To get manager access either set `ALLOWED_MANAGER_EMAILS` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (development only, auto-provisions the demo business), or provision a member after that user has signed in once:
+Manager sign-in uses Google OAuth. Locally, copy `supabase/.env.example` to `supabase/.env` and add a Google client ID and secret ([setup](docs/DEPLOYMENT.md#google-sign-in-supabase-auth-active)). To get manager access either set `ALLOWED_MANAGER_EMAILS` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (development only, auto-provisions the demo business), or provision a member after that user has signed in once:
 
 ```bash
 npm run db:provision-member -- --business-slug la-petite-boulangerie --email <email> --role manager

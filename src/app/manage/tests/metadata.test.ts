@@ -21,6 +21,10 @@ import { generateMetadata as customerDetailMetadata } from "../(authenticated)/c
 import { generateMetadata as settingsMetadata } from "../(authenticated)/settings/page";
 import { generateMetadata as accountSettingsMetadata } from "../(authenticated)/settings/account/page";
 import { generateMetadata as businessSettingsMetadata } from "../(authenticated)/settings/business/page";
+import { generateMetadata as openingHoursSettingsMetadata } from "../(authenticated)/settings/opening-hours/page";
+import { generateMetadata as regularHoursSettingsMetadata } from "../(authenticated)/settings/opening-hours/regular/page";
+import { generateMetadata as pickupLocationsSettingsMetadata } from "../(authenticated)/settings/pickup-locations/page";
+import { generateMetadata as pickupLocationHoursMetadata } from "../(authenticated)/settings/pickup-locations/[id]/hours/page";
 import { generateMetadata as orderingSettingsMetadata } from "../(authenticated)/settings/ordering/page";
 import { generateMetadata as paymentSettingsMetadata } from "../(authenticated)/settings/payment/page";
 import { generateMetadata as inventorySettingsMetadata } from "../(authenticated)/settings/inventory-finance/page";
@@ -38,16 +42,23 @@ afterEach(() => {
 });
 
 describe("manager layout and page metadata (EN & FR)", () => {
-  it("keeps the layout title template and translates its default description", async () => {
+  it("keeps the layout title template, manager PWA metadata and translates its default description", async () => {
     for (const locale of ["en", "fr"] as const) {
       setLocale(locale);
       const dict = getDictionary(locale);
       const meta = await layoutMetadata();
       expect(meta.title).toEqual({
-        default: APP_METADATA.name,
-        template: `%s · ${APP_METADATA.name}`,
+        default: APP_METADATA.manager.name,
+        template: `%s · ${APP_METADATA.manager.name}`,
       });
       expect(meta.description).toBe(dict.manager.meta.appDescription);
+      expect(meta.applicationName).toBe(APP_METADATA.manager.name);
+      expect(meta.appleWebApp).toEqual({
+        capable: true,
+        title: APP_METADATA.manager.shortName,
+        statusBarStyle: "default",
+      });
+      expect(meta.manifest).toBe("/manage/manifest.webmanifest");
       expect(meta.robots).toEqual({ index: false, follow: false });
     }
   });
@@ -180,6 +191,38 @@ describe("manager layout and page metadata (EN & FR)", () => {
         expected: (l: SupportedLocale) => ({
           title: getDictionary(l).settings.business.title,
           description: getDictionary(l).settings.business.description,
+        }),
+      },
+      {
+        name: "settings/opening-hours",
+        fn: openingHoursSettingsMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.openingHours.title,
+          description: getDictionary(l).settings.openingHours.description,
+        }),
+      },
+      {
+        name: "settings/opening-hours/regular",
+        fn: regularHoursSettingsMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.openingHours.regularTitle,
+          description: getDictionary(l).settings.openingHours.regularDescription,
+        }),
+      },
+      {
+        name: "settings/pickup-locations",
+        fn: pickupLocationsSettingsMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.pickupLocations.title,
+          description: getDictionary(l).settings.pickupLocations.description,
+        }),
+      },
+      {
+        name: "settings/pickup-locations/[id]/hours",
+        fn: pickupLocationHoursMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.pickupLocations.hoursTitle,
+          description: getDictionary(l).settings.pickupLocations.hoursDescription,
         }),
       },
       {

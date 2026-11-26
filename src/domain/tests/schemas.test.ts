@@ -5,10 +5,17 @@ import {
   businessSchema,
   updateBusinessProfileSchema,
   businessSettingsSchema,
+  updatePaymentSettingsSchema,
+  updateOpeningHoursSchema,
+  updateHoursExceptionsSchema,
   expenseSchema,
   guestSchema,
   orderItemSchema,
+  orderPickupLocationSchema,
   orderSchema,
+  publicDeliveryAddress,
+  publicOrderSchema,
+  publicPickupLocation,
   orderStatusEventSchema,
   manualOrderInputSchema,
   serviceTypeSchema,
@@ -166,6 +173,198 @@ describe("Business schemas", () => {
       lowStockThreshold: -1,
     };
     expect(businessSettingsSchema.safeParse(invalid).success).toBe(false);
+  });
+
+  it("defaults paymentMethods.card to false when omitted in BusinessSettings", () => {
+    const parsed = businessSettingsSchema.parse({
+      businessId: validUuid,
+      paymentMethods: { cash: true, revolut: true, wero: false },
+    });
+    expect(parsed.paymentMethods).toEqual({
+      cash: true,
+      card: false,
+      revolut: true,
+      wero: false,
+    });
+  });
+
+  it("accepts card-only in updatePaymentSettingsSchema and rejects all methods disabled", () => {
+    const cardOnly = updatePaymentSettingsSchema.safeParse({
+      paymentMethods: { cash: false, card: true, revolut: false, wero: false },
+    });
+    expect(cardOnly.success).toBe(true);
+    if (cardOnly.success) {
+      expect(cardOnly.data.paymentMethods).toEqual({
+        cash: false,
+        card: true,
+        revolut: false,
+        wero: false,
+      });
+    }
+
+    const noneEnabled = updatePaymentSettingsSchema.safeParse({
+      paymentMethods: { cash: false, card: false, revolut: false, wero: false },
+    });
+    expect(noneEnabled.success).toBe(false);
+
+    const missingCard = updatePaymentSettingsSchema.safeParse({
+      paymentMethods: { cash: true, revolut: true, wero: true },
+    });
+    expect(missingCard.success).toBe(false);
+  });
+
+  it("validates BusinessSettings weeklyHours (valid, null, and rejects invalid)", () => {
+    const validHours = {
+      mon: [],
+      tue: [{ open: "11:30", close: "14:30" }],
+      wed: [{ open: "11:30", close: "14:30" }],
+      thu: [{ open: "11:30", close: "14:30" }],
+      fri: [{ open: "18:00", close: "24:00" }],
+      sat: [{ open: "00:00", close: "01:00" }],
+      sun: [],
+    };
+    const withHours = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      weeklyHours: validHours,
+    });
+    expect(withHours.success).toBe(true);
+    if (withHours.success) {
+      expect(withHours.data.weeklyHours).toEqual(validHours);
+    }
+
+    const withNull = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      weeklyHours: null,
+    });
+    expect(withNull.success).toBe(true);
+    if (withNull.success) {
+      expect(withNull.data.weeklyHours).toBeNull();
+    }
+
+    const withInvalid = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      weeklyHours: { mon: [] },
+    });
+    expect(withInvalid.success).toBe(false);
+  });
+
+  it("validates updateOpeningHoursSchema with structured weeklyHours and optional openingHours text", () => {
+    const validHours = {
+      mon: [],
+      tue: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: [],
+    };
+
+    const withBoth = updateOpeningHoursSchema.safeParse({
+      weeklyHours: validHours,
+      openingHours: "  Mar–Dim 11:30–22:00  ",
+    });
+    expect(withBoth.success).toBe(true);
+    if (withBoth.success) {
+      expect(withBoth.data).toEqual({
+        weeklyHours: validHours,
+        openingHours: "Mar–Dim 11:30–22:00",
+      });
+    }
+
+    const clearOnly = updateOpeningHoursSchema.safeParse({ weeklyHours: null });
+    expect(clearOnly.success).toBe(true);
+    if (clearOnly.success) {
+      expect(clearOnly.data.weeklyHours).toBeNull();
+      expect(clearOnly.data.openingHours).toBeUndefined();
+    }
+
+    expect(
+      updateOpeningHoursSchema.safeParse({
+        weeklyHours: null,
+        openingHours: "a".repeat(501),
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateOpeningHoursSchema.safeParse({
+        weeklyHours: {
+          ...validHours,
+          tue: [
+            { open: "11:30", close: "14:30" },
+            { open: "14:30", close: "18:00" },
+          ],
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(updateOpeningHoursSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("validates BusinessSettings hoursExceptions and updateHoursExceptionsSchema (#375)", () => {
+    const validExceptions = [
+      {
+        from: "2026-07-30",
+        to: "2026-08-03",
+        ranges: [],
+        note: "  Congés annuels  ",
+      },
+      {
+        from: "2026-08-15",
+        to: "2026-08-15",
+        ranges: [{ open: "10:00", close: "14:00" }],
+        note: "Ouverture exceptionnelle",
+      },
+    ];
+
+    const settingsParsed = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      hoursExceptions: validExceptions,
+    });
+    expect(settingsParsed.success).toBe(true);
+    if (settingsParsed.success) {
+      expect(settingsParsed.data.hoursExceptions).toEqual([
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+        {
+          from: "2026-08-15",
+          to: "2026-08-15",
+          ranges: [{ open: "10:00", close: "14:00" }],
+          note: "Ouverture exceptionnelle",
+        },
+      ]);
+    }
+
+    expect(
+      businessSettingsSchema.safeParse({
+        businessId: validUuid,
+        hoursExceptions: [{ from: "2026-08-05", to: "2026-08-01", ranges: [] }],
+      }).success,
+    ).toBe(false);
+
+    const combinedUpdate = updateOpeningHoursSchema.safeParse({
+      weeklyHours: null,
+      hoursExceptions: validExceptions,
+    });
+    expect(combinedUpdate.success).toBe(true);
+    if (combinedUpdate.success) {
+      expect(combinedUpdate.data.hoursExceptions).toHaveLength(2);
+    }
+
+    const exceptionsUpdate = updateHoursExceptionsSchema.safeParse({
+      hoursExceptions: validExceptions,
+    });
+    expect(exceptionsUpdate.success).toBe(true);
+    expect(updateHoursExceptionsSchema.safeParse({}).success).toBe(false);
+    expect(
+      updateHoursExceptionsSchema.safeParse({
+        hoursExceptions: [
+          { from: "2026-08-01", to: "2026-08-05", ranges: [] },
+          { from: "2026-08-05", to: "2026-08-06", ranges: [] },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -442,6 +641,111 @@ describe("Order and OrderItem schemas", () => {
     expect(orderSchema.safeParse(validWithHistory).success).toBe(true);
   });
 
+  it("publicOrderSchema preserves deliveryAddress while stripping private fields (#352)", () => {
+    const parsed = publicOrderSchema.parse({
+      id: validUuid,
+      businessId: validUuid,
+      orderNumber: 12,
+      guestId: anotherUuid,
+      submittedName: "Secret Alias",
+      serviceType: "delivery",
+      channel: "storefront",
+      status: "NEW",
+      paid: "unpaid",
+      paymentPreference: "on_handover",
+      requestedDate: "2026-10-10",
+      requestedTime: "12:30",
+      totalAmount: 850,
+      cancellationReason: null,
+      deliveryAddress: "  123 Rue de Rivoli, Paris  ",
+      notes: "Door code 1234",
+      statusHistory: [{ status: "NEW", timestamp: isoNow, note: null }],
+      createdAt: isoNow,
+      updatedAt: isoNow,
+      items: [
+        {
+          productId: validUuid,
+          productName: "Burger",
+          quantity: 1,
+          unitPrice: 850,
+          totalPrice: 850,
+        },
+      ],
+    });
+
+    expect(parsed.deliveryAddress).toBe("123 Rue de Rivoli, Paris");
+    expect(parsed).not.toHaveProperty("guestId");
+    expect(parsed).not.toHaveProperty("submittedName");
+    expect(parsed).not.toHaveProperty("notes");
+    expect(parsed).not.toHaveProperty("statusHistory");
+    expect(parsed.items[0]).not.toHaveProperty("productId");
+
+    expect(
+      publicOrderSchema.parse({ ...parsed, deliveryAddress: null }).deliveryAddress,
+    ).toBeNull();
+    const { deliveryAddress: _omit, ...withoutAddress } = parsed;
+    expect(publicOrderSchema.parse(withoutAddress).deliveryAddress).toBeUndefined();
+  });
+
+  it("publicDeliveryAddress exposes trimmed address only for delivery orders (#352)", () => {
+    expect(publicDeliveryAddress("delivery", "  12 Rue de Rivoli, Paris  ")).toBe(
+      "12 Rue de Rivoli, Paris",
+    );
+    expect(publicDeliveryAddress("delivery", "   ")).toBeNull();
+    expect(publicDeliveryAddress("delivery", "")).toBeNull();
+    expect(publicDeliveryAddress("delivery", null)).toBeNull();
+    expect(publicDeliveryAddress("delivery", undefined)).toBeNull();
+    expect(publicDeliveryAddress("pickup", "12 Rue de Rivoli, Paris")).toBeNull();
+    expect(publicDeliveryAddress("dine-in", "12 Rue de Rivoli, Paris")).toBeNull();
+    expect(publicDeliveryAddress(null, "12 Rue de Rivoli, Paris")).toBeNull();
+  });
+
+  it("validates orderPickupLocationSchema with full snapshot, deleted id, or missing address (#386)", () => {
+    expect(
+      orderPickupLocationSchema.parse({
+        id: validUuid,
+        name: "  Gare du Nord  ",
+        address: "  18 Rue de Dunkerque, 75010  ",
+      }),
+    ).toEqual({
+      id: validUuid,
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque, 75010",
+    });
+    expect(
+      orderPickupLocationSchema.parse({
+        id: null,
+        name: "Deleted Relay",
+        address: null,
+      }),
+    ).toEqual({
+      id: null,
+      name: "Deleted Relay",
+      address: null,
+    });
+    expect(
+      orderPickupLocationSchema.safeParse({ id: validUuid, name: "   ", address: "1 rue A" })
+        .success,
+    ).toBe(false);
+    expect(
+      orderPickupLocationSchema.safeParse({ id: validUuid, name: "Relay", address: "" }).success,
+    ).toBe(false);
+  });
+
+  it("publicPickupLocation exposes where to collect only for pickup orders (#386)", () => {
+    expect(publicPickupLocation("pickup", "Gare du Nord", " 18 Rue de Dunkerque ")).toEqual({
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque",
+    });
+    expect(publicPickupLocation("pickup", null, "9 Rue du Four")).toEqual({
+      name: null,
+      address: "9 Rue du Four",
+    });
+    expect(publicPickupLocation("pickup", "  ", undefined)).toEqual({ name: null, address: null });
+    expect(publicPickupLocation("delivery", "Gare du Nord", "18 Rue de Dunkerque")).toBeNull();
+    expect(publicPickupLocation("dine-in", "x", "y")).toBeNull();
+  });
+
   it("validates orderStatusEventSchema", () => {
     const validEvent = {
       status: "READY" as const,
@@ -471,6 +775,27 @@ describe("Order and OrderItem schemas", () => {
         ...valid,
         items: [{ productId: validUuid, quantity: 0 }],
       }).success,
+    ).toBe(false);
+
+    // Optional pickupLocationId: uuid or null accepted, non-uuid rejected (#386)
+    const withLocation = manualOrderInputSchema.safeParse({
+      ...valid,
+      pickupLocationId: anotherUuid,
+    });
+    expect(withLocation.success).toBe(true);
+    if (withLocation.success) {
+      expect(withLocation.data.pickupLocationId).toBe(anotherUuid);
+    }
+    const withNullLocation = manualOrderInputSchema.safeParse({
+      ...valid,
+      pickupLocationId: null,
+    });
+    expect(withNullLocation.success).toBe(true);
+    if (withNullLocation.success) {
+      expect(withNullLocation.data.pickupLocationId).toBeNull();
+    }
+    expect(
+      manualOrderInputSchema.safeParse({ ...valid, pickupLocationId: "not-a-uuid" }).success,
     ).toBe(false);
   });
 

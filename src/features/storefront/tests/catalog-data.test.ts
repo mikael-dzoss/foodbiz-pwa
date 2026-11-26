@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { revalidatePath, updateTag } from "next/cache";
 import {
   evaluateStoreOperatingStatus,
+  hasStructuredHours,
   getStorefrontCatalog,
   getStorefrontProduct,
   revalidateStorefrontCatalog,
@@ -27,6 +28,8 @@ const baseSettings: BusinessSettings = {
     dineIn: true,
   },
   openingHours: "08:00 - 18:00",
+  weeklyHours: null,
+  hoursExceptions: [],
   orderTimingAsap: true,
   orderTimingScheduled: true,
   orderTimingTimeOptional: true,
@@ -38,6 +41,7 @@ const baseSettings: BusinessSettings = {
   weroIdentifier: "",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },
@@ -55,6 +59,29 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       expect(res.isOpen).toBe(true);
       expect(res.isAcceptingOrders).toBe(true);
       expect(res.scheduleText).toBeNull();
+    });
+
+    it("returns a neutral isOpen when structured hours exist (evaluated at request/client time)", () => {
+      const range = [{ open: "11:00", close: "12:00" }];
+      const structured = {
+        ...baseSettings,
+        openingHours: "",
+        weeklyHours: {
+          mon: range,
+          tue: range,
+          wed: range,
+          thu: range,
+          fri: range,
+          sat: range,
+          sun: range,
+        },
+      };
+      const res = evaluateStoreOperatingStatus(structured, new Date("2026-10-16T22:00:00Z"));
+      expect(hasStructuredHours(structured)).toBe(true);
+      expect(res.isOpen).toBe(true);
+      expect(hasStructuredHours({ ...baseSettings, weeklyHours: null, hoursExceptions: [] })).toBe(
+        false,
+      );
     });
 
     it("respects acceptingOrders: false regardless of hours", () => {
@@ -184,6 +211,83 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
         for (const prod of group.products) {
           expect(prod.stock).toBeGreaterThanOrEqual(0);
         }
+      }
+    });
+
+    it("includes only active pickup locations (public fields) and the shop pickup flag", async () => {
+      try {
+        const repos = getMockRepositories();
+        const relay = await repos.pickupLocations.create(DEMO_BUSINESS_ID, {
+          name: "Gare RER B",
+          address: "Place de la gare",
+          postcode: "93210",
+          feeCents: 150,
+        });
+        await repos.pickupLocations.create(DEMO_BUSINESS_ID, {
+          name: "Hidden",
+          address: "Rue cachee",
+          postcode: "93200",
+          isActive: false,
+        });
+        await repos.business.updateSettings(DEMO_BUSINESS_ID, { shopPickupEnabled: false });
+
+        const catalog = await getStorefrontCatalog();
+        expect(catalog.shopPickupEnabled).toBe(false);
+        expect(catalog.pickupLocations).toEqual([
+          {
+            id: relay.id,
+            name: "Gare RER B",
+            description: null,
+            address: "Place de la gare",
+            postcode: "93210",
+            feeCents: 150,
+            weeklyHours: null,
+            sortOrder: relay.sortOrder,
+          },
+        ]);
+      } finally {
+        getMockRepositories().reset();
+      }
+    });
+
+    it("carries weeklyHours, hoursExceptions and timezone through settings on catalog and product queries", async () => {
+      const customHours = {
+        mon: [],
+        tue: [{ open: "11:30", close: "14:30" }],
+        wed: [],
+        thu: [],
+        fri: [{ open: "18:00", close: "24:00" }],
+        sat: [{ open: "00:00", close: "01:00" }],
+        sun: [],
+      };
+      const customExceptions = [
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+      ];
+      const repos = getMockRepositories();
+      try {
+        const initialCatalog = await getStorefrontCatalog();
+        expect(initialCatalog.settings?.weeklyHours).toBeNull();
+        expect(initialCatalog.settings?.hoursExceptions).toEqual([]);
+        expect(initialCatalog.settings?.timezone).toBe("Europe/Paris");
+
+        await repos.business.updateSettings(DEMO_BUSINESS_ID, {
+          weeklyHours: customHours,
+          hoursExceptions: customExceptions,
+          timezone: "Africa/Douala",
+        });
+
+        const updatedCatalog = await getStorefrontCatalog();
+        expect(updatedCatalog.settings?.weeklyHours).toEqual(customHours);
+        expect(updatedCatalog.settings?.hoursExceptions).toEqual(customExceptions);
+        expect(updatedCatalog.settings?.timezone).toBe("Africa/Douala");
+
+        const firstProductId = updatedCatalog.groupedCategories[0].products[0].id;
+        const productData = await getStorefrontProduct(firstProductId);
+        expect(productData?.settings?.weeklyHours).toEqual(customHours);
+        expect(productData?.settings?.hoursExceptions).toEqual(customExceptions);
+        expect(productData?.settings?.timezone).toBe("Africa/Douala");
+      } finally {
+        repos.reset();
       }
     });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { findOrCreateGuest, type Order, type Product, type Guest, OrderRepoError } from "@/domain";
-import { getOrder } from "../order-data";
+import type { PickupLocation } from "@/domain/pickup-location";
+import { getManualOrderFormData, getOrder } from "../order-data";
 import {
   listOrdersAction,
   createManualOrderAction,
@@ -50,6 +51,7 @@ const mockOrderRepo = {
         deliveryAddress?: string | null;
         notes?: string | null;
         allowRename?: boolean;
+        pickupLocationId?: string | null;
       },
     ) => {
       // 1. Stock check & decrement
@@ -178,7 +180,7 @@ const mockOrderRepo = {
     async (
       _bId: string,
       orderId: string,
-      input: { paymentMethod: "cash" | "revolut" | "wero"; markCompleted?: boolean },
+      input: { paymentMethod: "cash" | "card" | "revolut" | "wero"; markCompleted?: boolean },
     ) => {
       const o = mockOrders.find((ord) => ord.id === orderId);
       if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
@@ -274,13 +276,32 @@ const mockProductRepo = {
 };
 
 let mockTimezone = "UTC";
+let mockShopPickupEnabled = true;
+let mockPickupLocations: PickupLocation[] = [];
+
+vi.mock("@/features/settings/settings-data", () => ({
+  getBusinessToday: vi.fn(async () => "2026-10-15"),
+}));
 
 vi.mock("@/lib/repositories", () => ({
   getRepositories: () => ({
     orders: mockOrderRepo,
     guests: mockGuestRepo,
     products: mockProductRepo,
-    business: { getSettings: vi.fn(async () => ({ timezone: mockTimezone })) },
+    pickupLocations: {
+      listByBusiness: vi.fn(async () => [...mockPickupLocations]),
+    },
+    business: {
+      findById: vi.fn(async () => ({
+        id: testBusinessId,
+        name: "Test Biz",
+        address: "52 Quai de la Rapée, 75012 Paris",
+      })),
+      getSettings: vi.fn(async () => ({
+        timezone: mockTimezone,
+        shopPickupEnabled: mockShopPickupEnabled,
+      })),
+    },
   }),
 }));
 
@@ -574,11 +595,15 @@ describe("Order Server Actions", () => {
   });
 
   describe("getOrder (data module)", () => {
-    it("returns order with enriched guest phone and address", async () => {
+    it("returns order with enriched guest phone, address, and shop details", async () => {
       const res = await getOrder(validOrderId);
       expect(res?.order.guestName).toBe("Jean Dupont");
       expect(res?.order.guestPhone).toBe("+33612345678");
       expect(res?.guest).not.toBeNull();
+      expect(res?.shop).toEqual({
+        name: "Test Biz",
+        address: "52 Quai de la Rapée, 75012 Paris",
+      });
     });
 
     it("returns null for an invalid or unknown order ID", async () => {
@@ -589,6 +614,65 @@ describe("Order Server Actions", () => {
     it("throws on repository failure instead of returning null", async () => {
       mockOrderRepo.findById.mockRejectedValueOnce(new Error("Offline"));
       await expect(getOrder(validOrderId)).rejects.toThrow("Offline");
+    });
+  });
+
+  describe("getManualOrderFormData (data module, #387)", () => {
+    it("returns active relays sorted by sortOrder and shopPickupEnabled", async () => {
+      mockShopPickupEnabled = false;
+      mockPickupLocations = [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          businessId: testBusinessId,
+          name: "Relay Second",
+          description: null,
+          address: "20 Rue B",
+          postcode: "75012",
+          feeCents: 200,
+          weeklyHours: null,
+          isActive: true,
+          sortOrder: 2,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          updatedAt: "2026-10-01T00:00:00.000Z",
+        },
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          businessId: testBusinessId,
+          name: "Relay Inactive",
+          description: null,
+          address: "30 Rue C",
+          postcode: "75013",
+          feeCents: 0,
+          weeklyHours: null,
+          isActive: false,
+          sortOrder: 0,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          updatedAt: "2026-10-01T00:00:00.000Z",
+        },
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          businessId: testBusinessId,
+          name: "Relay First",
+          description: null,
+          address: "10 Rue A",
+          postcode: "75011",
+          feeCents: 0,
+          weeklyHours: null,
+          isActive: true,
+          sortOrder: 1,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          updatedAt: "2026-10-01T00:00:00.000Z",
+        },
+      ];
+
+      const data = await getManualOrderFormData();
+      expect(data.today).toBe("2026-10-15");
+      expect(data.shopPickupEnabled).toBe(false);
+      expect(data.shopName).toBe("Test Biz");
+      expect(data.pickupLocations.map((l) => l.name)).toEqual(["Relay First", "Relay Second"]);
+
+      mockShopPickupEnabled = true;
+      mockPickupLocations = [];
     });
   });
 
@@ -762,6 +846,75 @@ describe("Order Server Actions", () => {
         expect(mockGuests.find((g) => g.id === validGuestId)?.name).toBe("Jean-Paul Dupont");
       }
     });
+
+    it("passes optional pickupLocationId through to orders.place and defaults omitted/null to null (#386)", async () => {
+      const locationId = "44444444-4444-4444-8444-444444444401";
+      const base = {
+        guestPhone: "+33612345678",
+        guestName: "Jean Dupont",
+        serviceType: "pickup" as const,
+        channel: "phone" as const,
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      };
+
+      const withRelay = await createManualOrderAction({ ...base, pickupLocationId: locationId });
+      expect(withRelay.ok).toBe(true);
+      expect(mockOrderRepo.place).toHaveBeenLastCalledWith(
+        testBusinessId,
+        expect.objectContaining({ pickupLocationId: locationId }),
+      );
+
+      const withNull = await createManualOrderAction({ ...base, pickupLocationId: null });
+      expect(withNull.ok).toBe(true);
+      expect(mockOrderRepo.place).toHaveBeenLastCalledWith(
+        testBusinessId,
+        expect.objectContaining({ pickupLocationId: null }),
+      );
+
+      const omitted = await createManualOrderAction(base);
+      expect(omitted.ok).toBe(true);
+      expect(mockOrderRepo.place).toHaveBeenLastCalledWith(
+        testBusinessId,
+        expect.objectContaining({ pickupLocationId: null }),
+      );
+    });
+
+    it("rejects malformed pickupLocationId and surfaces server-side PICKUP_LOCATION_INVALID (#386)", async () => {
+      const base = {
+        guestPhone: "+33612345678",
+        guestName: "Jean Dupont",
+        serviceType: "pickup" as const,
+        channel: "phone" as const,
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      };
+
+      const invalid = await createManualOrderAction({
+        ...base,
+        pickupLocationId: "not-a-uuid",
+      });
+      expect(invalid).toMatchObject({ ok: false, code: "VALIDATION" });
+      if (!invalid.ok) {
+        expect(invalid.fieldErrors?.pickupLocationId).toBeDefined();
+      }
+
+      mockOrderRepo.place.mockRejectedValueOnce(
+        new OrderRepoError(
+          "The chosen pickup location is no longer available.",
+          "PICKUP_LOCATION_INVALID",
+        ),
+      );
+      const serverRejected = await createManualOrderAction({
+        ...base,
+        pickupLocationId: "44444444-4444-4444-8444-444444444499",
+      });
+      expect(serverRejected).toMatchObject({
+        ok: false,
+        code: "CONFLICT",
+        reason: "PICKUP_LOCATION_INVALID",
+      });
+    });
   });
 
   describe("progressOrderStatusAction", () => {
@@ -904,6 +1057,21 @@ describe("Order Server Actions", () => {
       expect(compRes.ok).toBe(true);
       if (compRes.ok) {
         expect(compRes.data.status).toBe("COMPLETED");
+      }
+    });
+
+    it("records card payment method (#377)", async () => {
+      mockOrders[0].status = "CONFIRMED";
+      mockOrders[0].paid = "unpaid";
+
+      const payRes = await recordPaymentAction({
+        orderId: validOrderId,
+        paymentMethod: "card",
+      });
+      expect(payRes.ok).toBe(true);
+      if (payRes.ok) {
+        expect(payRes.data.paid).toBe("paid");
+        expect(payRes.data.paymentMethod).toBe("card");
       }
     });
 

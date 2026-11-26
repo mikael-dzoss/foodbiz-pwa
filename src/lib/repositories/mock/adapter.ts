@@ -1,6 +1,9 @@
 import { isOwnerRole, OwnerRequiredError } from "@/domain/auth";
 import type { Business, BusinessMember, BusinessMemberRole } from "@/domain/business";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
+import { SLOT_ERROR_MESSAGES, SLOT_ERROR_REASONS } from "@/domain/checkout";
+import { validateSlot, type OpeningSchedule } from "@/domain/opening-hours";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { sumOrderProductQuantities } from "@/domain/featured";
 import type { Expense } from "@/domain/expense";
 import {
@@ -11,13 +14,17 @@ import {
 } from "@/domain/guest";
 import type { Guest } from "@/domain/guest";
 import {
+  publicDeliveryAddress,
   publicOrderSchema,
+  publicPickupLocation,
   OrderRepoError,
   type CancelOrderResult,
   type Order,
   type OrderStatus,
   type PlacedOrderSummary,
 } from "@/domain/order";
+import type { PickupLocation } from "@/domain/pickup-location";
+import { MAX_PICKUP_LOCATIONS, pickupScheduleFor } from "@/domain/pickup-location";
 import type { Product, ProductCategory } from "@/domain/product";
 import type {
   BusinessRepository,
@@ -26,6 +33,7 @@ import type {
   GuestRepository,
   MemberRepository,
   OrderRepository,
+  PickupLocationRepository,
   ProductRepository,
   Repositories,
 } from "@/domain/repositories";
@@ -201,6 +209,86 @@ export function createMockRepositories(
     },
   };
 
+  const sortedLocations = (bId: string): PickupLocation[] =>
+    fixtures.pickupLocations
+      .filter((l) => l.businessId === bId)
+      .toSorted((a, b) => a.sortOrder - b.sortOrder);
+
+  const pickupLocations: PickupLocationRepository = {
+    async listByBusiness(bId, options) {
+      const list = sortedLocations(bId);
+      return structuredClone(options?.activeOnly ? list.filter((l) => l.isActive) : list);
+    },
+    async create(bId, input) {
+      const existing = sortedLocations(bId);
+      if (existing.length >= MAX_PICKUP_LOCATIONS) {
+        throw new Error(`A business can have at most ${MAX_PICKUP_LOCATIONS} pickup locations`);
+      }
+      const now = new Date().toISOString();
+      const location: PickupLocation = {
+        id: input.id ?? crypto.randomUUID(),
+        businessId: bId,
+        name: input.name,
+        description: input.description ?? null,
+        address: input.address,
+        postcode: input.postcode,
+        feeCents: input.feeCents ?? 0,
+        weeklyHours: input.weeklyHours ?? null,
+        isActive: input.isActive ?? true,
+        sortOrder: input.sortOrder ?? (existing.at(-1)?.sortOrder ?? -1) + 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      fixtures.pickupLocations.push(location);
+      return structuredClone(location);
+    },
+    async update(bId, id, input) {
+      const idx = findIndexOrThrow(
+        fixtures.pickupLocations,
+        (l) => l.businessId === bId && l.id === id,
+        `Pickup location ${id} not found`,
+      );
+      const definedPatch = Object.fromEntries(
+        Object.entries(input).filter(([, value]) => value !== undefined),
+      );
+      const updated: PickupLocation = {
+        ...fixtures.pickupLocations[idx],
+        ...structuredClone(definedPatch),
+        updatedAt: new Date().toISOString(),
+      };
+      fixtures.pickupLocations[idx] = updated;
+      return structuredClone(updated);
+    },
+    async delete(bId, id) {
+      const idx = findIndexOrThrow(
+        fixtures.pickupLocations,
+        (l) => l.businessId === bId && l.id === id,
+        `Pickup location ${id} not found`,
+      );
+      fixtures.pickupLocations.splice(idx, 1);
+      // Mirrors `on delete set null (pickup_location_id)`: clear the FK while keeping the snapshot.
+      fixtures.orders = fixtures.orders.map((order) =>
+        order.businessId === bId && order.pickupLocation?.id === id
+          ? { ...order, pickupLocation: { ...order.pickupLocation, id: null } }
+          : order,
+      );
+    },
+    async reorder(bId, ids) {
+      for (const id of ids) {
+        findIndexOrThrow(
+          fixtures.pickupLocations,
+          (l) => l.businessId === bId && l.id === id,
+          `Pickup location ${id} not found`,
+        );
+      }
+      fixtures.pickupLocations = fixtures.pickupLocations.map((l) => {
+        const position = ids.indexOf(l.id);
+        return l.businessId === bId && position !== -1 ? { ...l, sortOrder: position } : l;
+      });
+      return structuredClone(sortedLocations(bId));
+    },
+  };
+
   const findOrderByTicketAndPhone = (bId: string, orderNumber: number, phone: string) => {
     let targetPhone: string;
     try {
@@ -275,7 +363,16 @@ export function createMockRepositories(
     },
     async findByTrackingToken(token) {
       const o = fixtures.orders.find((x) => x.trackingToken === token);
-      return o ? publicOrderSchema.parse(o) : null;
+      if (!o) return null;
+      return publicOrderSchema.parse({
+        ...o,
+        deliveryAddress: publicDeliveryAddress(o.serviceType, o.deliveryAddress),
+        pickupLocation: publicPickupLocation(
+          o.serviceType,
+          o.pickupLocation?.name,
+          o.pickupLocation?.address ?? fixtures.business.address,
+        ),
+      });
     },
     async place(bId, input): Promise<PlacedOrderSummary> {
       let phoneKey: string;
@@ -302,7 +399,10 @@ export function createMockRepositories(
         requestedDate: input.requestedDate,
         requestedTime: input.requestedTime ?? "",
         paymentPreference: input.paymentPreference ?? "on_handover",
+        isAsap: input.isAsap ?? false,
         phone: phoneKey,
+        // Only present when chosen, like place_order's payload.
+        ...(input.pickupLocationId ? { pickupLocationId: input.pickupLocationId } : {}),
       });
       if (idempotencyId) {
         const prior = placements.get(idempotencyId);
@@ -319,12 +419,86 @@ export function createMockRepositories(
         throw new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
       }
 
+      // Pickup location (all channels): exists, same business, active; pickup orders only.
+      let location: PickupLocation | null = null;
+      if (input.pickupLocationId) {
+        if (input.serviceType !== "pickup") {
+          throw new OrderRepoError(
+            "The chosen pickup location is no longer available.",
+            "PICKUP_LOCATION_INVALID",
+          );
+        }
+        location =
+          fixtures.pickupLocations.find(
+            (l) => l.id === input.pickupLocationId && l.businessId === bId && l.isActive,
+          ) ?? null;
+        if (!location) {
+          throw new OrderRepoError(
+            "The chosen pickup location is no longer available.",
+            "PICKUP_LOCATION_INVALID",
+          );
+        }
+      }
+
       if (input.channel === "storefront") {
+        // Pickup options: the shop (when enabled) plus the active relays; a lone relay is implied.
+        if (input.serviceType === "pickup" && settings?.serviceTypes?.pickup !== false) {
+          const relays = fixtures.pickupLocations.filter((l) => l.businessId === bId && l.isActive);
+          const shopEnabled = settings?.shopPickupEnabled ?? true;
+          if ((shopEnabled ? 1 : 0) + relays.length === 0) {
+            throw new OrderRepoError("Pickup is currently not available.", "PICKUP_NOT_AVAILABLE");
+          }
+          if (!location && !shopEnabled) {
+            if (relays.length !== 1) {
+              throw new OrderRepoError(
+                "Please choose a pickup location.",
+                "PICKUP_LOCATION_REQUIRED",
+              );
+            }
+            location = relays[0];
+          }
+        }
+
+        // Same slot rules as place_order (window, ASAP only while open, open day/time); a relay
+        // follows its own hours minus the business closures.
+        if (settings) {
+          const businessSchedule: OpeningSchedule = {
+            weekly: settings.weeklyHours ?? null,
+            exceptions: settings.hoursExceptions ?? [],
+          };
+          const slot = validateSlot(
+            location ? pickupScheduleFor(businessSchedule, location.weeklyHours) : businessSchedule,
+            settings.timezone ?? DEFAULT_TIMEZONE,
+            new Date(),
+            { date: input.requestedDate, time: input.requestedTime, isAsap: input.isAsap ?? false },
+          );
+          if (!slot.ok) {
+            throw new OrderRepoError(
+              SLOT_ERROR_MESSAGES[slot.reason],
+              SLOT_ERROR_REASONS[slot.reason],
+            );
+          }
+        }
+
         if (settings?.serviceTypes?.[input.serviceType] === false) {
           throw new OrderRepoError(
             "This service type is currently not available.",
             "SERVICE_TYPE_DISABLED",
           );
+        }
+
+        const pref = input.paymentPreference ?? "on_handover";
+        const pm = settings?.paymentMethods;
+        if (pm) {
+          const allowed =
+            pref === "on_handover"
+              ? (pm.cash ?? true) || (pm.card ?? false)
+              : pref === "revolut"
+                ? (pm.revolut ?? true)
+                : (pm.wero ?? true);
+          if (!allowed) {
+            throw new OrderRepoError("Please check your order details.", "INVALID_INPUT");
+          }
         }
 
         // Same caps as place_order (MAX_* in src/domain/anti-abuse.ts), on per-product totals.
@@ -393,7 +567,8 @@ export function createMockRepositories(
           "MINIMUM_ORDER_UNMET",
         );
       }
-      const totalAmount = subtotal + deliveryFee;
+      const pickupFee = location?.feeCents ?? 0;
+      const totalAmount = subtotal + deliveryFee + pickupFee;
 
       // 3. Decrement stock
       for (const item of input.items) {
@@ -444,6 +619,14 @@ export function createMockRepositories(
         cancellationReason: null,
         notes: input.notes ?? null,
         deliveryAddress: input.deliveryAddress ?? null,
+        pickupLocation: location
+          ? {
+              id: location.id,
+              name: location.name,
+              address: `${location.address}, ${location.postcode}`,
+            }
+          : null,
+        pickupFeeCents: pickupFee,
         statusHistory: [
           {
             status: "NEW",
@@ -640,8 +823,9 @@ export function createMockRepositories(
       });
       const deliveryFee =
         order.serviceType === "delivery" ? Math.max(0, fixtures.settings.deliveryFee ?? 0) : 0;
+      const pickupFee = order.serviceType === "pickup" ? Math.max(0, order.pickupFeeCents ?? 0) : 0;
       order.items = nextItems;
-      order.totalAmount = subtotal + deliveryFee;
+      order.totalAmount = subtotal + deliveryFee + pickupFee;
       order.updatedAt = new Date().toISOString();
       return structuredClone(order);
     },
@@ -833,7 +1017,10 @@ export function createMockRepositories(
           JSON.stringify(input[key]) !== JSON.stringify(fixtures.settings[key]),
       );
       if (touchesOwnerOnly) requireOwner();
-      fixtures.settings = { ...fixtures.settings, ...input };
+      const definedPatch = Object.fromEntries(
+        Object.entries(input).filter(([, value]) => value !== undefined),
+      ) as Partial<typeof fixtures.settings>;
+      fixtures.settings = { ...fixtures.settings, ...structuredClone(definedPatch) };
       return structuredClone(fixtures.settings);
     },
   };
@@ -920,6 +1107,7 @@ export function createMockRepositories(
     },
     guests,
     members,
+    pickupLocations,
     expenses: { ...expenses, delete: (bId, id) => runAs(role, () => expenses.delete(bId, id)) },
     business: {
       ...business,
@@ -928,7 +1116,18 @@ export function createMockRepositories(
     },
   });
 
-  return { products, categories, orders, guests, expenses, business, members, reset, withRole };
+  return {
+    products,
+    categories,
+    orders,
+    guests,
+    expenses,
+    business,
+    members,
+    pickupLocations,
+    reset,
+    withRole,
+  };
 }
 
 // Kept on globalThis: Next bundles route handlers and pages separately, so a module-level

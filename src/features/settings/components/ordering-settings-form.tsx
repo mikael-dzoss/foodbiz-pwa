@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   ChevronLeft,
+  ChevronRight,
   Clock,
   Truck,
   ShoppingBag,
@@ -252,6 +253,31 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
             />
           </div>
 
+          {/* Pickup locations (#385) */}
+          <div>
+            <Link
+              href="/manage/settings/pickup-locations"
+              data-testid="link-pickup-locations"
+              className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-12 items-center justify-between gap-3 px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <span className="flex items-center gap-2.5">
+                <MapPin className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+                <span className="text-foreground text-sm font-medium">
+                  {dict.pickupLocations.manageLink}
+                </span>
+              </span>
+              <ChevronRight className="text-muted-foreground/60 h-5 w-5" aria-hidden="true" />
+            </Link>
+            {!pickup && (
+              <p
+                data-testid="pickup-locations-off-hint"
+                className="text-body-sm text-muted-foreground px-4 pb-3"
+              >
+                {dict.pickupLocations.pickupOffHint}
+              </p>
+            )}
+          </div>
+
           {/* Delivery */}
           <div className="flex items-center justify-between gap-4 p-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -329,10 +355,25 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   value={openingHours}
                   onChange={(e) => setOpeningHours(e.target.value)}
                   placeholder={x.hoursPlaceholder}
-                  className="min-h-0 rounded-xl py-2 text-sm"
+                  className="min-h-0 rounded-xl py-2"
                 />
               </Field>
               <p className="text-muted-foreground mt-1 text-xs">{x.hoursEmptyHint}</p>
+              {settings.weeklyHours && (
+                <p
+                  className="text-muted-foreground mt-1 text-xs"
+                  data-testid="structured-hours-active-hint"
+                >
+                  {dict.openingHours.structuredActiveHint}
+                </p>
+              )}
+              <Link
+                href="/manage/settings/opening-hours"
+                data-testid="link-manage-opening-hours"
+                className="text-primary focus-visible:ring-ring mt-1 inline-flex min-h-9 items-center rounded text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+              >
+                {dict.openingHours.manageStructuredLink}
+              </Link>
             </div>
           </div>
         </div>
@@ -426,7 +467,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   min="0"
                   value={deliveryFeeEuros}
                   onChange={(e) => setDeliveryFeeEuros(e.target.value)}
-                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono text-sm"
+                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono"
                 />
               </div>
             )}
@@ -453,7 +494,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   min="0"
                   value={minOrderEuros}
                   onChange={(e) => setMinOrderEuros(e.target.value)}
-                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono text-sm"
+                  className="h-11 rounded-xl py-2 pr-3 pl-8 font-mono"
                 />
               </div>
             )}
@@ -487,7 +528,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                 aria-invalid={errors.leadTimeValue ? true : undefined}
                 value={leadTimeValue}
                 onChange={(e) => setLeadTimeValue(e.target.value)}
-                className="h-11 w-24 shrink-0 rounded-xl py-2 font-mono text-sm"
+                className="h-11 w-24 shrink-0 rounded-xl py-2 font-mono"
               />
               <NativeSelect
                 id="lead-time-unit-select"
@@ -498,7 +539,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
                   const parsed = leadTimeUnitSchema.safeParse(e.target.value);
                   if (parsed.success) setLeadTimeUnit(parsed.data);
                 }}
-                className="h-11 rounded-xl text-sm"
+                className="h-11 rounded-xl"
               >
                 <option value="minutes">{dict.ordering.leadTimeUnitMinutes}</option>
                 <option value="hours">{dict.ordering.leadTimeUnitHours}</option>
@@ -544,7 +585,7 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               data-testid="select-timezone"
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
-              className="h-11 rounded-xl text-sm"
+              className="h-11 rounded-xl"
             >
               {timezoneOptions.map((zone) => (
                 <option key={zone} value={zone}>

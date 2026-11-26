@@ -52,7 +52,7 @@ export default async function ProductOpenGraphImage({ params }: ProductOgImagePr
   } catch {
     return renderShopOgImage(
       buildShopOgContent({
-        businessName: APP_METADATA.shortName,
+        businessName: APP_METADATA.storefront.defaultName,
         description: null,
         address: null,
         locale,

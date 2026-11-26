@@ -57,7 +57,7 @@ export const SheetContent = React.forwardRef<
           <div className="bg-muted-foreground/30 mx-auto mb-4 h-1.5 w-12 rounded-full" />
         )}
         {children}
-        <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
+        <DialogPrimitive.Close className="focus:ring-ring absolute top-3 right-3 inline-flex min-h-9 min-w-9 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
           <X className="h-4 w-4" />
           <span className="sr-only">{closeLabel ?? managerClose}</span>
         </DialogPrimitive.Close>
@@ -68,7 +68,7 @@ export const SheetContent = React.forwardRef<
 SheetContent.displayName = "SheetContent";
 
 export const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 text-left", className)} {...props} />
+  <div className={cn("flex flex-col space-y-2 pr-10 text-left", className)} {...props} />
 );
 SheetHeader.displayName = "SheetHeader";
 

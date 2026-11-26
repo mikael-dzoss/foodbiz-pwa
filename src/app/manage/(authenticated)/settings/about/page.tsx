@@ -46,7 +46,7 @@ export default async function AboutPage() {
             F
           </div>
           <div>
-            <h2 className="text-title-sm text-foreground">{APP_METADATA.name}</h2>
+            <h2 className="text-title-sm text-foreground">{APP_METADATA.manager.name}</h2>
             <p className="text-muted-foreground text-xs">
               {interpolate(x.about.versionBuild, { version: dict.settings.about.version })}
             </p>

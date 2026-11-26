@@ -17,7 +17,9 @@ import {
   MessageSquare,
   Store,
 } from "lucide-react";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,7 @@ import {
   lookupGuestByPhoneAction,
   type GuestPrefill,
 } from "../order-actions";
+import type { ManualOrderPickupOption } from "../order-data";
 import { cn } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { useManagerLocale } from "@/components/i18n";
@@ -62,9 +65,21 @@ export interface ManualOrderFormProps {
   products: Product[];
   /** Today on the business calendar (YYYY-MM-DD): the default scheduled date. */
   today: string;
+  /** Active relay pickup locations (sorted by sortOrder). */
+  pickupLocations?: ManualOrderPickupOption[];
+  /** Whether pickup at the shop itself is enabled (defaults to true). */
+  shopPickupEnabled?: boolean;
+  /** Business name shown on the shop pickup option. */
+  shopName?: string;
 }
 
-export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
+export function ManualOrderForm({
+  products,
+  today,
+  pickupLocations = [],
+  shopPickupEnabled = true,
+  shopName,
+}: ManualOrderFormProps) {
   const { locale, dict } = useManagerLocale();
   const o = dict.orders;
   const t = o.manual;
@@ -84,6 +99,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
 
   // Service & Timing State (strictly pickup and delivery)
   const [serviceType, setServiceType] = React.useState<"pickup" | "delivery">("pickup");
+  const [pickupLocationId, setPickupLocationId] = React.useState("");
   const [deliveryAddress, setDeliveryAddress] = React.useState("");
   const [channel, setChannel] = React.useState<"phone" | "whatsapp" | "in-person">("phone");
   const [isAsap, setIsAsap] = React.useState(true);
@@ -100,8 +116,10 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   // Which control the current error is about, so it can be linked with aria-invalid/describedby.
-  const [errorField, setErrorField] = React.useState<"phone" | "name" | "address" | null>(null);
-  const fieldA11y = (field: "phone" | "name" | "address") =>
+  const [errorField, setErrorField] = React.useState<
+    "phone" | "name" | "address" | "pickupLocation" | null
+  >(null);
+  const fieldA11y = (field: "phone" | "name" | "address" | "pickupLocation") =>
     errorMessage && errorField === field
       ? { "aria-invalid": true as const, "aria-describedby": "manual-order-error" }
       : {};
@@ -158,18 +176,33 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       }));
   }, [products, quantities]);
 
+  const hasActiveRelays = pickupLocations.length > 0;
+  const showPickupLocationSelect = serviceType === "pickup" && hasActiveRelays;
+  const requiresPickupLocation = showPickupLocationSelect && !shopPickupEnabled;
+  const selectedPickupLocation = React.useMemo(
+    () =>
+      serviceType === "pickup" && pickupLocationId
+        ? (pickupLocations.find((loc) => loc.id === pickupLocationId) ?? null)
+        : null,
+    [serviceType, pickupLocationId, pickupLocations],
+  );
+  const pickupFeeCents = selectedPickupLocation?.feeCents ?? 0;
+
   const totalItemCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = selectedItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  const itemsTotal = selectedItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  const totalAmount = itemsTotal + pickupFeeCents;
 
   const isPhoneSyntaxValid = isValidPhoneNumber(guestPhone);
   const isNameSyntaxValid = isValidGuestName(guestName);
   const isDeliveryValid = serviceType !== "delivery" || deliveryAddress.trim().length > 0;
+  const isPickupLocationValid = !requiresPickupLocation || pickupLocationId.length > 0;
   const isTimingValid = isAsap || Boolean(requestedDate);
   const canPreview =
     totalItemCount > 0 &&
     isPhoneSyntaxValid &&
     isNameSyntaxValid &&
     isDeliveryValid &&
+    isPickupLocationValid &&
     isTimingValid;
 
   // Filter products by search
@@ -207,6 +240,12 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       return false;
     }
 
+    if (requiresPickupLocation && !pickupLocationId) {
+      setErrorMessage(t.errors.noPickupLocation);
+      setErrorField("pickupLocation");
+      return false;
+    }
+
     return true;
   };
 
@@ -238,6 +277,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
       updateGuestName,
       deliveryAddress: serviceType === "delivery" ? deliveryAddress.trim() : null,
       serviceType,
+      pickupLocationId: serviceType === "pickup" && pickupLocationId ? pickupLocationId : null,
       channel,
       isAsap,
       requestedDate: isAsap ? undefined : requestedDate,
@@ -348,7 +388,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               onChange={(e) => setGuestPhone(e.target.value)}
               onBlur={handlePhoneBlur}
               placeholder="+33 6 12 34 56 78"
-              className="bg-card h-11 rounded-lg pr-9 pl-9 text-sm tabular-nums"
+              className="bg-card h-11 rounded-lg pr-9 pl-9 tabular-nums"
               required
               data-testid="guest-phone-input"
               {...fieldA11y("phone")}
@@ -400,10 +440,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               disabled={isNameLocked}
               minLength={2}
               maxLength={50}
-              className={cn(
-                "bg-card h-11 rounded-lg pl-9 text-sm",
-                isNameLocked && "pr-11 opacity-80",
-              )}
+              className={cn("bg-card h-11 rounded-lg pl-9", isNameLocked && "pr-11 opacity-80")}
               required
               data-testid="guest-name-input"
               {...fieldA11y("name")}
@@ -522,6 +559,52 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           ]}
         />
 
+        {/* Pickup Location select when Pickup is selected and business has active relays */}
+        {showPickupLocationSelect && (
+          <Field
+            id="pickupLocation"
+            label={t.pickupLocationLabel}
+            required={requiresPickupLocation}
+            error={errorField === "pickupLocation" ? errorMessage : null}
+            announceError={false}
+            hint={
+              selectedPickupLocation
+                ? `${selectedPickupLocation.address}, ${selectedPickupLocation.postcode}`
+                : undefined
+            }
+            className="pt-1"
+            data-testid="pickup-location-field"
+          >
+            <NativeSelect
+              value={pickupLocationId}
+              onChange={(e) => {
+                setPickupLocationId(e.target.value);
+                if (errorField === "pickupLocation") {
+                  setErrorMessage(null);
+                  setErrorField(null);
+                }
+              }}
+              required={requiresPickupLocation}
+              data-testid="pickup-location-select"
+            >
+              {shopPickupEnabled ? (
+                <option value="">
+                  {shopName ? interpolate(t.shopPickupOption, { name: shopName }) : o.storePickup}
+                </option>
+              ) : (
+                <option value="">{t.selectPickupLocation}</option>
+              )}
+              {pickupLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.feeCents > 0
+                    ? `${location.name} (+${formatMoney(location.feeCents, locale)})`
+                    : location.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        )}
+
         {/* Timing Options: ASAP vs Scheduled (2-card selector matching Stitch M-30) */}
         <div className="grid grid-cols-2 gap-2">
           <Button
@@ -588,7 +671,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         {/* Date and Time pickers when Scheduled */}
         {!isAsap && (
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <label
                 htmlFor="reqDate"
                 className="text-muted-foreground text-caption block font-medium"
@@ -600,11 +683,11 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 type="date"
                 value={requestedDate}
                 onChange={(e) => setRequestedDate(e.target.value)}
-                className="h-10 text-xs"
+                className="h-10 w-full min-w-0"
                 data-testid="requested-date-input"
               />
             </div>
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <label
                 htmlFor="reqTime"
                 className="text-muted-foreground text-caption block font-medium"
@@ -616,7 +699,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 type="time"
                 value={requestedTime}
                 onChange={(e) => setRequestedTime(e.target.value)}
-                className="h-10 text-xs"
+                className="h-10 w-full min-w-0"
                 data-testid="requested-time-input"
               />
             </div>
@@ -639,7 +722,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
                 placeholder={t.addressPlaceholder}
-                className="min-h-16 resize-none rounded-lg pl-8 text-xs"
+                className="min-h-16 resize-none rounded-lg pl-8"
                 required
                 data-testid="delivery-address-input"
                 {...fieldA11y("address")}
@@ -658,7 +741,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder={t.notesPlaceholder}
-            className="resize-none rounded-lg text-xs"
+            className="resize-none rounded-lg"
             rows={2}
             data-testid="order-notes-input"
           />
@@ -685,7 +768,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
           value={productSearch}
           onChange={(e) => setProductSearch(e.target.value)}
           placeholder={t.searchPlaceholder}
-          className="h-10 rounded-lg text-xs"
+          className="h-10 rounded-lg"
         />
 
         {/* Product List */}
@@ -827,6 +910,17 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                   })}
                 </p>
               )}
+              {showPickupLocationSelect && (
+                <p className="text-muted-foreground" data-testid="preview-pickup-location">
+                  {interpolate(t.preview.pickupLocation, {
+                    location:
+                      selectedPickupLocation?.name ??
+                      (shopName
+                        ? interpolate(t.shopPickupOption, { name: shopName })
+                        : o.storePickup),
+                  })}
+                </p>
+              )}
             </div>
 
             {/* Notes */}
@@ -860,6 +954,19 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
               )}
             </div>
 
+            {/* Pickup Fee (when relay has a fee) */}
+            {pickupFeeCents > 0 && (
+              <div
+                className="text-muted-foreground flex items-center justify-between text-xs"
+                data-testid="preview-pickup-fee"
+              >
+                <span>{t.preview.pickupFee}</span>
+                <span className="text-foreground font-medium tabular-nums">
+                  {formatMoney(pickupFeeCents, locale)}
+                </span>
+              </div>
+            )}
+
             {/* Total */}
             <div className="border-border flex items-center justify-between border-t pt-2 text-sm font-bold">
               <span>{t.preview.totalAmount}</span>
@@ -875,9 +982,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
             </Button>
             <Button
               type="button"
-              disabled={
-                isSubmitting || totalItemCount === 0 || !guestName.trim() || !guestPhone.trim()
-              }
+              disabled={isSubmitting || !canPreview}
               onClick={(e) => {
                 handleSubmit(e);
               }}

@@ -84,6 +84,9 @@ export const createManualOrderAction = defineAction(
       deliveryAddress: data.deliveryAddress ?? null,
       notes: data.notes ?? null,
       allowRename: data.updateGuestName,
+      pickupLocationId: data.pickupLocationId ?? null,
+      // Manual orders skip the opening-hours rules (the manager decides); the flag is recorded only.
+      isAsap: data.isAsap,
     });
 
     // Manual orders go straight to CONFIRMED (appends to the history place_order started).
