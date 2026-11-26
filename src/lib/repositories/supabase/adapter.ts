@@ -673,11 +673,12 @@ export function createSupabaseRepositories(
 
       const order = raw.order as Record<string, unknown>;
       const items = Array.isArray(raw.items) ? raw.items : [];
+      const serviceType = order.service_type ?? order.serviceType;
 
       return publicOrderSchema.parse({
         businessId: order.business_id ?? order.businessId,
         orderNumber: order.order_number ?? order.orderNumber,
-        serviceType: order.service_type ?? order.serviceType,
+        serviceType,
         status: order.status,
         paid: order.paid,
         paymentPreference: order.payment_preference ?? order.paymentPreference ?? "on_handover",
@@ -689,6 +690,10 @@ export function createSupabaseRepositories(
             : null,
         totalAmount: order.total_amount ?? order.totalAmount,
         cancellationReason: order.cancellation_reason ?? order.cancellationReason ?? null,
+        deliveryAddress:
+          serviceType === "delivery"
+            ? (order.delivery_address ?? order.deliveryAddress ?? null)
+            : null,
         createdAt: toIsoUtc(order.created_at ?? order.createdAt),
         items: items.map((it) => ({
           productName: it.product_name ?? it.productName,

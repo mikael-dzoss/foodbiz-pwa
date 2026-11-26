@@ -275,7 +275,11 @@ export function createMockRepositories(
     },
     async findByTrackingToken(token) {
       const o = fixtures.orders.find((x) => x.trackingToken === token);
-      return o ? publicOrderSchema.parse(o) : null;
+      if (!o) return null;
+      return publicOrderSchema.parse({
+        ...o,
+        deliveryAddress: o.serviceType === "delivery" ? (o.deliveryAddress ?? null) : null,
+      });
     },
     async place(bId, input): Promise<PlacedOrderSummary> {
       let phoneKey: string;

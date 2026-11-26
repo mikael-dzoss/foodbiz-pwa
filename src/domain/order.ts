@@ -107,6 +107,7 @@ export const publicOrderSchema = orderSchema
     requestedTime: true,
     totalAmount: true,
     cancellationReason: true,
+    deliveryAddress: true,
     createdAt: true,
   })
   .extend({

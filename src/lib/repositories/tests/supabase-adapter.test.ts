@@ -453,7 +453,14 @@ function createFakeSupabaseClient(
         if (!order) return { data: null, error: null };
         const items = tables.order_items.filter((it) => it.order_id === order.id);
         return {
-          data: { order: structuredClone(order), items: structuredClone(items) },
+          data: {
+            order: {
+              ...structuredClone(order),
+              delivery_address:
+                order.service_type === "delivery" ? (order.delivery_address ?? null) : null,
+            },
+            items: structuredClone(items),
+          },
           error: null,
         };
       }
@@ -1268,6 +1275,55 @@ describe("Supabase Repository Adapter", () => {
         expect((err as Error).message).not.toContain("secret detail");
         expect((err as Error).message.length).toBeGreaterThan(0);
       }
+    });
+
+    it("maps delivery_address in findByTrackingToken only for delivery orders (#352)", async () => {
+      const baseRow = {
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 42,
+        status: "CONFIRMED",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        requested_date: "2026-10-17",
+        requested_time: "12:30:00",
+        total_amount: 1500,
+        cancellation_reason: null,
+        created_at: "2026-10-17T10:00:00+00:00",
+      };
+      const items = [
+        { product_name: "Poulet Braisé", quantity: 1, unit_price: 1500, total_price: 1500 },
+      ];
+      const rpc = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "delivery",
+              delivery_address: "42 Avenue des Champs-Élysées, 75008 Paris",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              delivery_address: "Stale address on pickup row",
+            },
+            items,
+          },
+          error: null,
+        });
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+
+      const delivery = await repos.orders.findByTrackingToken("tk-delivery");
+      expect(delivery?.deliveryAddress).toBe("42 Avenue des Champs-Élysées, 75008 Paris");
+
+      const pickup = await repos.orders.findByTrackingToken("tk-pickup");
+      expect(pickup?.deliveryAddress).toBeNull();
     });
   });
 });
