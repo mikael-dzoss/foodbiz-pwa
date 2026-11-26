@@ -184,7 +184,7 @@ export const updatePaymentSettingsSchema = z
     weroIdentifier: z.string().trim().optional().default(""),
     paymentMethods: z.object({
       cash: z.boolean(),
-      card: z.boolean().default(false),
+      card: z.boolean(),
       revolut: z.boolean(),
       wero: z.boolean(),
     }),

@@ -1215,7 +1215,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
                 className={cn(
-                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold capitalize transition-colors",
+                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold transition-colors",
                   selectedPaymentMethod === method
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",

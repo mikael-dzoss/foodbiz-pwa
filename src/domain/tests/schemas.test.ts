@@ -202,6 +202,11 @@ describe("Business schemas", () => {
       paymentMethods: { cash: false, card: false, revolut: false, wero: false },
     });
     expect(noneEnabled.success).toBe(false);
+
+    const missingCard = updatePaymentSettingsSchema.safeParse({
+      paymentMethods: { cash: true, revolut: true, wero: true },
+    });
+    expect(missingCard.success).toBe(false);
   });
 });
 

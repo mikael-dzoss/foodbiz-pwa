@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { ChevronLeft, CreditCard, Banknote, Smartphone, QrCode, AlertCircle } from "lucide-react";
+import {
+  ChevronLeft,
+  CreditCard,
+  Banknote,
+  Nfc,
+  Smartphone,
+  QrCode,
+  AlertCircle,
+} from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
@@ -236,7 +244,7 @@ export function PaymentSettingsForm({ settings, dict, readOnlyReason }: PaymentS
             <div className="flex items-center justify-between gap-4 p-4">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                  <CreditCard className="h-5 w-5" />
+                  <Nfc className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
                   <span className="text-foreground block text-sm font-semibold">

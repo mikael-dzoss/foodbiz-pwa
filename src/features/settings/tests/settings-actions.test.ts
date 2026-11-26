@@ -407,6 +407,7 @@ describe("Settings Server Actions", () => {
         weroIdentifier: "+33698765432",
         paymentMethods: {
           cash: true,
+          card: false,
           revolut: true,
           wero: false,
         },
@@ -583,7 +584,7 @@ describe("Settings Server Actions", () => {
     it("handles repository Error exceptions in payment settings", async () => {
       mockBusinessRepo.updateSettings.mockRejectedValueOnce(new Error("Payment write failed"));
       const res = await updatePaymentSettingsAction({
-        paymentMethods: { cash: true, revolut: true, wero: true },
+        paymentMethods: { cash: true, card: false, revolut: true, wero: true },
       });
       expect(res.ok).toBe(false);
       if (!res.ok) {
@@ -594,7 +595,7 @@ describe("Settings Server Actions", () => {
     it("handles non-Error exceptions in payment settings", async () => {
       mockBusinessRepo.updateSettings.mockRejectedValueOnce("Payment failure");
       const res = await updatePaymentSettingsAction({
-        paymentMethods: { cash: true, revolut: true, wero: true },
+        paymentMethods: { cash: true, card: false, revolut: true, wero: true },
       });
       expect(res.ok).toBe(false);
       if (!res.ok) {
@@ -631,7 +632,7 @@ describe("Settings Server Actions", () => {
     const paymentInput = {
       revolutRevtag: "@intruder",
       weroIdentifier: "",
-      paymentMethods: { cash: true, revolut: true, wero: true },
+      paymentMethods: { cash: true, card: false, revolut: true, wero: true },
       paymentInstructionsEn: "",
       paymentInstructionsFr: "",
     };

@@ -10,7 +10,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(48);
+select plan(51);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -953,7 +953,7 @@ select throws_ok(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 6: Card on handover & card payment method (Tests 46-48, #377)
+-- Section 6: Card on handover & card payment method (Tests 46-51, #377)
 -- ----------------------------------------------------------------------------
 
 -- Test 46: Storefront accepts on_handover when cash is false and card is true
@@ -990,7 +990,41 @@ select ok(
   'storefront accepts on_handover when cash=false and card=true'
 );
 
--- Test 47: Storefront rejects on_handover when cash=false and card=false (22023)
+-- Test 47: Storefront accepts on_handover when cash is true and card is false
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+update public.business_settings
+set payment_methods = '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_order_cash_handover on commit drop as
+select public.place_order(
+  '10000000-0000-0000-0000-000000000001'::uuid,
+  'Cash Guest',
+  '+33600000024',
+  'pickup'::public.order_service_type,
+  'storefront'::public.order_channel,
+  current_date,
+  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
+  null,
+  'on_handover'::public.order_payment_preference
+) as res;
+grant select on t_order_cash_handover to public;
+
+select ok(
+  (select res ? 'order_id' from t_order_cash_handover),
+  'storefront accepts on_handover when cash=true and card=false'
+);
+
+-- Test 48: Storefront rejects on_handover when cash=false and card=false (22023)
 set local role postgres;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claim.role" = 'postgres';
@@ -1022,16 +1056,30 @@ select throws_ok(
   'storefront rejects on_handover when cash=false and card=false (22023)'
 );
 
--- Test 48: Marking an order paid with method 'card' succeeds and persists 'card'
+-- Test 49: Marking an order paid with method 'card' succeeds and persists 'card' (self-contained order)
 set local role authenticated;
 set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
 
+create temp table t_order_for_card_pay on commit drop as
+select public.place_order(
+  '10000000-0000-0000-0000-000000000001'::uuid,
+  'Card Pay Guest',
+  '+33600000025',
+  'pickup'::public.order_service_type,
+  'phone'::public.order_channel,
+  current_date,
+  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
+  null,
+  'on_handover'::public.order_payment_preference
+) as res;
+grant select on t_order_for_card_pay to public;
+
 create temp table t_pay_card on commit drop as
 select public.record_order_payment(
   '10000000-0000-0000-0000-000000000001'::uuid,
-  (select (res->>'order_id')::uuid from t_order_card_handover),
+  (select (res->>'order_id')::uuid from t_order_for_card_pay),
   'card'::public.order_payment_method,
   false
 ) as res;
@@ -1041,10 +1089,45 @@ select is(
   (
     select (select res->>'paid' from t_pay_card) || '/' || payment_method::text
     from public.orders
-    where id = (select (res->>'order_id')::uuid from t_order_card_handover)
+    where id = (select (res->>'order_id')::uuid from t_order_for_card_pay)
   ),
   'paid/card',
   'record_order_payment accepts card and stores payment_method = card'
+);
+
+-- Test 50: New business_settings rows get payment_methods ? 'card' (defaulting to false)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+insert into public.businesses (id, name, slug, currency)
+values ('60000000-0000-0000-0000-000000000006'::uuid, 'Business F', 'biz-f', 'EUR')
+on conflict (id) do nothing;
+
+insert into public.business_settings (business_id)
+values ('60000000-0000-0000-0000-000000000006'::uuid)
+on conflict (business_id) do nothing;
+
+select ok(
+  (
+    select (payment_methods ? 'card') and ((payment_methods->>'card')::boolean = false)
+    from public.business_settings
+    where business_id = '60000000-0000-0000-0000-000000000006'::uuid
+  ),
+  'new business_settings rows include payment_methods ? ''card'' defaulting to false'
+);
+
+-- Test 51: business_settings.payment_methods column default contains "card"
+select ok(
+  (
+    select pg_get_expr(ad.adbin, ad.adrelid) like '%"card"%'
+    from pg_attrdef ad
+    join pg_attribute a on a.attrelid = ad.adrelid and a.attnum = ad.adnum
+    where ad.adrelid = 'public.business_settings'::regclass
+      and a.attname = 'payment_methods'
+  ),
+  'business_settings.payment_methods column default contains "card"'
 );
 
 select * from finish();

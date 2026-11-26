@@ -13,6 +13,7 @@
 --      card is enabled and fails when neither is.
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
+--   Only revert once no orders.payment_method = 'card' rows exist.
 --   Postgres does not support removing an enum value in place without
 --   recreating order_payment_method. To revert the settings/RPC behavior:
 --   - alter table public.business_settings alter column payment_methods

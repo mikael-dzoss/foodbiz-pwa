@@ -279,6 +279,7 @@ describe("OrderDetail Component", () => {
 
     const cardOption = screen.getByTestId("payment-method-card");
     expect(cardOption.textContent).toContain("Card");
+    expect(cardOption.className).not.toContain("capitalize");
     fireEvent.click(cardOption);
     fireEvent.click(screen.getByTestId("confirm-payment-button"));
 
