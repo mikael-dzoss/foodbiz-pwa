@@ -504,28 +504,73 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     expect(button).toHaveProperty("disabled", true);
   });
 
-  it("disables add button with explanatory accessible label when store is closed or not accepting orders (without top banner)", () => {
+  it("disables add button, stepper, and add-ons only when store is not accepting orders (#350)", () => {
+    const sampleDrinks: AddOnCandidates<StorefrontProduct> = {
+      kind: "drinks",
+      products: [
+        {
+          ...sampleProductData.product,
+          id: "drink-folere",
+          name: DEMO_PRODUCT.folere.name,
+          price: 220,
+          stock: 10,
+          imageUrl: "/images/drink-1.jpg",
+        },
+      ],
+    };
+
     const pausedData: StorefrontProductData = {
       ...sampleProductData,
       isAcceptingOrders: false,
+      isOpen: false,
     };
 
-    const { unmount } = render(
+    render(
       <CartProvider>
-        <ProductDetailView productData={pausedData} locale="en" dict={enDictionary.storefront} />
+        <ProductDetailView
+          productData={pausedData}
+          addOns={sampleDrinks}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
       </CartProvider>,
     );
 
-    // Top banner is removed (#202)
+    // Top banner is removed (#202) and closed-scheduling notice is not shown when paused
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByTestId("product-closed-schedule-notice")).toBeNull();
 
     // Add button is disabled with explanatory text/label
     const pausedBtn = screen.getByTestId("product-add-button");
     expect(pausedBtn).toHaveProperty("disabled", true);
     expect(pausedBtn.textContent).toContain(enDictionary.storefront.notAcceptingOrdersShort);
     expect(pausedBtn.textContent).toContain(enDictionary.storefront.notAcceptingOrdersBanner);
+    expect(pausedBtn.textContent).not.toContain(enDictionary.storefront.storeClosedBadge);
 
-    unmount();
+    // Stepper and add-ons are disabled too
+    expect(screen.getByRole("button", { name: /increase quantity/i })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(
+      screen.getByRole("checkbox", { name: new RegExp(DEMO_PRODUCT.folere.name, "i") }),
+    ).toHaveProperty("disabled", true);
+  });
+
+  it("keeps add button, stepper, and add-ons enabled when closed but accepting orders and shows a scheduling notice in EN and FR (#350)", () => {
+    const sampleDrinks: AddOnCandidates<StorefrontProduct> = {
+      kind: "drinks",
+      products: [
+        {
+          ...sampleProductData.product,
+          id: "drink-folere",
+          name: DEMO_PRODUCT.folere.name,
+          price: 220,
+          stock: 10,
+          imageUrl: "/images/drink-1.jpg",
+        },
+      ],
+    };
 
     const closedHoursData: StorefrontProductData = {
       ...sampleProductData,
@@ -533,19 +578,89 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
       isOpen: false,
     };
 
+    function CartInspector() {
+      const { items } = useCart();
+      return (
+        <ul data-testid="cart-inspector">
+          {items.map((item) => (
+            <li key={item.productId} data-testid={`cart-line-${item.productId}`}>
+              {item.name}:{item.quantity}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    const { unmount } = render(
+      <CartProvider>
+        <ProductDetailView
+          productData={closedHoursData}
+          addOns={sampleDrinks}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+        <CartInspector />
+      </CartProvider>,
+    );
+
+    const noticeEn = screen.getByTestId("product-closed-schedule-notice");
+    expect(noticeEn.getAttribute("role")).toBe("status");
+    expect(noticeEn.textContent).toContain(enDictionary.storefront.storeClosedBanner);
+
+    const addBtnEn = screen.getByTestId("product-add-button") as HTMLButtonElement;
+    expect(addBtnEn.disabled).toBe(false);
+    expect(addBtnEn.textContent).toContain("Add 1 to cart");
+    expect(addBtnEn.textContent).not.toContain(enDictionary.storefront.storeClosedBadge);
+
+    const drinkCheckbox = screen.getByRole("checkbox", {
+      name: new RegExp(DEMO_PRODUCT.folere.name, "i"),
+    });
+    expect(drinkCheckbox).toHaveProperty("disabled", false);
+
+    fireEvent.click(drinkCheckbox);
+    fireEvent.click(addBtnEn);
+
+    expect(screen.getByTestId("cart-line-prod-dish-1").textContent).toBe(
+      `${DEMO_PRODUCT.pouletBraise.name}:1`,
+    );
+    expect(screen.getByTestId("cart-line-drink-folere").textContent).toBe(
+      `${DEMO_PRODUCT.folere.name}:1`,
+    );
+
+    unmount();
+    resetCartStore();
+
     render(
       <CartProvider>
         <ProductDetailView
           productData={closedHoursData}
+          addOns={sampleDrinks}
           locale="fr"
           dict={frDictionary.storefront}
         />
       </CartProvider>,
     );
 
-    const closedBtn = screen.getByTestId("product-add-button");
-    expect(closedBtn).toHaveProperty("disabled", true);
-    expect(closedBtn.textContent).toContain(frDictionary.storefront.storeClosedBadge);
-    expect(closedBtn.textContent).toContain(frDictionary.storefront.storeClosedBanner);
+    const noticeFr = screen.getByTestId("product-closed-schedule-notice");
+    expect(noticeFr.textContent).toContain(frDictionary.storefront.storeClosedBanner);
+
+    const addBtnFr = screen.getByTestId("product-add-button") as HTMLButtonElement;
+    expect(addBtnFr.disabled).toBe(false);
+    expect(addBtnFr.textContent).toMatch(/Ajouter 1 au panier/);
+    expect(addBtnFr.textContent).not.toContain(frDictionary.storefront.storeClosedBadge);
+  });
+
+  it("hides the closed-scheduling notice when the store is open (#350)", () => {
+    render(
+      <CartProvider>
+        <ProductDetailView
+          productData={sampleProductData}
+          locale="en"
+          dict={enDictionary.storefront}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.queryByTestId("product-closed-schedule-notice")).toBeNull();
   });
 });

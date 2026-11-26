@@ -491,5 +491,60 @@ describe("Storefront UI components (#80, #81, #82, #83, #200)", () => {
 
       expect(screen.getByText(enDictionary.storefront.noProductsInCategory)).toBeDefined();
     });
+
+    it("keeps catalog and featured add buttons enabled when closed but accepting orders, and disables them when not accepting (#350)", () => {
+      const product = mockCatalog.groupedCategories[0].products[0];
+      const closedAcceptingCatalog: StorefrontCatalogData = {
+        ...mockCatalog,
+        featuredProducts: [product],
+        isAcceptingOrders: true,
+        isOpen: false,
+      };
+
+      const { unmount } = render(
+        <CartProvider>
+          <StorefrontCatalogView
+            catalog={closedAcceptingCatalog}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>,
+      );
+
+      const catalogAddBtn = screen.getByTestId("add-to-cart-prod-1") as HTMLButtonElement;
+      const featuredAddBtn = screen.getByTestId("featured-add-to-cart-prod-1") as HTMLButtonElement;
+      expect(catalogAddBtn.disabled).toBe(false);
+      expect(featuredAddBtn.disabled).toBe(false);
+
+      fireEvent.click(catalogAddBtn);
+      expect(
+        screen.getByRole("link", { name: new RegExp(enDictionary.storefront.viewCart, "i") }),
+      ).toBeDefined();
+
+      unmount();
+      resetCartStore();
+
+      const pausedCatalog: StorefrontCatalogData = {
+        ...mockCatalog,
+        featuredProducts: [product],
+        isAcceptingOrders: false,
+        isOpen: false,
+      };
+
+      render(
+        <CartProvider>
+          <StorefrontCatalogView
+            catalog={pausedCatalog}
+            locale="en"
+            dict={enDictionary.storefront}
+          />
+        </CartProvider>,
+      );
+
+      expect((screen.getByTestId("add-to-cart-prod-1") as HTMLButtonElement).disabled).toBe(true);
+      expect(
+        (screen.getByTestId("featured-add-to-cart-prod-1") as HTMLButtonElement).disabled,
+      ).toBe(true);
+    });
   });
 });
