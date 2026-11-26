@@ -13,6 +13,7 @@ import {
   ChevronRight,
   LogOut,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import type { ManagerSession } from "@/domain/auth";
 import type { SettingsDictionary } from "@/domain/i18n";
@@ -122,11 +123,33 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
           {dict.operationsSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
+          {/* Opening hours */}
+          <Link
+            href="/manage/settings/opening-hours"
+            data-testid="link-opening-hours-settings"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors first:rounded-t-2xl focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div className="flex min-w-0 items-center gap-3.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-foreground block text-sm font-semibold">
+                  {dict.openingHours.title}
+                </span>
+                <span className="text-body-sm text-muted-foreground block truncate">
+                  {dict.openingHours.navDescription}
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" />
+          </Link>
+
           {/* Ordering */}
           <Link
             href="/manage/settings/ordering"
             data-testid="link-ordering-settings"
-            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors first:rounded-t-2xl focus-visible:ring-2 focus-visible:outline-none"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <div className="flex min-w-0 items-center gap-3.5">
               <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">

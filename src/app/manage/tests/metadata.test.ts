@@ -21,6 +21,8 @@ import { generateMetadata as customerDetailMetadata } from "../(authenticated)/c
 import { generateMetadata as settingsMetadata } from "../(authenticated)/settings/page";
 import { generateMetadata as accountSettingsMetadata } from "../(authenticated)/settings/account/page";
 import { generateMetadata as businessSettingsMetadata } from "../(authenticated)/settings/business/page";
+import { generateMetadata as openingHoursSettingsMetadata } from "../(authenticated)/settings/opening-hours/page";
+import { generateMetadata as regularHoursSettingsMetadata } from "../(authenticated)/settings/opening-hours/regular/page";
 import { generateMetadata as orderingSettingsMetadata } from "../(authenticated)/settings/ordering/page";
 import { generateMetadata as paymentSettingsMetadata } from "../(authenticated)/settings/payment/page";
 import { generateMetadata as inventorySettingsMetadata } from "../(authenticated)/settings/inventory-finance/page";
@@ -187,6 +189,22 @@ describe("manager layout and page metadata (EN & FR)", () => {
         expected: (l: SupportedLocale) => ({
           title: getDictionary(l).settings.business.title,
           description: getDictionary(l).settings.business.description,
+        }),
+      },
+      {
+        name: "settings/opening-hours",
+        fn: openingHoursSettingsMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.openingHours.title,
+          description: getDictionary(l).settings.openingHours.description,
+        }),
+      },
+      {
+        name: "settings/opening-hours/regular",
+        fn: regularHoursSettingsMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.openingHours.regularTitle,
+          description: getDictionary(l).settings.openingHours.regularDescription,
         }),
       },
       {

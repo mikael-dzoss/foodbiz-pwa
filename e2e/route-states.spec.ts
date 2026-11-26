@@ -17,6 +17,8 @@ const MANAGER_ROUTES = [
   "/manage/settings/business",
   "/manage/settings/inventory-finance",
   "/manage/settings/notifications",
+  "/manage/settings/opening-hours",
+  "/manage/settings/opening-hours/regular",
   "/manage/settings/ordering",
   "/manage/settings/payment",
 ];

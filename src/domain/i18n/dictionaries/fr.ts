@@ -641,8 +641,7 @@ export const frDictionary: Dictionary = {
       legacyTextLabel: "Texte d'horaires actuel",
       upcomingExceptionsTitle: "Exceptions à venir",
       manageStructuredLink: "Gérer les horaires structurés",
-      structuredActiveHint:
-        "Les horaires structurés sont actifs et prennent le pas sur ce texte.",
+      structuredActiveHint: "Les horaires structurés sont actifs et prennent le pas sur ce texte.",
       presetLabel: "Mode d'horaires",
       presetEveryDay: "Tous les jours",
       presetWeekdaysWeekend: "Semaine + week-end",

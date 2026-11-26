@@ -113,6 +113,14 @@ Interactive local inventory: `/patterns` (dev route).
 - **Props:** `title`, `subtitle`, `leading` (icon/avatar), `trailing` (value/status), `showChevron`, `onClick`.
 - **Height:** Minimum 56px (`min-h-14`) for mobile list scanning.
 
+### Opening hours (`src/features/settings/components/opening-hours/`)
+
+- **Import:** `import { HoursSummary, WeeklyHoursEditor, RegularHoursForm } from "@/features/settings/components/opening-hours"`
+- Prop-driven (no settings actions or page data) so the business page and pickup locations share them.
+- `HoursSummary({ weekly, exceptions?, locale, labels, timeZone?, showExceptions?, fallbackText?, highlightToday? })`: read-only grouped days (`groupWeeklyHours`) plus upcoming exceptions.
+- `WeeklyHoursEditor({ value, onChange })`: presets (every day / weekdays + weekend / custom), up to 4 ranges per day, closed toggle, inline `weeklyHoursSchema` validation.
+- `RegularHoursForm({ initial, onSave, onClear?, footerNote? })`: editor + sticky `ActionBar` + confirm dialog to clear structured hours.
+
 ### Badge
 
 - **Import:** `import { Badge } from "@/components/ui"`
