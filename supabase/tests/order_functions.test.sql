@@ -837,10 +837,10 @@ select is(
   'orders table status is CANCELLED'
 );
 
--- Test 39: Restores product stock atomically (3 restored: 4 + 3 = 7)
+-- Test 39: Restores product stock atomically (3 restored: 5 + 3 = 8; yesterday's order of test 35 is now rejected)
 select is(
   (select stock from public.products where id = 'da000000-0000-0000-0000-000000000001'),
-  7,
+  8,
   'cancel_order atomically restores product stock'
 );
 
@@ -1136,6 +1136,11 @@ set local role postgres;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claim.role" = 'postgres';
 set local "request.jwt.claims" = '{}';
+-- Self-contained: earlier sections leave payment_methods with cash and card disabled.
+update public.business_settings
+set payment_methods = '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
 insert into public.products (id, business_id, category_id, name, price, stock, visible)
 values ('da000000-0000-0000-0000-0000000000a1'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'ca000000-0000-0000-0000-000000000001'::uuid, 'Slot Bun', 100, 1000, true)
 on conflict (id) do nothing;
