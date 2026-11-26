@@ -214,6 +214,42 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       }
     });
 
+    it("includes only active pickup locations (public fields) and the shop pickup flag", async () => {
+      try {
+        const repos = getMockRepositories();
+        const relay = await repos.pickupLocations.create(DEMO_BUSINESS_ID, {
+          name: "Gare RER B",
+          address: "Place de la gare",
+          postcode: "93210",
+          feeCents: 150,
+        });
+        await repos.pickupLocations.create(DEMO_BUSINESS_ID, {
+          name: "Hidden",
+          address: "Rue cachee",
+          postcode: "93200",
+          isActive: false,
+        });
+        await repos.business.updateSettings(DEMO_BUSINESS_ID, { shopPickupEnabled: false });
+
+        const catalog = await getStorefrontCatalog();
+        expect(catalog.shopPickupEnabled).toBe(false);
+        expect(catalog.pickupLocations).toEqual([
+          {
+            id: relay.id,
+            name: "Gare RER B",
+            description: null,
+            address: "Place de la gare",
+            postcode: "93210",
+            feeCents: 150,
+            weeklyHours: null,
+            sortOrder: relay.sortOrder,
+          },
+        ]);
+      } finally {
+        getMockRepositories().reset();
+      }
+    });
+
     it("carries weeklyHours, hoursExceptions and timezone through settings on catalog and product queries", async () => {
       const customHours = {
         mon: [],
