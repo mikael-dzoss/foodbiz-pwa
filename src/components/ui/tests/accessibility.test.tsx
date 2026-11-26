@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { Button, Checkbox, Input, QuantityStepper, Switch, Textarea } from "../index";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../dialog";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "../sheet";
 
 afterEach(() => {
   document.documentElement.classList.remove("dark");
@@ -53,5 +54,36 @@ describe.each(["light", "dark"])("%s component accessibility", (theme) => {
       rules: { "color-contrast": { enabled: false } },
     });
     expect(results.violations).toEqual([]);
+  });
+});
+
+// #356: close buttons meet the 36px minimum without taking a text line (DESIGN_SYSTEM.md §5).
+describe("dialog and sheet close buttons", () => {
+  it.each([
+    [
+      "dialog",
+      <Dialog open key="d">
+        <DialogContent>
+          <DialogTitle>Install the app</DialogTitle>
+          <DialogDescription>Steps</DialogDescription>
+        </DialogContent>
+      </Dialog>,
+    ],
+    [
+      "sheet",
+      <Sheet open key="s">
+        <SheetContent>
+          <SheetTitle>Menu</SheetTitle>
+          <SheetDescription>Links</SheetDescription>
+        </SheetContent>
+      </Sheet>,
+    ],
+  ])("%s close button is 36px and sits in the corner", (_name, ui) => {
+    render(ui);
+    const close = document.body.querySelector("button .sr-only")?.closest("button");
+    expect(close?.className).toContain("min-h-9");
+    expect(close?.className).toContain("min-w-9");
+    expect(close?.className).not.toContain("min-h-11");
+    expect(close?.className).toContain("absolute");
   });
 });
