@@ -238,23 +238,23 @@ export function ServiceToggleHeader({
               )}
             </>
           ) : pickupState.unavailable ? (
-            <span className="text-muted-foreground text-label-strong inline-flex items-center gap-1 font-semibold">
+            <span className="text-muted-foreground text-label-strong inline-flex items-center gap-1">
               {dict.orderErrorPickupNotAvailable}
               <InfoGlyph label={dict.orderingDetailsOpen} />
             </span>
           ) : pickupState.requiresChoice ? (
             <>
-              <span className="text-foreground text-label-strong inline-flex items-center gap-1 font-semibold">
+              <span className="text-foreground text-label-strong inline-flex items-center gap-1">
                 {dict.pickupLocationChooseTile}
                 <InfoGlyph label={dict.orderingDetailsOpen} />
               </span>
-              <span className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+              <span className="text-muted-foreground text-caption mt-0.5 tabular-nums">
                 {interpolate(dict.pickupLocationCount, { count: String(pickupState.optionCount) })}
               </span>
             </>
           ) : pickupState.selectedRelay ? (
             <>
-              <span className="text-foreground text-label-strong inline-flex items-center gap-1 font-semibold tabular-nums">
+              <span className="text-foreground text-label-strong inline-flex items-center gap-1 tabular-nums">
                 {pickupState.selectedRelay.feeCents > 0
                   ? interpolate(dict.pickupLocationFeeShort, {
                       amount: formatMoney(pickupState.selectedRelay.feeCents, locale),
@@ -262,7 +262,7 @@ export function ServiceToggleHeader({
                   : dict.noFees}
                 <InfoGlyph label={dict.orderingDetailsOpen} />
               </span>
-              <span className="text-muted-foreground mt-0.5 line-clamp-1 text-xs">
+              <span className="text-muted-foreground text-caption mt-0.5 line-clamp-1">
                 {pickupState.selectedRelay.name}
               </span>
             </>

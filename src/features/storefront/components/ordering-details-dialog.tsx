@@ -85,7 +85,7 @@ export function OrderingDetailsDialog({
       <DialogContent
         closeLabel={dict.dismiss}
         data-testid="ordering-details-dialog"
-        className="animate-pop-in w-screen-gutter max-h-[85dvh] max-w-sm gap-4 overflow-y-auto overscroll-none rounded-2xl p-5"
+        className="animate-pop-in w-screen-gutter max-h-dvh max-w-sm gap-4 overflow-y-auto overscroll-none rounded-2xl p-5"
       >
         <DialogTitle className="pr-10">{dict.orderingDetailsTitle}</DialogTitle>
         <DialogDescription className="sr-only">{dict.orderingDetailsOpen}</DialogDescription>

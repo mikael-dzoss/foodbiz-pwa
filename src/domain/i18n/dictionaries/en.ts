@@ -470,6 +470,10 @@ export const enDictionary: Dictionary = {
       "This pickup location is closed right now and opens {when}. Schedule your order for later.",
     pickupLocationClosedScheduleNotice:
       "This pickup location is currently closed. Your order will be prepared for your chosen slot.",
+    pickupLocationWithFee: "Pickup ({amount})",
+    cartIncludedVat: "incl. VAT (10%)",
+    pricingUnavailableError:
+      "We could not calculate your order total. Please review or clear your cart.",
   },
   quickAdd: {
     title: "Quick Add",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type RefCallback } from "react";
 import { AlertCircle, ChevronDown, ChevronUp, Clock, MapPin, Store } from "lucide-react";
 import { interpolate, type StorefrontDictionary, type SupportedLocale } from "@/domain/i18n";
 import type { OpeningSchedule } from "@/domain/opening-hours";
@@ -29,6 +29,10 @@ export interface PickupLocationPickerProps {
   label?: string;
   /** Show a prompt below the label when several options exist and none is picked yet. */
   showRequiredPrompt?: boolean;
+  /** Inline server/validation error rendered inside the picker (`role="alert"`). */
+  error?: string | null;
+  /** Optional ref callback to focus or scroll the picker container on error. */
+  pickerRef?: RefCallback<HTMLElement>;
   "data-testid"?: string;
 }
 
@@ -47,21 +51,21 @@ function OptionDetails({
   return (
     <div className="min-w-0 flex-1 space-y-1">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-label-strong text-foreground flex min-w-0 items-center gap-1.5 break-words">
+        <span className="text-label-strong text-foreground flex min-w-0 items-center gap-1.5">
           {option.kind === "shop" ? (
             <Store className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
           ) : (
             <MapPin className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
           )}
-          <span className="break-words">{option.name}</span>
+          <span className="min-w-0 wrap-anywhere">{option.name}</span>
         </span>
         <span
           data-testid={`pickup-option-fee-${option.id}`}
           className={cn(
-            "text-label-sm shrink-0 rounded-md px-2 py-0.5 tabular-nums",
+            "shrink-0 rounded-md px-2 py-0.5 tabular-nums",
             isFree
-              ? "bg-primary-soft text-primary-soft-foreground"
-              : "bg-muted text-foreground font-semibold",
+              ? "text-label-sm bg-primary-soft text-primary-soft-foreground"
+              : "text-label-strong bg-muted text-foreground",
           )}
         >
           {feeText}
@@ -69,11 +73,11 @@ function OptionDetails({
       </div>
 
       {option.description && (
-        <p className="text-body-sm text-muted-foreground break-words">{option.description}</p>
+        <p className="text-body-sm text-muted-foreground wrap-anywhere">{option.description}</p>
       )}
 
       {option.addressLine && (
-        <p className="text-body-sm text-muted-foreground break-words">{option.addressLine}</p>
+        <p className="text-body-sm text-muted-foreground wrap-anywhere">{option.addressLine}</p>
       )}
 
       {option.hoursText && (
@@ -82,7 +86,7 @@ function OptionDetails({
           className="text-caption text-muted-foreground flex items-start gap-1.5 tabular-nums"
         >
           <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span className="break-words">{option.hoursText}</span>
+          <span className="min-w-0 wrap-anywhere">{option.hoursText}</span>
         </p>
       )}
     </div>
@@ -108,9 +112,13 @@ export function PickupLocationPicker({
   dict,
   label,
   showRequiredPrompt = false,
+  error = null,
+  pickerRef,
   "data-testid": testId = "pickup-location-picker",
 }: PickupLocationPickerProps) {
   const groupId = useId();
+  const headingId = `${groupId}-heading`;
+  const errorId = `${groupId}-error`;
   const groupName = `pickup-location-${groupId}`;
 
   const options = useMemo(
@@ -152,12 +160,16 @@ export function PickupLocationPicker({
   if (options.length === 0) {
     return (
       <div
-        role="status"
-        data-testid="pickup-location-unavailable"
-        className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-xs"
+        ref={pickerRef}
+        tabIndex={-1}
+        role={error ? "alert" : "status"}
+        data-testid={`${testId}-unavailable`}
+        className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm focus-visible:ring-ring flex items-start gap-2 rounded-xl border p-3 focus:outline-hidden focus-visible:ring-2"
       >
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>{dict.orderErrorPickupNotAvailable}</span>
+        <span data-testid={error ? `${testId}-error` : undefined} className="min-w-0 wrap-anywhere">
+          {error ?? dict.orderErrorPickupNotAvailable}
+        </span>
       </div>
     );
   }
@@ -165,20 +177,50 @@ export function PickupLocationPicker({
   if (options.length === 1) {
     const single = options[0];
     return (
-      <div data-testid={testId} className="space-y-2">
-        <p className="text-label-sm text-muted-foreground tracking-wider uppercase">{heading}</p>
+      <div
+        ref={pickerRef}
+        tabIndex={-1}
+        role="group"
+        aria-labelledby={headingId}
+        aria-describedby={error ? errorId : undefined}
+        data-testid={testId}
+        className="focus-visible:ring-ring min-w-0 space-y-2 rounded-xl focus:outline-hidden focus-visible:ring-2"
+      >
+        <p id={headingId} className="text-label-sm text-muted-foreground tracking-wider uppercase">
+          {heading}
+        </p>
         <div
           data-testid="pickup-location-readonly"
-          className="border-border bg-muted/40 flex min-h-11 items-start gap-3 rounded-xl border p-3"
+          className={cn(
+            "bg-muted/40 flex min-h-11 items-start gap-3 rounded-xl border p-3",
+            error ? "border-destructive" : "border-border",
+          )}
         >
           <OptionDetails option={single} locale={locale} dict={dict} />
         </div>
+        {error && (
+          <p
+            id={errorId}
+            role="alert"
+            data-testid={`${testId}-error`}
+            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 wrap-anywhere">{error}</span>
+          </p>
+        )}
       </div>
     );
   }
 
   return (
-    <fieldset data-testid={testId} className="space-y-2">
+    <fieldset
+      ref={pickerRef}
+      tabIndex={-1}
+      aria-describedby={error ? errorId : undefined}
+      data-testid={testId}
+      className="focus-visible:ring-ring min-w-0 space-y-2 rounded-xl focus:outline-hidden focus-visible:ring-2"
+    >
       <legend className="text-label-sm text-muted-foreground tracking-wider uppercase">
         {heading}
         {showRequiredPrompt && (
@@ -188,7 +230,19 @@ export function PickupLocationPicker({
         )}
       </legend>
 
-      {showRequiredPrompt && !selectedChoice && (
+      {error && (
+        <p
+          id={errorId}
+          role="alert"
+          data-testid={`${testId}-error`}
+          className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 wrap-anywhere">{error}</span>
+        </p>
+      )}
+
+      {showRequiredPrompt && !selectedChoice && !error && (
         <p
           data-testid="pickup-location-choose-prompt"
           className="text-body-sm text-muted-foreground"
@@ -210,6 +264,7 @@ export function PickupLocationPicker({
                 value={option.id}
                 checked={isSelected}
                 onChange={() => onSelect(option.id)}
+                aria-describedby={error ? errorId : undefined}
                 className="peer sr-only"
                 data-testid={`pickup-location-radio-${option.id}`}
               />
@@ -250,7 +305,7 @@ export function PickupLocationPicker({
           aria-expanded={expanded}
           onClick={() => setUserExpanded(!expanded)}
           data-testid="pickup-locations-toggle"
-          className="min-h-9 w-full touch-manipulation rounded-lg text-xs font-medium"
+          className="text-label-sm min-h-9 w-full touch-manipulation rounded-lg"
         >
           {expanded ? (
             <>

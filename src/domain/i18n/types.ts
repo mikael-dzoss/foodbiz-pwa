@@ -349,6 +349,9 @@ export interface StorefrontDictionary {
   pickupLocationCount: string;
   pickupLocationClosedNextOpening: string;
   pickupLocationClosedScheduleNotice: string;
+  pickupLocationWithFee: string;
+  cartIncludedVat: string;
+  pricingUnavailableError: string;
 }
 
 export interface QuickAddDictionary {

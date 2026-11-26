@@ -18,6 +18,7 @@ export * from "./components/checkout-view";
 export * from "./components/pickup-location-picker";
 export * from "./context/cart-context";
 export * from "./pickup-options";
+export * from "./storefront-pricing";
 export * from "./use-pickup-location";
 export * from "./catalog-data";
 export * from "./storefront-actions";

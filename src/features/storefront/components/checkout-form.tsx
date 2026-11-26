@@ -2,6 +2,7 @@
 
 import {
   useActionState,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -31,7 +32,7 @@ import {
 } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
-import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import { interpolate, type StorefrontDictionary, type SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import {
   checkoutFieldIssues,
@@ -58,8 +59,9 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { getZonedDay } from "@/domain/timezone";
 import { isOpenAt, type OpeningSchedule } from "@/domain/opening-hours";
 import { pickupScheduleFor, type StorefrontPickupLocation } from "@/domain/pickup-location";
-import { calculateOrderTotals } from "@/domain/pricing";
+import { logEvent } from "@/lib/log";
 import { useCart, resolveServiceMode } from "../context/cart-context";
+import { storefrontPricing } from "../storefront-pricing";
 import { usePickupLocation } from "../use-pickup-location";
 import type { ActionCode, ActionFailure } from "@/lib/actions/types";
 import { placeOrderAction } from "../storefront-actions";
@@ -107,6 +109,12 @@ function placeOrderErrorKey(failure: ActionFailure): keyof StorefrontDictionary 
   );
 }
 
+const PICKUP_SERVER_ERROR_REASONS = new Set<string>([
+  "PICKUP_LOCATION_INVALID",
+  "PICKUP_LOCATION_REQUIRED",
+  "PICKUP_NOT_AVAILABLE",
+]);
+
 const FOCUSABLE_FIELD_ORDER = [
   "name",
   "phone",
@@ -117,6 +125,7 @@ const FOCUSABLE_FIELD_ORDER = [
 ] as const;
 
 type FocusableCheckoutField = (typeof FOCUSABLE_FIELD_ORDER)[number];
+type CheckoutFocusTarget = FocusableCheckoutField | "pickupLocation";
 
 function omitKey(
   record: Partial<Record<CheckoutFieldName, boolean>>,
@@ -210,7 +219,6 @@ export function CheckoutForm({
   const router = useRouter();
   const {
     items,
-    totalAmountInCents,
     notes: cartNotes,
     setNotes: setCartNotes,
     serviceMode,
@@ -313,21 +321,49 @@ export function CheckoutForm({
   const closedNextOpening = closedButAccepting
     ? closedNextOpeningLabelForSchedule(effectiveSchedule, timeZone, now, locale, dict)
     : null;
+  // Compute pricing via shared storefront pricing helper (#386)
+  const pricing = useMemo(
+    () =>
+      storefrontPricing({
+        items,
+        serviceType,
+        deliveryFee: settings?.deliveryFee ?? 0,
+        pickupFee: selectedRelay?.feeCents ?? 0,
+      }),
+    [items, serviceType, settings?.deliveryFee, selectedRelay?.feeCents],
+  );
+  const pricingUnavailable = !pricing.ok;
+  const pricingErrorReason = pricing.ok ? null : pricing.reason;
+  useEffect(() => {
+    if (!pricingErrorReason) return;
+    logEvent("error", "storefront_pricing_failed", {
+      screen: "checkout",
+      serviceType,
+      reason: pricingErrorReason,
+    });
+  }, [pricingErrorReason, serviceType]);
+
   const pickupUnavailable = serviceType === "pickup" && pickupState.unavailable;
   const pickupChoiceRequired = serviceType === "pickup" && pickupState.requiresChoice;
   // Only states that make ordering impossible block the button; the not-accepting sentence is
   // already announced by the top alert, so it is not repeated here.
   const blockedReason = !resolvedAcceptingOrders
     ? null
-    : pickupUnavailable
-      ? dict.orderErrorPickupNotAvailable
-      : pickupChoiceRequired
-        ? dict.orderErrorPickupLocationRequired
-        : noSlotsAvailable
-          ? dict.checkoutNoSlots
-          : null;
+    : pricingUnavailable
+      ? dict.pricingUnavailableError
+      : pickupUnavailable
+        ? dict.orderErrorPickupNotAvailable
+        : pickupChoiceRequired
+          ? dict.orderErrorPickupLocationRequired
+          : noSlotsAvailable
+            ? dict.checkoutNoSlots
+            : null;
   const orderingBlocked =
-    !resolvedAcceptingOrders || pickupUnavailable || pickupChoiceRequired || noSlotsAvailable;
+    !resolvedAcceptingOrders ||
+    pricingUnavailable ||
+    pickupUnavailable ||
+    pickupChoiceRequired ||
+    noSlotsAvailable;
 
   // Payment State
   const revolutAllowed = settings?.paymentMethods.revolut ?? true;
@@ -359,12 +395,13 @@ export function CheckoutForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
+  const [pickupServerError, setPickupServerError] = useState<string | null>(null);
   const [touchedFields, setTouchedFields] = useState<Partial<Record<CheckoutFieldName, boolean>>>(
     {},
   );
   const [hasInvalidSubmit, setHasInvalidSubmit] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{
-    field: FocusableCheckoutField;
+    field: CheckoutFocusTarget;
     seq: number;
   } | null>(null);
 
@@ -376,6 +413,10 @@ export function CheckoutForm({
   const timeInputRef = useRef<HTMLInputElement>(null);
   const timeSelectRef = useRef<HTMLSelectElement>(null);
   const notesInputRef = useRef<HTMLTextAreaElement>(null);
+  const pickupPickerRef = useRef<HTMLElement | null>(null);
+  const setPickupPickerNode = useCallback((node: HTMLElement | null) => {
+    pickupPickerRef.current = node;
+  }, []);
 
   const markTouched = (field: CheckoutFieldName) => {
     setTouchedFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
@@ -401,6 +442,7 @@ export function CheckoutForm({
   const handleSelectServiceType = (mode: "pickup" | "delivery") => {
     setCustomServiceType(mode);
     setServiceMode(mode);
+    setPickupServerError(null);
     setTouchedFields((prev) => omitKey(prev, "deliveryAddress"));
     const nextSchedule =
       mode === "pickup" && pickupState.selectedRelay
@@ -411,6 +453,7 @@ export function CheckoutForm({
 
   const handleSelectPickupLocation = (choice: string) => {
     pickupState.selectPickupLocation(choice);
+    setPickupServerError(null);
     setErrorFeedback(null);
     const nextRelay = pickupLocations.find((location) => location.id === choice) ?? null;
     const nextSchedule = nextRelay
@@ -433,30 +476,6 @@ export function CheckoutForm({
   const timeId = useId();
   const notesId = useId();
   const blockedReasonId = useId();
-
-  // Compute pricing using domain pricing logic (#386)
-  const pricing = useMemo(() => {
-    const result = calculateOrderTotals({
-      items: items.map((item) => ({
-        productId: item.productId,
-        productName: item.name,
-        quantity: item.quantity,
-        unitPrice: item.price,
-      })),
-      serviceType,
-      deliveryFee: settings?.deliveryFee ?? 0,
-      pickupFee: selectedRelay?.feeCents ?? 0,
-    });
-    return result.ok
-      ? result
-      : {
-          subtotal: totalAmountInCents,
-          deliveryFee: 0,
-          pickupFee: 0,
-          total: totalAmountInCents,
-        };
-  }, [items, serviceType, settings?.deliveryFee, selectedRelay?.feeCents, totalAmountInCents]);
-  const finalTotal = pricing.total;
 
   // Form Validation Preview + Localized Per-Field Errors
   const { validationResult, fieldErrors } = useMemo(() => {
@@ -545,6 +564,22 @@ export function CheckoutForm({
 
   useEffect(() => {
     if (!focusRequest) return;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (focusRequest.field === "pickupLocation") {
+      const container = pickupPickerRef.current;
+      if (!container) return;
+      const firstRadio = container.querySelector<HTMLInputElement>('input[type="radio"]');
+      const target = firstRadio ?? container;
+      container.scrollIntoView?.({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      target.focus();
+      return;
+    }
     const refMap: Record<FocusableCheckoutField, HTMLElement | null> = {
       name: nameInputRef.current,
       phone: phoneInputRef.current,
@@ -555,10 +590,6 @@ export function CheckoutForm({
     };
     const target = refMap[focusRequest.field];
     if (!target) return;
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     target.scrollIntoView?.({
       behavior: prefersReducedMotion ? "auto" : "smooth",
       block: "center",
@@ -572,6 +603,7 @@ export function CheckoutForm({
     }
 
     setErrorFeedback(null);
+    setPickupServerError(null);
     setIsSubmitting(true);
 
     try {
@@ -613,7 +645,26 @@ export function CheckoutForm({
         });
 
         if (!orderResult.ok) {
-          setErrorFeedback(dict[placeOrderErrorKey(orderResult)]);
+          const message = dict[placeOrderErrorKey(orderResult)];
+          if (
+            validationResult.data.serviceType === "pickup" &&
+            orderResult.reason &&
+            PICKUP_SERVER_ERROR_REASONS.has(orderResult.reason)
+          ) {
+            setPickupServerError(message);
+            if (
+              orderResult.reason === "PICKUP_LOCATION_INVALID" ||
+              orderResult.reason === "PICKUP_LOCATION_REQUIRED"
+            ) {
+              pickupState.selectPickupLocation(null);
+            }
+            setFocusRequest((prev) => ({
+              field: "pickupLocation",
+              seq: (prev?.seq ?? 0) + 1,
+            }));
+          } else {
+            setErrorFeedback(message);
+          }
           setIsSubmitting(false);
           return null;
         }
@@ -657,6 +708,7 @@ export function CheckoutForm({
     if (!validationResult.success || slotProblem !== null) {
       event.preventDefault();
       setErrorFeedback(null);
+      setPickupServerError(null);
       setHasInvalidSubmit(true);
 
       const activeFields: CheckoutFieldName[] = [
@@ -935,7 +987,9 @@ export function CheckoutForm({
                         <span>
                           {pickupState.hasPaidOption
                             ? pickupState.isSingleOption && pickupState.selectedRelay
-                              ? `${dict.pickupToggleLabel} (${formatMoney(pickupState.selectedRelay.feeCents, locale)})`
+                              ? interpolate(dict.pickupLocationWithFee, {
+                                  amount: formatMoney(pickupState.selectedRelay.feeCents, locale),
+                                })
                               : dict.pickupToggleLabel
                             : dict.pickupFree}
                         </span>
@@ -991,6 +1045,8 @@ export function CheckoutForm({
             locale={locale}
             dict={dict}
             showRequiredPrompt
+            error={pickupServerError}
+            pickerRef={setPickupPickerNode}
             data-testid="checkout-pickup-picker"
           />
         ) : (
@@ -1443,57 +1499,72 @@ export function CheckoutForm({
               <span className="truncate pr-2">
                 {item.quantity}× {item.name}
               </span>
-              <span className="shrink-0 font-medium tabular-nums">
-                {formatMoney(item.price * item.quantity, locale)}
-              </span>
+              {pricing.ok && (
+                <span className="shrink-0 font-medium tabular-nums">
+                  {formatMoney(item.price * item.quantity, locale)}
+                </span>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="border-border/60 space-y-1.5 border-t pt-2 text-xs">
-          <div className="text-muted-foreground flex justify-between">
-            <span>{dict.subtotal}</span>
-            <span className="text-foreground font-medium tabular-nums">
-              {formatMoney(pricing.subtotal, locale)}
-            </span>
-          </div>
-          <div
-            data-testid="checkout-fee-row"
-            className="text-muted-foreground flex justify-between gap-2"
-          >
-            <span className="truncate">
-              {serviceType === "delivery"
-                ? dict.deliveryPaid
-                : selectedRelay
-                  ? `${dict.pickupLocationFeeLabel} · ${selectedRelay.name}`
-                  : dict.pickupLocationFeeLabel}
-            </span>
-            <span
-              data-testid="checkout-fee-value"
-              className="text-primary shrink-0 font-medium tabular-nums"
-            >
-              {serviceType === "delivery"
-                ? pricing.deliveryFee > 0
-                  ? formatMoney(pricing.deliveryFee, locale)
-                  : dict.pickupLocationFeeFree
-                : pricing.pickupFee > 0
-                  ? formatMoney(pricing.pickupFee, locale)
-                  : pickupChoiceRequired && pickupState.hasPaidOption
-                    ? dict.pickupLocationFeePending
-                    : dict.pickupLocationFeeFree}
-            </span>
-          </div>
-        </div>
+        {pricing.ok ? (
+          <>
+            <div className="border-border/60 space-y-1.5 border-t pt-2 text-xs">
+              <div className="text-muted-foreground flex justify-between">
+                <span>{dict.subtotal}</span>
+                <span className="text-foreground font-medium tabular-nums">
+                  {formatMoney(pricing.subtotal, locale)}
+                </span>
+              </div>
+              <div
+                data-testid="checkout-fee-row"
+                className="text-muted-foreground flex justify-between gap-2"
+              >
+                <span className="truncate">
+                  {serviceType === "delivery"
+                    ? dict.deliveryPaid
+                    : selectedRelay
+                      ? `${dict.pickupLocationFeeLabel} · ${selectedRelay.name}`
+                      : dict.pickupLocationFeeLabel}
+                </span>
+                <span
+                  data-testid="checkout-fee-value"
+                  className="text-primary shrink-0 font-medium tabular-nums"
+                >
+                  {serviceType === "delivery"
+                    ? pricing.deliveryFee > 0
+                      ? formatMoney(pricing.deliveryFee, locale)
+                      : dict.pickupLocationFeeFree
+                    : pricing.pickupFee > 0
+                      ? formatMoney(pricing.pickupFee, locale)
+                      : pickupChoiceRequired && pickupState.hasPaidOption
+                        ? dict.pickupLocationFeePending
+                        : dict.pickupLocationFeeFree}
+                </span>
+              </div>
+            </div>
 
-        <div className="border-border/60 flex items-center justify-between border-t pt-2.5">
-          <span className="text-foreground text-sm font-bold">{dict.orderTotal}</span>
-          <span
-            data-testid="checkout-order-total"
-            className="text-primary text-lg font-bold tabular-nums"
+            <div className="border-border/60 flex items-center justify-between border-t pt-2.5">
+              <span className="text-foreground text-sm font-bold">{dict.orderTotal}</span>
+              <span
+                data-testid="checkout-order-total"
+                className="text-primary text-lg font-bold tabular-nums"
+              >
+                {formatMoney(pricing.total, locale)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div
+            role="alert"
+            data-testid="checkout-pricing-error"
+            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
           >
-            {formatMoney(finalTotal, locale)}
-          </span>
-        </div>
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 wrap-anywhere">{dict.pricingUnavailableError}</span>
+          </div>
+        )}
       </section>
 
       {/* Error Feedback Message if any */}
@@ -1525,7 +1596,9 @@ export function CheckoutForm({
           <span>
             {submitting
               ? dict.placingOrder
-              : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
+              : pricing.ok
+                ? `${dict.placeOrder} • ${formatMoney(pricing.total, locale)}`
+                : dict.placeOrder}
           </span>
           <ArrowRight className="ml-1.5 h-4 w-4" />
         </Button>

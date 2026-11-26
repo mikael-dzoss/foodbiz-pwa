@@ -489,6 +489,10 @@ export const frDictionary: Dictionary = {
       "Ce point de retrait est fermé pour le moment et ouvre {when}. Programmez votre commande pour plus tard.",
     pickupLocationClosedScheduleNotice:
       "Ce point de retrait est actuellement fermé. Votre commande sera préparée pour le créneau choisi.",
+    pickupLocationWithFee: "Retrait ({amount})",
+    cartIncludedVat: "TVA incluse (10 %)",
+    pricingUnavailableError:
+      "Nous n'avons pas pu calculer le total de votre commande. Veuillez vérifier ou vider votre panier.",
   },
   quickAdd: {
     title: "Ajout rapide",
