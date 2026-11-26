@@ -51,4 +51,38 @@ describe("Mock Adapter Contract Conformance", () => {
       code: "ANTI_ABUSE_REJECTION",
     });
   });
+
+  it("enforces on_handover against cash OR card paymentMethods on storefront orders", async () => {
+    const [product] = await mockRepos.products.list(DEMO_BUSINESS_ID, { visibleOnly: true });
+    await mockRepos.products.update(DEMO_BUSINESS_ID, product.id, { stock: 20, price: 2000 });
+
+    await mockRepos.business.updateSettings(DEMO_BUSINESS_ID, {
+      paymentMethods: { cash: false, card: true, revolut: true, wero: true },
+    });
+    const cardHandover = await mockRepos.orders.place(DEMO_BUSINESS_ID, {
+      guestName: "Card Handover",
+      guestPhone: "+33691000001",
+      serviceType: "pickup",
+      channel: "storefront",
+      requestedDate: new Date().toISOString().slice(0, 10),
+      paymentPreference: "on_handover",
+      items: [{ productId: product.id, quantity: 1 }],
+    });
+    expect(cardHandover.orderId).toBeDefined();
+
+    await mockRepos.business.updateSettings(DEMO_BUSINESS_ID, {
+      paymentMethods: { cash: false, card: false, revolut: true, wero: true },
+    });
+    await expect(
+      mockRepos.orders.place(DEMO_BUSINESS_ID, {
+        guestName: "No Handover",
+        guestPhone: "+33691000002",
+        serviceType: "pickup",
+        channel: "storefront",
+        requestedDate: new Date().toISOString().slice(0, 10),
+        paymentPreference: "on_handover",
+        items: [{ productId: product.id, quantity: 1 }],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
 });

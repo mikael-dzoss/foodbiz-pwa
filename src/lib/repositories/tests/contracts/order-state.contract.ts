@@ -173,6 +173,11 @@ export function describeOrderStateContract(
       expect(unpaid).toMatchObject({ paid: "unpaid", paymentMethod: null, paidAt: null });
       expect(unpaid.statusHistory?.at(-1)?.note).toBe("Payment marked as unpaid (undone)");
 
+      const cardPaid = await repos.orders.recordPayment(businessId, id, { paymentMethod: "card" });
+      expect(cardPaid).toMatchObject({ paid: "paid", paymentMethod: "card" });
+      expect((await repos.orders.findById(businessId, id))?.paymentMethod).toBe("card");
+      await repos.orders.markUnpaid(businessId, id);
+
       await repos.orders.recordPayment(businessId, id, { paymentMethod: "cash" });
       const refunded = await repos.orders.recordRefund(businessId, id, "dispute");
       expect(refunded.paid).toBe("refunded");

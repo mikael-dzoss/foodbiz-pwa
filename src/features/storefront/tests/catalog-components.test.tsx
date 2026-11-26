@@ -79,7 +79,7 @@ const mockCatalog: StorefrontCatalogData = {
     leadTimeUnit: "business_days",
     revolutRevtag: "",
     weroIdentifier: "",
-    paymentMethods: { cash: true, revolut: true, wero: true },
+    paymentMethods: { cash: true, card: false, revolut: true, wero: true },
     paymentInstructionsEn: "",
     paymentInstructionsFr: "",
     inAppAlerts: true,

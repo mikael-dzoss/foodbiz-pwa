@@ -315,7 +315,7 @@ function createFakeSupabaseClient(
               lead_time_unit: "business_days",
               revolut_revtag: "",
               wero_identifier: "",
-              payment_methods: { cash: true, revolut: true, wero: true },
+              payment_methods: { cash: true, card: false, revolut: true, wero: true },
               payment_instructions_en: "",
               payment_instructions_fr: "",
               in_app_alerts: true,
@@ -547,6 +547,16 @@ function createFakeSupabaseClient(
             data: null,
             error: { message, code },
           });
+          const bizSettings = tables.business_settings.find((s) => s.business_id === businessId);
+          const pm = bizSettings?.payment_methods as Record<string, boolean> | undefined;
+          const pref = String(args.p_payment_preference ?? "on_handover");
+          if (pm) {
+            const allowed =
+              pref === "on_handover" ? (pm.cash ?? true) || (pm.card ?? false) : (pm[pref] ?? true);
+            if (!allowed) {
+              return fail(`INVALID_PAYMENT_PREFERENCE: ${pref} is not an enabled payment method`);
+            }
+          }
           if (items.length > MAX_LINES_PER_ORDER) return fail("MAX_LINES_EXCEEDED: too many");
           if ([...perProduct.values()].some((q) => q > MAX_QUANTITY_PER_LINE)) {
             return fail("MAX_LINE_QUANTITY_EXCEEDED: too many");

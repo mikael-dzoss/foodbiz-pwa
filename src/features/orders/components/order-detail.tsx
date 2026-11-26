@@ -43,6 +43,7 @@ import {
   formatDateTime,
   formatTime,
   type OrderStatus,
+  type PaymentMethod,
 } from "@/domain";
 import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import {
@@ -130,9 +131,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [rejectionError, setRejectionError] = React.useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
-    "cash" | "revolut" | "wero"
-  >("cash");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<PaymentMethod>("cash");
   const [paymentDialogMode, setPaymentDialogMode] = React.useState<"record" | "shortcut">("record");
   const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
   const [refundReason, setRefundReason] = React.useState("");
@@ -1208,7 +1207,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           </DialogHeader>
 
           <div className="flex flex-col gap-2 py-3">
-            {(["cash", "revolut", "wero"] as const).map((method) => (
+            {(["cash", "card", "revolut", "wero"] as const).map((method) => (
               <Button
                 variant="unstyled"
                 size="none"
@@ -1216,7 +1215,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
                 type="button"
                 onClick={() => setSelectedPaymentMethod(method)}
                 className={cn(
-                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold capitalize transition-colors",
+                  "flex min-h-11 items-center justify-between rounded-lg border p-3 text-xs font-semibold transition-colors",
                   selectedPaymentMethod === method
                     ? "border-primary bg-primary-soft text-primary-soft-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted",

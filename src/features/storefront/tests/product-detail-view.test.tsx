@@ -53,6 +53,7 @@ const sampleProductData: StorefrontProductData = {
     weroIdentifier: "",
     paymentMethods: {
       cash: true,
+      card: false,
       revolut: true,
       wero: true,
     },

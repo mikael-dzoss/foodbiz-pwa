@@ -407,6 +407,7 @@ describe("Settings Server Actions", () => {
         weroIdentifier: "+33698765432",
         paymentMethods: {
           cash: true,
+          card: false,
           revolut: true,
           wero: false,
         },
@@ -426,11 +427,30 @@ describe("Settings Server Actions", () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
     });
 
+    it("accepts card-only payment settings", async () => {
+      const res = await updatePaymentSettingsAction({
+        revolutRevtag: "",
+        weroIdentifier: "",
+        paymentMethods: {
+          cash: false,
+          card: true,
+          revolut: false,
+          wero: false,
+        },
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.paymentMethods?.card).toBe(true);
+      }
+    });
+
     it("rejects when all payment methods are disabled", async () => {
       const res = await updatePaymentSettingsAction({
         revolutRevtag: "@rev",
         paymentMethods: {
           cash: false,
+          card: false,
           revolut: false,
           wero: false,
         },
@@ -564,7 +584,7 @@ describe("Settings Server Actions", () => {
     it("handles repository Error exceptions in payment settings", async () => {
       mockBusinessRepo.updateSettings.mockRejectedValueOnce(new Error("Payment write failed"));
       const res = await updatePaymentSettingsAction({
-        paymentMethods: { cash: true, revolut: true, wero: true },
+        paymentMethods: { cash: true, card: false, revolut: true, wero: true },
       });
       expect(res.ok).toBe(false);
       if (!res.ok) {
@@ -575,7 +595,7 @@ describe("Settings Server Actions", () => {
     it("handles non-Error exceptions in payment settings", async () => {
       mockBusinessRepo.updateSettings.mockRejectedValueOnce("Payment failure");
       const res = await updatePaymentSettingsAction({
-        paymentMethods: { cash: true, revolut: true, wero: true },
+        paymentMethods: { cash: true, card: false, revolut: true, wero: true },
       });
       expect(res.ok).toBe(false);
       if (!res.ok) {
@@ -612,7 +632,7 @@ describe("Settings Server Actions", () => {
     const paymentInput = {
       revolutRevtag: "@intruder",
       weroIdentifier: "",
-      paymentMethods: { cash: true, revolut: true, wero: true },
+      paymentMethods: { cash: true, card: false, revolut: true, wero: true },
       paymentInstructionsEn: "",
       paymentInstructionsFr: "",
     };

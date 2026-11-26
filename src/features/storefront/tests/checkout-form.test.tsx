@@ -51,6 +51,7 @@ const mockSettings: BusinessSettings = {
   weroIdentifier: "wero@example.com",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },
@@ -336,8 +337,8 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(screen.getByTestId("timing-asap-option").textContent).toContain(
       "ASAP (~1 business day)",
     );
-    // #234: neutral pay-on-handover copy and compact Wero badge
-    expect(screen.getByText("Pay in cash or by card when you receive your order")).toBeDefined();
+    // #234 / #377: pay-on-handover copy matches enabled methods (cash only in mockSettings)
+    expect(screen.getByText("Pay in cash when you receive your order")).toBeDefined();
     expect(screen.getByText("QR or alias")).toBeDefined();
     expect(screen.getByText("Instant SEPA transfer")).toBeDefined();
 
@@ -1125,5 +1126,66 @@ describe("CheckoutView & CheckoutForm", () => {
 
     expect(screen.getByTestId("timing-asap-option")).toBeDefined();
     expect(screen.queryByTestId("checkout-closed-schedule-notice")).toBeNull();
+  });
+
+  describe("pay-on-handover options and badges (#377)", () => {
+    const renderWithPayments = (
+      paymentMethods: BusinessSettings["paymentMethods"],
+      locale: "en" | "fr" = "en",
+    ) =>
+      render(
+        <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
+          <CheckoutView
+            isOpen
+            isAcceptingOrders
+            business={mockBusiness}
+            settings={{ ...mockSettings, paymentMethods }}
+            locale={locale}
+            dict={getDictionary(locale).storefront}
+          />
+        </CartProvider>,
+      );
+
+    it("shows Cash on handover and only the Cash badge when only cash is enabled", () => {
+      renderWithPayments({ cash: true, card: false, revolut: true, wero: true });
+
+      const handover = screen.getByTestId("payment-on-handover");
+      expect(handover.textContent).toContain("Cash on handover");
+      expect(screen.getByTestId("payment-badge-cash")).toBeDefined();
+      expect(screen.queryByTestId("payment-badge-card")).toBeNull();
+      expect(screen.getByTestId("payment-revolut").textContent).toContain("Revolut (Revtag)");
+    });
+
+    it("shows Card on handover and only the Contactless badge when only card is enabled", () => {
+      renderWithPayments({ cash: false, card: true, revolut: true, wero: true });
+
+      const handover = screen.getByTestId("payment-on-handover");
+      expect(handover.textContent).toContain("Card on handover");
+      expect(handover.textContent).toContain("Pay by card when you receive your order");
+      expect(screen.queryByTestId("payment-badge-cash")).toBeNull();
+      expect(screen.getByTestId("payment-badge-card").textContent).toContain("Contactless");
+      const radio = handover.querySelector('input[type="radio"]') as HTMLInputElement;
+      expect(radio.checked).toBe(true);
+    });
+
+    it("shows Cash or card on handover and both badges when cash and card are enabled", () => {
+      renderWithPayments({ cash: true, card: true, revolut: true, wero: true });
+
+      const handover = screen.getByTestId("payment-on-handover");
+      expect(handover.textContent).toContain("Cash or card on handover");
+      expect(handover.textContent).toContain("Pay in cash or by card when you receive your order");
+      expect(screen.getByTestId("payment-badge-cash")).toBeDefined();
+      expect(screen.getByTestId("payment-badge-card")).toBeDefined();
+    });
+
+    it("hides pay-on-handover when neither cash nor card is enabled and falls back to revolut", () => {
+      renderWithPayments({ cash: false, card: false, revolut: true, wero: true });
+
+      expect(screen.queryByTestId("payment-on-handover")).toBeNull();
+      const revolutRadio = screen
+        .getByTestId("payment-revolut")
+        .querySelector('input[type="radio"]') as HTMLInputElement;
+      expect(revolutRadio.checked).toBe(true);
+    });
   });
 });

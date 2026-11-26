@@ -46,7 +46,7 @@ export function markOrderPaid<T extends OrderPaymentFields & { status?: OrderSta
     return {
       ok: false,
       error:
-        "A valid payment method ('cash' | 'revolut' | 'wero') is required when marking an order as paid.",
+        "A valid payment method ('cash' | 'card' | 'revolut' | 'wero') is required when marking an order as paid.",
     };
   }
 

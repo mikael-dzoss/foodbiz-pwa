@@ -20,7 +20,11 @@ export function OrderConfirmationView({
   order: PublicOrder;
   settings: Pick<
     BusinessSettings,
-    "revolutRevtag" | "weroIdentifier" | "paymentInstructionsEn" | "paymentInstructionsFr"
+    | "revolutRevtag"
+    | "weroIdentifier"
+    | "paymentMethods"
+    | "paymentInstructionsEn"
+    | "paymentInstructionsFr"
   > | null;
   businessName: string;
   token: string;
@@ -32,6 +36,15 @@ export function OrderConfirmationView({
   const reference = `#${order.orderNumber ?? "—"}`;
   const method = order.paymentPreference;
   const recipient = method === "revolut" ? settings?.revolutRevtag : settings?.weroIdentifier;
+  const cashAllowed = settings?.paymentMethods?.cash ?? true;
+  const cardAllowed = settings?.paymentMethods?.card ?? false;
+  const handoverCopy =
+    cashAllowed && cardAllowed
+      ? copy.handoverCashCard
+      : cardAllowed
+        ? copy.handoverCard
+        : copy.handoverCash;
+  const handoverPrepareCopy = cashAllowed ? copy.handoverPrepare : copy.handoverPrepareCard;
   const instructions =
     locale === "fr" ? settings?.paymentInstructionsFr : settings?.paymentInstructionsEn;
   const needsPayment = order.paid === "unpaid" && order.status !== "CANCELLED";
@@ -119,9 +132,9 @@ export function OrderConfirmationView({
           <>
             {method === "on_handover" ? (
               <>
-                <p className="text-sm">{copy.handover}</p>
+                <p className="text-sm">{handoverCopy}</p>
                 <ImportantNote testId="confirmation-handover-prepare">
-                  {copy.handoverPrepare}
+                  {handoverPrepareCopy}
                 </ImportantNote>
               </>
             ) : recipient?.trim() ? (

@@ -90,12 +90,19 @@ export function describeBusinessRepositoryContract(
       const updatedSettings = await repos.business.updateSettings(businessId, {
         lowStockThreshold: 10,
         taxPercentage: 10,
+        paymentMethods: { cash: true, card: true, revolut: true, wero: true },
       });
       expect(updatedSettings.lowStockThreshold).toBe(10);
       expect(updatedSettings.taxPercentage).toBe(10);
+      expect(updatedSettings.paymentMethods.card).toBe(true);
 
       const reFetched = await repos.business.getSettings(businessId);
       expect(reFetched?.lowStockThreshold).toBe(10);
+      expect(reFetched?.paymentMethods.card).toBe(true);
+
+      await repos.business.updateSettings(businessId, {
+        paymentMethods: settings!.paymentMethods,
+      });
 
       await expect(
         repos.business.updateSettings("00000000-0000-4000-8000-000000000099", {
@@ -115,7 +122,7 @@ export function describeBusinessRepositoryContract(
         for (const change of [
           { revolutRevtag: "@intruder" },
           { weroIdentifier: "intruder-wero" },
-          { paymentMethods: { cash: true, revolut: false, wero: false } },
+          { paymentMethods: { cash: true, card: false, revolut: false, wero: false } },
           { paymentInstructionsEn: "Pay the intruder" },
           { paymentInstructionsFr: "Payez l'intrus" },
         ]) {

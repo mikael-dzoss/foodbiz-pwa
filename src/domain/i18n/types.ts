@@ -299,6 +299,13 @@ export interface StorefrontDictionary {
   notesTooLongError: string;
   fieldInvalidError: string;
   formValidationSummary: string;
+  // Handover payment option variants (#377)
+  payOnHandoverCash: string;
+  payOnHandoverCashSubtext: string;
+  payOnHandoverCard: string;
+  payOnHandoverCardSubtext: string;
+  cardOnPickup: string;
+  walletTapSoon: string;
 }
 
 export interface QuickAddDictionary {
@@ -548,6 +555,9 @@ export interface SettingsDictionary {
     saveSuccess: string;
     discardButton: string;
     atLeastOneMethodError: string;
+    // Card on handover toggle (#377)
+    cardLabel: string;
+    cardDesc: string;
   };
   inventoryFinance: {
     title: string;
@@ -592,7 +602,6 @@ export interface OrderConfirmationDictionary {
   awaiting: string;
   receivedHelp: string;
   paymentTitle: string;
-  handover: string;
   revtag: string;
   weroIdentifier: string;
   amount: string;
@@ -605,6 +614,11 @@ export interface OrderConfirmationDictionary {
   copyFailed: string;
   noPaymentNeeded: string;
   nextSteps: string;
+  // Handover payment variants (#377)
+  handoverCash: string;
+  handoverCard: string;
+  handoverCashCard: string;
+  handoverPrepareCard: string;
 }
 
 export interface OrderTrackingDictionary {

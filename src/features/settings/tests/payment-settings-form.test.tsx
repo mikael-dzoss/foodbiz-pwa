@@ -31,6 +31,7 @@ const mockSettings: BusinessSettings = {
   weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },
@@ -82,8 +83,13 @@ describe("PaymentSettingsForm component (M-64)", () => {
     );
 
     expect(screen.getByTestId("switch-payment-cash")).toBeDefined();
+    expect(screen.getByTestId("switch-payment-card")).toBeDefined();
     expect(screen.getByTestId("switch-payment-revolut")).toBeDefined();
     expect(screen.getByTestId("switch-payment-wero")).toBeDefined();
+
+    expect(screen.getByText("Revolut (Revtag)")).toBeDefined();
+    expect(screen.getByText("Wero")).toBeDefined();
+    expect(screen.getByText("Card on Handover")).toBeDefined();
 
     expect((screen.getByTestId("textarea-instructions-en") as HTMLTextAreaElement).value).toBe(
       "Please present your order reference upon arrival.",
@@ -166,8 +172,33 @@ describe("PaymentSettingsForm component (M-64)", () => {
           weroIdentifier: "+33639980001",
           paymentMethods: {
             cash: true,
+            card: false,
             revolut: true,
             wero: true,
+          },
+        }),
+      );
+    });
+  });
+
+  it("allows enabling card on handover as the only enabled payment method", async () => {
+    render(<PaymentSettingsForm settings={mockSettings} dict={dict} />);
+
+    fireEvent.click(screen.getByTestId("switch-payment-cash"));
+    fireEvent.click(screen.getByTestId("switch-payment-card"));
+    fireEvent.click(screen.getByTestId("switch-payment-revolut"));
+    fireEvent.click(screen.getByTestId("switch-payment-wero"));
+
+    fireEvent.click(screen.getByTestId("save-payment-button"));
+
+    await waitFor(() => {
+      expect(actions.updatePaymentSettingsAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethods: {
+            cash: false,
+            card: true,
+            revolut: false,
+            wero: false,
           },
         }),
       );
@@ -222,7 +253,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
       weroIdentifier: "",
       paymentInstructionsEn: "",
       paymentInstructionsFr: "",
-      paymentMethods: { cash: false, revolut: true, wero: false },
+      paymentMethods: { cash: false, card: false, revolut: true, wero: false },
     };
     render(<PaymentSettingsForm settings={emptySettings} dict={dict} />);
     expect((screen.getByTestId("input-revolut-revtag") as HTMLInputElement).value).toBe("");
@@ -282,6 +313,7 @@ describe("PaymentSettingsForm component (M-64)", () => {
       "input-revolut-revtag",
       "input-wero-identifier",
       "switch-payment-cash",
+      "switch-payment-card",
       "save-payment-button",
     ]) {
       expect(screen.getByTestId(id).matches(":disabled"), id).toBe(true);

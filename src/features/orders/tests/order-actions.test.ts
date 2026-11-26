@@ -178,7 +178,7 @@ const mockOrderRepo = {
     async (
       _bId: string,
       orderId: string,
-      input: { paymentMethod: "cash" | "revolut" | "wero"; markCompleted?: boolean },
+      input: { paymentMethod: "cash" | "card" | "revolut" | "wero"; markCompleted?: boolean },
     ) => {
       const o = mockOrders.find((ord) => ord.id === orderId);
       if (!o) throw new OrderRepoError("Order not found", "ORDER_NOT_FOUND");
@@ -904,6 +904,21 @@ describe("Order Server Actions", () => {
       expect(compRes.ok).toBe(true);
       if (compRes.ok) {
         expect(compRes.data.status).toBe("COMPLETED");
+      }
+    });
+
+    it("records card payment method (#377)", async () => {
+      mockOrders[0].status = "CONFIRMED";
+      mockOrders[0].paid = "unpaid";
+
+      const payRes = await recordPaymentAction({
+        orderId: validOrderId,
+        paymentMethod: "card",
+      });
+      expect(payRes.ok).toBe(true);
+      if (payRes.ok) {
+        expect(payRes.data.paid).toBe("paid");
+        expect(payRes.data.paymentMethod).toBe("card");
       }
     });
 

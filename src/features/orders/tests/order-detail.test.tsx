@@ -263,6 +263,35 @@ describe("OrderDetail Component", () => {
     });
   });
 
+  it("allows recording payment via card and renders the Card label (#377)", async () => {
+    const paySpy = vi.spyOn(actions, "recordPaymentAction").mockResolvedValueOnce({
+      ok: true,
+      data: {
+        ...mockOrder,
+        paid: "paid",
+        paymentMethod: "card",
+        paidAt: "2026-10-13T18:46:00.000Z",
+      },
+    });
+
+    render(<OrderDetail order={mockOrder} />);
+    fireEvent.click(screen.getByTestId("record-payment-button"));
+
+    const cardOption = screen.getByTestId("payment-method-card");
+    expect(cardOption.textContent).toContain("Card");
+    expect(cardOption.className).not.toContain("capitalize");
+    fireEvent.click(cardOption);
+    fireEvent.click(screen.getByTestId("confirm-payment-button"));
+
+    await waitFor(() => {
+      expect(paySpy).toHaveBeenCalledWith({
+        orderId: "ord-1",
+        paymentMethod: "card",
+      });
+    });
+    expect(screen.getByTestId("payment-card").textContent).toContain("Card");
+  });
+
   it("shows Refund Due badge and records refund when cancelled paid order is viewed", async () => {
     const refundSpy = vi.spyOn(actions, "recordRefundAction").mockResolvedValueOnce({
       ok: true,

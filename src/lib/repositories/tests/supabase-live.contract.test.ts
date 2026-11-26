@@ -165,7 +165,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         min_order_amount: 500, // 5.00 EUR
         delivery_fee: 200, // 2.00 EUR
         service_types: { pickup: true, delivery: true, dineIn: true },
-        payment_methods: { cash: true, revolut: true, wero: true },
+        payment_methods: { cash: true, card: false, revolut: true, wero: true },
         low_stock_threshold: 5,
         tax_percentage: 10,
         notifications: true,
@@ -901,7 +901,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
     const paymentChanges = [
       { revolutRevtag: "@intruder" },
       { weroIdentifier: "intruder-wero" },
-      { paymentMethods: { cash: true, revolut: false, wero: false } },
+      { paymentMethods: { cash: true, card: false, revolut: false, wero: false } },
       { paymentInstructionsEn: "Pay the intruder" },
       { paymentInstructionsFr: "Payez l'intrus" },
     ];

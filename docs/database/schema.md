@@ -185,7 +185,7 @@ create type order_paid_status as enum ('paid', 'unpaid');
 create type order_service_type as enum ('pickup', 'delivery', 'dine-in');
 create type order_channel as enum ('storefront', 'phone', 'whatsapp', 'in-person');
 create type order_payment_preference as enum ('revolut', 'wero', 'on_handover');
-create type order_payment_method as enum ('cash', 'revolut', 'wero');
+create type order_payment_method as enum ('cash', 'revolut', 'wero', 'card');
 
 -- ----------------------------------------------------------------------------
 -- 1. Businesses & Tenancy
@@ -231,6 +231,8 @@ create table business_settings (
     check (lead_time_unit in ('minutes', 'hours', 'business_days')),
   -- Business operating time zone (#168): IANA name, validated by trigger (see 5.2.3)
   timezone text not null default 'Europe/Paris',
+  -- Enabled payment options (#377 adds "card": false by default)
+  payment_methods jsonb not null default '{"cash": true, "card": false, "revolut": true, "wero": true}'::jsonb,
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );
@@ -594,7 +596,7 @@ grants are needed (note: anon can list all businesses).
 | Guest phone (all channels)                           | E.164                                                                                    | `INVALID_GUEST_PHONE`                                                               |
 | Requested date                                       | yesterday to today + 60 days (no horizon exists in the spec or settings; 60 days chosen) | `INVALID_REQUESTED_DATE`                                                            |
 | Requested time                                       | whole minutes                                                                            | `INVALID_REQUESTED_TIME`                                                            |
-| Payment preference                                   | an enabled method (`on_handover` = `cash`)                                               | `INVALID_PAYMENT_PREFERENCE`                                                        |
+| Payment preference                                   | an enabled method (`on_handover` = `cash` or `card`)                                     | `INVALID_PAYMENT_PREFERENCE`                                                        |
 | Service type, store open, minimum order              | as before                                                                                | `SERVICE_TYPE_NOT_AVAILABLE`, `ORDERS_NOT_ACCEPTED`, `MINIMUM_ORDER_AMOUNT_NOT_MET` |
 | Orders per phone (anonymous callers)                 | 3 per 10 minutes (`RATE_LIMIT_PHONE_MAX_REQUESTS`)                                       | `RATE_LIMITED` (P0006)                                                              |
 | Orders per business (anonymous callers, flood brake) | 120 per 10 minutes (`RATE_LIMIT_BUSINESS_MAX_ORDERS`)                                    | `RATE_LIMITED` (P0006)                                                              |

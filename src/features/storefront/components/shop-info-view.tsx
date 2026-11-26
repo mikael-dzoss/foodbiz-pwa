@@ -33,6 +33,19 @@ export interface ShopInfoViewProps {
 }
 
 export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewProps) {
+  const paymentMethods = settings?.paymentMethods ?? {
+    cash: true,
+    card: false,
+    revolut: true,
+    wero: true,
+  };
+  const enabledPaymentBadges: readonly { id: string; label: string }[] = [
+    ...(paymentMethods.cash ? [{ id: "cash", label: dict.cashOnPickup }] : []),
+    ...(paymentMethods.card ? [{ id: "card", label: dict.cardOnPickup }] : []),
+    ...(paymentMethods.revolut ? [{ id: "revolut", label: dict.revolutPay }] : []),
+    ...(paymentMethods.wero ? [{ id: "wero", label: "Wero" }] : []),
+  ];
+
   // Service types enabled status (#83 AC)
   const pickupEnabled = settings?.serviceTypes?.pickup ?? true;
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
@@ -445,18 +458,21 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             {dict.acceptedPayments}
           </span>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
-              {dict.cashOnPickup}
-            </span>
-            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
-              Revolut Pay
-            </span>
-            <span className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium">
-              Wero / Paylib
-            </span>
+            {enabledPaymentBadges.map((badge) => (
+              <span
+                key={badge.id}
+                data-testid={`shop-payment-${badge.id}`}
+                className="border-border/40 bg-muted/60 text-foreground text-caption rounded border px-2 py-1 font-medium"
+              >
+                {badge.label}
+              </span>
+            ))}
             {/* TODO(payments): Tap to pay with Apple Pay & Google Wallet (#72) */}
-            <span className="border-border/60 bg-muted text-muted-foreground text-caption flex items-center gap-1 rounded border px-2 py-1">
-              <span>Card Tap</span>
+            <span
+              data-testid="shop-payment-wallet-tap"
+              className="border-border/60 bg-muted text-muted-foreground text-caption flex items-center gap-1 rounded border px-2 py-1"
+            >
+              <span>{dict.walletTapSoon}</span>
               <SoonBadge />
             </span>
           </div>
