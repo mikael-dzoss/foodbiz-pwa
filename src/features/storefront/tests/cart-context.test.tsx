@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CartProvider, useCart, resetCartStore } from "../context/cart-context";
+import {
+  CartProvider,
+  PICKUP_LOCATION_STORAGE_KEY,
+  useCart,
+  resetCartStore,
+} from "../context/cart-context";
 import { DEMO_PRODUCT } from "@/lib/repositories/mock/fixtures";
 import type { Product } from "@/domain/product";
 
@@ -39,6 +44,8 @@ function TestCartConsumer() {
     syncPrices,
     notes,
     setNotes,
+    pickupLocationChoice,
+    setPickupLocationChoice,
   } = useCart();
 
   return (
@@ -47,6 +54,7 @@ function TestCartConsumer() {
       <div data-testid="total-amount">{totalAmountInCents}</div>
       <div data-testid="item-count">{items.length}</div>
       <div data-testid="cart-notes">{notes}</div>
+      <div data-testid="cart-pickup-choice">{pickupLocationChoice ?? ""}</div>
       <ul>
         {items.map((i) => (
           <li key={i.productId} data-testid={`item-${i.productId}`}>
@@ -87,6 +95,15 @@ function TestCartConsumer() {
       </button>
       <button onClick={() => setNotes("Extra crispy packaging")} data-testid="set-notes-btn">
         Set Notes
+      </button>
+      <button
+        onClick={() => setPickupLocationChoice("relay-123")}
+        data-testid="set-pickup-choice-btn"
+      >
+        Set Pickup
+      </button>
+      <button onClick={() => setPickupLocationChoice(null)} data-testid="clear-pickup-choice-btn">
+        Clear Pickup
       </button>
       <button onClick={clearCart} data-testid="clear-btn">
         Clear
@@ -236,5 +253,24 @@ describe("CartContext (#81, #82)", () => {
 
     fireEvent.click(screen.getByTestId("clear-btn"));
     expect(screen.getByTestId("cart-notes").textContent).toBe("");
+  });
+
+  it("persists and clears pickupLocationChoice in localStorage (#386)", () => {
+    render(
+      <CartProvider>
+        <TestCartConsumer />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("cart-pickup-choice").textContent).toBe("");
+    expect(localStorage.getItem(PICKUP_LOCATION_STORAGE_KEY)).toBeNull();
+
+    fireEvent.click(screen.getByTestId("set-pickup-choice-btn"));
+    expect(screen.getByTestId("cart-pickup-choice").textContent).toBe("relay-123");
+    expect(localStorage.getItem(PICKUP_LOCATION_STORAGE_KEY)).toBe("relay-123");
+
+    fireEvent.click(screen.getByTestId("clear-pickup-choice-btn"));
+    expect(screen.getByTestId("cart-pickup-choice").textContent).toBe("");
+    expect(localStorage.getItem(PICKUP_LOCATION_STORAGE_KEY)).toBeNull();
   });
 });
