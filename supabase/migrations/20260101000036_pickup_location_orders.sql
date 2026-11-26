@@ -43,10 +43,10 @@ set lock_timeout = '5s';
 -- ----------------------------------------------------------------------------
 -- 1. orders columns, tenant-safe FK, index
 -- ----------------------------------------------------------------------------
+alter table public.orders add column pickup_location_id uuid null;
+alter table public.orders add column pickup_location_name text null;
+alter table public.orders add column pickup_location_address text null;
 alter table public.orders
-  add column pickup_location_id uuid null,
-  add column pickup_location_name text null,
-  add column pickup_location_address text null,
   add column pickup_fee_cents integer not null default 0
     constraint orders_pickup_fee_cents_nonneg check (pickup_fee_cents >= 0);
 

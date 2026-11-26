@@ -253,6 +253,8 @@ export const placeOrderInputSchema = z
     requestedTime: timeHHMMSchema.optional().nullable(),
     paymentPreference: paymentPreferenceSchema.default("on_handover"),
     notes: z.string().trim().max(500, "Notes must be under 500 characters").optional().nullable(),
+    /** Chosen relay pickup location (pickup only); null or absent means the shop. */
+    pickupLocationId: uuidSchema.nullable().optional(),
     /** Client-generated uuid; the database stores it on the order to make retries idempotent. */
     idempotencyKey: uuidSchema,
     honeypot: z.string().optional().nullable(),
@@ -273,6 +275,13 @@ export const placeOrderInputSchema = z
         code: "custom",
         path: ["requestedDate"],
         message: "Please select a date for scheduled orders",
+      });
+    }
+    if (data.serviceType !== "pickup" && data.pickupLocationId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["pickupLocationId"],
+        message: "A pickup location is only valid for pickup orders",
       });
     }
   });
@@ -316,6 +325,9 @@ export const PLACE_ORDER_REASONS = [
   "SLOT_DATE_OUT_OF_WINDOW",
   "SLOT_TIME_OUTSIDE_HOURS",
   "SLOT_TIME_IN_PAST",
+  "PICKUP_LOCATION_INVALID",
+  "PICKUP_LOCATION_REQUIRED",
+  "PICKUP_NOT_AVAILABLE",
 ] as const;
 
 export type PlaceOrderReason = (typeof PLACE_ORDER_REASONS)[number];

@@ -21,6 +21,8 @@ export interface OrderTotalsSuccess {
   ok: true;
   subtotal: number;
   deliveryFee: number;
+  /** Relay pickup fee (pickup orders at a relay location, 0 otherwise). */
+  pickupFee: number;
   total: number;
   items: Array<Required<PricingLineItem>>;
 }
@@ -31,6 +33,8 @@ export interface CalculateOrderTotalsInput {
   items: readonly PricingLineItem[];
   serviceType: ServiceType;
   deliveryFee?: number;
+  /** Fee of the chosen relay pickup location; only counted for pickup orders. */
+  pickupFee?: number;
   minimumOrderAmount?: number;
 }
 
@@ -48,7 +52,7 @@ export function calculateOrderItemTotal(quantity: number, unitPrice: number): nu
 }
 
 /**
- * Computes order subtotal, delivery fee (for delivery service only), and total in integer cents,
+ * Computes order subtotal, delivery fee (delivery only), relay pickup fee (pickup only), and total in integer cents,
  * enforcing minimum order amount on the food subtotal.
  */
 export function calculateOrderTotals(input: CalculateOrderTotalsInput): OrderTotalsResult {
@@ -69,6 +73,7 @@ export function calculateOrderTotals(input: CalculateOrderTotalsInput): OrderTot
 
   const subtotal = normalizedItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const deliveryFee = input.serviceType === "delivery" ? Math.max(0, input.deliveryFee ?? 0) : 0;
+  const pickupFee = input.serviceType === "pickup" ? Math.max(0, input.pickupFee ?? 0) : 0;
   const minimumOrderAmount = input.minimumOrderAmount ?? 0;
 
   if (minimumOrderAmount > 0 && subtotal < minimumOrderAmount) {
@@ -82,12 +87,13 @@ export function calculateOrderTotals(input: CalculateOrderTotalsInput): OrderTot
     };
   }
 
-  const total = subtotal + deliveryFee;
+  const total = subtotal + deliveryFee + pickupFee;
 
   return {
     ok: true,
     subtotal,
     deliveryFee,
+    pickupFee,
     total,
     items: normalizedItems,
   };

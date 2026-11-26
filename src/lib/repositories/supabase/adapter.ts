@@ -26,6 +26,7 @@ import {
   placedOrderSummarySchema,
   publicDeliveryAddress,
   publicOrderSchema,
+  publicPickupLocation,
   type CancelOrderResult,
   type Order,
   type OrderPaymentInput,
@@ -218,6 +219,14 @@ function mapOrderRow(row: OrderRowWithItems): Order {
     cancellationReason: row.cancellation_reason,
     notes: row.notes,
     deliveryAddress: row.delivery_address,
+    pickupLocation: row.pickup_location_name
+      ? {
+          id: row.pickup_location_id,
+          name: row.pickup_location_name,
+          address: row.pickup_location_address ?? "",
+        }
+      : null,
+    pickupFeeCents: row.pickup_fee_cents,
     statusHistory,
     createdAt: toIsoUtc(row.created_at),
     updatedAt: toIsoUtc(row.updated_at),
@@ -348,6 +357,12 @@ function mapPlaceOrderError(error: { code?: string; message?: string }): OrderRe
       return build("This store is currently not accepting orders.", "STORE_CLOSED");
     case "SERVICE_TYPE_NOT_AVAILABLE":
       return build("This service type is currently not available.", "SERVICE_TYPE_DISABLED");
+    case "INVALID_PICKUP_LOCATION":
+      return build("The chosen pickup location is no longer available.", "PICKUP_LOCATION_INVALID");
+    case "PICKUP_LOCATION_REQUIRED":
+      return build("Please choose a pickup location.", "PICKUP_LOCATION_REQUIRED");
+    case "PICKUP_NOT_AVAILABLE":
+      return build("Pickup is currently not available.", "PICKUP_NOT_AVAILABLE");
     case "MINIMUM_ORDER_AMOUNT_NOT_MET":
       return build("The minimum order amount has not been reached.", "MINIMUM_ORDER_UNMET");
     case "MAX_LINE_QUANTITY_EXCEEDED":
@@ -844,6 +859,11 @@ export function createSupabaseRepositories(
           order.delivery_address ?? order.deliveryAddress,
         ),
         createdAt: toIsoUtc(order.created_at ?? order.createdAt),
+        pickupLocation: publicPickupLocation(
+          serviceType,
+          order.pickup_location_name ?? order.pickupLocationName,
+          order.pickup_location_address ?? order.pickupLocationAddress,
+        ),
         items: items.map((it) => ({
           productName: it.product_name ?? it.productName,
           quantity: it.quantity,
@@ -882,6 +902,7 @@ export function createSupabaseRepositories(
         p_update_guest_name: input.allowRename ?? false,
         p_idempotency_key: input.idempotencyKey,
         p_is_asap: input.isAsap ?? false,
+        p_pickup_location_id: input.pickupLocationId ?? undefined,
       });
 
       if (error) {

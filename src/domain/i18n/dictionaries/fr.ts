@@ -418,6 +418,10 @@ export const frDictionary: Dictionary = {
     orderErrorSlotTimeOutsideHours: "L'heure choisie est en dehors des horaires d'ouverture.",
     orderErrorSlotTimeInPast:
       "L'heure choisie est déjà passée. Veuillez choisir une heure plus tardive.",
+    orderErrorPickupLocationInvalid:
+      "Le point de retrait choisi n'est plus disponible. Veuillez en choisir un autre.",
+    orderErrorPickupLocationRequired: "Veuillez choisir où retirer votre commande.",
+    orderErrorPickupNotAvailable: "Le retrait n'est pas disponible pour le moment.",
     checkoutDateTomorrow: "Demain",
     checkoutChooseDate: "Choisissez une date",
     checkoutChooseTime: "Choisissez une heure",

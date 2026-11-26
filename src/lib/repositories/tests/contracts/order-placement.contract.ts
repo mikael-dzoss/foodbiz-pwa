@@ -18,6 +18,11 @@ export type OpeningHoursSetter = (hours: {
 }) => Promise<void>;
 
 export interface OrderPlacementContractOptions {
+  /**
+   * Repositories of a manager of the business (able to create pickup locations); the relay-order
+   * cases are skipped when omitted (the placement contract itself runs anonymously).
+   */
+  readonly managerRepositories?: () => Promise<Repositories> | Repositories;
   /** Required for the opening-hours cases; they are skipped when omitted. */
   readonly setOpeningHours?: OpeningHoursSetter;
   /**
@@ -415,6 +420,89 @@ export function describeOrderPlacementContract(
           }),
         );
         expect(placed.orderId).toBeDefined();
+      });
+    });
+
+    describe.skipIf(!options.managerRepositories)("pickup locations (#386)", () => {
+      const createRelay = async (extra: { isActive?: boolean } = {}) =>
+        (await options.managerRepositories!()).pickupLocations.create(businessId, {
+          name: "Contract Relay",
+          address: "18 Rue de Dunkerque",
+          postcode: "75010",
+          feeCents: 150,
+          ...extra,
+        });
+      const removeRelay = async (id: string) => {
+        await (
+          await options.managerRepositories!()
+        ).pickupLocations
+          .delete(businessId, id)
+          .catch(() => undefined);
+      };
+
+      it("stores the relay and its fee, and tracking shows where to collect", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const price = (await repos.products.findById(businessId, productId))?.price ?? 0;
+        const relay = await createRelay();
+        try {
+          const placed = await repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }], {
+              pickupLocationId: relay.id,
+            }),
+          );
+          expect(placed.totalAmount).toBe(price * qty + 150);
+          const tracked = await repos.orders.findByTrackingToken(placed.trackingToken);
+          expect(tracked?.pickupLocation).toEqual({
+            name: "Contract Relay",
+            address: "18 Rue de Dunkerque, 75010",
+          });
+        } finally {
+          await removeRelay(relay.id);
+        }
+      });
+
+      it("rejects an unknown or inactive location without touching stock", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const before = await stockOf(repos, productId);
+        const inactive = await createRelay({ isActive: false });
+        try {
+          for (const pickupLocationId of [crypto.randomUUID(), inactive.id]) {
+            await expectRejection(
+              repos.orders.place(
+                businessId,
+                orderInput(freshPhone(), [{ productId, quantity: qty }], { pickupLocationId }),
+              ),
+              "PICKUP_LOCATION_INVALID",
+            );
+          }
+          expect(await stockOf(repos, productId)).toBe(before);
+        } finally {
+          await removeRelay(inactive.id);
+        }
+      });
+
+      it("rejects a location on a delivery order", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const relay = await createRelay();
+        try {
+          await expectRejection(
+            repos.orders.place(
+              businessId,
+              orderInput(freshPhone(), [{ productId, quantity: qty }], {
+                serviceType: "delivery",
+                deliveryAddress: "12 Rue de Rivoli, 75001 Paris",
+                pickupLocationId: relay.id,
+              }),
+            ),
+            "PICKUP_LOCATION_INVALID",
+          );
+        } finally {
+          await removeRelay(relay.id);
+        }
       });
     });
   });

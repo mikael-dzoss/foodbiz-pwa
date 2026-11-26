@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { HoursException, WeeklyHours } from "./opening-hours";
+
 import {
   canDeactivatePickupLocation,
   canDeletePickupLocation,
@@ -7,6 +9,7 @@ import {
   createPickupLocationSchema,
   hasActivePickupOption,
   pickupLocationSchema,
+  pickupScheduleFor,
   reorderPickupLocationsSchema,
   updatePickupLocationSchema,
 } from "./pickup-location";
@@ -152,5 +155,58 @@ describe("pickup option rules", () => {
     expect(canDisableShopPickup(ctx(true, [], false))).toBe(true);
     expect(canDeactivatePickupLocation(ctx(false, [on(true)], false), ID_A)).toBe(true);
     expect(canDeletePickupLocation(ctx(false, [on(true)], false), ID_A)).toBe(true);
+  });
+});
+
+describe("pickupScheduleFor", () => {
+  const open = [{ open: "09:00", close: "18:00" }];
+  const relayRanges = [{ open: "07:00", close: "20:00" }];
+  const week = (override: Partial<WeeklyHours> = {}): WeeklyHours => ({
+    mon: open,
+    tue: open,
+    wed: open,
+    thu: open,
+    fri: open,
+    sat: open,
+    sun: open,
+    ...override,
+  });
+  const closure: HoursException = { from: "2030-01-01", to: "2030-01-02", ranges: [] };
+  const special: HoursException = {
+    from: "2030-02-01",
+    to: "2030-02-01",
+    ranges: [{ open: "10:00", close: "12:00" }],
+  };
+
+  it("returns the business schedule unchanged when the location has no hours", () => {
+    const business = { weekly: week({ mon: [] }), exceptions: [closure, special] };
+    expect(pickupScheduleFor(business, null)).toBe(business);
+  });
+
+  it("keeps the location ranges but empties the weekdays the business is closed", () => {
+    const business = { weekly: week({ mon: [] }), exceptions: [] };
+    const result = pickupScheduleFor(business, week({ mon: relayRanges, tue: relayRanges }));
+    expect(result.weekly?.mon).toEqual([]);
+    expect(result.weekly?.tue).toEqual(relayRanges);
+    expect(result.weekly?.wed).toEqual(open);
+  });
+
+  it("applies only the business closed exceptions, never its special hours", () => {
+    const business = { weekly: week(), exceptions: [closure, special] };
+    expect(pickupScheduleFor(business, week()).exceptions).toEqual([closure]);
+  });
+
+  it("closes no weekday when the business has no weekly hours", () => {
+    const result = pickupScheduleFor({ weekly: null, exceptions: [] }, week({ sun: relayRanges }));
+    expect(result.weekly).toEqual(week({ sun: relayRanges }));
+    expect(result.exceptions).toEqual([]);
+  });
+
+  it("does not mutate its inputs", () => {
+    const business = { weekly: week({ mon: [] }), exceptions: [closure, special] };
+    const location = week({ mon: relayRanges });
+    const before = structuredClone({ business, location });
+    pickupScheduleFor(business, location);
+    expect({ business, location }).toEqual(before);
   });
 });

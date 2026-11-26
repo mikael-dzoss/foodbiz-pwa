@@ -2,7 +2,7 @@ import { isOwnerRole, OwnerRequiredError } from "@/domain/auth";
 import type { Business, BusinessMember, BusinessMemberRole } from "@/domain/business";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
 import { SLOT_ERROR_MESSAGES, SLOT_ERROR_REASONS } from "@/domain/checkout";
-import { validateSlot } from "@/domain/opening-hours";
+import { validateSlot, type OpeningSchedule } from "@/domain/opening-hours";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { sumOrderProductQuantities } from "@/domain/featured";
 import type { Expense } from "@/domain/expense";
@@ -16,6 +16,7 @@ import type { Guest } from "@/domain/guest";
 import {
   publicDeliveryAddress,
   publicOrderSchema,
+  publicPickupLocation,
   OrderRepoError,
   type CancelOrderResult,
   type Order,
@@ -23,7 +24,7 @@ import {
   type PlacedOrderSummary,
 } from "@/domain/order";
 import type { PickupLocation } from "@/domain/pickup-location";
-import { MAX_PICKUP_LOCATIONS } from "@/domain/pickup-location";
+import { MAX_PICKUP_LOCATIONS, pickupScheduleFor } from "@/domain/pickup-location";
 import type { Product, ProductCategory } from "@/domain/product";
 import type {
   BusinessRepository,
@@ -360,6 +361,11 @@ export function createMockRepositories(
       return publicOrderSchema.parse({
         ...o,
         deliveryAddress: publicDeliveryAddress(o.serviceType, o.deliveryAddress),
+        pickupLocation: publicPickupLocation(
+          o.serviceType,
+          o.pickupLocation?.name,
+          o.pickupLocation?.address ?? fixtures.business.address,
+        ),
       });
     },
     async place(bId, input): Promise<PlacedOrderSummary> {
@@ -389,6 +395,8 @@ export function createMockRepositories(
         paymentPreference: input.paymentPreference ?? "on_handover",
         isAsap: input.isAsap ?? false,
         phone: phoneKey,
+        // Only present when chosen, like place_order's payload.
+        ...(input.pickupLocationId ? { pickupLocationId: input.pickupLocationId } : {}),
       });
       if (idempotencyId) {
         const prior = placements.get(idempotencyId);
@@ -405,11 +413,55 @@ export function createMockRepositories(
         throw new OrderRepoError("This store is currently not accepting orders.", "STORE_CLOSED");
       }
 
+      // Pickup location (all channels): exists, same business, active; pickup orders only.
+      let location: PickupLocation | null = null;
+      if (input.pickupLocationId) {
+        if (input.serviceType !== "pickup") {
+          throw new OrderRepoError(
+            "The chosen pickup location is no longer available.",
+            "PICKUP_LOCATION_INVALID",
+          );
+        }
+        location =
+          fixtures.pickupLocations.find(
+            (l) => l.id === input.pickupLocationId && l.businessId === bId && l.isActive,
+          ) ?? null;
+        if (!location) {
+          throw new OrderRepoError(
+            "The chosen pickup location is no longer available.",
+            "PICKUP_LOCATION_INVALID",
+          );
+        }
+      }
+
       if (input.channel === "storefront") {
-        // Same slot rules as place_order (window, ASAP only while open, open day/time).
+        // Pickup options: the shop (when enabled) plus the active relays; a lone relay is implied.
+        if (input.serviceType === "pickup" && settings?.serviceTypes?.pickup !== false) {
+          const relays = fixtures.pickupLocations.filter((l) => l.businessId === bId && l.isActive);
+          const shopEnabled = settings?.shopPickupEnabled ?? true;
+          if ((shopEnabled ? 1 : 0) + relays.length === 0) {
+            throw new OrderRepoError("Pickup is currently not available.", "PICKUP_NOT_AVAILABLE");
+          }
+          if (!location && !shopEnabled) {
+            if (relays.length !== 1) {
+              throw new OrderRepoError(
+                "Please choose a pickup location.",
+                "PICKUP_LOCATION_REQUIRED",
+              );
+            }
+            location = relays[0];
+          }
+        }
+
+        // Same slot rules as place_order (window, ASAP only while open, open day/time); a relay
+        // follows its own hours minus the business closures.
         if (settings) {
+          const businessSchedule: OpeningSchedule = {
+            weekly: settings.weeklyHours ?? null,
+            exceptions: settings.hoursExceptions ?? [],
+          };
           const slot = validateSlot(
-            { weekly: settings.weeklyHours ?? null, exceptions: settings.hoursExceptions ?? [] },
+            location ? pickupScheduleFor(businessSchedule, location.weeklyHours) : businessSchedule,
             settings.timezone ?? DEFAULT_TIMEZONE,
             new Date(),
             { date: input.requestedDate, time: input.requestedTime, isAsap: input.isAsap ?? false },
@@ -509,7 +561,8 @@ export function createMockRepositories(
           "MINIMUM_ORDER_UNMET",
         );
       }
-      const totalAmount = subtotal + deliveryFee;
+      const pickupFee = location?.feeCents ?? 0;
+      const totalAmount = subtotal + deliveryFee + pickupFee;
 
       // 3. Decrement stock
       for (const item of input.items) {
@@ -560,6 +613,14 @@ export function createMockRepositories(
         cancellationReason: null,
         notes: input.notes ?? null,
         deliveryAddress: input.deliveryAddress ?? null,
+        pickupLocation: location
+          ? {
+              id: location.id,
+              name: location.name,
+              address: `${location.address}, ${location.postcode}`,
+            }
+          : null,
+        pickupFeeCents: pickupFee,
         statusHistory: [
           {
             status: "NEW",
@@ -757,7 +818,7 @@ export function createMockRepositories(
       const deliveryFee =
         order.serviceType === "delivery" ? Math.max(0, fixtures.settings.deliveryFee ?? 0) : 0;
       order.items = nextItems;
-      order.totalAmount = subtotal + deliveryFee;
+      order.totalAmount = subtotal + deliveryFee + (order.pickupFeeCents ?? 0);
       order.updatedAt = new Date().toISOString();
       return structuredClone(order);
     },

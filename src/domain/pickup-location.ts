@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 import { isoDateTimeSchema, uuidSchema } from "./common";
-import { weeklyHoursSchema } from "./opening-hours";
+import {
+  DAY_KEYS,
+  weeklyHoursSchema,
+  type HoursException,
+  type OpeningSchedule,
+  type WeeklyHours,
+} from "./opening-hours";
 
 /** Mirrored in `pickup_locations` constraints (migration 20260101000035). */
 export const MAX_PICKUP_LOCATIONS = 20;
@@ -130,4 +136,28 @@ export function toStorefrontPickupLocation(location: PickupLocation): Storefront
     weeklyHours: location.weeklyHours,
     sortOrder: location.sortOrder,
   };
+}
+
+/**
+ * Opening schedule that applies to a relay pickup location. Mirrors `public.pickup_schedule_hours`
+ * (20260101000036):
+ * - location without hours of its own: the business schedule unchanged;
+ * - otherwise the location weekly hours with every weekday the business has closed (an empty day
+ *   in its weekly hours) emptied, and only the business CLOSED exceptions (empty ranges), never its
+ *   special-hours ones. A business without weekly hours closes no weekday.
+ */
+export function pickupScheduleFor(
+  business: OpeningSchedule,
+  locationWeekly: WeeklyHours | null,
+): OpeningSchedule {
+  if (locationWeekly === null) return business;
+  const businessWeekly = business.weekly;
+  const weekly = Object.fromEntries(
+    DAY_KEYS.map((day) => [
+      day,
+      businessWeekly !== null && businessWeekly[day].length === 0 ? [] : locationWeekly[day],
+    ]),
+  ) as WeeklyHours;
+  const exceptions: HoursException[] = business.exceptions.filter((ex) => ex.ranges.length === 0);
+  return { weekly, exceptions };
 }

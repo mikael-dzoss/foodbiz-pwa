@@ -369,6 +369,10 @@ export type Database = {
           updated_at: string;
           idempotency_key: string | null;
           idempotency_payload_hash: string | null;
+          pickup_location_id: string | null;
+          pickup_location_name: string | null;
+          pickup_location_address: string | null;
+          pickup_fee_cents: number;
         };
         Insert: {
           id?: string;
@@ -396,6 +400,10 @@ export type Database = {
           updated_at?: string;
           idempotency_key?: string | null;
           idempotency_payload_hash?: string | null;
+          pickup_location_id?: string | null;
+          pickup_location_name?: string | null;
+          pickup_location_address?: string | null;
+          pickup_fee_cents?: number;
         };
         Update: {
           id?: string;
@@ -423,6 +431,10 @@ export type Database = {
           updated_at?: string;
           idempotency_key?: string | null;
           idempotency_payload_hash?: string | null;
+          pickup_location_id?: string | null;
+          pickup_location_name?: string | null;
+          pickup_location_address?: string | null;
+          pickup_fee_cents?: number;
         };
         Relationships: [
           {
@@ -680,6 +692,7 @@ export type Database = {
           p_update_guest_name?: boolean;
           p_idempotency_key?: string;
           p_is_asap?: boolean;
+          p_pickup_location_id?: string;
         };
         Returns: Json;
       };
@@ -734,6 +747,7 @@ export type Database = {
           p_business_id: string;
           p_service_type: Database["public"]["Enums"]["order_service_type"];
           p_subtotal: number;
+          p_pickup_fee?: number;
         };
         Returns: number;
       };
@@ -831,6 +845,17 @@ export type Database = {
           p_ids: string[];
         };
         Returns: undefined;
+      };
+      pickup_schedule_hours: {
+        Args: {
+          p_business_weekly: Json;
+          p_business_exceptions: Json;
+          p_location_weekly: Json;
+        };
+        Returns: {
+          weekly: Json;
+          exceptions: Json;
+        }[];
       };
     };
     Enums: {

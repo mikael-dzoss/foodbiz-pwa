@@ -14,6 +14,7 @@ import {
   orderSchema,
   publicDeliveryAddress,
   publicOrderSchema,
+  publicPickupLocation,
   orderStatusEventSchema,
   manualOrderInputSchema,
   serviceTypeSchema,
@@ -696,6 +697,20 @@ describe("Order and OrderItem schemas", () => {
     expect(publicDeliveryAddress("pickup", "12 Rue de Rivoli, Paris")).toBeNull();
     expect(publicDeliveryAddress("dine-in", "12 Rue de Rivoli, Paris")).toBeNull();
     expect(publicDeliveryAddress(null, "12 Rue de Rivoli, Paris")).toBeNull();
+  });
+
+  it("publicPickupLocation exposes where to collect only for pickup orders (#386)", () => {
+    expect(publicPickupLocation("pickup", "Gare du Nord", " 18 Rue de Dunkerque ")).toEqual({
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque",
+    });
+    expect(publicPickupLocation("pickup", null, "9 Rue du Four")).toEqual({
+      name: null,
+      address: "9 Rue du Four",
+    });
+    expect(publicPickupLocation("pickup", "  ", undefined)).toEqual({ name: null, address: null });
+    expect(publicPickupLocation("delivery", "Gare du Nord", "18 Rue de Dunkerque")).toBeNull();
+    expect(publicPickupLocation("dine-in", "x", "y")).toBeNull();
   });
 
   it("validates orderStatusEventSchema", () => {

@@ -163,6 +163,10 @@ function createFakeSupabaseClient(
       cancellation_reason: o.cancellationReason,
       notes: o.notes,
       delivery_address: o.deliveryAddress,
+      pickup_location_id: o.pickupLocation?.id ?? null,
+      pickup_location_name: o.pickupLocation?.name ?? null,
+      pickup_location_address: o.pickupLocation?.address ?? null,
+      pickup_fee_cents: o.pickupFeeCents ?? 0,
       status_history: structuredClone(o.statusHistory ?? []) as Json,
       created_at: o.createdAt,
       updated_at: o.updatedAt,
@@ -508,6 +512,14 @@ function createFakeSupabaseClient(
               ...structuredClone(order),
               delivery_address:
                 order.service_type === "delivery" ? (order.delivery_address ?? null) : null,
+              pickup_location_name:
+                order.service_type === "pickup" ? order.pickup_location_name : null,
+              pickup_location_address:
+                order.service_type === "pickup"
+                  ? (order.pickup_location_address ??
+                    tables.businesses.find((b) => b.id === order.business_id)?.address ??
+                    null)
+                  : null,
             },
             items: structuredClone(items),
           },
@@ -586,6 +598,26 @@ function createFakeSupabaseClient(
                 replayed: true,
               },
               error: null,
+            };
+          }
+        }
+        // Mirrors place_order's pickup location check (all channels, migration 036).
+        const pickupLocationId = (args.p_pickup_location_id as string | undefined) ?? null;
+        let pickupRow: (typeof tables.pickup_locations)[number] | null = null;
+        if (pickupLocationId) {
+          pickupRow =
+            args.p_service_type === "pickup"
+              ? (tables.pickup_locations.find(
+                  (l) => l.id === pickupLocationId && l.business_id === businessId && l.is_active,
+                ) ?? null)
+              : null;
+          if (!pickupRow) {
+            return {
+              data: null,
+              error: {
+                message: `INVALID_PICKUP_LOCATION: pickup location ${pickupLocationId} is not available`,
+                code: "22023",
+              },
             };
           }
         }
@@ -742,7 +774,12 @@ function createFakeSupabaseClient(
             (args.p_service_type === "delivery"
               ? (tables.business_settings.find((st) => st.business_id === args.p_business_id)
                   ?.delivery_fee ?? 0)
-              : 0),
+              : 0) +
+            (pickupRow?.fee_cents ?? 0),
+          pickup_location_id: pickupRow?.id ?? null,
+          pickup_location_name: pickupRow?.name ?? null,
+          pickup_location_address: pickupRow ? `${pickupRow.address}, ${pickupRow.postcode}` : null,
+          pickup_fee_cents: pickupRow?.fee_cents ?? 0,
           tracking_token: crypto.randomUUID().replace(/-/g, ""),
           cancellation_reason: null,
           notes: args.p_notes ? String(args.p_notes) : null,
@@ -1258,6 +1295,48 @@ describe("Supabase Repository Adapter", () => {
       await expect(place()).rejects.toMatchObject({ code: "INVALID_INPUT" });
     });
 
+    it("passes p_pickup_location_id and maps the pickup location errors", async () => {
+      const locationId = "44444444-4444-4444-8444-444444444444";
+      const rpc = vi.fn(async (_fn: string, _args: unknown) => ({
+        data: null,
+        error: { code: "22023", message: "INVALID_PICKUP_LOCATION: gone" } as {
+          code: string;
+          message: string;
+        },
+      }));
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+      const place = (pickupLocationId?: string | null) =>
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
+          pickupLocationId,
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        });
+
+      await expect(place(locationId)).rejects.toMatchObject({ code: "PICKUP_LOCATION_INVALID" });
+      expect(rpc).toHaveBeenCalledWith(
+        "place_order",
+        expect.objectContaining({ p_pickup_location_id: locationId }),
+      );
+
+      await place(null).catch(() => undefined);
+      expect(rpc).toHaveBeenLastCalledWith(
+        "place_order",
+        expect.objectContaining({ p_pickup_location_id: undefined }),
+      );
+
+      for (const [message, code] of [
+        ["PICKUP_LOCATION_REQUIRED: choose a pickup location", "PICKUP_LOCATION_REQUIRED"],
+        ["PICKUP_NOT_AVAILABLE: no pickup option is available", "PICKUP_NOT_AVAILABLE"],
+      ] as const) {
+        rpc.mockResolvedValueOnce({ data: null, error: { code: "22023", message } });
+        await expect(place()).rejects.toMatchObject({ code });
+      }
+    });
+
     it("maps place_order error prefixes to codes without leaking database text", async () => {
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const place = async (message: string, code = "XX000") => {
@@ -1522,6 +1601,74 @@ describe("Supabase Repository Adapter", () => {
 
       const pickup = await repos.orders.findByTrackingToken("tk-pickup");
       expect(pickup?.deliveryAddress).toBeNull();
+    });
+
+    it("maps pickup_location in findByTrackingToken only for pickup orders (#386)", async () => {
+      const baseRow = {
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 43,
+        status: "NEW",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        requested_date: "2026-10-17",
+        requested_time: null,
+        total_amount: 1650,
+        cancellation_reason: null,
+        created_at: "2026-10-17T10:00:00+00:00",
+      };
+      const items = [
+        { product_name: "Poulet Braisé", quantity: 1, unit_price: 1500, total_price: 1500 },
+      ];
+      const rpc = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              pickup_location_name: "Gare du Nord",
+              pickup_location_address: "18 Rue de Dunkerque, 75010",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              pickup_location_name: null,
+              pickup_location_address: "9 Rue du Four, 75006 Paris",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "delivery",
+              delivery_address: "1 rue X, 75001 Paris",
+              pickup_location_name: "Stale",
+              pickup_location_address: "Stale",
+            },
+            items,
+          },
+          error: null,
+        });
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+
+      expect((await repos.orders.findByTrackingToken("tk-relay"))?.pickupLocation).toEqual({
+        name: "Gare du Nord",
+        address: "18 Rue de Dunkerque, 75010",
+      });
+      expect((await repos.orders.findByTrackingToken("tk-shop"))?.pickupLocation).toEqual({
+        name: null,
+        address: "9 Rue du Four, 75006 Paris",
+      });
+      expect((await repos.orders.findByTrackingToken("tk-delivery"))?.pickupLocation).toBeNull();
     });
   });
 });

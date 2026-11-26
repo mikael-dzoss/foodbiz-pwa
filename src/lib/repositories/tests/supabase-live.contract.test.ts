@@ -430,6 +430,7 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   // SQL constants and the domain constants diverge.
   describeOrderPlacementContract(() => anonPublicRepos, businessAId, {
     boundaryProductId: () => prodABulkId,
+    managerRepositories: () => ownerARepos,
     // Business A is created without opening hours (null), so placement never depends on the
     // time of day; the contract's opening-hours cases set hours relative to now and reset them.
     setOpeningHours: async ({ weeklyHours, hoursExceptions }) => {

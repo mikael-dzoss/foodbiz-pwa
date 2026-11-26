@@ -282,6 +282,9 @@ export interface StorefrontDictionary {
   orderErrorSlotDateOutOfWindow: string;
   orderErrorSlotTimeOutsideHours: string;
   orderErrorSlotTimeInPast: string;
+  orderErrorPickupLocationInvalid: string;
+  orderErrorPickupLocationRequired: string;
+  orderErrorPickupNotAvailable: string;
   checkoutDateTomorrow: string;
   checkoutChooseDate: string;
   checkoutChooseTime: string;

@@ -62,6 +62,14 @@ export const orderItemSchema = z.object({
 
 export type OrderItem = z.infer<typeof orderItemSchema>;
 
+/** Where a pickup order is collected; `id` is null once the location was deleted (the snapshot stays). */
+export const orderPickupLocationSchema = z.object({
+  id: uuidSchema.nullable(),
+  name: z.string().trim().min(1),
+  address: z.string().trim().min(1),
+});
+export type OrderPickupLocation = z.infer<typeof orderPickupLocationSchema>;
+
 export const orderSchema = z.object({
   id: uuidSchema,
   businessId: uuidSchema,
@@ -87,12 +95,23 @@ export const orderSchema = z.object({
   cancellationReason: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
   deliveryAddress: z.string().trim().optional().nullable(),
+  /** Relay location snapshot; null (or absent) means the shop. */
+  pickupLocation: orderPickupLocationSchema.nullable().optional(),
+  /** Relay fee stored on the order (cents, already part of `totalAmount`). */
+  pickupFeeCents: moneySchema.optional(),
   statusHistory: z.array(orderStatusEventSchema).optional(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 });
 
 export type Order = z.infer<typeof orderSchema>;
+
+/** Public tracking: where to collect a pickup order (`name` is null for the shop), null otherwise. */
+export const publicPickupLocationSchema = z.object({
+  name: z.string().trim().min(1).nullable(),
+  address: z.string().trim().min(1).nullable(),
+});
+export type PublicPickupLocation = z.infer<typeof publicPickupLocationSchema>;
 
 // Public lookups must strip private fields, including nested item identifiers.
 export const publicOrderSchema = orderSchema
@@ -111,6 +130,7 @@ export const publicOrderSchema = orderSchema
     createdAt: true,
   })
   .extend({
+    pickupLocation: publicPickupLocationSchema.nullable().optional(),
     items: z.array(
       orderItemSchema.pick({
         productName: true,
@@ -133,6 +153,21 @@ export function publicDeliveryAddress(
   if (serviceType !== "delivery" || typeof deliveryAddress !== "string") return null;
   const trimmed = deliveryAddress.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Public-tracking pickup rule: only pickup orders expose where to collect (null `name` = the shop,
+ * null `address` when even the shop address is unknown); other service types return `null`.
+ */
+export function publicPickupLocation(
+  serviceType: unknown,
+  name: unknown,
+  address: unknown,
+): PublicPickupLocation | null {
+  if (serviceType !== "pickup") return null;
+  const clean = (value: unknown) =>
+    typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  return { name: clean(name), address: clean(address) };
 }
 
 /** Read model: an order with its guest's current name resolved via guestId. */
@@ -214,6 +249,8 @@ export const placeOrderRepoInputSchema = z.object({
   deliveryAddress: z.string().trim().max(MAX_DELIVERY_ADDRESS_LENGTH).optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
   allowRename: z.boolean().optional(),
+  /** Relay pickup location (pickup orders only); null/absent means the shop. */
+  pickupLocationId: uuidSchema.nullable().optional(),
   /**
    * ASAP order ("as soon as possible"): storefront placement is refused while the shop is closed.
    * Defaults to false (a scheduled order on `requestedDate`/`requestedTime`).

@@ -400,6 +400,10 @@ export const enDictionary: Dictionary = {
     orderErrorSlotDateOutOfWindow: "Please choose a date from today up to 30 days ahead.",
     orderErrorSlotTimeOutsideHours: "The chosen time is outside the store's opening hours.",
     orderErrorSlotTimeInPast: "The chosen time has already passed. Please choose a later time.",
+    orderErrorPickupLocationInvalid:
+      "The chosen pickup location is no longer available. Please choose another one.",
+    orderErrorPickupLocationRequired: "Please choose where to pick up your order.",
+    orderErrorPickupNotAvailable: "Pickup is currently not available for this store.",
     checkoutDateTomorrow: "Tomorrow",
     checkoutChooseDate: "Choose a date",
     checkoutChooseTime: "Choose a time",

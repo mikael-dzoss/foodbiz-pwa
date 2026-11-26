@@ -52,6 +52,34 @@ describe("Order pricing and totals", () => {
       }
     });
 
+    it("adds the relay pickup fee for pickup orders only", () => {
+      const pickup = calculateOrderTotals({ items, serviceType: "pickup", pickupFee: 150 });
+      expect(pickup.ok && pickup.pickupFee).toBe(150);
+      expect(pickup.ok && pickup.total).toBe(1000);
+
+      const delivery = calculateOrderTotals({
+        items,
+        serviceType: "delivery",
+        deliveryFee: 250,
+        pickupFee: 150,
+      });
+      expect(delivery.ok && delivery.pickupFee).toBe(0);
+      expect(delivery.ok && delivery.total).toBe(1100);
+    });
+
+    it("ignores a negative pickup fee and keeps the minimum on the items subtotal", () => {
+      const free = calculateOrderTotals({ items, serviceType: "pickup", pickupFee: -50 });
+      expect(free.ok && free.total).toBe(850);
+
+      const tooSmall = calculateOrderTotals({
+        items,
+        serviceType: "pickup",
+        pickupFee: 500,
+        minimumOrderAmount: 900,
+      });
+      expect(tooSmall.ok).toBe(false);
+    });
+
     it("calculates subtotal, delivery fee, and total for delivery in integer cents", () => {
       const result = calculateOrderTotals({
         items,
