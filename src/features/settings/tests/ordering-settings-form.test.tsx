@@ -88,6 +88,13 @@ describe("OrderingSettingsForm component (M-63)", () => {
     expect((screen.getByTestId("input-min-order") as HTMLInputElement).value).toBe("15.00");
   });
 
+  it("links to the pickup locations area", () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+    expect(screen.getByTestId("link-pickup-locations").getAttribute("href")).toBe(
+      "/manage/settings/pickup-locations",
+    );
+  });
+
   it("toggles accepting orders and updates status badge", () => {
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
 

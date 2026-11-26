@@ -84,3 +84,20 @@ test("adds an expense and retains it after reload", async ({ page }) => {
   await expect(page.getByTestId("expenses-list")).toContainText(description);
   await expect(page.getByTestId("expenses-list")).toContainText("24.50");
 });
+
+test("manager adds a relay pickup location and sees it listed", async ({ page }) => {
+  const name = `E2E relay ${randomUUID().slice(0, 8)}`;
+  await page.goto("/manage/settings/pickup-locations");
+  await expect(page.getByTestId("pickup-shop-row")).toBeVisible();
+  await page.getByTestId("pickup-location-add").click();
+  await page.getByTestId("pickup-location-name").fill(name);
+  await page.getByTestId("pickup-location-address").fill("12 rue des Lilas");
+  await page.getByTestId("pickup-location-postcode").fill("75011");
+  await page.getByTestId("pickup-location-fee").fill("2.50");
+  await page.getByTestId("pickup-location-save").click();
+  await expect(page.getByTestId("pickup-location-sheet")).not.toBeVisible();
+  const list = page.getByTestId("pickup-locations-list");
+  await expect(list).toContainText(name);
+  await expect(list).toContainText("75011");
+  await expect(list).toContainText("Same as shop hours");
+});

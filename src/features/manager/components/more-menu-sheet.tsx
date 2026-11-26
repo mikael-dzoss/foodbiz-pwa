@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Folder, Receipt, Users, BarChart3, Settings, Clock, LogOut } from "lucide-react";
+import { Folder, Receipt, Users, BarChart3, Settings, Clock, MapPin, LogOut } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -50,6 +50,13 @@ export function MoreMenuSheet({ isOpen, onOpenChange, trigger }: MoreMenuSheetPr
       href: "/manage/settings/opening-hours",
       icon: Clock,
       description: settings.openingHours.navDescription,
+      isReady: true,
+    },
+    {
+      title: settings.pickupLocations.title,
+      href: "/manage/settings/pickup-locations",
+      icon: MapPin,
+      description: settings.pickupLocations.navDescription,
       isReady: true,
     },
     {
