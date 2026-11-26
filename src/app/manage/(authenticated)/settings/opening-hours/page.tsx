@@ -6,6 +6,9 @@ import { OpeningHoursOverview } from "@/features/settings/components/opening-hou
 import { getBusinessSettings } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
+// Request-time page: compares hours exceptions against the current date.
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const dict = getDictionary(await getManagerLocale()).settings.openingHours;
   return { title: dict.title, description: dict.description };
@@ -15,7 +18,6 @@ export default async function OpeningHoursPage() {
   await requireManagerSession();
   const locale = await getManagerLocale();
   const settings = await getBusinessSettings();
-  // Request-time: the overview compares against "now" (upcoming exceptions).
   await connection();
 
   return <OpeningHoursOverview settings={settings} locale={locale} now={new Date()} />;

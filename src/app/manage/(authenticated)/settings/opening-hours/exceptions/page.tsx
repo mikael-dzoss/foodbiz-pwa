@@ -6,6 +6,9 @@ import { HoursExceptionsSettings } from "@/features/settings/components/hours-ex
 import { getBusinessSettings } from "@/features/settings/settings-data";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
 
+// Request-time page: compares hours exceptions against the current date.
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const dict = getDictionary(await getManagerLocale()).settings.hoursExceptions;
   return { title: dict.title, description: dict.description };
@@ -15,7 +18,6 @@ export default async function HoursExceptionsPage() {
   await requireManagerSession();
   const locale = await getManagerLocale();
   const settings = await getBusinessSettings();
-  // Request-time: the overview compares against "now" (upcoming exceptions).
   await connection();
 
   return (
