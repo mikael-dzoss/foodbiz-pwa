@@ -47,16 +47,20 @@ export const createPickupLocationSchema = z.object({
 
 export type CreatePickupLocation = z.infer<typeof createPickupLocationSchema>;
 
-export const updatePickupLocationSchema = z.object({
-  id: uuidSchema,
-  name: nameSchema.optional(),
-  description: descriptionSchema.optional(),
-  address: addressSchema.optional(),
-  postcode: postcodeSchema.optional(),
-  feeCents: feeCentsSchema.optional(),
-  weeklyHours: weeklyHoursSchema.nullable().optional(),
-  isActive: z.boolean().optional(),
-});
+export const updatePickupLocationSchema = z
+  .object({
+    id: uuidSchema,
+    name: nameSchema.optional(),
+    description: descriptionSchema.optional(),
+    address: addressSchema.optional(),
+    postcode: postcodeSchema.optional(),
+    feeCents: feeCentsSchema.optional(),
+    weeklyHours: weeklyHoursSchema.nullable().optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(({ id: _id, ...patch }) => Object.values(patch).some((value) => value !== undefined), {
+    error: "Nothing to update",
+  });
 
 export type UpdatePickupLocation = z.infer<typeof updatePickupLocationSchema>;
 

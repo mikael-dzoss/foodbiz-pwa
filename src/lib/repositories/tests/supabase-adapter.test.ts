@@ -481,6 +481,23 @@ function createFakeSupabaseClient(
       return queryBuilder(tableName);
     },
     async rpc(fnName: string, args: Record<string, unknown>) {
+      if (fnName === "reorder_pickup_locations") {
+        // Mirrors the SQL function: ids must be exactly the business's locations.
+        const ids = args.p_ids as string[];
+        const own = tables.pickup_locations.filter((l) => l.business_id === args.p_business_id);
+        if (
+          new Set(ids).size !== ids.length ||
+          own.length !== ids.length ||
+          !ids.every((id) => own.some((l) => l.id === id))
+        ) {
+          return { data: null, error: { code: "22023", message: "PICKUP_REORDER_MISMATCH" } };
+        }
+        for (const [position, id] of ids.entries()) {
+          const row = own.find((l) => l.id === id);
+          if (row) row.sort_order = position;
+        }
+        return { data: null, error: null };
+      }
       if (fnName === "get_order_by_tracking_token") {
         const order = tables.orders.find((o) => o.tracking_token === args.p_tracking_token);
         if (!order) return { data: null, error: null };
@@ -1027,6 +1044,41 @@ describe("Supabase Repository Adapter", () => {
   });
 
   describe("error mapping in Supabase adapter", () => {
+    it("maps pickup rule violations to CONFLICT ActionErrors with a reason", async () => {
+      const repos = createSupabaseRepositories(createFakeSupabaseClient());
+      const failing = (message: string) =>
+        createSupabaseRepositories({
+          from: () => {
+            const builder: Record<string, unknown> = {};
+            for (const m of ["update", "delete", "select", "eq"]) builder[m] = () => builder;
+            builder.maybeSingle = async () => ({ data: null, error: { code: "23514", message } });
+            return builder;
+          },
+        } as unknown as SupabaseClient<Database>);
+
+      const last = failing("LAST_PICKUP_OPTION: pickup needs at least one active option");
+      await expect(
+        last.pickupLocations.update(DEMO_BUSINESS_ID, "e1000000-0000-4000-8000-000000000001", {
+          isActive: false,
+        }),
+      ).rejects.toMatchObject({
+        name: "ActionError",
+        code: "CONFLICT",
+        options: { reason: "LAST_PICKUP_OPTION" },
+      });
+      await expect(
+        last.pickupLocations.delete(DEMO_BUSINESS_ID, "e1000000-0000-4000-8000-000000000001"),
+      ).rejects.toMatchObject({ code: "CONFLICT", options: { reason: "LAST_PICKUP_OPTION" } });
+      await expect(
+        last.business.updateSettings(DEMO_BUSINESS_ID, { shopPickupEnabled: false }),
+      ).rejects.toMatchObject({ code: "CONFLICT", options: { reason: "LAST_PICKUP_OPTION" } });
+
+      // A reorder with a partial id set surfaces the raw database error.
+      await expect(
+        repos.pickupLocations.reorder(DEMO_BUSINESS_ID, ["e1000000-0000-4000-8000-000000000001"]),
+      ).rejects.toMatchObject({ code: "22023" });
+    });
+
     it("maps place_order errors accurately", async () => {
       const fakeClient = createFakeSupabaseClient();
       const repos = createSupabaseRepositories(fakeClient);

@@ -57,9 +57,20 @@ describe("createPickupLocationSchema", () => {
 });
 
 describe("updatePickupLocationSchema", () => {
-  it("requires only the id and keeps absent fields undefined", () => {
-    const parsed = updatePickupLocationSchema.parse({ id: ID_A });
-    expect(parsed).toEqual({ id: ID_A });
+  it("keeps absent fields undefined", () => {
+    const parsed = updatePickupLocationSchema.parse({ id: ID_A, name: "New" });
+    expect(parsed).toEqual({ id: ID_A, name: "New" });
+  });
+
+  it("requires at least one field to change", () => {
+    expect(updatePickupLocationSchema.safeParse({ id: ID_A }).success).toBe(false);
+    expect(updatePickupLocationSchema.safeParse({ id: ID_A, description: undefined }).success).toBe(
+      false,
+    );
+    expect(updatePickupLocationSchema.safeParse({ id: ID_A, isActive: false }).success).toBe(true);
+    expect(updatePickupLocationSchema.safeParse({ id: ID_A, weeklyHours: null }).success).toBe(
+      true,
+    );
   });
 
   it("validates provided fields", () => {

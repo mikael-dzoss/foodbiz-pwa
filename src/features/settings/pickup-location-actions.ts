@@ -123,6 +123,8 @@ export const reorderPickupLocationsAction = defineAction(
     const { repos, context } = await loadPickupRuleContext(businessId);
     const known = new Set(context.locations.map((location) => location.id));
     if (!input.ids.every((id) => known.has(id))) throw new ActionError("NOT_FOUND");
+    // The database function needs the business's full set; reject a partial list early.
+    if (input.ids.length !== known.size) throw new ActionError("VALIDATION");
     const reordered = await repos.pickupLocations.reorder(businessId, input.ids);
     revalidatePickup(businessId);
     return reordered;

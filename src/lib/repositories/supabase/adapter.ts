@@ -15,6 +15,7 @@ import {
 import { SLOT_ERROR_MESSAGES, SLOT_ERROR_REASONS } from "@/domain/checkout";
 import type { SlotErrorReason } from "@/domain/opening-hours";
 import { uuidSchema } from "@/domain/common";
+import { ActionError } from "@/lib/actions/types";
 import { expenseSchema, type Expense } from "@/domain/expense";
 import { sumOrderProductQuantities, type ProductQuantityFilter } from "@/domain/featured";
 import { guestSchema, normalizeGuestName, normalizePhoneNumber, type Guest } from "@/domain/guest";
@@ -148,6 +149,17 @@ function mapCategoryRow(row: Tables<"product_categories">): ProductCategory {
     role: row.role,
     createdAt: toIsoUtc(row.created_at),
   });
+}
+
+/** Database rule violations (23514 with a reason prefix) become localizable CONFLICTs. */
+export function mapPickupError(error: { code?: string; message?: string }): Error {
+  const reason = ["LAST_PICKUP_OPTION", "PICKUP_LOCATIONS_LIMIT"].find((r) =>
+    error.message?.startsWith(r),
+  );
+  if (error.code === "23514" && reason) {
+    return new ActionError("CONFLICT", error.message, { reason });
+  }
+  return error as Error;
 }
 
 function mapPickupLocationRow(row: Tables<"pickup_locations">): PickupLocation {
@@ -687,7 +699,7 @@ export function createSupabaseRepositories(
         .insert(insertData)
         .select()
         .single();
-      if (error) throw error;
+      if (error) throw mapPickupError(error);
       return mapPickupLocationRow(data);
     },
 
@@ -711,7 +723,7 @@ export function createSupabaseRepositories(
         .eq("id", id)
         .select()
         .maybeSingle();
-      if (error) throw error;
+      if (error) throw mapPickupError(error);
       if (!data) throw new Error(`Pickup location ${id} not found`);
       return mapPickupLocationRow(data);
     },
@@ -725,15 +737,19 @@ export function createSupabaseRepositories(
         .eq("id", id)
         .select()
         .maybeSingle();
-      if (error) throw error;
+      if (error) throw mapPickupError(error);
       if (!data) throw new Error(`Pickup location ${id} not found`);
     },
 
     async reorder(businessId: string, ids: readonly string[]): Promise<PickupLocation[]> {
       if (ids.length > MAX_PICKUP_LOCATIONS) throw new Error("Too many pickup locations");
-      for (const [position, id] of ids.entries()) {
-        await pickupLocations.update(businessId, id, { sortOrder: position });
-      }
+      const client = await getClient();
+      // One atomic statement; the function requires `ids` to be the business's full set.
+      const { error } = await client.rpc("reorder_pickup_locations", {
+        p_business_id: businessId,
+        p_ids: [...ids],
+      });
+      if (error) throw mapPickupError(error);
       return pickupLocations.listByBusiness(businessId);
     },
   };
@@ -1432,7 +1448,10 @@ export function createSupabaseRepositories(
         .select()
         .maybeSingle();
 
-      if (error) throw mapOwnerOnlyError(error);
+      if (error) {
+        const pickupError = mapPickupError(error);
+        throw pickupError instanceof ActionError ? pickupError : mapOwnerOnlyError(error);
+      }
       if (!data) throw new Error(`Settings for business ${businessId} not found`);
       return mapSettingsRow(data);
     },

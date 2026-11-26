@@ -162,5 +162,10 @@ describe("pickup location actions", () => {
       ok: false,
       code: "VALIDATION",
     });
+    // A partial list is rejected: the database function needs the business's full set.
+    expect(await reorderPickupLocationsAction({ ids: [a.id] })).toMatchObject({
+      ok: false,
+      code: "VALIDATION",
+    });
   });
 });

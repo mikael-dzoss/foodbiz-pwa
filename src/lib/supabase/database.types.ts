@@ -825,6 +825,13 @@ export type Database = {
         };
         Returns: string;
       };
+      reorder_pickup_locations: {
+        Args: {
+          p_business_id: string;
+          p_ids: string[];
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       category_role: "regular" | "drinks" | "snacks";
