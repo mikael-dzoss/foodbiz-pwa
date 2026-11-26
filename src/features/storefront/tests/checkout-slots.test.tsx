@@ -238,7 +238,7 @@ describe("checkout slot options (#373, #374)", () => {
 
     expect(screen.queryByTestId("timing-asap-option")).toBeNull();
     const notice = screen.getByTestId("checkout-closed-schedule-notice");
-    expect(notice.textContent).toContain("tomorrow 11:30");
+    expect(notice.textContent).toContain("Tomorrow at 11:30");
     // Today has no slots left, so the first offered day is tomorrow.
     expect(optionValues(screen.getByTestId("checkout-date-input"))[0]).toBe("2026-11-27");
   });
@@ -253,15 +253,46 @@ describe("checkout slot options (#373, #374)", () => {
       target: { value: "2026-11-26" },
     });
 
+    // No error before interaction, and Place order stays enabled (field-level issue).
     const button = screen.getByTestId("place-order-button") as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(screen.getByTestId("checkout-blocked-reason").textContent).toBe(
+    expect(button.disabled).toBe(false);
+    expect(screen.queryByTestId("checkout-time-field-error")).toBeNull();
+    expect(screen.queryByTestId("checkout-blocked-reason")).toBeNull();
+
+    // A submit attempt explains the missing time and focuses the field.
+    fireEvent.click(button);
+    expect(screen.getByTestId("checkout-time-field-error").textContent).toBe(
       dict.checkoutTimeRequired,
     );
+    expect(document.activeElement).toBe(screen.getByTestId("checkout-time-input"));
 
     fireEvent.change(screen.getByTestId("checkout-time-input"), { target: { value: "14:00" } });
-    expect(button.disabled).toBe(false);
-    expect(screen.queryByTestId("checkout-blocked-reason")).toBeNull();
+    expect(screen.queryByTestId("checkout-time-field-error")).toBeNull();
+  });
+
+  it("shows the time-required message once the time field was touched", () => {
+    atNow(BETWEEN_NOW);
+    renderCheckout(BETWEEN_NOW, { isOpen: false });
+    fireEvent.change(screen.getByTestId("checkout-date-input"), {
+      target: { value: "2026-11-26" },
+    });
+    fireEvent.blur(screen.getByTestId("checkout-time-input"));
+    expect(screen.getByTestId("checkout-time-field-error").textContent).toBe(
+      dict.checkoutTimeRequired,
+    );
+  });
+
+  it("follows the ticking clock for open/closed instead of a stale isOpen prop", () => {
+    atNow("2026-11-26T09:58:00Z"); // 10:58 Paris, open until 12:00
+    renderCheckout("2026-11-26T09:58:00Z", { isOpen: false });
+    expect(screen.queryByTestId("checkout-closed-schedule-notice")).toBeNull();
+    expect(screen.getByTestId("timing-asap-option")).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(65 * 60 * 1000); // 12:03, between ranges
+    });
+    expect(screen.getByTestId("checkout-closed-schedule-notice")).toBeTruthy();
+    expect(screen.queryByTestId("timing-asap-option")).toBeNull();
   });
 
   it("blocks ordering with a clear message when the shop is not accepting orders", () => {
@@ -272,8 +303,10 @@ describe("checkout slot options (#373, #374)", () => {
       dict.checkoutBlockedNotAccepting,
     );
     expect((screen.getByTestId("place-order-button") as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByTestId("checkout-blocked-reason").textContent).toBe(
-      dict.checkoutBlockedNotAccepting,
+    // The sentence is announced once (top alert), not repeated under the button.
+    expect(screen.queryByTestId("checkout-blocked-reason")).toBeNull();
+    expect(screen.getByTestId("checkout-blocked-reason-region").getAttribute("aria-live")).toBe(
+      "polite",
     );
   });
 
@@ -297,12 +330,16 @@ describe("checkout slot options (#373, #374)", () => {
     expect(screen.getByTestId("checkout-time-field-error").textContent).toBe(
       dict.orderErrorSlotTimeInPast,
     );
-    expect(screen.getByTestId("checkout-blocked-reason").textContent).toBe(
-      dict.orderErrorSlotTimeInPast,
-    );
-    expect(button.disabled).toBe(true);
-    // The stale pick stays visible in the list so the explanation points at it.
-    expect(optionValues(screen.getByTestId("checkout-time-input"))).toContain("11:15");
+    expect(button.disabled).toBe(false);
+    // The stale pick stays in its sorted place, disabled and flagged as unavailable.
+    const options = within(screen.getByTestId("checkout-time-input")).getAllByRole(
+      "option",
+    ) as HTMLOptionElement[];
+    const stale = options.find((o) => o.value === "11:15");
+    expect(stale?.disabled).toBe(true);
+    expect(stale?.textContent).toBe("11:15 (unavailable)");
+    const values = options.map((o) => o.value).filter(Boolean);
+    expect(values).toEqual(values.toSorted());
   });
 
   it("sends isAsap explicitly: true for ASAP and false for a scheduled slot", async () => {
