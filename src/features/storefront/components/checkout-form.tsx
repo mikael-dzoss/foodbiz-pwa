@@ -1,6 +1,15 @@
 "use client";
 
-import { useActionState, useState, useId, useMemo, useSyncExternalStore } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,7 +41,7 @@ import {
   guestContactStorageSchema,
   type GuestContactStorage,
 } from "@/domain/checkout";
-import { isValidPhoneNumber, normalizePhoneNumber } from "@/domain/guest";
+import { GUEST_NAME_MAX_LENGTH, GUEST_NAME_MIN_LENGTH, normalizePhoneNumber } from "@/domain/guest";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -65,6 +74,66 @@ function placeOrderErrorKey(failure: ActionFailure): keyof StorefrontDictionary 
     keys[failure.code] ??
     "orderErrorInternal"
   );
+}
+
+const FIELD_DOM_ORDER = [
+  "name",
+  "phone",
+  "serviceType",
+  "deliveryAddress",
+  "requestedDate",
+  "requestedTime",
+  "paymentPreference",
+  "notes",
+] as const;
+
+type CheckoutFieldName = (typeof FIELD_DOM_ORDER)[number];
+
+const CHECKOUT_FIELD_SET: ReadonlySet<string> = new Set(FIELD_DOM_ORDER);
+
+function isCheckoutFieldName(value: PropertyKey | undefined): value is CheckoutFieldName {
+  return typeof value === "string" && CHECKOUT_FIELD_SET.has(value);
+}
+
+type CheckoutErrorDictKey =
+  | "nameRequiredError"
+  | "nameTooLongError"
+  | "phoneRequiredError"
+  | "phoneInvalidError"
+  | "addressRequiredError"
+  | "addressTooLongError"
+  | "dateRequiredError"
+  | "dateInvalidError"
+  | "timeInvalidError"
+  | "notesTooLongError"
+  | "fieldInvalidError";
+
+/** Maps a checkout Zod issue to a localized StorefrontDictionary key (never exposing raw English Zod text). */
+export function mapCheckoutIssueToDictKey(
+  issue: { path: ReadonlyArray<PropertyKey>; code: string },
+  rawName: string,
+): CheckoutErrorDictKey {
+  const field = issue.path[0];
+  switch (field) {
+    case "name": {
+      const normalizedLength = [...rawName.trim().replace(/\s+/g, " ").normalize("NFC")].length;
+      if (normalizedLength > GUEST_NAME_MAX_LENGTH) return "nameTooLongError";
+      if (normalizedLength < GUEST_NAME_MIN_LENGTH) return "nameRequiredError";
+      return "fieldInvalidError";
+    }
+    case "phone":
+      return issue.code === "too_small" ? "phoneRequiredError" : "phoneInvalidError";
+    case "deliveryAddress":
+      return issue.code === "too_big" ? "addressTooLongError" : "addressRequiredError";
+    case "requestedDate":
+      return issue.code === "invalid_format" ? "dateInvalidError" : "dateRequiredError";
+    case "requestedTime":
+      return "timeInvalidError";
+    case "notes":
+      return issue.code === "too_big" ? "notesTooLongError" : "fieldInvalidError";
+    default:
+      return "fieldInvalidError";
+  }
 }
 
 const guestContactListeners = new Set<() => void>();
@@ -177,10 +246,6 @@ export function CheckoutForm({
   });
   const [customServiceType, setCustomServiceType] = useState<"pickup" | "delivery" | null>(null);
   const serviceType = customServiceType ?? preselectedService;
-  const handleSelectServiceType = (mode: "pickup" | "delivery") => {
-    setCustomServiceType(mode);
-    setServiceMode(mode);
-  };
   const [deliveryAddress, setDeliveryAddress] = useState("");
 
   // Timing State
@@ -203,6 +268,47 @@ export function CheckoutForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
+  const [touchedFields, setTouchedFields] = useState<Partial<Record<CheckoutFieldName, boolean>>>(
+    {},
+  );
+  const [focusRequest, setFocusRequest] = useState<{
+    field: CheckoutFieldName;
+    seq: number;
+  } | null>(null);
+
+  // Refs for focusing the first invalid control in DOM order on failed submit
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
+  const notesInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const markTouched = (field: CheckoutFieldName) => {
+    setTouchedFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  };
+
+  const handleSelectServiceType = (mode: "pickup" | "delivery") => {
+    setCustomServiceType(mode);
+    setServiceMode(mode);
+    setTouchedFields((prev) => {
+      if (!prev.deliveryAddress) return prev;
+      const { deliveryAddress: _cleared, ...rest } = prev;
+      void _cleared;
+      return rest;
+    });
+  };
+
+  const handleSelectTiming = (asap: boolean) => {
+    setIsAsap(asap);
+    setTouchedFields((prev) => {
+      if (!prev.requestedDate && !prev.requestedTime) return prev;
+      const { requestedDate: _d, requestedTime: _t, ...rest } = prev;
+      void _d;
+      void _t;
+      return rest;
+    });
+  };
 
   // Unique IDs for accessibility
   const nameId = useId();
@@ -216,14 +322,8 @@ export function CheckoutForm({
   const deliveryFee = serviceType === "delivery" ? (settings?.deliveryFee ?? 0) : 0;
   const finalTotal = totalAmountInCents + deliveryFee;
 
-  // Normalized phone formatting check
-  const isPhoneValid = useMemo(() => {
-    if (!phone.trim()) return false;
-    return isValidPhoneNumber(phone);
-  }, [phone]);
-
-  // Form Validation Preview
-  const validationResult = useMemo(() => {
+  // Form Validation Preview + Localized Per-Field Errors
+  const { validationResult, fieldErrors } = useMemo(() => {
     let normalizedPhone = phone.trim();
     if (normalizedPhone.length > 0 && !normalizedPhone.startsWith("+")) {
       try {
@@ -239,12 +339,65 @@ export function CheckoutForm({
       serviceType,
       deliveryAddress: serviceType === "delivery" ? deliveryAddress : undefined,
       isAsap,
-      requestedDate: isAsap ? undefined : requestedDate,
+      requestedDate: isAsap ? undefined : requestedDate || undefined,
       requestedTime: isAsap ? undefined : requestedTime || undefined,
       paymentPreference,
       notes: notes || undefined,
     };
-    return checkoutFormSchema.safeParse(rawForm);
+    const result = checkoutFormSchema.safeParse(rawForm);
+    if (result.success) {
+      return {
+        validationResult: result,
+        fieldErrors: {} as Partial<Record<CheckoutFieldName, string>>,
+      };
+    }
+
+    const errors: Partial<Record<CheckoutFieldName, string>> = {};
+    const recordIssues = (
+      issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; code: string }>,
+    ) => {
+      for (const issue of issues) {
+        const rawField = issue.path[0];
+        if (isCheckoutFieldName(rawField) && !errors[rawField]) {
+          errors[rawField] = dict[mapCheckoutIssueToDictKey(issue, name)];
+        }
+      }
+    };
+
+    recordIssues(result.error.issues);
+
+    // Zod skips object-level superRefine whenever any base field fails.
+    // Re-run conditional rules against the same schema so deliveryAddress and
+    // requestedDate still report errors independently on blur or submit.
+    if (serviceType === "delivery" && !errors.deliveryAddress) {
+      const deliveryCheck = checkoutFormSchema.safeParse({
+        name: "Placeholder",
+        phone: "+33612345678",
+        serviceType: "delivery",
+        deliveryAddress,
+        isAsap: true,
+        paymentPreference: "on_handover",
+      });
+      if (!deliveryCheck.success) {
+        recordIssues(deliveryCheck.error.issues);
+      }
+    }
+
+    if (!isAsap && !errors.requestedDate) {
+      const scheduleCheck = checkoutFormSchema.safeParse({
+        name: "Placeholder",
+        phone: "+33612345678",
+        serviceType: "pickup",
+        isAsap: false,
+        requestedDate: requestedDate || undefined,
+        paymentPreference: "on_handover",
+      });
+      if (!scheduleCheck.success) {
+        recordIssues(scheduleCheck.error.issues);
+      }
+    }
+
+    return { validationResult: result, fieldErrors: errors };
   }, [
     name,
     phone,
@@ -255,14 +408,45 @@ export function CheckoutForm({
     requestedTime,
     paymentPreference,
     notes,
+    dict,
   ]);
 
-  const canSubmit = validationResult.success && items.length > 0 && !isSubmitting;
+  const visibleErrors: Partial<Record<CheckoutFieldName, string>> = {
+    name: touchedFields.name ? fieldErrors.name : undefined,
+    phone: touchedFields.phone ? fieldErrors.phone : undefined,
+    serviceType: touchedFields.serviceType ? fieldErrors.serviceType : undefined,
+    deliveryAddress: touchedFields.deliveryAddress ? fieldErrors.deliveryAddress : undefined,
+    requestedDate: touchedFields.requestedDate ? fieldErrors.requestedDate : undefined,
+    requestedTime: touchedFields.requestedTime ? fieldErrors.requestedTime : undefined,
+    paymentPreference: touchedFields.paymentPreference ? fieldErrors.paymentPreference : undefined,
+    notes: touchedFields.notes ? fieldErrors.notes : undefined,
+  };
 
-  const [, formAction] = useActionState(async (): Promise<null> => {
+  useEffect(() => {
+    if (!focusRequest) return;
+    const refMap: Partial<Record<CheckoutFieldName, HTMLElement | null>> = {
+      name: nameInputRef.current,
+      phone: phoneInputRef.current,
+      deliveryAddress: addressInputRef.current,
+      requestedDate: dateInputRef.current,
+      requestedTime: timeInputRef.current,
+      notes: notesInputRef.current,
+    };
+    const target = refMap[focusRequest.field];
+    if (!target) return;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView?.({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
+    target.focus();
+  }, [focusRequest]);
+
+  const [, formAction, isPending] = useActionState(async (): Promise<null> => {
     if (!validationResult.success) {
-      const firstIssue = validationResult.error.issues[0];
-      setErrorFeedback(firstIssue?.message || "Please check the form fields.");
       return null;
     }
 
@@ -336,6 +520,54 @@ export function CheckoutForm({
     return null;
   }, null);
 
+  const submitting = isSubmitting || isPending;
+  const canSubmit = items.length > 0 && !submitting;
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (!canSubmit) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!validationResult.success) {
+      event.preventDefault();
+      setErrorFeedback(null);
+
+      const activeFields: CheckoutFieldName[] = [
+        "name",
+        "phone",
+        "serviceType",
+        "paymentPreference",
+        "notes",
+      ];
+      if (serviceType === "delivery") {
+        activeFields.push("deliveryAddress");
+      }
+      if (!isAsap) {
+        activeFields.push("requestedDate", "requestedTime");
+      }
+
+      setTouchedFields((prev) => {
+        const next = { ...prev };
+        for (const field of activeFields) {
+          next[field] = true;
+        }
+        return next;
+      });
+
+      const firstInvalidField = FIELD_DOM_ORDER.find((field) => Boolean(fieldErrors[field]));
+      if (firstInvalidField) {
+        if (firstInvalidField === "name" && isNameLocked) {
+          setIsUnlocked(true);
+        }
+        setFocusRequest((prev) => ({
+          field: firstInvalidField,
+          seq: (prev?.seq ?? 0) + 1,
+        }));
+      }
+    }
+  };
+
   // Confirmation view displayed upon order submission announcing redirection
   if (submittedSuccess || confirmedOrder) {
     return (
@@ -381,7 +613,13 @@ export function CheckoutForm({
   }
 
   return (
-    <form action={formAction} className="space-y-6" data-testid="checkout-form" noValidate>
+    <form
+      action={formAction}
+      onSubmit={handleSubmit}
+      className="space-y-6"
+      data-testid="checkout-form"
+      noValidate
+    >
       {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
       <div
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
@@ -434,7 +672,13 @@ export function CheckoutForm({
             </div>
           )}
 
-          <Field id={nameId} label={dict.fullName} required>
+          <Field
+            id={nameId}
+            label={dict.fullName}
+            required
+            error={visibleErrors.name}
+            data-testid="checkout-name-field"
+          >
             {(control) => (
               <div className="relative">
                 {isNameLocked && (
@@ -444,10 +688,12 @@ export function CheckoutForm({
                 )}
                 <Input
                   {...control}
+                  ref={nameInputRef}
                   type="text"
                   value={name}
                   disabled={isNameLocked}
                   onChange={(e) => setCustomName(e.target.value)}
+                  onBlur={() => markTouched("name")}
                   placeholder={dict.fullNamePlaceholder}
                   className={isNameLocked ? "pl-9 font-medium" : ""}
                   data-testid="checkout-name-input"
@@ -474,6 +720,8 @@ export function CheckoutForm({
           id={phoneId}
           label={dict.phone}
           required
+          error={visibleErrors.phone}
+          data-testid="checkout-phone-field"
           hint={
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 opacity-70" />
@@ -488,12 +736,13 @@ export function CheckoutForm({
               </span>
               <Input
                 {...control}
+                ref={phoneInputRef}
                 type="tel"
                 value={phone}
                 onChange={(e) => setCustomPhone(e.target.value)}
+                onBlur={() => markTouched("phone")}
                 placeholder={dict.phonePlaceholder}
                 data-testid="checkout-phone-input"
-                error={phone.length > 0 && !isPhoneValid}
                 className="pl-20 tabular-nums"
                 required
               />
@@ -556,6 +805,17 @@ export function CheckoutForm({
           ]}
         />
 
+        {visibleErrors.serviceType && (
+          <p
+            role="alert"
+            data-testid="checkout-service-type-error"
+            className="text-body-sm text-destructive flex items-start gap-1.5"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{visibleErrors.serviceType}</span>
+          </p>
+        )}
+
         {/* Conditional Address or Pickup Location */}
         {serviceType === "pickup" ? (
           <div className="border-border bg-muted/40 flex items-start gap-3 rounded-lg border p-3 text-xs">
@@ -577,20 +837,24 @@ export function CheckoutForm({
             </div>
           </div>
         ) : (
-          <div className="space-y-1.5" data-testid="delivery-address-container">
-            <label htmlFor={addressId} className="text-foreground text-xs font-medium">
-              {dict.deliveryAddress} <span className="text-destructive">*</span>
-            </label>
+          <Field
+            id={addressId}
+            label={dict.deliveryAddress}
+            required
+            error={visibleErrors.deliveryAddress}
+            data-testid="delivery-address-container"
+          >
             <Input
-              id={addressId}
+              ref={addressInputRef}
               type="text"
               value={deliveryAddress}
               onChange={(e) => setDeliveryAddress(e.target.value)}
+              onBlur={() => markTouched("deliveryAddress")}
               placeholder={dict.deliveryAddressPlaceholder}
               data-testid="checkout-address-input"
               required
             />
-          </div>
+          </Field>
         )}
       </section>
 
@@ -624,7 +888,7 @@ export function CheckoutForm({
               type="radio"
               name="orderTiming"
               checked={isAsap}
-              onChange={() => setIsAsap(true)}
+              onChange={() => handleSelectTiming(true)}
               className="sr-only"
             />
             <div className="min-w-0 flex-1">
@@ -641,72 +905,85 @@ export function CheckoutForm({
           </label>
 
           {/* Schedule Later Option */}
-          <label
-            data-testid="timing-scheduled-option"
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-all ${
+          <div
+            className={`rounded-xl border p-3.5 transition-all ${
               !isAsap
                 ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
                 : "border-border bg-card text-muted-foreground hover:border-border/80"
             }`}
           >
-            <div className="pt-0.5">
-              <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                  !isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
-                }`}
-              >
-                {!isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
-              </span>
-            </div>
-            <input
-              type="radio"
-              name="orderTiming"
-              checked={!isAsap}
-              onChange={() => setIsAsap(false)}
-              className="sr-only"
-            />
-            <div className="min-w-0 flex-1">
-              <span className="text-foreground text-xs font-semibold">{dict.scheduleLater}</span>
-              <p className="text-muted-foreground mt-0.5 text-xs">{dict.scheduleLaterSubtext}</p>
-
-              {!isAsap && (
-                <div
-                  data-testid="scheduled-timing-inputs"
-                  className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2"
+            <label
+              data-testid="timing-scheduled-option"
+              className="flex cursor-pointer items-start gap-3"
+            >
+              <div className="pt-0.5">
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                    !isAsap ? "border-primary bg-card" : "border-muted-foreground/40"
+                  }`}
                 >
-                  <div className="min-w-0 space-y-1">
-                    <label htmlFor={dateId} className="text-foreground text-caption font-medium">
-                      {dict.scheduledDate} <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      id={dateId}
-                      type="date"
-                      min={today ?? undefined}
-                      value={requestedDate}
-                      onChange={(e) => setRequestedDate(e.target.value)}
-                      data-testid="checkout-date-input"
-                      className="h-9 w-full min-w-0"
-                      required
-                    />
-                  </div>
+                  {!isAsap && <span className="bg-primary h-2 w-2 rounded-full" />}
+                </span>
+              </div>
+              <input
+                type="radio"
+                name="orderTiming"
+                checked={!isAsap}
+                onChange={() => handleSelectTiming(false)}
+                className="sr-only"
+              />
+              <div className="min-w-0 flex-1">
+                <span className="text-foreground text-xs font-semibold">{dict.scheduleLater}</span>
+                <p className="text-muted-foreground mt-0.5 text-xs">{dict.scheduleLaterSubtext}</p>
+              </div>
+            </label>
 
-                  <div className="min-w-0 space-y-1">
-                    <label htmlFor={timeId} className="text-foreground text-caption font-medium">
-                      {dict.scheduledTime}
-                    </label>
-                    <Input
-                      id={timeId}
-                      type="time"
-                      value={requestedTime}
-                      onChange={(e) => setRequestedTime(e.target.value)}
-                      data-testid="checkout-time-input"
-                      className="h-9 w-full min-w-0"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </label>
+            {!isAsap && (
+              <div
+                data-testid="scheduled-timing-inputs"
+                className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2 sm:pl-7"
+              >
+                <Field
+                  id={dateId}
+                  label={dict.scheduledDate}
+                  required
+                  error={visibleErrors.requestedDate}
+                  className="min-w-0"
+                  data-testid="checkout-date-field"
+                >
+                  <Input
+                    ref={dateInputRef}
+                    type="date"
+                    min={today ?? undefined}
+                    value={requestedDate}
+                    onChange={(e) => setRequestedDate(e.target.value)}
+                    onBlur={() => markTouched("requestedDate")}
+                    data-testid="checkout-date-input"
+                    className="h-9 w-full min-w-0"
+                    required
+                  />
+                </Field>
+
+                <Field
+                  id={timeId}
+                  label={dict.scheduledTime}
+                  error={visibleErrors.requestedTime}
+                  className="min-w-0"
+                  data-testid="checkout-time-field"
+                >
+                  <Input
+                    ref={timeInputRef}
+                    type="time"
+                    value={requestedTime}
+                    onChange={(e) => setRequestedTime(e.target.value)}
+                    onBlur={() => markTouched("requestedTime")}
+                    data-testid="checkout-time-input"
+                    className="h-9 w-full min-w-0"
+                  />
+                </Field>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -872,29 +1149,45 @@ export function CheckoutForm({
             </label>
           )}
         </div>
+        {visibleErrors.paymentPreference && (
+          <p
+            role="alert"
+            data-testid="checkout-payment-preference-error"
+            className="text-body-sm text-destructive flex items-start gap-1.5"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{visibleErrors.paymentPreference}</span>
+          </p>
+        )}
       </section>
 
       {/* 5. Notes */}
-      <section className="border-border bg-card space-y-2 rounded-xl border p-4 shadow-2xs sm:p-5">
-        <label
-          htmlFor={notesId}
-          className="text-foreground flex items-center gap-1.5 text-sm font-semibold"
-        >
-          <span className="text-primary font-bold">5.</span>
-          {dict.orderNotes}
-        </label>
-        <Textarea
+      <section className="border-border bg-card rounded-xl border p-4 shadow-2xs sm:p-5">
+        <Field
           id={notesId}
-          value={notes}
-          onChange={(e) => {
-            const val = e.target.value;
-            setNotes(val);
-            setCartNotes(val);
-          }}
-          placeholder={dict.notesPlaceholder}
-          className="min-h-20"
-          data-testid="checkout-notes-input"
-        />
+          label={
+            <span className="text-title-sm text-foreground flex items-center gap-1.5">
+              <span className="text-primary font-bold">5.</span>
+              {dict.orderNotes}
+            </span>
+          }
+          error={visibleErrors.notes}
+          data-testid="checkout-notes-field"
+        >
+          <Textarea
+            ref={notesInputRef}
+            value={notes}
+            onChange={(e) => {
+              const val = e.target.value;
+              setNotes(val);
+              setCartNotes(val);
+            }}
+            onBlur={() => markTouched("notes")}
+            placeholder={dict.notesPlaceholder}
+            className="min-h-20"
+            data-testid="checkout-notes-input"
+          />
+        </Field>
       </section>
 
       {/* 6. Order Summary Card */}
@@ -967,12 +1260,12 @@ export function CheckoutForm({
         <Button
           type="submit"
           disabled={!canSubmit}
-          loading={isSubmitting}
+          loading={submitting}
           className="h-12 w-full rounded-xl text-base font-semibold shadow-xs"
           data-testid="place-order-button"
         >
           <span>
-            {isSubmitting
+            {submitting
               ? dict.placingOrder
               : `${dict.placeOrder} • ${formatMoney(finalTotal, locale)}`}
           </span>
