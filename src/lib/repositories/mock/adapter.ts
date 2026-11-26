@@ -823,8 +823,7 @@ export function createMockRepositories(
       });
       const deliveryFee =
         order.serviceType === "delivery" ? Math.max(0, fixtures.settings.deliveryFee ?? 0) : 0;
-      const pickupFee =
-        order.serviceType === "pickup" ? Math.max(0, order.pickupFeeCents ?? 0) : 0;
+      const pickupFee = order.serviceType === "pickup" ? Math.max(0, order.pickupFeeCents ?? 0) : 0;
       order.items = nextItems;
       order.totalAmount = subtotal + deliveryFee + pickupFee;
       order.updatedAt = new Date().toISOString();

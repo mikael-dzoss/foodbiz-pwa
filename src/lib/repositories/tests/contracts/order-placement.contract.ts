@@ -542,7 +542,10 @@ export function describeOrderPlacementContract(
           await manager.business.updateSettings(businessId, { shopPickupEnabled: false });
 
           await expectRejection(
-            repos.orders.place(businessId, orderInput(freshPhone(), [{ productId, quantity: qty }])),
+            repos.orders.place(
+              businessId,
+              orderInput(freshPhone(), [{ productId, quantity: qty }]),
+            ),
             "PICKUP_LOCATION_REQUIRED",
           );
 
@@ -608,7 +611,9 @@ export function describeOrderPlacementContract(
           const tomorrowKey = DAY_KEYS[(new Date(`${tomorrow}T12:00:00Z`).getUTCDay() + 6) % 7];
           const allDay = [{ open: "00:00", close: "24:00" }];
           const makeWeek = (
-            override: Partial<Record<(typeof DAY_KEYS)[number], { open: string; close: string }[]>> = {},
+            override: Partial<
+              Record<(typeof DAY_KEYS)[number], { open: string; close: string }[]>
+            > = {},
           ): WeeklyHours => ({
             ...(Object.fromEntries(DAY_KEYS.map((k) => [k, allDay])) as WeeklyHours),
             ...override,
