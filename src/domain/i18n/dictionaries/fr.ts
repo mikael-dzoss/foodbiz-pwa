@@ -778,7 +778,7 @@ export const frDictionary: Dictionary = {
       deleteButton: "Supprimer",
       saveSuccess: "Lieu de retrait enregistré",
       deleteSuccess: "Lieu de retrait supprimé",
-      deleteConfirmTitle: "Supprimer ce lieu de retrait ?",
+      deleteConfirmTitle: "Supprimer {name} ?",
       deleteConfirmDescription:
         "Les clients ne pourront plus le choisir. Les commandes passées ne sont pas affectées.",
       errorName: "Saisissez un nom",
@@ -797,6 +797,11 @@ export const frDictionary: Dictionary = {
       clearConfirmAction: "Utiliser",
       clearSuccess: "Ce lieu suit désormais les horaires de la boutique",
       manageLink: "Lieux de retrait",
+      movedAnnouncement: "{name} déplacé en position {n} sur {total}",
+      limitHint: "{max} lieux maximum",
+      pickupOffNotice:
+        "Le retrait est désactivé dans les réglages de commande — ces lieux ne sont pas proposés aux clients.",
+      pickupOffHint: "Le retrait est désactivé — ces lieux ne sont pas proposés aux clients.",
     },
   },
   orderConfirmation: {

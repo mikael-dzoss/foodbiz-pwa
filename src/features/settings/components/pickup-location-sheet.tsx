@@ -48,13 +48,20 @@ type DraftErrors = Partial<Record<"name" | "address" | "postcode" | "fee", strin
 
 type Labels = ReturnType<typeof getDictionary>["settings"]["pickupLocations"];
 
-function initialDraft(location: PickupLocation | null): Draft {
+function initialDraft(location: PickupLocation | null, locale: SupportedLocale): Draft {
   return {
     name: location?.name ?? "",
     description: location?.description ?? "",
     address: location?.address ?? "",
     postcode: location?.postcode ?? "",
-    feeEuros: ((location?.feeCents ?? 0) / 100).toFixed(2),
+    feeEuros: ((location?.feeCents ?? 0) / 100).toLocaleString(
+      locale === "fr" ? "fr-FR" : "en-US",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: false,
+      },
+    ),
     isActive: location?.isActive ?? true,
   };
 }
@@ -124,7 +131,7 @@ function PickupLocationForm({
   const dict = getDictionary(locale).settings;
   const t = dict.pickupLocations;
   const oh = dict.openingHours;
-  const [draft, setDraft] = useState<Draft>(() => initialDraft(location));
+  const [draft, setDraft] = useState<Draft>(() => initialDraft(location, locale));
   const [submitted, setSubmitted] = useState(false);
   const { errors, value } = useMemo(
     () => validatePickupDraft(draft, t, locale),
@@ -221,13 +228,13 @@ function PickupLocationForm({
         />
       </div>
 
-      <section aria-labelledby="pickup-location-hours-heading" className="space-y-2">
-        <h3
+      <div role="group" aria-labelledby="pickup-location-hours-heading" className="space-y-2">
+        <span
           id="pickup-location-hours-heading"
-          className="text-label-sm text-muted-foreground tracking-wider uppercase"
+          className="text-label-sm text-muted-foreground block tracking-wider uppercase"
         >
           {t.hoursSection}
-        </h3>
+        </span>
         <div className="border-border rounded-xl border p-3" data-testid="pickup-location-hours">
           {location?.weeklyHours ? (
             <HoursSummary
@@ -266,12 +273,13 @@ function PickupLocationForm({
             {t.editHoursNewHint}
           </p>
         )}
-      </section>
+      </div>
 
       {submitError && (
         <div
           role="alert"
           data-testid="pickup-location-form-error"
+          tabIndex={-1}
           className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border px-3.5 py-3 text-sm"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -326,6 +334,7 @@ export interface PickupLocationSheetProps {
   submitError?: string | null;
   onSave: (value: PickupLocationFormValue) => void;
   onDelete?: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /** Modal sheet to add or edit one relay pickup location (#385). Hours are edited on a sub-page. */
@@ -338,6 +347,7 @@ export function PickupLocationSheet({
   submitError = null,
   onSave,
   onDelete,
+  onCloseAutoFocus,
 }: PickupLocationSheetProps) {
   const t = getDictionary(locale).settings.pickupLocations;
   return (
@@ -346,6 +356,7 @@ export function PickupLocationSheet({
         side="bottom"
         className="mx-auto max-w-lg rounded-t-2xl"
         data-testid="pickup-location-sheet"
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         <SheetHeader>
           <SheetTitle>{location ? t.sheetEditTitle : t.sheetAddTitle}</SheetTitle>

@@ -92,9 +92,10 @@ describe("PickupLocationsSettings (#385)", () => {
 
   it("renders the shop row first, then fee/Free, hours summary and the inactive badge", () => {
     renderPage();
-    const items = within(screen.getByTestId("pickup-locations-list")).getAllByRole("listitem");
-    expect(items[0].getAttribute("data-testid")).toBe("pickup-shop-row");
-    expect(items[0].textContent).toContain("Chez Foodbiz");
+    const shopRow = within(screen.getByTestId("pickup-shop-list")).getByRole("listitem");
+    expect(shopRow.getAttribute("data-testid")).toBe("pickup-shop-row");
+    expect(shopRow.textContent).toContain("Chez Foodbiz");
+    expect(screen.getByRole("heading", { name: "Relay locations" })).toBeDefined();
     expect(
       (screen.getByTestId("switch-shop-pickup") as HTMLElement).getAttribute("aria-checked"),
     ).toBe("true");
@@ -142,7 +143,8 @@ describe("PickupLocationsSettings (#385)", () => {
       isActive: true,
     });
     await waitFor(() => expect(screen.getByTestId(`pickup-location-row-${A}`)).toBeDefined());
-    expect(screen.queryByTestId("pickup-location-sheet")).toBeNull();
+    // Stays open in edit mode so "Edit hours" is reachable right away.
+    expect(screen.getByTestId("pickup-location-edit-hours")).toBeDefined();
   });
 
   it("blocks invalid input with localized field errors", () => {
@@ -213,6 +215,9 @@ describe("PickupLocationsSettings (#385)", () => {
       refusalText,
     );
     expect(screen.getByTestId(`pickup-location-row-${A}`)).toBeDefined();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByTestId("pickup-location-form-error")),
+    );
   });
 
   it("reorders with the move buttons and disables the edges", async () => {
@@ -234,8 +239,74 @@ describe("PickupLocationsSettings (#385)", () => {
     await waitFor(() => expect(reorderMock).toHaveBeenCalledWith({ ids: [B, A] }));
     await waitFor(() => {
       const rows = within(screen.getByTestId("pickup-locations-list")).getAllByRole("listitem");
-      expect(rows[1].getAttribute("data-testid")).toBe(`pickup-location-row-${B}`);
+      expect(rows[0].getAttribute("data-testid")).toBe(`pickup-location-row-${B}`);
     });
+    expect(screen.getByTestId("pickup-locations-announcement").textContent).toBe(
+      "Relay A moved to position 2 of 2",
+    );
+    // A now sits at the bottom edge, so focus moves to its up button.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByTestId(`pickup-location-up-${A}`)),
+    );
+  });
+
+  it("ignores move clicks while busy (aria-disabled guard)", async () => {
+    let resolve: (
+      value: Awaited<ReturnType<typeof reorderPickupLocationsAction>>,
+    ) => void = () => {};
+    reorderMock.mockReturnValue(new Promise((r) => (resolve = r)));
+    renderPage();
+    fireEvent.click(screen.getByTestId(`pickup-location-down-${A}`));
+    const up = screen.getByTestId(`pickup-location-up-${B}`);
+    await waitFor(() => expect(up.getAttribute("aria-disabled")).toBe("true"));
+    fireEvent.click(up);
+    expect(reorderMock).toHaveBeenCalledTimes(1);
+    resolve({ ok: true, data: [relayB, relayA] });
+  });
+
+  it("explains when pickup is off in Ordering settings and keeps the list editable", () => {
+    render(
+      <ToastProvider>
+        <PickupLocationsSettings
+          shop={{ name: "Chez Foodbiz", address: null }}
+          shopPickupEnabled
+          pickupServiceEnabled={false}
+          initial={[relayA]}
+          locale="en"
+        />
+      </ToastProvider>,
+    );
+    expect(screen.getByTestId("pickup-service-off-notice").textContent).toContain(
+      "Pickup is turned off in Ordering settings",
+    );
+    expect(screen.getByTestId(`pickup-location-edit-${A}`)).toBeDefined();
+  });
+
+  it("hints the 20-location limit and ties it to the disabled Add button", () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      location({
+        id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+        name: `R${i}`,
+        sortOrder: i,
+      }),
+    );
+    renderPage(many);
+    const add = screen.getByTestId("pickup-location-add") as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    expect(add.getAttribute("aria-describedby")).toBe("pickup-locations-limit");
+    expect(screen.getByTestId("pickup-locations-limit").textContent).toBe("20 locations maximum");
+  });
+
+  it("names the location in the delete dialog and refocuses Add after deleting", async () => {
+    deleteMock.mockResolvedValue({ ok: true, data: undefined });
+    renderPage();
+    fireEvent.click(screen.getByTestId(`pickup-location-edit-${A}`));
+    fireEvent.click(screen.getByTestId("pickup-location-delete"));
+    expect(screen.getByText("Delete Relay A?")).toBeDefined();
+    fireEvent.click(screen.getByTestId("pickup-location-delete-dialog-confirm"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByTestId("pickup-location-add")),
+    );
   });
 
   it("turns shop pickup off", async () => {
@@ -251,9 +322,10 @@ describe("PickupLocationsSettings (#385)", () => {
     shopMock.mockResolvedValue(lastOptionRefusal);
     renderPage([relayB]);
     fireEvent.click(screen.getByTestId("switch-shop-pickup"));
-    expect((await screen.findByTestId("pickup-locations-error")).textContent).toContain(
-      refusalText,
-    );
-    expect(screen.getByTestId("switch-shop-pickup").getAttribute("aria-checked")).toBe("true");
+    expect((await screen.findByTestId("pickup-shop-error")).textContent).toContain(refusalText);
+    const shopSwitch = screen.getByTestId("switch-shop-pickup");
+    expect(shopSwitch.getAttribute("aria-checked")).toBe("true");
+    expect(shopSwitch.getAttribute("aria-describedby")).toBe("pickup-shop-error");
+    await waitFor(() => expect(document.activeElement).toBe(shopSwitch));
   });
 });

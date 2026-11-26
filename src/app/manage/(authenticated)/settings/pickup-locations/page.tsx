@@ -19,6 +19,7 @@ export default async function PickupLocationsPage() {
     <PickupLocationsSettings
       shop={data.shop}
       shopPickupEnabled={data.shopPickupEnabled}
+      pickupServiceEnabled={data.pickupServiceEnabled}
       initial={data.locations}
       locale={locale}
     />

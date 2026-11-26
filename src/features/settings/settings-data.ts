@@ -77,6 +77,7 @@ export async function getPickupLocationsPageData() {
   return {
     shop: { name: business.name, address: business.address ?? null },
     shopPickupEnabled: settings?.shopPickupEnabled ?? true,
+    pickupServiceEnabled: settings?.serviceTypes.pickup ?? true,
     locations,
   };
 }

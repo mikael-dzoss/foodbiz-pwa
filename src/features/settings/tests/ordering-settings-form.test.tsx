@@ -95,6 +95,15 @@ describe("OrderingSettingsForm component (M-63)", () => {
     );
   });
 
+  it("hints that pickup locations are not offered while pickup is off", () => {
+    render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
+    expect(screen.queryByTestId("pickup-locations-off-hint")).toBeNull();
+    fireEvent.click(screen.getByTestId("switch-service-pickup"));
+    expect(screen.getByTestId("pickup-locations-off-hint").textContent).toBe(
+      dict.pickupLocations.pickupOffHint,
+    );
+  });
+
   it("toggles accepting orders and updates status badge", () => {
     render(<OrderingSettingsForm settings={mockSettings} dict={dict} />);
 

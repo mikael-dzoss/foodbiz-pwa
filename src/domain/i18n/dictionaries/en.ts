@@ -758,7 +758,7 @@ export const enDictionary: Dictionary = {
       deleteButton: "Delete",
       saveSuccess: "Pickup location saved",
       deleteSuccess: "Pickup location deleted",
-      deleteConfirmTitle: "Delete this pickup location?",
+      deleteConfirmTitle: "Delete {name}?",
       deleteConfirmDescription:
         "Customers will no longer be able to choose it. Past orders are not affected.",
       errorName: "Enter a name",
@@ -775,6 +775,11 @@ export const enDictionary: Dictionary = {
       clearConfirmAction: "Use shop hours",
       clearSuccess: "This location now follows the shop hours",
       manageLink: "Pickup locations",
+      movedAnnouncement: "{name} moved to position {n} of {total}",
+      limitHint: "{max} locations maximum",
+      pickupOffNotice:
+        "Pickup is turned off in Ordering settings — these locations aren't offered to customers.",
+      pickupOffHint: "Pickup is off — these locations aren't offered to customers.",
     },
   },
   orderConfirmation: {

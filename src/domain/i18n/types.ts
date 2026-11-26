@@ -764,6 +764,10 @@ export interface SettingsDictionary {
     clearConfirmAction: string;
     clearSuccess: string;
     manageLink: string;
+    movedAnnouncement: string;
+    limitHint: string;
+    pickupOffNotice: string;
+    pickupOffHint: string;
   };
 }
 
