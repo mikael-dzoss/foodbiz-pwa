@@ -162,6 +162,8 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         business_id: businessAId,
         currency: "EUR",
         accepting_orders: true,
+        weekly_hours: null, // no opening-hours checks: placement must not depend on the time of day
+        hours_exceptions: [],
         min_order_amount: 500, // 5.00 EUR
         delivery_fee: 200, // 2.00 EUR
         service_types: { pickup: true, delivery: true, dineIn: true },
@@ -177,6 +179,8 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
         business_id: businessBId,
         currency: "EUR",
         accepting_orders: true,
+        weekly_hours: null,
+        hours_exceptions: [],
         min_order_amount: 500,
         delivery_fee: 200,
         service_types: { pickup: true, delivery: false, dineIn: false },
@@ -426,6 +430,15 @@ describe.skipIf(shouldSkip)("Supabase Live Security & Concurrency Contract Suite
   // SQL constants and the domain constants diverge.
   describeOrderPlacementContract(() => anonPublicRepos, businessAId, {
     boundaryProductId: () => prodABulkId,
+    // Business A is created without opening hours (null), so placement never depends on the
+    // time of day; the contract's opening-hours cases set hours relative to now and reset them.
+    setOpeningHours: async ({ weeklyHours, hoursExceptions }) => {
+      const { error } = await adminClient
+        .from("business_settings")
+        .update({ weekly_hours: weeklyHours, hours_exceptions: hoursExceptions })
+        .eq("business_id", businessAId);
+      if (error) throw error;
+    },
   });
 
   // Lifecycle transitions (every pair against the domain table), payments, refunds and item

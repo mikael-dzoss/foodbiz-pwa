@@ -1,4 +1,5 @@
 import type { Order } from "@/domain/order";
+import { DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import { nextPhone, pickStockedProduct, placeOrder } from "./order-state.contract";
 import type { Repositories } from "@/domain/repositories";
 import { describe, expect, it } from "vitest";
@@ -197,7 +198,7 @@ export function describeOrderRepositoryContract(
         guestPhone: "+33611223344",
         serviceType: "pickup",
         channel: "storefront",
-        requestedDate: "2026-12-01",
+        requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
         items: [{ productId: product.id, quantity }],
       });
 
@@ -226,7 +227,7 @@ export function describeOrderRepositoryContract(
         guestPhone: "+33611223355",
         serviceType: "pickup",
         channel: "storefront",
-        requestedDate: "2026-12-01",
+        requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
         items: [{ productId: product.id, quantity }],
       });
 

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Order, OrderStatus } from "@/domain/order";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
+import { validateSlot, type HoursException, type WeeklyHours } from "@/domain/opening-hours";
+import { DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { createDefaultFixtures, DEMO_BUSINESS_ID, type MockFixtures } from "../mock/fixtures";
@@ -521,6 +523,7 @@ function createFakeSupabaseClient(
               args.p_requested_date,
               args.p_requested_time ?? "",
               args.p_payment_preference ?? "on_handover",
+              args.p_is_asap ?? false,
             ]);
             if (
               priorGuest?.phone !== args.p_guest_phone ||
@@ -554,6 +557,23 @@ function createFakeSupabaseClient(
             error: { message, code },
           });
           const bizSettings = tables.business_settings.find((s) => s.business_id === businessId);
+          // Mirrors place_order's slot rules (migration 034) with the domain's validateSlot.
+          if (bizSettings) {
+            const slot = validateSlot(
+              {
+                weekly: bizSettings.weekly_hours as WeeklyHours | null,
+                exceptions: (bizSettings.hours_exceptions ?? []) as HoursException[],
+              },
+              bizSettings.timezone ?? DEFAULT_TIMEZONE,
+              new Date(),
+              {
+                date: String(args.p_requested_date),
+                time: (args.p_requested_time as string | undefined) ?? null,
+                isAsap: (args.p_is_asap as boolean | undefined) ?? false,
+              },
+            );
+            if (!slot.ok) return fail(`SLOT_INVALID: ${slot.reason}`);
+          }
           const pm = bizSettings?.payment_methods as Record<string, boolean> | undefined;
           const pref = String(args.p_payment_preference ?? "on_handover");
           if (pm) {
@@ -700,6 +720,7 @@ function createFakeSupabaseClient(
             args.p_requested_date,
             args.p_requested_time ?? "",
             args.p_payment_preference ?? "on_handover",
+            args.p_is_asap ?? false,
           ]),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -917,7 +938,12 @@ describe("Supabase Repository Adapter", () => {
       mockRepos = createSupabaseRepositories(fakeClient);
     });
 
-    describeRepositoryContracts("Supabase Adapter (Mocked Client)", () => mockRepos);
+    describeRepositoryContracts("Supabase Adapter (Mocked Client)", () => mockRepos, {
+      // The demo hours make storefront orders depend on the time of day; the suite clears them.
+      setOpeningHours: async (hours) => {
+        await mockRepos.business.updateSettings(DEMO_BUSINESS_ID, hours);
+      },
+    });
   });
 
   describe("publicOnly option on createSupabaseRepositories", () => {
@@ -979,6 +1005,11 @@ describe("Supabase Repository Adapter", () => {
     it("maps place_order errors accurately", async () => {
       const fakeClient = createFakeSupabaseClient();
       const repos = createSupabaseRepositories(fakeClient);
+      // The demo hours would make these placements depend on the time of day.
+      await repos.business.updateSettings(DEMO_BUSINESS_ID, {
+        weeklyHours: null,
+        hoursExceptions: [],
+      });
 
       // P0001 insufficient stock
       await expect(
@@ -987,7 +1018,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [
             // Above the demo stock (45) but within the per-line cap that place_order also enforces.
             { productId: "33333333-3333-4333-8333-333333333301", quantity: MAX_QUANTITY_PER_LINE },
@@ -1005,7 +1036,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "99999999-9999-4999-8999-999999999999", quantity: 1 }],
         }),
       ).rejects.toMatchObject({
@@ -1029,7 +1060,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "STORE_CLOSED" });
@@ -1045,7 +1076,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "MINIMUM_ORDER_UNMET" });
@@ -1061,7 +1092,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -1077,7 +1108,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({ code: "INVALID_INPUT" });
@@ -1094,7 +1125,7 @@ describe("Supabase Repository Adapter", () => {
           guestPhone: "+33612345678",
           serviceType: "pickup",
           channel: "storefront",
-          requestedDate: "2026-10-15",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
           items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         }),
       ).rejects.toMatchObject({
@@ -1103,6 +1134,51 @@ describe("Supabase Repository Adapter", () => {
       });
       expect(errorSpy).toHaveBeenCalled();
       errorSpy.mockRestore();
+    });
+
+    it("maps SLOT_INVALID reasons to typed slot errors and passes p_is_asap", async () => {
+      const rpc = vi.fn(async (_fn: string, _args: unknown) => ({
+        data: null,
+        error: { code: "22023", message: "SLOT_INVALID: closed_now" } as {
+          code: string;
+          message: string;
+        },
+      }));
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+      const place = () =>
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
+          isAsap: true,
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        });
+
+      await expect(place()).rejects.toMatchObject({ code: "SLOT_CLOSED_NOW" });
+      expect(rpc).toHaveBeenCalledWith("place_order", expect.objectContaining({ p_is_asap: true }));
+
+      const expected = {
+        closed_day: "SLOT_CLOSED_DAY",
+        date_out_of_window: "SLOT_DATE_OUT_OF_WINDOW",
+        time_outside_hours: "SLOT_TIME_OUTSIDE_HOURS",
+        time_in_past: "SLOT_TIME_IN_PAST",
+      };
+      for (const [reason, code] of Object.entries(expected)) {
+        rpc.mockResolvedValueOnce({
+          data: null,
+          error: { code: "22023", message: `SLOT_INVALID: ${reason}` },
+        });
+        await expect(place()).rejects.toMatchObject({ code });
+      }
+
+      // An unknown reason never leaks: it is a generic invalid-input error.
+      rpc.mockResolvedValueOnce({
+        data: null,
+        error: { code: "22023", message: "SLOT_INVALID: secret details" },
+      });
+      await expect(place()).rejects.toMatchObject({ code: "INVALID_INPUT" });
     });
 
     it("maps place_order error prefixes to codes without leaking database text", async () => {
@@ -1119,7 +1195,7 @@ describe("Supabase Repository Adapter", () => {
             guestPhone: "+33612345678",
             serviceType: "pickup",
             channel: "storefront",
-            requestedDate: "2026-10-15",
+            requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
             items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
           })
           .catch((err: unknown) => err);
@@ -1193,7 +1269,7 @@ describe("Supabase Repository Adapter", () => {
         guestPhone: "+33612345678",
         serviceType: "pickup",
         channel: "storefront",
-        requestedDate: "2026-10-15",
+        requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
         items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
         idempotencyKey,
       });
