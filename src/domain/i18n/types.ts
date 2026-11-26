@@ -306,6 +306,13 @@ export interface StorefrontDictionary {
   payOnHandoverCardSubtext: string;
   cardOnPickup: string;
   walletTapSoon: string;
+
+  // Structured opening hours (#372, #375)
+  opensOnDayAt: string;
+  upcomingExceptionsTitle: string;
+  todayExceptionLabel: string;
+  todayExceptionClosed: string;
+  todayExceptionOpen: string;
 }
 
 export interface QuickAddDictionary {
@@ -594,6 +601,53 @@ export interface SettingsDictionary {
     saveButton: string;
     saveSuccess: string;
     discardButton: string;
+  };
+
+  // Opening hours (#372)
+  openingHours: {
+    title: string;
+    description: string;
+    navDescription: string;
+    overviewSummarySection: string;
+    optionsSection: string;
+    regularTitle: string;
+    regularDescription: string;
+    regularConfigured: string;
+    regularNotSet: string;
+    closed: string;
+    open: string;
+    emptyTitle: string;
+    emptyHint: string;
+    legacyTextLabel: string;
+    upcomingExceptionsTitle: string;
+    manageStructuredLink: string;
+    structuredActiveHint: string;
+    presetLabel: string;
+    presetEveryDay: string;
+    presetWeekdaysWeekend: string;
+    presetCustom: string;
+    groupEveryDay: string;
+    groupWeekdays: string;
+    groupWeekend: string;
+    openTimeLabel: string;
+    closeTimeLabel: string;
+    addRange: string;
+    removeRangeAria: string;
+    toggleDayAria: string;
+    overnightHint: string;
+    errorCloseAfterOpen: string;
+    errorRangeOverlap: string;
+    errorMaxRanges: string;
+    errorInvalidTime: string;
+    errorFixBeforeSave: string;
+    saveButton: string;
+    discardButton: string;
+    saveSuccess: string;
+    clearButton: string;
+    clearConfirmTitle: string;
+    clearConfirmDescription: string;
+    clearConfirmAction: string;
+    clearSuccess: string;
   };
 }
 
