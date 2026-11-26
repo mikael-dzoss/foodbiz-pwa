@@ -15,7 +15,7 @@ const FORM_CONTROL_TAGS = new Set([
 
 // Unprefixed utility classes that render form controls below 16px on mobile and trigger iOS Safari auto-zoom.
 const SMALL_TEXT_CLASS_RE =
-  /(?:^|[\s"'`])text-(?:xs|sm|caption|micro|body-sm|label-sm|label-md|label-strong)(?=$|[\s"'`])/;
+  /(?:^|[\s"'`])text-(?:(?:xs|sm|caption|micro|body-sm|label-sm|label-md|label-strong)(?:\/\S+)?|\[\d*\.?\d+(?:px|r?em)\])(?=$|[\s"'`])/;
 
 function collectTsxFiles(dir: string): string[] {
   const files: string[] = [];

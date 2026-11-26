@@ -585,7 +585,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
         {/* Date and Time pickers when Scheduled */}
         {!isAsap && (
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <label
                 htmlFor="reqDate"
                 className="text-muted-foreground text-caption block font-medium"
@@ -601,7 +601,7 @@ export function ManualOrderForm({ products, today }: ManualOrderFormProps) {
                 data-testid="requested-date-input"
               />
             </div>
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <label
                 htmlFor="reqTime"
                 className="text-muted-foreground text-caption block font-medium"
