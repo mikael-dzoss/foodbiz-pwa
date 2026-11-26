@@ -426,11 +426,30 @@ describe("Settings Server Actions", () => {
       expect(mockRevalidatePath).toHaveBeenCalledWith("/manage");
     });
 
+    it("accepts card-only payment settings", async () => {
+      const res = await updatePaymentSettingsAction({
+        revolutRevtag: "",
+        weroIdentifier: "",
+        paymentMethods: {
+          cash: false,
+          card: true,
+          revolut: false,
+          wero: false,
+        },
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.data.paymentMethods?.card).toBe(true);
+      }
+    });
+
     it("rejects when all payment methods are disabled", async () => {
       const res = await updatePaymentSettingsAction({
         revolutRevtag: "@rev",
         paymentMethods: {
           cash: false,
+          card: false,
           revolut: false,
           wero: false,
         },

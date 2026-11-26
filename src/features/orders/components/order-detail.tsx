@@ -43,6 +43,7 @@ import {
   formatDateTime,
   formatTime,
   type OrderStatus,
+  type PaymentMethod,
 } from "@/domain";
 import { useBusinessTimeZone } from "@/components/time/business-timezone";
 import {
@@ -130,9 +131,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [rejectionError, setRejectionError] = React.useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
-    "cash" | "revolut" | "wero"
-  >("cash");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<PaymentMethod>("cash");
   const [paymentDialogMode, setPaymentDialogMode] = React.useState<"record" | "shortcut">("record");
   const [refundDialogOpen, setRefundDialogOpen] = React.useState(false);
   const [refundReason, setRefundReason] = React.useState("");
@@ -1208,7 +1207,7 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
           </DialogHeader>
 
           <div className="flex flex-col gap-2 py-3">
-            {(["cash", "revolut", "wero"] as const).map((method) => (
+            {(["cash", "card", "revolut", "wero"] as const).map((method) => (
               <Button
                 variant="unstyled"
                 size="none"

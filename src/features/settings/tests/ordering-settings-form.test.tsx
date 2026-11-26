@@ -30,6 +30,7 @@ const mockSettings: BusinessSettings = {
   weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },
@@ -198,7 +199,7 @@ describe("OrderingSettingsForm component (M-63)", () => {
       leadTimeUnit: "business_days" as const,
       revolutRevtag: "",
       weroIdentifier: "",
-      paymentMethods: { cash: true, revolut: false, wero: false },
+      paymentMethods: { cash: true, card: false, revolut: false, wero: false },
       paymentInstructionsEn: "",
       paymentInstructionsFr: "",
       inAppAlerts: false,

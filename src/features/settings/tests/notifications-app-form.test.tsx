@@ -31,6 +31,7 @@ const mockSettings: BusinessSettings = {
   weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },

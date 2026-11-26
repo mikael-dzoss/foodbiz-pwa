@@ -231,8 +231,23 @@ export function CheckoutForm({
   const revolutAllowed = settings?.paymentMethods.revolut ?? true;
   const weroAllowed = settings?.paymentMethods.wero ?? true;
   const cashAllowed = settings?.paymentMethods.cash ?? true;
+  const cardAllowed = settings?.paymentMethods.card ?? false;
+  const handoverAllowed = cashAllowed || cardAllowed;
 
-  const defaultPaymentPref = cashAllowed ? "on_handover" : revolutAllowed ? "revolut" : "wero";
+  const handoverTitle =
+    cashAllowed && cardAllowed
+      ? dict.payOnHandover
+      : cardAllowed
+        ? dict.payOnHandoverCard
+        : dict.payOnHandoverCash;
+  const handoverSubtext =
+    cashAllowed && cardAllowed
+      ? dict.payOnHandoverSubtext
+      : cardAllowed
+        ? dict.payOnHandoverCardSubtext
+        : dict.payOnHandoverCashSubtext;
+
+  const defaultPaymentPref = handoverAllowed ? "on_handover" : revolutAllowed ? "revolut" : "wero";
   const [paymentPreference, setPaymentPreference] = useState<"on_handover" | "revolut" | "wero">(
     defaultPaymentPref,
   );
@@ -961,7 +976,7 @@ export function CheckoutForm({
 
         <div className="space-y-2">
           {/* Pay on Handover */}
-          {cashAllowed && (
+          {handoverAllowed && (
             <label
               data-testid="payment-on-handover"
               className={`flex cursor-pointer items-start justify-between rounded-xl border p-3.5 transition-all ${
@@ -993,20 +1008,28 @@ export function CheckoutForm({
                 />
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-foreground text-xs font-semibold">
-                      {dict.payOnHandover}
-                    </span>
+                    <span className="text-foreground text-xs font-semibold">{handoverTitle}</span>
                   </div>
-                  <p className="text-primary text-xs font-medium">{dict.payOnHandoverSubtext}</p>
+                  <p className="text-primary text-xs font-medium">{handoverSubtext}</p>
                   <div className="text-muted-foreground text-caption flex items-center gap-2 pt-1">
-                    <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
-                      <Banknote className="text-muted-foreground h-3 w-3" />
-                      {dict.cashBadge}
-                    </span>
-                    <span className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
-                      <CreditCard className="text-muted-foreground h-3 w-3" />
-                      {dict.contactlessBadge}
-                    </span>
+                    {cashAllowed && (
+                      <span
+                        data-testid="payment-badge-cash"
+                        className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5"
+                      >
+                        <Banknote className="text-muted-foreground h-3 w-3" />
+                        {dict.cashBadge}
+                      </span>
+                    )}
+                    {cardAllowed && (
+                      <span
+                        data-testid="payment-badge-card"
+                        className="border-border bg-card inline-flex items-center gap-1 rounded border px-1.5 py-0.5"
+                      >
+                        <CreditCard className="text-muted-foreground h-3 w-3" />
+                        {dict.contactlessBadge}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

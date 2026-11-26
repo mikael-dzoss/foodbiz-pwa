@@ -38,6 +38,7 @@ const baseSettings: BusinessSettings = {
   weroIdentifier: "",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },
