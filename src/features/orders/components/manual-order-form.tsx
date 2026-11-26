@@ -8,7 +8,6 @@ import {
   Phone,
   User,
   MapPin,
-  AlertCircle,
   CheckCircle2,
   Check,
   Pencil,
@@ -17,6 +16,7 @@ import {
   MessageSquare,
   Store,
 } from "lucide-react";
+import { Alert } from "@/components/ui";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -346,15 +346,9 @@ export function ManualOrderForm({
       </header>
 
       {errorMessage && (
-        <div
-          className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-xs"
-          role="alert"
-          id="manual-order-error"
-          data-testid="manual-order-error"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
+        <Alert tone="error" id="manual-order-error" data-testid="manual-order-error">
+          {errorMessage}
+        </Alert>
       )}
 
       {/* Step 1: Guest Information Card (Matching Stitch M-30) */}
@@ -460,13 +454,9 @@ export function ManualOrderForm({
             )}
           </div>
           {nameEditNotice && (
-            <div
-              role="status"
-              data-testid="guest-name-update-toast"
-              className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption rounded-md border px-2.5 py-1.5 font-medium"
-            >
+            <Alert tone="warning" data-testid="guest-name-update-toast">
               {nameEditNotice}
-            </div>
+            </Alert>
           )}
         </div>
 
@@ -925,9 +915,9 @@ export function ManualOrderForm({
 
             {/* Notes */}
             {notes.trim() && (
-              <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 rounded-lg border p-2.5">
-                <span className="font-bold">{t.preview.kitchenNote}</span> {notes}
-              </div>
+              <Alert tone="warning">
+                <span className="font-semibold">{t.preview.kitchenNote}</span> {notes}
+              </Alert>
             )}
 
             {/* Itemized summary */}
