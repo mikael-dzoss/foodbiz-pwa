@@ -60,6 +60,13 @@ export function buildStorefrontRootMetadata(options: {
   return {
     title: { default: businessName, template: `%s · ${businessName}` },
     description,
+    applicationName: businessName,
+    appleWebApp: {
+      capable: true,
+      title: businessName,
+      statusBarStyle: "default",
+    },
+    manifest: `/${locale}/manifest.webmanifest`,
     openGraph: {
       title: businessName,
       description,

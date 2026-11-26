@@ -41,6 +41,13 @@ describe("storefront metadata helpers", () => {
     const template = (meta.title as { template: string }).template;
     expect(template.split("Chez Awa")).toHaveLength(2);
     expect(template.replace("%s", "Menu")).toBe("Menu · Chez Awa");
+    expect(meta.applicationName).toBe("Chez Awa");
+    expect(meta.appleWebApp).toEqual({
+      capable: true,
+      title: "Chez Awa",
+      statusBarStyle: "default",
+    });
+    expect(meta.manifest).toBe("/fr/manifest.webmanifest");
     expect(meta.openGraph).toEqual({
       title: "Chez Awa",
       description: "Fresh daily menu",
