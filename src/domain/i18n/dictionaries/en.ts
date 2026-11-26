@@ -638,6 +638,7 @@ export const enDictionary: Dictionary = {
       addRange: "Add time range",
       removeRangeAria: "Remove range {index} for {day}",
       toggleDayAria: "Toggle {day} open",
+      rangeAria: "range {index}",
       overnightHint:
         "For late nights past midnight, close at 24:00 and start the next day at 00:00.",
       errorCloseAfterOpen: "Close time must be after open time",

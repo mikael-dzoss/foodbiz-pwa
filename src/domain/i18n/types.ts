@@ -633,6 +633,7 @@ export interface SettingsDictionary {
     addRange: string;
     removeRangeAria: string;
     toggleDayAria: string;
+    rangeAria: string;
     overnightHint: string;
     errorCloseAfterOpen: string;
     errorRangeOverlap: string;

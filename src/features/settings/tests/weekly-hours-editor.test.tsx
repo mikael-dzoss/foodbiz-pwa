@@ -149,6 +149,29 @@ describe("WeeklyHoursEditor (#372)", () => {
     ]);
   });
 
+  it("restores the previous custom schedule when switching back to Custom", () => {
+    const initial: WeeklyHours = {
+      ...createDefaultWeeklyHours(),
+      mon: [{ open: "11:30", close: "15:00" }],
+      sun: [],
+    };
+    const spy = vi.fn();
+    render(<ControlledEditor initial={initial} onChangeSpy={spy} />);
+    expect(screen.getByTestId("preset-custom").getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(screen.getByTestId("preset-every-day"));
+    expect((spy.mock.lastCall?.[0] as WeeklyHours).sun.length).toBe(1);
+
+    fireEvent.click(screen.getByTestId("preset-custom"));
+    expect(spy.mock.lastCall?.[0]).toEqual(initial);
+  });
+
+  it("labels time selects with field, group and range for screen readers", () => {
+    render(<ControlledEditor initial={createDefaultWeeklyHours()} />);
+    expect(screen.getByLabelText("Open, Every day, range 1")).toBeDefined();
+    expect(screen.getByLabelText("Close, Every day, range 1")).toBeDefined();
+  });
+
   it("shows inline validation errors from weeklyHoursSchema for close <= open, overlap, and order", () => {
     const initial: WeeklyHours = {
       mon: [

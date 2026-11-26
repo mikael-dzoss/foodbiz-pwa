@@ -1,8 +1,7 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
-import { AlertCircle, Plus, Trash2 } from "lucide-react";
-import { getDictionary, interpolate, type SupportedLocale } from "@/domain/i18n";
+import { useMemo, useRef, useState } from "react";
+import { getDictionary, type SupportedLocale } from "@/domain/i18n";
 import {
   DAY_KEYS,
   MAX_RANGES_PER_DAY,
@@ -11,12 +10,23 @@ import {
   type TimeRange,
   type WeeklyHours,
 } from "@/domain/opening-hours";
-import { Button, NativeSelect, SegmentedControl, Switch } from "@/components/ui";
+import { SegmentedControl, Switch } from "@/components/ui";
+import { interpolate } from "@/domain/i18n";
+import {
+  DEFAULT_OPEN_RANGE,
+  DayRangesEditor,
+  addRangeIssue,
+  cloneRanges,
+  dayIssueMessage,
+  nextDefaultRange,
+  type DayRangesEditorLabels,
+  type RangeValidationError,
+} from "./day-ranges-editor";
 import { cn } from "@/lib/utils";
 
 export type WeeklyHoursPresetMode = "every_day" | "weekdays_weekend" | "custom";
 
-export interface WeeklyHoursEditorLabels {
+export interface WeeklyHoursEditorLabels extends DayRangesEditorLabels {
   presetLabel: string;
   presetEveryDay: string;
   presetWeekdaysWeekend: string;
@@ -26,16 +36,8 @@ export interface WeeklyHoursEditorLabels {
   groupWeekend: string;
   open: string;
   closed: string;
-  openTimeLabel: string;
-  closeTimeLabel: string;
-  addRange: string;
-  removeRangeAria: string;
   toggleDayAria: string;
   overnightHint: string;
-  errorCloseAfterOpen: string;
-  errorRangeOverlap: string;
-  errorMaxRanges: string;
-  errorInvalidTime: string;
 }
 
 export interface WeeklyHoursEditorProps {
@@ -49,32 +51,7 @@ export interface WeeklyHoursEditorProps {
 
 const WEEKDAY_KEYS: readonly DayKey[] = ["mon", "tue", "wed", "thu", "fri"];
 const WEEKEND_KEYS: readonly DayKey[] = ["sat", "sun"];
-const DEFAULT_OPEN_RANGE: TimeRange = { open: "09:00", close: "18:00" };
-
-function buildStepTimes(includeEndOfDay: boolean): readonly string[] {
-  const times: string[] = [];
-  for (let minutes = 0; minutes < 24 * 60; minutes += 15) {
-    const h = String(Math.floor(minutes / 60)).padStart(2, "0");
-    const m = String(minutes % 60).padStart(2, "0");
-    times.push(`${h}:${m}`);
-  }
-  if (includeEndOfDay) {
-    times.push("24:00");
-  }
-  return times;
-}
-
-const OPEN_TIME_OPTIONS = buildStepTimes(false);
-const CLOSE_TIME_OPTIONS = buildStepTimes(true);
-
-function optionsWithCurrent(base: readonly string[], current: string): readonly string[] {
-  if (!current || base.includes(current)) return base;
-  return [...base, current].toSorted((a, b) => a.localeCompare(b));
-}
-
-function cloneRanges(ranges: readonly TimeRange[]): TimeRange[] {
-  return ranges.map((r) => ({ open: r.open, close: r.close }));
-}
+const EMPTY_RANGE_ERRORS: ReadonlyMap<number, RangeValidationError> = new Map();
 
 export function cloneWeeklyHours(hours: WeeklyHours): WeeklyHours {
   return {
@@ -127,51 +104,13 @@ function formatDayName(index: number, locale: SupportedLocale): string {
   return raw ? raw[0].toLocaleUpperCase(locale) + raw.slice(1) : raw;
 }
 
-function parseMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function formatMinutes(total: number): string {
-  const clamped = Math.min(24 * 60, Math.max(0, total));
-  const h = String(Math.floor(clamped / 60)).padStart(2, "0");
-  const m = String(clamped % 60).padStart(2, "0");
-  return `${h}:${m}`;
-}
-
-function nextDefaultRange(existing: readonly TimeRange[]): TimeRange {
-  const last = existing.at(-1);
-  if (!last) return { ...DEFAULT_OPEN_RANGE };
-  const lastClose = parseMinutes(last.close);
-  if (lastClose <= 15 * 60) {
-    return { open: "18:00", close: "22:00" };
-  }
-  if (lastClose <= 22 * 60) {
-    const open = lastClose + 60;
-    const close = Math.min(24 * 60, open + 120);
-    if (open < close) {
-      return { open: formatMinutes(open), close: formatMinutes(close) };
-    }
-  }
-  if (lastClose < 23 * 60 + 45) {
-    return { open: formatMinutes(lastClose + 15), close: "24:00" };
-  }
-  return { open: "23:45", close: "24:00" };
-}
-
-interface RangeValidationError {
-  openInvalid: boolean;
-  closeInvalid: boolean;
-  messages: string[];
-}
-
 interface ParsedValidation {
-  rangeErrors: Map<string, RangeValidationError>;
+  rangeErrors: Map<DayKey, Map<number, RangeValidationError>>;
   dayErrors: Map<DayKey, string[]>;
 }
 
 function buildValidationMap(hours: WeeklyHours, labels: WeeklyHoursEditorLabels): ParsedValidation {
-  const rangeErrors = new Map<string, RangeValidationError>();
+  const rangeErrors = new Map<DayKey, Map<number, RangeValidationError>>();
   const dayErrors = new Map<DayKey, string[]>();
 
   const parsed = weeklyHoursSchema.safeParse(hours);
@@ -182,34 +121,14 @@ function buildValidationMap(hours: WeeklyHours, labels: WeeklyHoursEditorLabels)
     if (typeof dayKey !== "string" || !(DAY_KEYS as readonly string[]).includes(dayKey)) continue;
     const typedDay = dayKey as DayKey;
     const rangeIndex = issue.path[1];
-    const field = issue.path[2];
 
     if (typeof rangeIndex === "number") {
-      const key = `${typedDay}:${rangeIndex}`;
-      const existing = rangeErrors.get(key) ?? {
-        openInvalid: false,
-        closeInvalid: false,
-        messages: [],
-      };
-      let message: string;
-      if (field === "close" && issue.code === "custom") {
-        message = labels.errorCloseAfterOpen;
-        existing.closeInvalid = true;
-      } else if (field === "open" && issue.code === "custom") {
-        message = labels.errorRangeOverlap;
-        existing.openInvalid = true;
-      } else {
-        message = labels.errorInvalidTime;
-        if (field === "open") existing.openInvalid = true;
-        if (field === "close") existing.closeInvalid = true;
-      }
-      if (!existing.messages.includes(message)) {
-        existing.messages.push(message);
-      }
-      rangeErrors.set(key, existing);
+      const forDay = rangeErrors.get(typedDay) ?? new Map<number, RangeValidationError>();
+      addRangeIssue(forDay, rangeIndex, issue.path[2], issue.code, labels);
+      rangeErrors.set(typedDay, forDay);
     } else {
       const list = dayErrors.get(typedDay) ?? [];
-      const message = issue.code === "too_big" ? labels.errorMaxRanges : labels.errorInvalidTime;
+      const message = dayIssueMessage(issue.code, labels);
       if (!list.includes(message)) list.push(message);
       dayErrors.set(typedDay, list);
     }
@@ -235,6 +154,7 @@ function defaultEditorLabels(locale: SupportedLocale): WeeklyHoursEditorLabels {
     addRange: oh.addRange,
     removeRangeAria: oh.removeRangeAria,
     toggleDayAria: oh.toggleDayAria,
+    rangeAria: oh.rangeAria,
     overnightHint: oh.overnightHint,
     errorCloseAfterOpen: oh.errorCloseAfterOpen,
     errorRangeOverlap: oh.errorRangeOverlap,
@@ -262,12 +182,13 @@ export function WeeklyHoursEditor({
   disabled = false,
   "data-testid": testId = "weekly-hours-editor",
 }: WeeklyHoursEditorProps) {
-  const baseId = useId();
   const labels = useMemo(
     () => providedLabels ?? defaultEditorLabels(locale),
     [providedLabels, locale],
   );
   const [mode, setMode] = useState<WeeklyHoursPresetMode>(() => detectPresetMode(value));
+  const customHoursRef = useRef<WeeklyHours | null>(null);
+  const presetResultRef = useRef<string | null>(null);
   const savedRangesByGroup = useRef<Map<string, TimeRange[]>>(new Map());
 
   const validation = useMemo(() => buildValidationMap(value, labels), [value, labels]);
@@ -298,27 +219,42 @@ export function WeeklyHoursEditor({
   };
 
   const handlePresetChange = (nextMode: WeeklyHoursPresetMode) => {
+    if (nextMode === mode) return;
+    const leavingCustom = mode === "custom";
+    const customSnapshot = leavingCustom ? cloneWeeklyHours(value) : null;
     setMode(nextMode);
-    if (nextMode === "custom") return;
 
-    if (nextMode === "every_day") {
-      const templateDay = DAY_KEYS.find((day) => value[day].length > 0) ?? "mon";
-      const template = value[templateDay];
-      if (!DAY_KEYS.every((day) => sameRanges(value[day], template))) {
-        updateDays(DAY_KEYS, template);
+    if (nextMode === "custom") {
+      // Restore the previous custom schedule when nothing changed since leaving it.
+      const saved = customHoursRef.current;
+      if (saved && JSON.stringify(value) === presetResultRef.current) {
+        onChange(cloneWeeklyHours(saved));
       }
       return;
     }
 
-    // weekdays_weekend
-    const weekdayTemplateDay = WEEKDAY_KEYS.find((day) => value[day].length > 0) ?? "mon";
-    const weekendTemplateDay = WEEKEND_KEYS.find((day) => value[day].length > 0) ?? "sat";
-    const weekdayTemplate = value[weekdayTemplateDay];
-    const weekendTemplate = value[weekendTemplateDay];
-    const next = cloneWeeklyHours(value);
-    for (const day of WEEKDAY_KEYS) next[day] = cloneRanges(weekdayTemplate);
-    for (const day of WEEKEND_KEYS) next[day] = cloneRanges(weekendTemplate);
-    onChange(next);
+    let next = value;
+    if (nextMode === "every_day") {
+      const templateDay = DAY_KEYS.find((day) => value[day].length > 0) ?? "mon";
+      const template = value[templateDay];
+      if (!DAY_KEYS.every((day) => sameRanges(value[day], template))) {
+        next = cloneWeeklyHours(value);
+        for (const day of DAY_KEYS) next[day] = cloneRanges(template);
+      }
+    } else {
+      const weekdayTemplateDay = WEEKDAY_KEYS.find((day) => value[day].length > 0) ?? "mon";
+      const weekendTemplateDay = WEEKEND_KEYS.find((day) => value[day].length > 0) ?? "sat";
+      const weekdayTemplate = value[weekdayTemplateDay];
+      const weekendTemplate = value[weekendTemplateDay];
+      next = cloneWeeklyHours(value);
+      for (const day of WEEKDAY_KEYS) next[day] = cloneRanges(weekdayTemplate);
+      for (const day of WEEKEND_KEYS) next[day] = cloneRanges(weekendTemplate);
+    }
+    if (customSnapshot) {
+      customHoursRef.current = customSnapshot;
+      presetResultRef.current = JSON.stringify(next);
+    }
+    if (next !== value) onChange(next);
   };
 
   const handleToggleOpen = (group: EditorGroup, open: boolean) => {
@@ -433,136 +369,20 @@ export function WeeklyHoursEditor({
               </div>
 
               {isOpen && (
-                <div className="border-border/60 mt-3 space-y-3 border-t pt-3">
-                  {ranges.map((range, rangeIndex) => {
-                    const err = validation.rangeErrors.get(`${representativeDay}:${rangeIndex}`);
-                    const openId = `${baseId}-${group.id}-${rangeIndex}-open`;
-                    const closeId = `${baseId}-${group.id}-${rangeIndex}-close`;
-                    const errorId = err ? `${baseId}-${group.id}-${rangeIndex}-error` : undefined;
-                    const openOptions = optionsWithCurrent(OPEN_TIME_OPTIONS, range.open);
-                    const closeOptions = optionsWithCurrent(CLOSE_TIME_OPTIONS, range.close);
-
-                    return (
-                      <div key={rangeIndex} className="space-y-1.5">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-end gap-2">
-                          <div className="min-w-0">
-                            <label
-                              htmlFor={openId}
-                              className="text-label-sm text-muted-foreground mb-1 block"
-                            >
-                              {labels.openTimeLabel}
-                              <span className="sr-only">{` ${group.label} ${rangeIndex + 1}`}</span>
-                            </label>
-                            <NativeSelect
-                              id={openId}
-                              value={range.open}
-                              onChange={(e) =>
-                                handleRangeChange(group.days, rangeIndex, "open", e.target.value)
-                              }
-                              aria-invalid={err?.openInvalid || undefined}
-                              aria-describedby={err?.openInvalid ? errorId : undefined}
-                              disabled={disabled}
-                              data-testid={`time-open-${group.id}-${rangeIndex}`}
-                              className="h-11 rounded-xl pr-8 pl-2.5 text-base tabular-nums"
-                            >
-                              {openOptions.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </div>
-
-                          <span className="text-muted-foreground pb-3 text-sm" aria-hidden="true">
-                            –
-                          </span>
-
-                          <div className="min-w-0">
-                            <label
-                              htmlFor={closeId}
-                              className="text-label-sm text-muted-foreground mb-1 block"
-                            >
-                              {labels.closeTimeLabel}
-                              <span className="sr-only">{` ${group.label} ${rangeIndex + 1}`}</span>
-                            </label>
-                            <NativeSelect
-                              id={closeId}
-                              value={range.close}
-                              onChange={(e) =>
-                                handleRangeChange(group.days, rangeIndex, "close", e.target.value)
-                              }
-                              aria-invalid={err?.closeInvalid || undefined}
-                              aria-describedby={err?.closeInvalid ? errorId : undefined}
-                              disabled={disabled}
-                              data-testid={`time-close-${group.id}-${rangeIndex}`}
-                              className="h-11 rounded-xl pr-8 pl-2.5 text-base tabular-nums"
-                            >
-                              {closeOptions.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveRange(group, rangeIndex)}
-                            disabled={disabled}
-                            aria-label={interpolate(labels.removeRangeAria, {
-                              index: rangeIndex + 1,
-                              day: group.label,
-                            })}
-                            data-testid={`remove-range-${group.id}-${rangeIndex}`}
-                            className="text-muted-foreground hover:text-destructive h-11 w-11 shrink-0 rounded-xl"
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </div>
-
-                        {err && (
-                          <p
-                            id={errorId}
-                            role="alert"
-                            data-testid={`range-error-${group.id}-${rangeIndex}`}
-                            className="text-body-sm text-destructive flex items-start gap-1.5"
-                          >
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                            <span>{err.messages[0]}</span>
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {groupDayErrors.length > 0 && (
-                    <p
-                      role="alert"
-                      data-testid={`day-error-${group.id}`}
-                      className="text-body-sm text-destructive flex items-start gap-1.5"
-                    >
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span>{groupDayErrors[0]}</span>
-                    </p>
-                  )}
-
-                  {ranges.length < MAX_RANGES_PER_DAY && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAddRange(group.days)}
-                      disabled={disabled}
-                      data-testid={`add-range-${group.id}`}
-                      className="w-full rounded-xl"
-                    >
-                      <Plus className="h-4 w-4" aria-hidden="true" />
-                      <span>{labels.addRange}</span>
-                    </Button>
-                  )}
-                </div>
+                <DayRangesEditor
+                  ranges={ranges}
+                  rangeErrors={validation.rangeErrors.get(representativeDay) ?? EMPTY_RANGE_ERRORS}
+                  dayErrors={groupDayErrors}
+                  groupId={group.id}
+                  groupLabel={group.label}
+                  labels={labels}
+                  disabled={disabled}
+                  onRangeChange={(rangeIndex, field, newVal) =>
+                    handleRangeChange(group.days, rangeIndex, field, newVal)
+                  }
+                  onAddRange={() => handleAddRange(group.days)}
+                  onRemoveRange={(rangeIndex) => handleRemoveRange(group, rangeIndex)}
+                />
               )}
             </fieldset>
           );

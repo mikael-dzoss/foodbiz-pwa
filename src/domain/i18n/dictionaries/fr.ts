@@ -652,6 +652,7 @@ export const frDictionary: Dictionary = {
       addRange: "Ajouter une plage",
       removeRangeAria: "Supprimer la plage {index} pour {day}",
       toggleDayAria: "Activer l'ouverture pour {day}",
+      rangeAria: "plage {index}",
       overnightHint:
         "Pour les fermetures après minuit, terminez à 24:00 et commencez le lendemain à 00:00.",
       errorCloseAfterOpen: "L'heure de fermeture doit être après l'ouverture",
