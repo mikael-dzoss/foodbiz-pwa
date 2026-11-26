@@ -405,6 +405,8 @@ export const enDictionary: Dictionary = {
     checkoutChooseTime: "Choose a time",
     scheduledTimeRequired: "Time",
     checkoutTimeRequired: "Please choose a time for today's order.",
+    checkoutSlotAt: "{day} at {time}",
+    checkoutSlotUnavailable: "{value} (unavailable)",
     checkoutClosedNextOpening:
       "The shop is closed right now and opens {when}. Schedule your order for later.",
     checkoutBlockedNotAccepting:

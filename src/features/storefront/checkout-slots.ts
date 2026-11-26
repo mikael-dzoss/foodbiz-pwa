@@ -75,13 +75,14 @@ export function slotIssue(
   timeRequired: boolean,
 ): CheckoutSlotIssue {
   if (!date) return null;
+  // Friendlier than the raw `closed_now` reason while the customer has not chosen a time yet.
+  if (timeRequired && !time) return { field: "time", messageKey: "checkoutTimeRequired" };
   const result = validateSlot(schedule, tz, now, { date, time: time || null, isAsap: false });
   if (!result.ok) {
     const field =
       result.reason === "closed_day" || result.reason === "date_out_of_window" ? "date" : "time";
     return { field, messageKey: SLOT_REASON_DICT_KEYS[result.reason] };
   }
-  if (timeRequired && !time) return { field: "time", messageKey: "checkoutTimeRequired" };
   return null;
 }
 
@@ -112,12 +113,13 @@ export function formatNextOpeningLabel(
   locale: SupportedLocale,
   dict: StorefrontDictionary,
 ): string {
-  if (slot.date === today) return `${dict.today.toLowerCase()} ${slot.time}`;
-  if (slot.date === addCalendarDays(today, 1)) {
-    return `${dict.checkoutDateTomorrow.toLowerCase()} ${slot.time}`;
-  }
-  const within = slot.date < addCalendarDays(today, 7);
-  return `${dateLabelParts(slot.date, locale, !within)} ${slot.time}`;
+  const day =
+    slot.date === today
+      ? dict.today
+      : slot.date === addCalendarDays(today, 1)
+        ? dict.checkoutDateTomorrow
+        : dateLabelParts(slot.date, locale, slot.date >= addCalendarDays(today, 7));
+  return dict.checkoutSlotAt.replace("{day}", day).replace("{time}", slot.time);
 }
 
 /** Next opening label while the shop is closed per its structured hours, else `null`. */

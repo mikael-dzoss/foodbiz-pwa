@@ -287,6 +287,10 @@ export interface StorefrontDictionary {
   checkoutChooseTime: string;
   scheduledTimeRequired: string;
   checkoutTimeRequired: string;
+  /** "{day} at {time}" */
+  checkoutSlotAt: string;
+  /** "{value} (unavailable)" for a stale pick kept in a list */
+  checkoutSlotUnavailable: string;
   checkoutClosedNextOpening: string;
   checkoutBlockedNotAccepting: string;
   checkoutNoSlots: string;

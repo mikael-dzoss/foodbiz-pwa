@@ -423,10 +423,12 @@ export const frDictionary: Dictionary = {
     checkoutChooseTime: "Choisissez une heure",
     scheduledTimeRequired: "Heure",
     checkoutTimeRequired: "Choisissez une heure pour la commande du jour.",
+    checkoutSlotAt: "{day} à {time}",
+    checkoutSlotUnavailable: "{value} (indisponible)",
     checkoutClosedNextOpening:
       "La boutique est fermée pour le moment et ouvre {when}. Programmez votre commande pour plus tard.",
     checkoutBlockedNotAccepting:
-      "La boutique ne prend pas de commandes pour le moment, cette commande ne peut pas être passée. Revenez plus tard.",
+      "La boutique ne prend pas de commandes pour le moment. Cette commande ne peut pas être passée pour l'instant. Revenez plus tard.",
     checkoutNoSlots:
       "Aucun créneau n'est disponible dans les 30 prochains jours. Veuillez contacter la boutique.",
     checkoutDayNote: "Remarque pour ce jour : {note}",
