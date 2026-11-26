@@ -125,4 +125,24 @@ describe("usePwaInstall & getManualPlatformSnapshot (#100)", () => {
       "standalone",
     );
   });
+
+  it("returns null manual snapshot and standalone platform for an installed iOS standalone PWA UA", () => {
+    vi.stubGlobal("navigator", {
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/21E219",
+      platform: "iPhone",
+      maxTouchPoints: 5,
+      standalone: true,
+    });
+
+    expect(getManualPlatformSnapshot()).toBeNull();
+
+    render(<Probe />);
+    expect(JSON.parse(screen.getByTestId("pwa-probe").textContent ?? "")).toEqual({
+      platform: "standalone",
+      isIos: true,
+      isStandalone: true,
+      canPrompt: false,
+    });
+  });
 });

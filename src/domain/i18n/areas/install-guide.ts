@@ -38,6 +38,18 @@ export interface InstallGuideDictionary {
   genericBody: string;
   /** Generic host-app phrase substituted into `{inApp}` when the webview app is unknown. */
   inAppGenericName: string;
+  /** Localized display labels for detected in-app host apps. */
+  inAppApps: {
+    Instagram: string;
+    Facebook: string;
+    Messenger: string;
+    TikTok: string;
+    Snapchat: string;
+    LinkedIn: string;
+    WeChat: string;
+    Line: string;
+    X: string;
+  };
   /** Explanation shown above steps when the page is open inside an in-app browser. */
   inAppExplanation: string;
   /** Step 1 for in-app browsers on iOS (lucide Share icon renders right after). */
@@ -85,12 +97,23 @@ const en: InstallGuideDictionary = {
   genericBody:
     "Open your browser's menu or address bar and choose “Install app” or “Add to Home screen” to install {app}.",
   inAppGenericName: "this app",
+  inAppApps: {
+    Instagram: "Instagram",
+    Facebook: "Facebook",
+    Messenger: "Messenger",
+    TikTok: "TikTok",
+    Snapchat: "Snapchat",
+    LinkedIn: "LinkedIn",
+    WeChat: "WeChat",
+    Line: "Line",
+    X: "X",
+  },
   inAppExplanation: "This page is open inside {inApp}. To install, open it in your browser.",
-  inAppIosStep1: "Tap the ••• menu or Share button.",
-  inAppIosStep2: "Choose “Open in Safari” or “Open in browser”.",
-  inAppAndroidStep1: "Tap the ⋮ menu in the top corner.",
+  inAppIosStep1: "Tap the ••• (More) button or Share button.",
+  inAppIosStep2: "Choose “Open in Safari” or “Open in external browser”.",
+  inAppAndroidStep1: "Tap the ⋮ (three-dot) menu in the top corner.",
   inAppAndroidStep2: "Choose “Open in Chrome” or “Open in browser”.",
-  inAppOtherStep1: "Open the app's menu (••• or ⋮).",
+  inAppOtherStep1: "Open the app's ••• (More) or ⋮ (three-dot) menu.",
   inAppOtherStep2: "Choose “Open in browser”, or copy the link below.",
   inAppOpenInChrome: "Open in Chrome",
   inAppCopyLink: "Copy link",
@@ -122,13 +145,24 @@ const fr: InstallGuideDictionary = {
   genericBody:
     "Ouvrez le menu ou la barre d'adresse de votre navigateur et choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil » pour installer {app}.",
   inAppGenericName: "cette application",
+  inAppApps: {
+    Instagram: "Instagram",
+    Facebook: "Facebook",
+    Messenger: "Messenger",
+    TikTok: "TikTok",
+    Snapchat: "Snapchat",
+    LinkedIn: "LinkedIn",
+    WeChat: "WeChat",
+    Line: "Line",
+    X: "X",
+  },
   inAppExplanation:
     "Cette page est ouverte dans {inApp}. Pour l'installer, ouvrez cette page dans votre navigateur.",
-  inAppIosStep1: "Touchez le menu ••• ou le bouton Partager.",
-  inAppIosStep2: "Choisissez « Ouvrir dans Safari » ou « Ouvrir dans le navigateur ».",
-  inAppAndroidStep1: "Touchez le menu ⋮ en haut de l'écran.",
+  inAppIosStep1: "Touchez le bouton ••• (Plus) ou le bouton Partager.",
+  inAppIosStep2: "Choisissez « Ouvrir dans Safari » ou « Ouvrir dans le navigateur externe ».",
+  inAppAndroidStep1: "Touchez le menu ⋮ (trois points) en haut de l'écran.",
   inAppAndroidStep2: "Choisissez « Ouvrir dans Chrome » ou « Ouvrir dans le navigateur ».",
-  inAppOtherStep1: "Ouvrez le menu de l'application (••• ou ⋮).",
+  inAppOtherStep1: "Ouvrez le menu ••• (Plus) ou ⋮ (trois points) de l'application.",
   inAppOtherStep2: "Choisissez « Ouvrir dans le navigateur » ou copiez le lien ci-dessous.",
   inAppOpenInChrome: "Ouvrir dans Chrome",
   inAppCopyLink: "Copier le lien",

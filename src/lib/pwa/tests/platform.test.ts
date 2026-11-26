@@ -209,24 +209,33 @@ describe("detectInstallPlatform (#100)", () => {
     ).toBe(false);
   });
 
-  it("exposes detectManualPlatform directly for UA-only classification", () => {
+  it("exposes detectManualPlatform directly for UA + standalone classification", () => {
     expect(
       detectManualPlatform({
         userAgent: UA.macosSafari,
         platform: "MacIntel",
         maxTouchPoints: 5,
+        isStandalone: false,
       }),
     ).toBe("ios-safari");
-    expect(detectManualPlatform({ userAgent: UA.iosChrome })).toBe("ios-other");
-    expect(detectManualPlatform({ userAgent: UA.androidFirefox })).toBe("android-manual");
+    expect(detectManualPlatform({ userAgent: UA.iosChrome, isStandalone: false })).toBe(
+      "ios-other",
+    );
+    expect(detectManualPlatform({ userAgent: UA.androidFirefox, isStandalone: false })).toBe(
+      "android-manual",
+    );
     expect(
       detectManualPlatform({
         userAgent: UA.macosSafari,
         platform: "MacIntel",
         maxTouchPoints: 0,
+        isStandalone: false,
       }),
     ).toBe("macos-safari");
-    expect(detectManualPlatform({ userAgent: UA.linuxChrome })).toBe("generic");
+    expect(detectManualPlatform({ userAgent: UA.linuxChrome, isStandalone: false })).toBe(
+      "generic",
+    );
+    expect(detectManualPlatform({ userAgent: UA.iosSafari, isStandalone: true })).toBeNull();
   });
 });
 
@@ -276,6 +285,12 @@ const IN_APP_TOKEN_CASES: ReadonlyArray<{
     expectedApp: "Messenger",
     iosUa: `${IOS_BASE} [FBAN/MessengerForiOS;FBAV/450.0.0.35.107]`,
     androidUa: `${ANDROID_BASE} MessengerForiOS/450.0`,
+  },
+  {
+    token: "FB_IAB/MESSENGER",
+    expectedApp: "Messenger",
+    iosUa: `${IOS_BASE} [FB_IAB/MESSENGER;FBAV/450.0.0.35.107]`,
+    androidUa: `${ANDROID_BASE} [FB_IAB/MESSENGER;FBAV/450.0.0.28.109]`,
   },
   {
     token: "musical_ly",
@@ -391,6 +406,24 @@ describe("in-app browser detection (#100 slice b)", () => {
     ).toEqual({ kind: "in-app", os: "ios", app: null });
   });
 
+  it("never classifies an installed standalone iOS PWA UA (AppleWebKit + Mobile/ without Safari) as in-app", () => {
+    const standaloneIosInput = {
+      userAgent: IOS_BASE,
+      platform: "iPhone",
+      maxTouchPoints: 5,
+      isStandalone: true,
+    };
+
+    expect(detectInAppBrowser(standaloneIosInput)).toBeNull();
+    expect(detectManualPlatform(standaloneIosInput)).toBeNull();
+    expect(
+      detectInstallPlatform({
+        ...standaloneIosInput,
+        canPrompt: false,
+      }),
+    ).toBe("standalone");
+  });
+
   it("reports os = other for desktop in-app UAs", () => {
     expect(
       detectInAppBrowser({
@@ -398,6 +431,7 @@ describe("in-app browser detection (#100 slice b)", () => {
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 MicroMessenger/3.8.0",
         platform: "MacIntel",
         maxTouchPoints: 0,
+        isStandalone: false,
       }),
     ).toEqual({ kind: "in-app", os: "other", app: "WeChat" });
   });
@@ -420,29 +454,44 @@ describe("in-app browser detection (#100 slice b)", () => {
       { userAgent: UA.linuxChrome },
       { userAgent: `${UA.androidChrome} Online/1.0 Timeline/2.0` },
     ]) {
-      expect(detectInAppBrowser(input)).toBeNull();
+      expect(detectInAppBrowser({ ...input, isStandalone: false })).toBeNull();
     }
     expect(isInAppPlatform("ios-safari")).toBe(false);
     expect(isInAppPlatform("android-manual")).toBe(false);
   });
 
-  it("builds Android Chrome intent URIs preserving host, port, path and query while excluding hash", () => {
+  it("builds Android Chrome intent URIs deriving scheme from protocol (defaulting to https) with S.browser_fallback_url", () => {
     expect(
       buildAndroidChromeIntentUrl({
+        protocol: "https:",
         host: "shop.example.com",
         pathname: "/en/menu",
         search: "?cat=mains",
       }),
     ).toBe(
-      "intent://shop.example.com/en/menu?cat=mains#Intent;scheme=https;package=com.android.chrome;end",
+      `intent://shop.example.com/en/menu?cat=mains#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent("https://shop.example.com/en/menu?cat=mains")};end`,
     );
 
     expect(
       buildAndroidChromeIntentUrl({
+        protocol: "http:",
         host: "localhost:3000",
         pathname: "/fr",
         search: "",
       }),
-    ).toBe("intent://localhost:3000/fr#Intent;scheme=https;package=com.android.chrome;end");
+    ).toBe(
+      `intent://localhost:3000/fr#Intent;scheme=http;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent("http://localhost:3000/fr")};end`,
+    );
+
+    // Defaults to https when protocol is omitted or non-http(s).
+    expect(
+      buildAndroidChromeIntentUrl({
+        host: "shop.example.com",
+        pathname: "/fr",
+        search: "",
+      }),
+    ).toBe(
+      `intent://shop.example.com/fr#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent("https://shop.example.com/fr")};end`,
+    );
   });
 });

@@ -264,9 +264,9 @@ describe("InstallGuide (#100)", () => {
     );
     const steps = screen.getByTestId("install-guide-in-app-steps");
     expect(steps.tagName).toBe("OL");
-    expect(steps.textContent).toContain("•••");
+    expect(steps.textContent).toContain("••• (More)");
     expect(steps.textContent).toContain("Open in Safari");
-    expect(steps.textContent).toContain("Open in browser");
+    expect(steps.textContent).toContain("Open in external browser");
     expect(screen.getByTestId("install-guide-in-app-share-icon")).toBeDefined();
     expect(screen.getByTestId("install-guide-copy-link-button")).toBeDefined();
     expect(screen.queryByTestId("install-guide-open-chrome-link")).toBeNull();
@@ -275,7 +275,7 @@ describe("InstallGuide (#100)", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("renders the Android in-app guide and builds the Chrome intent href from window.location at click time", () => {
+  it("renders the Android in-app guide with the real Chrome intent href + fallback URL after mount", () => {
     window.history.pushState({}, "", "/en/menu?cat=mains#featured");
 
     render(
@@ -283,36 +283,29 @@ describe("InstallGuide (#100)", () => {
         open
         onOpenChange={vi.fn()}
         appName="Les Saveurs du Continent"
-        platform={{ kind: "in-app", os: "android", app: "TikTok" }}
+        platform={{ kind: "in-app", os: "android", app: "Messenger" }}
         copy={enCopy}
       />,
     );
 
     const body = screen.getByTestId("install-guide-in-app");
     expect(body.textContent).toContain(
-      "This page is open inside TikTok. To install, open it in your browser.",
+      "This page is open inside Messenger. To install, open it in your browser.",
     );
     const steps = screen.getByTestId("install-guide-in-app-steps");
-    expect(steps.textContent).toContain("⋮");
+    expect(steps.textContent).toContain("⋮ (three-dot)");
     expect(steps.textContent).toContain("Open in Chrome");
     expect(steps.textContent).toContain("Open in browser");
     expect(screen.queryByTestId("install-guide-in-app-share-icon")).toBeNull();
 
     const chromeLink = screen.getByTestId("install-guide-open-chrome-link");
     expect(chromeLink.tagName).toBe("A");
-    // Not computed during render/SSR: stays placeholder until click.
-    expect(chromeLink.getAttribute("href")).toBe("#open-in-chrome");
-
-    const preventNav = (event: Event) => event.preventDefault();
-    document.addEventListener("click", preventNav);
-    try {
-      fireEvent.click(chromeLink);
-    } finally {
-      document.removeEventListener("click", preventNav);
-    }
-
+    const scheme = window.location.protocol === "http:" ? "http" : "https";
+    const expectedFallback = encodeURIComponent(
+      `${scheme}://${window.location.host}/en/menu?cat=mains`,
+    );
     expect(chromeLink.getAttribute("href")).toBe(
-      `intent://${window.location.host}/en/menu?cat=mains#Intent;scheme=https;package=com.android.chrome;end`,
+      `intent://${window.location.host}/en/menu?cat=mains#Intent;scheme=${scheme};package=com.android.chrome;S.browser_fallback_url=${expectedFallback};end`,
     );
 
     window.history.pushState({}, "", "/");
@@ -356,9 +349,10 @@ describe("InstallGuide (#100)", () => {
     expect(screen.getByTestId("install-guide-in-app-explanation").textContent).toContain(
       "Cette page est ouverte dans cette application.",
     );
-    expect(screen.getByTestId("install-guide-in-app-steps").textContent).toContain(
-      "Ouvrir dans Safari",
-    );
+    const frSteps = screen.getByTestId("install-guide-in-app-steps");
+    expect(frSteps.textContent).toContain("••• (Plus)");
+    expect(frSteps.textContent).toContain("Ouvrir dans Safari");
+    expect(frSteps.textContent).toContain("Ouvrir dans le navigateur externe");
   });
 
   it("copies the current URL to the clipboard and announces localized confirmation", async () => {

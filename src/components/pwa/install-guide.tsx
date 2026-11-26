@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { Check, Copy, Download, ExternalLink, Monitor, Share, Smartphone } from "lucide-react";
 import { interpolate, type InstallGuideDictionary } from "@/domain/i18n";
 import {
@@ -66,6 +66,13 @@ function StepList({ steps, testId }: { steps: ReadonlyArray<ReactNode>; testId: 
   );
 }
 
+const noopSubscribe = () => () => {};
+
+function getAndroidChromeIntentSnapshot(): string | null {
+  if (typeof window === "undefined") return null;
+  return buildAndroidChromeIntentUrl(window.location);
+}
+
 type CopyLinkState =
   { status: "idle" } | { status: "copied" } | { status: "fallback"; url: string };
 
@@ -91,6 +98,12 @@ export function InstallGuide({
     platform,
   });
   const [copyState, setCopyState] = useState<CopyLinkState>({ status: "idle" });
+  // Compute the real intent:// href only on the client after mount so SSR renders no placeholder href.
+  const chromeIntentHref = useSyncExternalStore(
+    noopSubscribe,
+    getAndroidChromeIntentSnapshot,
+    () => null,
+  );
 
   if (open !== captured.open) {
     setCaptured({ open, platform });
@@ -124,14 +137,9 @@ export function InstallGuide({
     setCopyState({ status: "fallback", url: currentUrl });
   };
 
-  const handleOpenInChrome = (event: MouseEvent<HTMLAnchorElement>) => {
-    // Build intent:// from window.location at click time so SSR/initial render never touches window.
-    event.currentTarget.setAttribute("href", buildAndroidChromeIntentUrl(window.location));
-  };
-
   const renderInAppBody = () => {
     if (!isInApp) return null;
-    const hostApp = activePlatform.app ?? copy.inAppGenericName;
+    const hostApp = activePlatform.app ? copy.inAppApps[activePlatform.app] : copy.inAppGenericName;
     const steps: ReadonlyArray<ReactNode> =
       activePlatform.os === "ios"
         ? [
@@ -258,9 +266,9 @@ export function InstallGuide({
     if (isInApp) {
       return (
         <>
-          {isAndroidInApp ? (
+          {isAndroidInApp && chromeIntentHref ? (
             <Button asChild className="w-full gap-2" data-testid={`${testId}-open-chrome-link`}>
-              <a href="#open-in-chrome" onClick={handleOpenInChrome}>
+              <a href={chromeIntentHref}>
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 <span>{copy.inAppOpenInChrome}</span>
               </a>
