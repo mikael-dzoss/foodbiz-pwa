@@ -5,8 +5,11 @@
 --   orders gains `pickup_location_id` (tenant-safe composite FK to pickup_locations,
 --   `on delete set null (pickup_location_id)` so deleting a location keeps the order),
 --   `pickup_location_name` / `pickup_location_address` (snapshot taken at placement; address is
---   "<address>, <postcode>") and `pickup_fee_cents` (the relay fee stored on the order, 0 by
---   default). Orders without a location still mean the shop.
+--   "<address>, <postcode>"), `pickup_fee_cents` (the relay fee stored on the order, 0 by
+--   default), and `orders_pickup_location_consistency` (non-pickup orders must have a null
+--   location and zero fee). Orders without a location still mean the shop.
+--   `idx_orders_pickup_location_id` is created in this transactional migration (not
+--   CONCURRENTLY, which cannot run inside a transaction) because `orders` is small at v0.9.
 --
 --   * public.pickup_schedule_hours(business weekly, business exceptions, location weekly):
 --     SQL mirror of pickupScheduleFor in src/domain/pickup-location.ts. No location hours =
@@ -20,8 +23,12 @@
 --     belong to the business and be active (INVALID_PICKUP_LOCATION; also when the order is not
 --     pickup); storefront pickup needs at least one option (PICKUP_NOT_AVAILABLE), a choice when
 --     several relays and no shop pickup are offered (PICKUP_LOCATION_REQUIRED), and a lone relay
---     is selected automatically; relay slots use pickup_schedule_hours. The location id is part
---     of the idempotency payload only when set, so payloads without one hash exactly as in 034.
+--     is selected automatically; location reads take `FOR SHARE OF pl` to prevent concurrent
+--     deactivate/delete/fee updates before the order insert; relay slots use
+--     pickup_schedule_hours. The location id is part of the idempotency payload only when set, so
+--     payloads without one hash exactly as in 034; an idempotency key must be retried with the
+--     same input (retrying a null-location call by adding the auto-selected relay id hashes
+--     differently and raises INVALID_IDEMPOTENCY_KEY, by design).
 --   * get_order_by_tracking_token returns pickup_location_name (null = the shop) and
 --     pickup_location_address (the shop address when no relay) for pickup orders.
 --
@@ -32,7 +39,9 @@
 --   -- re-create order_total_cents(uuid, order_service_type, integer) from 20260101000024, then
 --   -- replace_order_items from 20260101000026 and get_order_by_tracking_token from 20260101000031;
 --   drop function if exists public.pickup_schedule_hours(jsonb, jsonb, jsonb);
+--   drop index if exists public.idx_orders_pickup_location_id;
 --   alter table public.orders drop constraint if exists orders_business_pickup_location_fkey;
+--   alter table public.orders drop constraint if exists orders_pickup_location_consistency;
 --   alter table public.orders drop column if exists pickup_fee_cents, drop column if exists pickup_location_address,
 --     drop column if exists pickup_location_name, drop column if exists pickup_location_id;
 -- ============================================================================
@@ -41,7 +50,7 @@
 set lock_timeout = '5s';
 
 -- ----------------------------------------------------------------------------
--- 1. orders columns, tenant-safe FK, index
+-- 1. orders columns, consistency check, tenant-safe FK, index
 -- ----------------------------------------------------------------------------
 alter table public.orders add column pickup_location_id uuid null;
 alter table public.orders add column pickup_location_name text null;
@@ -50,13 +59,22 @@ alter table public.orders
   add column pickup_fee_cents integer not null default 0
     constraint orders_pickup_fee_cents_nonneg check (pickup_fee_cents >= 0);
 
--- All existing rows have a null location (MATCH SIMPLE skips the check), so validating in the
--- same statement scans nothing meaningful.
+-- Add both constraints NOT VALID and validate them explicitly (all pre-existing rows have
+-- pickup_location_id IS NULL and pickup_fee_cents = 0).
+alter table public.orders
+  add constraint orders_pickup_location_consistency
+  check (service_type = 'pickup' or (pickup_location_id is null and pickup_fee_cents = 0))
+  not valid;
+
 alter table public.orders
   add constraint orders_business_pickup_location_fkey
   foreign key (business_id, pickup_location_id)
   references public.pickup_locations (business_id, id)
-  on delete set null (pickup_location_id);
+  on delete set null (pickup_location_id)
+  not valid;
+
+alter table public.orders validate constraint orders_pickup_location_consistency;
+alter table public.orders validate constraint orders_business_pickup_location_fkey;
 
 create index idx_orders_pickup_location_id
   on public.orders (pickup_location_id)
@@ -505,7 +523,9 @@ begin
       'phone', p_guest_phone
     ) || case
       -- Only present when a location was chosen, so a payload without one hashes exactly as in
-      -- 034 (in-flight retries of orders placed before this migration keep replaying).
+      -- 034 (in-flight retries of orders placed before this migration keep replaying). Callers
+      -- must retry an idempotency key with the same input (adding an auto-selected relay id
+      -- hashes differently and raises INVALID_IDEMPOTENCY_KEY, by design).
       when p_pickup_location_id is not null then jsonb_build_object('pickup_location_id', p_pickup_location_id)
       else '{}'::jsonb
     end;
@@ -560,7 +580,8 @@ begin
     from public.pickup_locations pl
     where pl.id = p_pickup_location_id
       and pl.business_id = p_business_id
-      and pl.is_active;
+      and pl.is_active
+    for share of pl;
 
     if not found then
       raise exception 'INVALID_PICKUP_LOCATION: pickup location % is not available', p_pickup_location_id using errcode = '22023';
@@ -601,7 +622,8 @@ begin
           from public.pickup_locations pl
           where pl.business_id = p_business_id and pl.is_active
           order by pl.sort_order, pl.created_at
-          limit 1;
+          limit 1
+          for share of pl;
           if not found then
             raise exception 'PICKUP_NOT_AVAILABLE: no pickup option is available' using errcode = '22023';
           end if;

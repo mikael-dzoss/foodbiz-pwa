@@ -353,6 +353,9 @@ create table orders (
   constraint orders_tracking_token_unique unique (tracking_token),
   constraint orders_paid_consistency check (
     paid = 'unpaid' or (payment_method is not null and paid_at is not null)
+  ),
+  constraint orders_pickup_location_consistency check (
+    service_type = 'pickup' or (pickup_location_id is null and pickup_fee_cents = 0)
   )
 );
 
@@ -364,6 +367,8 @@ create index idx_orders_business_created on orders(business_id, created_at desc)
 create index idx_orders_guest_id on orders(guest_id); -- FK check on guest delete (20260101000009)
 create unique index idx_orders_business_idempotency_key
   on orders(business_id, idempotency_key) where idempotency_key is not null; -- 20260101000013 (created concurrently)
+create index idx_orders_pickup_location_id
+  on orders(pickup_location_id) where pickup_location_id is not null; -- 20260101000036 (FK check on pickup_location delete)
 
 create table order_items (
   id uuid primary key default gen_random_uuid(),
@@ -658,7 +663,9 @@ the live database, fails when they diverge). The app maps `MAX_*` and `RATE_LIMI
 `SLOT_CLOSED_DAY`, `SLOT_DATE_OUT_OF_WINDOW`, `SLOT_TIME_OUTSIDE_HOURS`, `SLOT_TIME_IN_PAST`), each with a
 localized checkout message. Manager (non-storefront) orders skip the slot rules. `p_is_asap` is part of
 the idempotency payload hash, and so is `p_pickup_location_id` when one is given (a payload without
-one hashes exactly as before migration 036, so in-flight retries keep replaying).
+one hashes exactly as before migration 036, so in-flight retries keep replaying; an idempotency key
+must be retried with the same input, so retrying an auto-selected null-location call with the chosen
+relay id raises `INVALID_IDEMPOTENCY_KEY`, by design).
 
 **Relay pickup (#386).** A relay order stores `pickup_location_id`, a name/address snapshot and
 `pickup_fee_cents`; `total_amount` = items + delivery fee (delivery) + the relay fee, computed by
