@@ -2,7 +2,7 @@ import { z } from "zod";
 import { isoDateTimeSchema, uuidSchema } from "./common";
 import { timeZoneSchema, DEFAULT_TIMEZONE } from "./timezone";
 import { leadTimeUnitSchema, leadTimeValueSchema } from "./lead-time";
-import { weeklyHoursSchema } from "./opening-hours";
+import { hoursExceptionsSchema, weeklyHoursSchema } from "./opening-hours";
 
 const openingHoursTextSchema = z.string().trim().max(500);
 
@@ -119,6 +119,7 @@ export const businessSettingsSchema = z.object({
     .default({ pickup: true, delivery: true, dineIn: true }),
   openingHours: openingHoursTextSchema.optional().default(""),
   weeklyHours: weeklyHoursSchema.nullable().optional(),
+  hoursExceptions: hoursExceptionsSchema.optional(),
   orderTimingAsap: z.boolean().default(true),
   orderTimingScheduled: z.boolean().default(true),
   orderTimingTimeOptional: z.boolean().default(true),
@@ -184,10 +185,17 @@ export type UpdateOrderingSettingsInput = z.infer<typeof updateOrderingSettingsS
 
 export const updateOpeningHoursSchema = z.object({
   weeklyHours: weeklyHoursSchema.nullable(),
+  hoursExceptions: hoursExceptionsSchema.optional(),
   openingHours: openingHoursTextSchema.optional(),
 });
 
 export type UpdateOpeningHoursInput = z.infer<typeof updateOpeningHoursSchema>;
+
+export const updateHoursExceptionsSchema = z.object({
+  hoursExceptions: hoursExceptionsSchema,
+});
+
+export type UpdateHoursExceptionsInput = z.infer<typeof updateHoursExceptionsSchema>;
 
 export const updatePaymentSettingsSchema = z
   .object({

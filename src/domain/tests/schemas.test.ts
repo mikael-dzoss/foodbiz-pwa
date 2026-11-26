@@ -7,6 +7,7 @@ import {
   businessSettingsSchema,
   updatePaymentSettingsSchema,
   updateOpeningHoursSchema,
+  updateHoursExceptionsSchema,
   expenseSchema,
   guestSchema,
   orderItemSchema,
@@ -296,6 +297,70 @@ describe("Business schemas", () => {
     ).toBe(false);
 
     expect(updateOpeningHoursSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("validates BusinessSettings hoursExceptions and updateHoursExceptionsSchema (#375)", () => {
+    const validExceptions = [
+      {
+        from: "2026-07-30",
+        to: "2026-08-03",
+        ranges: [],
+        note: "  Congés annuels  ",
+      },
+      {
+        from: "2026-08-15",
+        to: "2026-08-15",
+        ranges: [{ open: "10:00", close: "14:00" }],
+        note: "Ouverture exceptionnelle",
+      },
+    ];
+
+    const settingsParsed = businessSettingsSchema.safeParse({
+      businessId: validUuid,
+      hoursExceptions: validExceptions,
+    });
+    expect(settingsParsed.success).toBe(true);
+    if (settingsParsed.success) {
+      expect(settingsParsed.data.hoursExceptions).toEqual([
+        { from: "2026-07-30", to: "2026-08-03", ranges: [], note: "Congés annuels" },
+        {
+          from: "2026-08-15",
+          to: "2026-08-15",
+          ranges: [{ open: "10:00", close: "14:00" }],
+          note: "Ouverture exceptionnelle",
+        },
+      ]);
+    }
+
+    expect(
+      businessSettingsSchema.safeParse({
+        businessId: validUuid,
+        hoursExceptions: [{ from: "2026-08-05", to: "2026-08-01", ranges: [] }],
+      }).success,
+    ).toBe(false);
+
+    const combinedUpdate = updateOpeningHoursSchema.safeParse({
+      weeklyHours: null,
+      hoursExceptions: validExceptions,
+    });
+    expect(combinedUpdate.success).toBe(true);
+    if (combinedUpdate.success) {
+      expect(combinedUpdate.data.hoursExceptions).toHaveLength(2);
+    }
+
+    const exceptionsUpdate = updateHoursExceptionsSchema.safeParse({
+      hoursExceptions: validExceptions,
+    });
+    expect(exceptionsUpdate.success).toBe(true);
+    expect(updateHoursExceptionsSchema.safeParse({}).success).toBe(false);
+    expect(
+      updateHoursExceptionsSchema.safeParse({
+        hoursExceptions: [
+          { from: "2026-08-01", to: "2026-08-05", ranges: [] },
+          { from: "2026-08-05", to: "2026-08-06", ranges: [] },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });
 
