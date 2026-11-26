@@ -142,7 +142,10 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
                 </span>
               </div>
             </div>
-            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" aria-hidden="true" />
+            <ChevronRight
+              className="text-muted-foreground/60 h-5 w-5 shrink-0"
+              aria-hidden="true"
+            />
           </Link>
 
           {/* Ordering */}

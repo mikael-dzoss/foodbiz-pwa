@@ -11,5 +11,8 @@ export type {
   WeeklyHoursEditorProps,
   WeeklyHoursPresetMode,
 } from "./weekly-hours-editor";
+export { ExceptionSheet, validateExceptionDraft } from "./exception-sheet";
+export type { ExceptionSheetProps } from "./exception-sheet";
+export { DayRangesEditor } from "./day-ranges-editor";
 export { RegularHoursForm } from "./regular-hours-form";
 export type { RegularHoursFormLabels, RegularHoursFormProps } from "./regular-hours-form";

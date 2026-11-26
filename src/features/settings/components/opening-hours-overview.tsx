@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { CalendarOff, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import { getDictionary, type SupportedLocale } from "@/domain/i18n";
+import { interpolate } from "@/domain/i18n";
+import { upcomingExceptions } from "@/domain/opening-hours";
 import { HoursSummary } from "./opening-hours";
 
 export interface OpeningHoursOverviewProps {
   settings: BusinessSettings;
   locale: SupportedLocale;
   /** Request-time clock so upcoming exceptions render on the server without a layout shift. */
-  now?: Date;
+  now: Date;
 }
 
 /** Opening hours overview (#372): read-only summary plus links to the editing sub-pages. */
@@ -16,6 +18,12 @@ export function OpeningHoursOverview({ settings, locale, now }: OpeningHoursOver
   const dict = getDictionary(locale).settings;
   const oh = dict.openingHours;
   const configured = settings.weeklyHours != null;
+  const ex = dict.hoursExceptions;
+  const upcomingCount = upcomingExceptions(
+    settings.hoursExceptions ?? [],
+    settings.timezone,
+    now,
+  ).length;
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-6 pb-24" data-testid="opening-hours-overview">
@@ -79,6 +87,29 @@ export function OpeningHoursOverview({ settings, locale, now }: OpeningHoursOver
                 </span>
                 <span className="text-body-sm text-muted-foreground block truncate">
                   {configured ? oh.regularConfigured : oh.regularNotSet}
+                </span>
+              </div>
+            </div>
+            <ChevronRight
+              className="text-muted-foreground/60 h-5 w-5 shrink-0"
+              aria-hidden="true"
+            />
+          </Link>
+          <Link
+            href="/manage/settings/opening-hours/exceptions"
+            data-testid="link-exceptions"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 rounded-2xl p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div className="flex min-w-0 items-center gap-3.5">
+              <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                <CalendarOff className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-foreground block text-sm font-semibold">{ex.title}</span>
+                <span className="text-body-sm text-muted-foreground block truncate">
+                  {upcomingCount > 0
+                    ? interpolate(ex.rowUpcoming, { count: upcomingCount })
+                    : ex.rowNone}
                 </span>
               </div>
             </div>

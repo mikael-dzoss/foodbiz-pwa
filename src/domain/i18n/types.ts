@@ -649,6 +649,48 @@ export interface SettingsDictionary {
     clearConfirmAction: string;
     clearSuccess: string;
   };
+  hoursExceptions: {
+    title: string;
+    description: string;
+    rowNone: string;
+    rowUpcoming: string;
+    upcomingSection: string;
+    pastSection: string;
+    showPast: string;
+    hidePast: string;
+    emptyTitle: string;
+    emptyHint: string;
+    addButton: string;
+    editAria: string;
+    sheetAddTitle: string;
+    sheetEditTitle: string;
+    sheetDescription: string;
+    startDateLabel: string;
+    endDateLabel: string;
+    endDateHint: string;
+    statusLabel: string;
+    statusClosed: string;
+    statusCustom: string;
+    customHoursGroup: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    noteCounter: string;
+    saveButton: string;
+    cancelButton: string;
+    deleteButton: string;
+    saveSuccess: string;
+    deleteSuccess: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    errorFixBeforeSave: string;
+    errorDateRequired: string;
+    errorEndBeforeStart: string;
+    errorSpan: string;
+    errorOverlap: string;
+    errorNoteTooLong: string;
+    errorTooMany: string;
+    errorNoRanges: string;
+  };
 }
 
 export interface OrderConfirmationDictionary {

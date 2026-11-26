@@ -19,6 +19,7 @@ const MANAGER_ROUTES = [
   "/manage/settings/notifications",
   "/manage/settings/opening-hours",
   "/manage/settings/opening-hours/regular",
+  "/manage/settings/opening-hours/exceptions",
   "/manage/settings/ordering",
   "/manage/settings/payment",
 ];

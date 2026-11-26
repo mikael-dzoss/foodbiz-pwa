@@ -19,11 +19,13 @@ const weekly: WeeklyHours = {
   sun: range,
 };
 
+const NOW = new Date("2026-12-01T10:00:00Z");
+
 const settings: BusinessSettings = { ...demoSettings, weeklyHours: weekly, hoursExceptions: [] };
 
 describe("OpeningHoursOverview (#372)", () => {
   it("shows the grouped summary and links to regular hours", () => {
-    render(<OpeningHoursOverview settings={settings} locale="en" />);
+    render(<OpeningHoursOverview settings={settings} locale="en" now={NOW} />);
     expect(screen.getByRole("heading", { level: 1, name: "Opening hours" })).toBeDefined();
     expect(screen.getByTestId("hours-summary-weekly")).toBeDefined();
     expect(screen.getByTestId("link-regular-hours").getAttribute("href")).toBe(
@@ -32,11 +34,24 @@ describe("OpeningHoursOverview (#372)", () => {
     expect(screen.getByText("Structured hours active")).toBeDefined();
   });
 
+  it("links to holidays & exceptional days and counts upcoming ones", () => {
+    const withException: BusinessSettings = {
+      ...settings,
+      hoursExceptions: [{ from: "2026-12-25", to: "2026-12-25", ranges: [] }],
+    };
+    render(<OpeningHoursOverview settings={withException} locale="en" now={NOW} />);
+    const link = screen.getByTestId("link-exceptions");
+    expect(link.getAttribute("href")).toBe("/manage/settings/opening-hours/exceptions");
+    expect(link.textContent).toContain("1 upcoming");
+    expect(screen.getByTestId("hours-summary-exception-2026-12-25")).toBeDefined();
+  });
+
   it("shows the legacy text and a hint when weekly hours are not set", () => {
     render(
       <OpeningHoursOverview
         settings={{ ...settings, weeklyHours: null, openingHours: "Daily 8-18" }}
         locale="en"
+        now={NOW}
       />,
     );
     expect(screen.getByTestId("hours-summary-fallback").textContent).toBe("Daily 8-18");
