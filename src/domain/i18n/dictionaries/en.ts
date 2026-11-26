@@ -400,6 +400,10 @@ export const enDictionary: Dictionary = {
     orderErrorSlotDateOutOfWindow: "Please choose a date from today up to 30 days ahead.",
     orderErrorSlotTimeOutsideHours: "The chosen time is outside the store's opening hours.",
     orderErrorSlotTimeInPast: "The chosen time has already passed. Please choose a later time.",
+    orderErrorPickupLocationInvalid:
+      "The chosen pickup location is no longer available. Please choose another one.",
+    orderErrorPickupLocationRequired: "Please choose where to pick up your order.",
+    orderErrorPickupNotAvailable: "Pickup is currently not available for this store.",
     checkoutDateTomorrow: "Tomorrow",
     checkoutChooseDate: "Choose a date",
     checkoutChooseTime: "Choose a time",
@@ -448,6 +452,28 @@ export const enDictionary: Dictionary = {
     todayExceptionLabel: "Today",
     todayExceptionClosed: "Closed today",
     todayExceptionOpen: "Special hours today: {hours}",
+
+    // Storefront pickup location picker (#386)
+    pickupLocationSectionTitle: "Pickup location",
+    pickupLocationChoosePrompt: "Choose where to collect your order",
+    pickupLocationShopFallback: "Shop",
+    pickupLocationFeeFree: "Free",
+    pickupLocationFeeLabel: "Pickup fee",
+    pickupLocationFeePending: "Depends on location",
+    pickupLocationFeeShort: "+{amount} pickup fee",
+    pickupLocationSameAsShopHours: "Same as shop hours",
+    pickupLocationShowAll: "Show all ({count})",
+    pickupLocationShowFewer: "Show fewer",
+    pickupLocationChooseTile: "Choose pickup point",
+    pickupLocationCount: "{count} locations",
+    pickupLocationClosedNextOpening:
+      "This pickup location is closed right now and opens {when}. Schedule your order for later.",
+    pickupLocationClosedScheduleNotice:
+      "This pickup location is currently closed. Your order will be prepared for your chosen slot.",
+    pickupLocationWithFee: "Pickup ({amount})",
+    cartIncludedVat: "incl. VAT (10%)",
+    pricingUnavailableError:
+      "We could not calculate your order total. Please review or clear your cart.",
   },
   quickAdd: {
     title: "Quick Add",
@@ -831,7 +857,10 @@ export const enDictionary: Dictionary = {
     pickupWindow: "Pickup Window",
     deliveryAddress: "Delivery Address",
     deliveryTo: "Delivery to",
+    // Pickup location (#387)
+    collectAt: "Collect at",
     directions: "Directions",
+    directionsAria: "Directions to {place} (opens in a new tab)",
     orderSummary: "Order Summary",
     subtotal: "Subtotal",
     taxIncluded: "VAT included (10%)",

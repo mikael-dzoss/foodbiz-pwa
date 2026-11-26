@@ -32,6 +32,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     <div className="mx-auto max-w-xl">
       <OrderDetail
         order={found.order}
+        shop={found.shop ?? undefined}
         refundDisabledReason={
           isOwnerRole(session.user.role) ? undefined : dict.common.ownerOnlyNotice
         }

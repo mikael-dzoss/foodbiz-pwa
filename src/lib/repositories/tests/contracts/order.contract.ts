@@ -136,13 +136,15 @@ export function describeOrderRepositoryContract(
       expect(found?.orderNumber).toBe(created.orderNumber);
       expect(created.trackingToken).toMatch(/^[a-f0-9]{32}$/);
       expect(found?.deliveryAddress).toBe("Private delivery address");
+      expect(found?.pickupLocation).toBeNull();
       expect(found).not.toHaveProperty("guestId");
       expect(found).not.toHaveProperty("submittedName");
       expect(found).not.toHaveProperty("notes");
       expect(found).not.toHaveProperty("statusHistory");
       expect(found?.items[0]).not.toHaveProperty("productId");
 
-      // Pickup orders must never expose a deliveryAddress, even if one was stored on the row.
+      // Pickup orders must never expose a deliveryAddress, even if one was stored on the row;
+      // shop pickup exposes null name and the shop address.
       const pickupPlaced = await repos.orders.place(businessId, {
         guestName: "Pickup Guest",
         guestPhone: nextPhone(),
@@ -153,8 +155,13 @@ export function describeOrderRepositoryContract(
         deliveryAddress: "Should not be returned for pickup",
       });
       const pickupFound = await repos.orders.findByTrackingToken(pickupPlaced.trackingToken);
+      const biz = await repos.business.findById(businessId);
       expect(pickupFound).not.toBeNull();
       expect(pickupFound?.deliveryAddress).toBeNull();
+      expect(pickupFound?.pickupLocation).toEqual({
+        name: null,
+        address: biz?.address?.trim() || null,
+      });
 
       const notFound = await repos.orders.findByTrackingToken("non-existent-token");
       expect(notFound).toBeNull();

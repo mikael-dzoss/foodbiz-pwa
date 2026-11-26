@@ -11,9 +11,11 @@ import {
   expenseSchema,
   guestSchema,
   orderItemSchema,
+  orderPickupLocationSchema,
   orderSchema,
   publicDeliveryAddress,
   publicOrderSchema,
+  publicPickupLocation,
   orderStatusEventSchema,
   manualOrderInputSchema,
   serviceTypeSchema,
@@ -698,6 +700,52 @@ describe("Order and OrderItem schemas", () => {
     expect(publicDeliveryAddress(null, "12 Rue de Rivoli, Paris")).toBeNull();
   });
 
+  it("validates orderPickupLocationSchema with full snapshot, deleted id, or missing address (#386)", () => {
+    expect(
+      orderPickupLocationSchema.parse({
+        id: validUuid,
+        name: "  Gare du Nord  ",
+        address: "  18 Rue de Dunkerque, 75010  ",
+      }),
+    ).toEqual({
+      id: validUuid,
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque, 75010",
+    });
+    expect(
+      orderPickupLocationSchema.parse({
+        id: null,
+        name: "Deleted Relay",
+        address: null,
+      }),
+    ).toEqual({
+      id: null,
+      name: "Deleted Relay",
+      address: null,
+    });
+    expect(
+      orderPickupLocationSchema.safeParse({ id: validUuid, name: "   ", address: "1 rue A" })
+        .success,
+    ).toBe(false);
+    expect(
+      orderPickupLocationSchema.safeParse({ id: validUuid, name: "Relay", address: "" }).success,
+    ).toBe(false);
+  });
+
+  it("publicPickupLocation exposes where to collect only for pickup orders (#386)", () => {
+    expect(publicPickupLocation("pickup", "Gare du Nord", " 18 Rue de Dunkerque ")).toEqual({
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque",
+    });
+    expect(publicPickupLocation("pickup", null, "9 Rue du Four")).toEqual({
+      name: null,
+      address: "9 Rue du Four",
+    });
+    expect(publicPickupLocation("pickup", "  ", undefined)).toEqual({ name: null, address: null });
+    expect(publicPickupLocation("delivery", "Gare du Nord", "18 Rue de Dunkerque")).toBeNull();
+    expect(publicPickupLocation("dine-in", "x", "y")).toBeNull();
+  });
+
   it("validates orderStatusEventSchema", () => {
     const validEvent = {
       status: "READY" as const,
@@ -727,6 +775,27 @@ describe("Order and OrderItem schemas", () => {
         ...valid,
         items: [{ productId: validUuid, quantity: 0 }],
       }).success,
+    ).toBe(false);
+
+    // Optional pickupLocationId: uuid or null accepted, non-uuid rejected (#386)
+    const withLocation = manualOrderInputSchema.safeParse({
+      ...valid,
+      pickupLocationId: anotherUuid,
+    });
+    expect(withLocation.success).toBe(true);
+    if (withLocation.success) {
+      expect(withLocation.data.pickupLocationId).toBe(anotherUuid);
+    }
+    const withNullLocation = manualOrderInputSchema.safeParse({
+      ...valid,
+      pickupLocationId: null,
+    });
+    expect(withNullLocation.success).toBe(true);
+    if (withNullLocation.success) {
+      expect(withNullLocation.data.pickupLocationId).toBeNull();
+    }
+    expect(
+      manualOrderInputSchema.safeParse({ ...valid, pickupLocationId: "not-a-uuid" }).success,
     ).toBe(false);
   });
 

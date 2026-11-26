@@ -69,6 +69,8 @@ async function CheckoutContent({
     <CheckoutView
       business={catalog.business}
       settings={catalog.settings}
+      shopPickupEnabled={catalog.shopPickupEnabled}
+      pickupLocations={catalog.pickupLocations}
       locale={locale}
       dict={dict}
       isOpen={isOpen}

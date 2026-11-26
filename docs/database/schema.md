@@ -343,12 +343,19 @@ create table orders (
   idempotency_payload_hash text, -- added by 20260101000012; SHA-256 of the placed payload, NULL on legacy rows
   cancellation_reason text,
   notes text,
+  pickup_location_id uuid, -- added by 20260101000036; relay pickup location (null = the shop); composite FK (business_id, pickup_location_id) -> pickup_locations, on delete set null (pickup_location_id)
+  pickup_location_name text, -- 20260101000036: snapshot at placement
+  pickup_location_address text, -- 20260101000036: snapshot at placement, "<address>, <postcode>"
+  pickup_fee_cents integer not null default 0 check (pickup_fee_cents >= 0), -- 20260101000036: relay fee stored on the order (already in total_amount)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint orders_business_number_unique unique (business_id, order_number),
   constraint orders_tracking_token_unique unique (tracking_token),
   constraint orders_paid_consistency check (
     paid = 'unpaid' or (payment_method is not null and paid_at is not null)
+  ),
+  constraint orders_pickup_location_consistency check (
+    service_type = 'pickup' or (pickup_location_id is null and pickup_fee_cents = 0)
   )
 );
 
@@ -360,6 +367,8 @@ create index idx_orders_business_created on orders(business_id, created_at desc)
 create index idx_orders_guest_id on orders(guest_id); -- FK check on guest delete (20260101000009)
 create unique index idx_orders_business_idempotency_key
   on orders(business_id, idempotency_key) where idempotency_key is not null; -- 20260101000013 (created concurrently)
+create index idx_orders_pickup_location_id
+  on orders(pickup_location_id) where pickup_location_id is not null; -- 20260101000036 (FK check on pickup_location delete)
 
 create table order_items (
   id uuid primary key default gen_random_uuid(),
@@ -626,23 +635,25 @@ fields, address, coordinates, logo) and `product_categories` (menu structure) ha
 `using (true)` for `anon`; every column of both is public storefront data, so no column
 grants are needed (note: anon can list all businesses).
 
-**`place_order(..., p_idempotency_key uuid default null, p_is_asap boolean default false)`** is the
-only overload (the 13-argument one is dropped by migration 034); executable by `anon`, `authenticated`, `service_role`.
+**`place_order(..., p_idempotency_key uuid default null, p_is_asap boolean default false, p_pickup_location_id uuid default null)`** is the
+only overload (the 13-argument one is dropped by migration 034, the 14-argument one by 036); executable by `anon`, `authenticated`, `service_role`.
 
-| Rule (storefront channel unless noted)                    | Limit                                                                                                                                                 | Error prefix (SQLSTATE)                                                                                                           |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Quantity per product (duplicate lines merged)             | 50 (`MAX_QUANTITY_PER_LINE`)                                                                                                                          | `MAX_LINE_QUANTITY_EXCEEDED` (22023)                                                                                              |
-| Total quantity per order                                  | 100 (`MAX_QUANTITY_PER_ORDER`)                                                                                                                        | `MAX_ORDER_QUANTITY_EXCEEDED` (22023)                                                                                             |
-| Lines in `p_items`                                        | 50 (`MAX_LINES_PER_ORDER`)                                                                                                                            | `MAX_LINES_EXCEEDED` (22023)                                                                                                      |
-| Delivery address / notes (all channels)                   | 300 / 500 characters                                                                                                                                  | `INVALID_DELIVERY_ADDRESS` / `INVALID_NOTES`                                                                                      |
-| Guest name (all channels)                                 | 2 to 50 characters                                                                                                                                    | `INVALID_GUEST_NAME`                                                                                                              |
-| Guest phone (all channels)                                | E.164                                                                                                                                                 | `INVALID_GUEST_PHONE`                                                                                                             |
-| Requested date and slot (`slot_error`, business timezone) | today to today + 30 days; ASAP only while open; scheduled slot on an open day, time within hours and in the future; no structured hours = window only | `SLOT_INVALID: <reason>` (22023), reason `date_out_of_window`, `closed_now`, `closed_day`, `time_outside_hours` or `time_in_past` |
-| Requested time                                            | whole minutes                                                                                                                                         | `INVALID_REQUESTED_TIME`                                                                                                          |
-| Payment preference                                        | an enabled method (`on_handover` = `cash` or `card`)                                                                                                  | `INVALID_PAYMENT_PREFERENCE`                                                                                                      |
-| Service type, store open, minimum order                   | as before                                                                                                                                             | `SERVICE_TYPE_NOT_AVAILABLE`, `ORDERS_NOT_ACCEPTED`, `MINIMUM_ORDER_AMOUNT_NOT_MET`                                               |
-| Orders per phone (anonymous callers)                      | 3 per 10 minutes (`RATE_LIMIT_PHONE_MAX_REQUESTS`)                                                                                                    | `RATE_LIMITED` (P0006)                                                                                                            |
-| Orders per business (anonymous callers, flood brake)      | 120 per 10 minutes (`RATE_LIMIT_BUSINESS_MAX_ORDERS`)                                                                                                 | `RATE_LIMITED` (P0006)                                                                                                            |
+| Rule (storefront channel unless noted)                    | Limit                                                                                                                                                               | Error prefix (SQLSTATE)                                                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Quantity per product (duplicate lines merged)             | 50 (`MAX_QUANTITY_PER_LINE`)                                                                                                                                        | `MAX_LINE_QUANTITY_EXCEEDED` (22023)                                                                                              |
+| Total quantity per order                                  | 100 (`MAX_QUANTITY_PER_ORDER`)                                                                                                                                      | `MAX_ORDER_QUANTITY_EXCEEDED` (22023)                                                                                             |
+| Lines in `p_items`                                        | 50 (`MAX_LINES_PER_ORDER`)                                                                                                                                          | `MAX_LINES_EXCEEDED` (22023)                                                                                                      |
+| Delivery address / notes (all channels)                   | 300 / 500 characters                                                                                                                                                | `INVALID_DELIVERY_ADDRESS` / `INVALID_NOTES`                                                                                      |
+| Guest name (all channels)                                 | 2 to 50 characters                                                                                                                                                  | `INVALID_GUEST_NAME`                                                                                                              |
+| Guest phone (all channels)                                | E.164                                                                                                                                                               | `INVALID_GUEST_PHONE`                                                                                                             |
+| Requested date and slot (`slot_error`, business timezone) | today to today + 30 days; ASAP only while open; scheduled slot on an open day, time within hours and in the future; no structured hours = window only               | `SLOT_INVALID: <reason>` (22023), reason `date_out_of_window`, `closed_now`, `closed_day`, `time_outside_hours` or `time_in_past` |
+| Pickup location (all channels)                            | `p_pickup_location_id` only on pickup orders; the location must exist, belong to the business and be active; its name, address and fee are snapshotted on the order | `INVALID_PICKUP_LOCATION` (22023)                                                                                                 |
+| Pickup option (storefront, pickup)                        | at least one option (shop pickup enabled or an active relay); a choice when no shop pickup and several relays (a lone relay is selected automatically)              | `PICKUP_NOT_AVAILABLE` / `PICKUP_LOCATION_REQUIRED` (22023)                                                                       |
+| Requested time                                            | whole minutes                                                                                                                                                       | `INVALID_REQUESTED_TIME`                                                                                                          |
+| Payment preference                                        | an enabled method (`on_handover` = `cash` or `card`)                                                                                                                | `INVALID_PAYMENT_PREFERENCE`                                                                                                      |
+| Service type, store open, minimum order                   | as before                                                                                                                                                           | `SERVICE_TYPE_NOT_AVAILABLE`, `ORDERS_NOT_ACCEPTED`, `MINIMUM_ORDER_AMOUNT_NOT_MET`                                               |
+| Orders per phone (anonymous callers)                      | 3 per 10 minutes (`RATE_LIMIT_PHONE_MAX_REQUESTS`)                                                                                                                  | `RATE_LIMITED` (P0006)                                                                                                            |
+| Orders per business (anonymous callers, flood brake)      | 120 per 10 minutes (`RATE_LIMIT_BUSINESS_MAX_ORDERS`)                                                                                                               | `RATE_LIMITED` (P0006)                                                                                                            |
 
 The limits mirror `src/domain/anti-abuse.ts` (both sides document the pairing; the shared
 contract suite `order-placement.contract.ts`, run against the mock, the fake client and
@@ -651,7 +662,22 @@ the live database, fails when they diverge). The app maps `MAX_*` and `RATE_LIMI
 `INVALID_INPUT`. `SLOT_INVALID: <reason>` becomes a typed `SLOT_*` error code (`SLOT_CLOSED_NOW`,
 `SLOT_CLOSED_DAY`, `SLOT_DATE_OUT_OF_WINDOW`, `SLOT_TIME_OUTSIDE_HOURS`, `SLOT_TIME_IN_PAST`), each with a
 localized checkout message. Manager (non-storefront) orders skip the slot rules. `p_is_asap` is part of
-the idempotency payload hash.
+the idempotency payload hash, and so is `p_pickup_location_id` when one is given (a payload without
+one hashes exactly as before migration 036, so in-flight retries keep replaying; an idempotency key
+must be retried with the same input, so retrying an auto-selected null-location call with the chosen
+relay id raises `INVALID_IDEMPOTENCY_KEY`, by design).
+
+**Relay pickup (#386).** A relay order stores `pickup_location_id`, a name/address snapshot and
+`pickup_fee_cents`; `total_amount` = items + delivery fee (delivery) + the relay fee, computed by
+`order_total_cents(business, service_type, subtotal, pickup_fee default 0)`. `replace_order_items`
+passes the order's stored `pickup_fee_cents`, so editing items keeps the fee in the total. A null location
+means the shop (also all orders placed before migration 036). Slots for a relay are checked with
+`pickup_schedule_hours(business_weekly, business_exceptions, location_weekly)` (service_role only,
+`IMMUTABLE`): a location without hours uses the business schedule unchanged; otherwise its weekly hours
+with every weekday the business has closed emptied, and only the business closed exceptions (empty
+`ranges`), never its special-hours ones. Mirrored by `pickupScheduleFor` in
+[`src/domain/pickup-location.ts`](../../src/domain/pickup-location.ts). Shop pickup and delivery keep the
+business schedule.
 
 **Idempotency.** `orders.idempotency_key` (nullable `uuid`) with a unique partial index on
 `(business_id, idempotency_key)`. A repeated call with the same key returns the original
@@ -694,7 +720,9 @@ seeing a false "not found". The function is `VOLATILE`.
 
 **Tracking payload.** `get_order_by_tracking_token` returns `items` as explicit objects
 `{product_name, quantity, unit_price, total_price}` (what the tracking and confirmation UI
-read), not `to_jsonb(order_items)`.
+read), not `to_jsonb(order_items)`. For pickup orders the `order` object also carries
+`pickup_location_name` (null = the shop) and `pickup_location_address` (the relay snapshot, or the
+shop address when no relay); both are null for other service types.
 
 **Hygiene.** `set_updated_at()` pins `search_path`; `auth.role()` (deprecated) is replaced
 by `coalesce(auth.jwt() ->> 'role', '')` in `place_order`, `find_or_create_guest`,
@@ -720,7 +748,7 @@ Direct `INSERT`/`UPDATE` on `orders` and `INSERT`/`UPDATE`/`DELETE` on `order_it
 | `record_order_refund(business, order, reason)`                    | Refund a paid order (any status)                                                                                                                                                                                                                                                                                                                                                                                                      | `INVALID_PAYMENT_STATE` `22023`                                                                                                                  |
 | `replace_order_items(business, order, items)`                     | Items are `[{product_id, quantity}]` only. Names and prices come from `products` of the same business (lines already on the order keep their snapshot name and unit price), duplicates are summed, quantity 1 to 9999, 1 to 100 lines. Stock moves by the per-product delta under row locks in id order; `orders.total_amount` is recomputed with `order_total_cents`. Refused once the order is `COMPLETED`, `CANCELLED` or refunded | `ORDER_STATE_CONFLICT` `P0007`, `INSUFFICIENT_STOCK` `P0001`, `PRODUCT_NOT_FOUND` `P0002`, `INVALID_ORDER_ITEMS`/`INVALID_ITEM_QUANTITY` `22023` |
 
-Internal helpers, executable by no API role: `apply_order_transition` (core of every status change), `order_total_cents(business, service_type, subtotal)` (items subtotal plus the delivery fee of a delivery order; tax is not part of the total), `order_history_entry`.
+Internal helpers, executable by no API role: `apply_order_transition` (core of every status change), `order_total_cents(business, service_type, subtotal, pickup_fee default 0)` (items subtotal plus the delivery fee for delivery orders and the relay pickup fee for pickup orders; tax is not part of the total), `pickup_schedule_hours(business_weekly, business_exceptions, location_weekly)` (relay schedule helper), `order_history_entry`.
 
 ---
 

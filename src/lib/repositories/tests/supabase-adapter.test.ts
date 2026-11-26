@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Order, OrderStatus } from "@/domain/order";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
 import { validateSlot, type HoursException, type WeeklyHours } from "@/domain/opening-hours";
+import { pickupScheduleFor } from "@/domain/pickup-location";
 import { DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -163,6 +164,10 @@ function createFakeSupabaseClient(
       cancellation_reason: o.cancellationReason,
       notes: o.notes,
       delivery_address: o.deliveryAddress,
+      pickup_location_id: o.pickupLocation?.id ?? null,
+      pickup_location_name: o.pickupLocation?.name ?? null,
+      pickup_location_address: o.pickupLocation?.address ?? null,
+      pickup_fee_cents: o.pickupFeeCents ?? 0,
       status_history: structuredClone(o.statusHistory ?? []) as Json,
       created_at: o.createdAt,
       updated_at: o.updatedAt,
@@ -372,6 +377,14 @@ function createFakeSupabaseClient(
             list.splice(i, 1);
           }
         }
+        if (table === "pickup_locations") {
+          const removedIds = new Set(matched.map((r) => r.id));
+          for (const order of tables.orders) {
+            if (order.pickup_location_id && removedIds.has(order.pickup_location_id)) {
+              order.pickup_location_id = null;
+            }
+          }
+        }
         return { data: matched.length === 1 ? matched[0] : (matched[0] ?? null), error: null };
       }
 
@@ -508,6 +521,14 @@ function createFakeSupabaseClient(
               ...structuredClone(order),
               delivery_address:
                 order.service_type === "delivery" ? (order.delivery_address ?? null) : null,
+              pickup_location_name:
+                order.service_type === "pickup" ? order.pickup_location_name : null,
+              pickup_location_address:
+                order.service_type === "pickup"
+                  ? (order.pickup_location_address ??
+                    tables.businesses.find((b) => b.id === order.business_id)?.address ??
+                    null)
+                  : null,
             },
             items: structuredClone(items),
           },
@@ -566,6 +587,7 @@ function createFakeSupabaseClient(
               args.p_requested_time ?? "",
               args.p_payment_preference ?? "on_handover",
               args.p_is_asap ?? false,
+              args.p_pickup_location_id ?? null,
             ]);
             if (
               priorGuest?.phone !== args.p_guest_phone ||
@@ -589,6 +611,26 @@ function createFakeSupabaseClient(
             };
           }
         }
+        // Mirrors place_order's pickup location check (all channels, migration 036).
+        const pickupLocationId = (args.p_pickup_location_id as string | undefined) ?? null;
+        let pickupRow: (typeof tables.pickup_locations)[number] | null = null;
+        if (pickupLocationId) {
+          pickupRow =
+            args.p_service_type === "pickup"
+              ? (tables.pickup_locations.find(
+                  (l) => l.id === pickupLocationId && l.business_id === businessId && l.is_active,
+                ) ?? null)
+              : null;
+          if (!pickupRow) {
+            return {
+              data: null,
+              error: {
+                message: `INVALID_PICKUP_LOCATION: pickup location ${pickupLocationId} is not available`,
+                code: "22023",
+              },
+            };
+          }
+        }
         if (args.p_channel === "storefront") {
           const perProduct = new Map<string, number>();
           for (const it of items) {
@@ -599,13 +641,37 @@ function createFakeSupabaseClient(
             error: { message, code },
           });
           const bizSettings = tables.business_settings.find((s) => s.business_id === businessId);
-          // Mirrors place_order's slot rules (migration 034) with the domain's validateSlot.
+          // Mirrors place_order's pickup options rules (migration 036).
+          if (args.p_service_type === "pickup") {
+            const activeRelays = tables.pickup_locations
+              .filter((l) => l.business_id === businessId && l.is_active)
+              .toSorted((a, b) => a.sort_order - b.sort_order);
+            const shopEnabled = bizSettings?.shop_pickup_enabled ?? true;
+            if ((shopEnabled ? 1 : 0) + activeRelays.length === 0) {
+              return fail("PICKUP_NOT_AVAILABLE: no pickup option is available");
+            }
+            if (!pickupRow && !shopEnabled) {
+              if (activeRelays.length === 1) {
+                pickupRow = activeRelays[0];
+              } else {
+                return fail("PICKUP_LOCATION_REQUIRED: choose a pickup location");
+              }
+            }
+          }
+          // Mirrors place_order's slot rules (migrations 034 & 036) with the domain's validateSlot.
           if (bizSettings) {
+            const businessSchedule = {
+              weekly: bizSettings.weekly_hours as WeeklyHours | null,
+              exceptions: (bizSettings.hours_exceptions ?? []) as HoursException[],
+            };
+            const schedule = pickupRow
+              ? pickupScheduleFor(
+                  businessSchedule,
+                  (pickupRow.weekly_hours as WeeklyHours | null) ?? null,
+                )
+              : businessSchedule;
             const slot = validateSlot(
-              {
-                weekly: bizSettings.weekly_hours as WeeklyHours | null,
-                exceptions: (bizSettings.hours_exceptions ?? []) as HoursException[],
-              },
+              schedule,
               bizSettings.timezone ?? DEFAULT_TIMEZONE,
               new Date(),
               {
@@ -742,7 +808,12 @@ function createFakeSupabaseClient(
             (args.p_service_type === "delivery"
               ? (tables.business_settings.find((st) => st.business_id === args.p_business_id)
                   ?.delivery_fee ?? 0)
-              : 0),
+              : 0) +
+            (pickupRow?.fee_cents ?? 0),
+          pickup_location_id: pickupRow?.id ?? null,
+          pickup_location_name: pickupRow?.name ?? null,
+          pickup_location_address: pickupRow ? `${pickupRow.address}, ${pickupRow.postcode}` : null,
+          pickup_fee_cents: pickupRow?.fee_cents ?? 0,
           tracking_token: crypto.randomUUID().replace(/-/g, ""),
           cancellation_reason: null,
           notes: args.p_notes ? String(args.p_notes) : null,
@@ -763,6 +834,7 @@ function createFakeSupabaseClient(
             args.p_requested_time ?? "",
             args.p_payment_preference ?? "on_handover",
             args.p_is_asap ?? false,
+            args.p_pickup_location_id ?? null,
           ]),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -957,7 +1029,9 @@ function createFakeSupabaseClient(
           (st) => st.business_id === order.business_id,
         );
         order.total_amount =
-          subtotal + (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0);
+          subtotal +
+          (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0) +
+          (order.service_type === "pickup" ? Math.max(0, order.pickup_fee_cents ?? 0) : 0);
         order.updated_at = new Date().toISOString();
         return { data: { order_id: order.id, total_amount: order.total_amount }, error: null };
       }
@@ -1258,6 +1332,48 @@ describe("Supabase Repository Adapter", () => {
       await expect(place()).rejects.toMatchObject({ code: "INVALID_INPUT" });
     });
 
+    it("passes p_pickup_location_id and maps the pickup location errors", async () => {
+      const locationId = "44444444-4444-4444-8444-444444444444";
+      const rpc = vi.fn(async (_fn: string, _args: unknown) => ({
+        data: null,
+        error: { code: "22023", message: "INVALID_PICKUP_LOCATION: gone" } as {
+          code: string;
+          message: string;
+        },
+      }));
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+      const place = (pickupLocationId?: string | null) =>
+        repos.orders.place(DEMO_BUSINESS_ID, {
+          guestName: "Alice",
+          guestPhone: "+33612345678",
+          serviceType: "pickup",
+          channel: "storefront",
+          requestedDate: getZonedDay(new Date(), DEFAULT_TIMEZONE),
+          pickupLocationId,
+          items: [{ productId: "33333333-3333-4333-8333-333333333301", quantity: 1 }],
+        });
+
+      await expect(place(locationId)).rejects.toMatchObject({ code: "PICKUP_LOCATION_INVALID" });
+      expect(rpc).toHaveBeenCalledWith(
+        "place_order",
+        expect.objectContaining({ p_pickup_location_id: locationId }),
+      );
+
+      await place(null).catch(() => undefined);
+      expect(rpc).toHaveBeenLastCalledWith(
+        "place_order",
+        expect.objectContaining({ p_pickup_location_id: undefined }),
+      );
+
+      for (const [message, code] of [
+        ["PICKUP_LOCATION_REQUIRED: choose a pickup location", "PICKUP_LOCATION_REQUIRED"],
+        ["PICKUP_NOT_AVAILABLE: no pickup option is available", "PICKUP_NOT_AVAILABLE"],
+      ] as const) {
+        rpc.mockResolvedValueOnce({ data: null, error: { code: "22023", message } });
+        await expect(place()).rejects.toMatchObject({ code });
+      }
+    });
+
     it("maps place_order error prefixes to codes without leaking database text", async () => {
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const place = async (message: string, code = "XX000") => {
@@ -1522,6 +1638,169 @@ describe("Supabase Repository Adapter", () => {
 
       const pickup = await repos.orders.findByTrackingToken("tk-pickup");
       expect(pickup?.deliveryAddress).toBeNull();
+    });
+
+    it("maps pickup_location in findByTrackingToken only for pickup orders (#386)", async () => {
+      const baseRow = {
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 43,
+        status: "NEW",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        requested_date: "2026-10-17",
+        requested_time: null,
+        total_amount: 1650,
+        cancellation_reason: null,
+        created_at: "2026-10-17T10:00:00+00:00",
+      };
+      const items = [
+        { product_name: "Poulet Braisé", quantity: 1, unit_price: 1500, total_price: 1500 },
+      ];
+      const rpc = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              pickup_location_name: "Gare du Nord",
+              pickup_location_address: "18 Rue de Dunkerque, 75010",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "pickup",
+              pickup_location_name: null,
+              pickup_location_address: "9 Rue du Four, 75006 Paris",
+            },
+            items,
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            order: {
+              ...baseRow,
+              service_type: "delivery",
+              delivery_address: "1 rue X, 75001 Paris",
+              pickup_location_name: "Stale",
+              pickup_location_address: "Stale",
+            },
+            items,
+          },
+          error: null,
+        });
+      const repos = createSupabaseRepositories({ rpc } as unknown as SupabaseClient<Database>);
+
+      expect((await repos.orders.findByTrackingToken("tk-relay"))?.pickupLocation).toEqual({
+        name: "Gare du Nord",
+        address: "18 Rue de Dunkerque, 75010",
+      });
+      expect((await repos.orders.findByTrackingToken("tk-shop"))?.pickupLocation).toEqual({
+        name: null,
+        address: "9 Rue du Four, 75006 Paris",
+      });
+      expect((await repos.orders.findByTrackingToken("tk-delivery"))?.pickupLocation).toBeNull();
+    });
+
+    it("maps pickup location snapshots on order rows, including missing address and deleted location (#386, #387)", async () => {
+      const orderId = "77777777-7777-4777-8777-777777777701";
+      const locationId = "44444444-4444-4444-8444-444444444444";
+      const baseRow = {
+        id: orderId,
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 99,
+        guest_id: "55555555-5555-4555-8555-555555555501",
+        submitted_name: null,
+        service_type: "pickup",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        payment_method: null,
+        paid_at: null,
+        refunded_at: null,
+        requested_date: "2026-10-17",
+        requested_time: null,
+        total_amount: 1650,
+        tracking_token: "a1b2c3d4e5f6789012345678abcdef01",
+        cancellation_reason: null,
+        notes: null,
+        delivery_address: null,
+        pickup_location_id: locationId as string | null,
+        pickup_location_name: "Gare du Nord" as string | null,
+        pickup_location_address: "18 Rue de Dunkerque, 75010" as string | null,
+        pickup_fee_cents: 150,
+        status_history: [],
+        created_at: "2026-10-17T10:00:00+00:00",
+        updated_at: "2026-10-17T10:00:00+00:00",
+        order_items: [
+          {
+            id: "88888888-8888-4888-8888-888888888801",
+            order_id: orderId,
+            business_id: DEMO_BUSINESS_ID,
+            product_id: "33333333-3333-4333-8333-333333333301",
+            product_name: "Poulet Braisé",
+            quantity: 1,
+            unit_price: 1500,
+            total_price: 1500,
+          },
+        ],
+      };
+
+      const fetchMapped = async (override: Partial<typeof baseRow>) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.maybeSingle = async () => ({ data: { ...baseRow, ...override }, error: null });
+        const repos = createSupabaseRepositories({
+          from: () => chain,
+        } as unknown as SupabaseClient<Database>);
+        return repos.orders.findById(DEMO_BUSINESS_ID, orderId);
+      };
+
+      const full = await fetchMapped({});
+      expect(full?.pickupLocation).toEqual({
+        id: locationId,
+        name: "Gare du Nord",
+        address: "18 Rue de Dunkerque, 75010",
+      });
+      expect(full?.pickupFeeCents).toBe(150);
+
+      // Deleted location: id is null, snapshot stays; missing/blank address maps to null without throwing.
+      const withoutAddress = await fetchMapped({
+        pickup_location_id: null,
+        pickup_location_name: "Deleted Relay",
+        pickup_location_address: null,
+      });
+      expect(withoutAddress?.pickupLocation).toEqual({
+        id: null,
+        name: "Deleted Relay",
+        address: null,
+      });
+
+      const blankAddress = await fetchMapped({
+        pickup_location_address: "   ",
+      });
+      expect(blankAddress?.pickupLocation).toEqual({
+        id: locationId,
+        name: "Gare du Nord",
+        address: null,
+      });
+
+      const shopOrder = await fetchMapped({
+        pickup_location_id: null,
+        pickup_location_name: null,
+        pickup_location_address: null,
+        pickup_fee_cents: 0,
+      });
+      expect(shopOrder?.pickupLocation).toBeNull();
+      expect(shopOrder?.pickupFeeCents).toBe(0);
     });
   });
 });

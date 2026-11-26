@@ -41,6 +41,9 @@ export interface CartContextValue {
   setNotes: (notes: string) => void;
   serviceMode: StorefrontServiceMode;
   setServiceMode: (mode: StorefrontServiceMode) => void;
+  /** Chosen pickup location: `"shop"`, a relay UUID, or `null` when unset. */
+  pickupLocationChoice: string | null;
+  setPickupLocationChoice: (choice: string | null) => void;
   totalCount: number;
   totalAmountInCents: number;
 }
@@ -50,6 +53,7 @@ const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "foodbiz_storefront_cart";
 const NOTES_STORAGE_KEY = "foodbiz_storefront_notes";
 export const SERVICE_MODE_STORAGE_KEY = "foodbiz_storefront_service_mode";
+export const PICKUP_LOCATION_STORAGE_KEY = "foodbiz_storefront_pickup_location";
 
 export function resolveServiceMode(
   storedMode: StorefrontServiceMode,
@@ -65,9 +69,11 @@ export function resolveServiceMode(
 let memoryCart: CartItem[] = [];
 let memoryNotes: string = "";
 let memoryServiceMode: StorefrontServiceMode = "delivery";
+let memoryPickupChoice: string | null = null;
 let isInitialized = false;
 let isNotesInitialized = false;
 let isServiceModeInitialized = false;
+let isPickupChoiceInitialized = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -78,14 +84,17 @@ export function resetCartStore(): void {
   memoryCart = [];
   memoryNotes = "";
   memoryServiceMode = "delivery";
+  memoryPickupChoice = null;
   isInitialized = false;
   isNotesInitialized = false;
   isServiceModeInitialized = false;
+  isPickupChoiceInitialized = false;
   if (typeof window !== "undefined") {
     try {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(NOTES_STORAGE_KEY);
       localStorage.removeItem(SERVICE_MODE_STORAGE_KEY);
+      localStorage.removeItem(PICKUP_LOCATION_STORAGE_KEY);
     } catch {
       // Storage unavailable
     }
@@ -180,6 +189,38 @@ function saveStoredServiceMode(newMode: StorefrontServiceMode) {
   notify();
 }
 
+function getStoredPickupChoice(): string | null {
+  if (typeof window === "undefined") return null;
+  if (!isPickupChoiceInitialized) {
+    try {
+      const stored = localStorage.getItem(PICKUP_LOCATION_STORAGE_KEY);
+      memoryPickupChoice = stored && stored.trim() ? stored.trim() : null;
+    } catch {
+      // Storage unavailable
+    }
+    isPickupChoiceInitialized = true;
+  }
+  return memoryPickupChoice;
+}
+
+function saveStoredPickupChoice(choice: string | null) {
+  const normalized = choice && choice.trim() ? choice.trim() : null;
+  memoryPickupChoice = normalized;
+  isPickupChoiceInitialized = true;
+  if (typeof window !== "undefined") {
+    try {
+      if (normalized === null) {
+        localStorage.removeItem(PICKUP_LOCATION_STORAGE_KEY);
+      } else {
+        localStorage.setItem(PICKUP_LOCATION_STORAGE_KEY, normalized);
+      }
+    } catch {
+      // Storage error
+    }
+  }
+  notify();
+}
+
 function subscribeCart(callback: () => void) {
   listeners.add(callback);
   const handleStorage = (e: StorageEvent) => {
@@ -191,6 +232,9 @@ function subscribeCart(callback: () => void) {
       notify();
     } else if (e.key === SERVICE_MODE_STORAGE_KEY) {
       isServiceModeInitialized = false;
+      notify();
+    } else if (e.key === PICKUP_LOCATION_STORAGE_KEY) {
+      isPickupChoiceInitialized = false;
       notify();
     }
   };
@@ -208,6 +252,7 @@ export interface CartProviderProps {
   initialItems?: CartItem[];
   initialNotes?: string;
   initialServiceMode?: StorefrontServiceMode;
+  initialPickupLocationChoice?: string | null;
 }
 
 export function CartProvider({
@@ -215,11 +260,15 @@ export function CartProvider({
   initialItems,
   initialNotes,
   initialServiceMode,
+  initialPickupLocationChoice,
 }: CartProviderProps) {
   const [localItems, setLocalItems] = useState<CartItem[] | null>(initialItems ?? null);
   const [localNotes, setLocalNotes] = useState<string | null>(initialNotes ?? null);
   const [localServiceMode, setLocalServiceMode] = useState<StorefrontServiceMode | null>(
     initialServiceMode ?? null,
+  );
+  const [localPickupChoice, setLocalPickupChoice] = useState<string | null | undefined>(
+    initialPickupLocationChoice,
   );
 
   const syncedItems = useSyncExternalStore(subscribeCart, getStoredCart, () => emptyCart);
@@ -229,10 +278,13 @@ export function CartProvider({
     getStoredServiceMode,
     () => "delivery" as const,
   );
+  const syncedPickupChoice = useSyncExternalStore(subscribeCart, getStoredPickupChoice, () => null);
 
   const items = localItems ?? syncedItems;
   const notes = localNotes ?? syncedNotes;
   const serviceMode = localServiceMode ?? syncedServiceMode;
+  const pickupLocationChoice =
+    initialPickupLocationChoice !== undefined ? (localPickupChoice ?? null) : syncedPickupChoice;
 
   const setNotes = useCallback(
     (newNotes: string) => {
@@ -254,6 +306,17 @@ export function CartProvider({
       }
     },
     [initialServiceMode],
+  );
+
+  const setPickupLocationChoice = useCallback(
+    (choice: string | null) => {
+      if (initialPickupLocationChoice !== undefined) {
+        setLocalPickupChoice(choice);
+      } else {
+        saveStoredPickupChoice(choice);
+      }
+    },
+    [initialPickupLocationChoice],
   );
 
   const updateCartState = useCallback(
@@ -400,6 +463,8 @@ export function CartProvider({
       setNotes,
       serviceMode,
       setServiceMode,
+      pickupLocationChoice,
+      setPickupLocationChoice,
       totalCount,
       totalAmountInCents,
     }),
@@ -415,6 +480,8 @@ export function CartProvider({
       setNotes,
       serviceMode,
       setServiceMode,
+      pickupLocationChoice,
+      setPickupLocationChoice,
       totalCount,
       totalAmountInCents,
     ],

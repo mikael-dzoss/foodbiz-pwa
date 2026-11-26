@@ -61,6 +61,11 @@ export interface OrdersDictionary {
     deadline: string;
     channel: string;
     address: string;
+    // Pickup location (#387)
+    pickupLocation: string;
+    directions: string;
+    directionsAria: string;
+    pickupFee: string;
     today: string;
     asap: string;
     dateAtTime: string;
@@ -181,6 +186,10 @@ export interface OrdersDictionary {
     time: string;
     deliveryAddress: string;
     addressPlaceholder: string;
+    // Pickup location (#387)
+    pickupLocationLabel: string;
+    selectPickupLocation: string;
+    shopPickupOption: string;
     notesLabel: string;
     notesPlaceholder: string;
     step3: string;
@@ -196,6 +205,7 @@ export interface OrdersDictionary {
       invalidPhone: string;
       invalidName: string;
       noAddress: string;
+      noPickupLocation: string;
     };
     preview: {
       title: string;
@@ -210,6 +220,8 @@ export interface OrdersDictionary {
       anytime: string;
       address: string;
       noAddress: string;
+      pickupLocation: string;
+      pickupFee: string;
       kitchenNote: string;
       selectedProducts: string;
       noItems: string;
@@ -303,6 +315,10 @@ const en: OrdersDictionary = {
     deadline: "Deadline",
     channel: "Channel",
     address: "Address",
+    pickupLocation: "Pickup location",
+    directions: "Directions",
+    directionsAria: "Directions to {place} (opens in a new tab)",
+    pickupFee: "Pickup fee",
     today: "Today",
     asap: "ASAP",
     dateAtTime: "{date} at {time}",
@@ -428,6 +444,9 @@ const en: OrdersDictionary = {
     time: "Time",
     deliveryAddress: "Delivery Address",
     addressPlaceholder: "Street name, house number, floor...",
+    pickupLocationLabel: "Pickup location",
+    selectPickupLocation: "Choose a pickup location…",
+    shopPickupOption: "{name} (Shop)",
     notesLabel: "Kitchen & Handover Notes",
     notesPlaceholder: "Special requests, allergies, sauce preferences...",
     step3: "Step 3: Product Selection",
@@ -443,6 +462,7 @@ const en: OrdersDictionary = {
       invalidPhone: "Please provide a valid phone number.",
       invalidName: "Please provide a valid guest name (2–50 characters).",
       noAddress: "Please provide a delivery address.",
+      noPickupLocation: "Please choose a pickup location.",
     },
     preview: {
       title: "Order Preview",
@@ -457,6 +477,8 @@ const en: OrdersDictionary = {
       anytime: "anytime",
       address: "Address: {address}",
       noAddress: "No address provided",
+      pickupLocation: "Pickup at: {location}",
+      pickupFee: "Pickup fee",
       kitchenNote: "Kitchen note:",
       selectedProducts: "Selected Products ({count})",
       noItems: "No items selected yet.",
@@ -550,6 +572,10 @@ const fr: OrdersDictionary = {
     deadline: "Échéance",
     channel: "Canal",
     address: "Adresse",
+    pickupLocation: "Lieu de retrait",
+    directions: "Itinéraire",
+    directionsAria: "Itinéraire vers {place} (ouvre un nouvel onglet)",
+    pickupFee: "Frais de retrait",
     today: "Aujourd'hui",
     asap: "Dès que possible",
     dateAtTime: "{date} à {time}",
@@ -676,6 +702,9 @@ const fr: OrdersDictionary = {
     time: "Heure",
     deliveryAddress: "Adresse de livraison",
     addressPlaceholder: "Rue, numéro, étage...",
+    pickupLocationLabel: "Lieu de retrait",
+    selectPickupLocation: "Choisir un lieu de retrait…",
+    shopPickupOption: "{name} (Boutique)",
     notesLabel: "Notes cuisine et remise",
     notesPlaceholder: "Demandes spéciales, allergies, choix de sauces...",
     step3: "Étape 3 : Sélection des produits",
@@ -691,6 +720,7 @@ const fr: OrdersDictionary = {
       invalidPhone: "Saisissez un numéro de téléphone valide.",
       invalidName: "Saisissez un nom de client valide (2 à 50 caractères).",
       noAddress: "Saisissez une adresse de livraison.",
+      noPickupLocation: "Veuillez choisir un lieu de retrait.",
     },
     preview: {
       title: "Aperçu de la commande",
@@ -705,6 +735,8 @@ const fr: OrdersDictionary = {
       anytime: "à tout moment",
       address: "Adresse : {address}",
       noAddress: "Aucune adresse fournie",
+      pickupLocation: "Retrait à : {location}",
+      pickupFee: "Frais de retrait",
       kitchenNote: "Note cuisine :",
       selectedProducts: "Produits sélectionnés ({count})",
       noItems: "Aucun article sélectionné pour le moment.",

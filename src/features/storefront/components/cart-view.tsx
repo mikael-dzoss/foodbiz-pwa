@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowLeft,
   ShoppingBag,
   ShoppingCart,
@@ -13,23 +14,34 @@ import {
   ChevronDown,
   AlertTriangle,
 } from "lucide-react";
+import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
+import type { StorefrontPickupLocation } from "@/domain/pickup-location";
+import { splitOrderTotal } from "@/domain/pricing";
+import { logEvent } from "@/lib/log";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToastOptional } from "@/components/ui";
 import { SoonBadge } from "@/components/feedback";
-import { useCart } from "../context/cart-context";
+import { resolveServiceMode, useCart } from "../context/cart-context";
+import { storefrontPricing } from "../storefront-pricing";
+import { usePickupLocation } from "../use-pickup-location";
 import { CartItemCard } from "./cart-item-card";
 import { MinimumOrderBanner } from "./minimum-order-banner";
+
+const EMPTY_PICKUP_LOCATIONS: readonly StorefrontPickupLocation[] = [];
 
 export interface CartViewProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   minOrderAmount?: number; // cents
   isAcceptingOrders?: boolean;
+  settings?: Pick<BusinessSettings, "serviceTypes" | "deliveryFee" | "shopPickupEnabled"> | null;
+  shopPickupEnabled?: boolean;
+  pickupLocations?: readonly StorefrontPickupLocation[];
 }
 
 export function CartView({
@@ -37,23 +49,65 @@ export function CartView({
   dict,
   minOrderAmount = 0,
   isAcceptingOrders = true,
+  settings = null,
+  shopPickupEnabled,
+  pickupLocations = EMPTY_PICKUP_LOCATIONS,
 }: CartViewProps) {
-  const {
-    items,
-    updateQuantity,
-    removeItem,
-    clearCart,
-    totalCount,
-    totalAmountInCents,
-    notes,
-    setNotes,
-  } = useCart();
+  const { items, updateQuantity, removeItem, clearCart, totalCount, notes, setNotes, serviceMode } =
+    useCart();
   const toast = useToastOptional();
   const showToast = toast?.showToast ?? (() => {});
   const [isNotesOpen, setIsNotesOpen] = useState(notes.length > 0);
+  const pricingErrorId = useId();
 
-  const isBelowMinimum = minOrderAmount > 0 && totalAmountInCents < minOrderAmount;
-  const canProceed = items.length > 0 && !isBelowMinimum && isAcceptingOrders;
+  const activeServiceMode = resolveServiceMode(serviceMode, settings?.serviceTypes);
+  const resolvedShopPickupEnabled = shopPickupEnabled ?? settings?.shopPickupEnabled ?? true;
+  const pickupState = usePickupLocation(resolvedShopPickupEnabled, pickupLocations);
+
+  const pricing = useMemo(
+    () =>
+      storefrontPricing({
+        items,
+        serviceType: activeServiceMode,
+        deliveryFee: settings?.deliveryFee ?? 0,
+        pickupFee: activeServiceMode === "pickup" ? (pickupState.selectedRelay?.feeCents ?? 0) : 0,
+      }),
+    [items, activeServiceMode, settings?.deliveryFee, pickupState.selectedRelay?.feeCents],
+  );
+
+  const pricingErrorReason = pricing.ok ? null : pricing.reason;
+  useEffect(() => {
+    if (!pricingErrorReason) return;
+    logEvent("error", "storefront_pricing_failed", {
+      screen: "cart",
+      serviceType: activeServiceMode,
+      reason: pricingErrorReason,
+    });
+  }, [pricingErrorReason, activeServiceMode]);
+
+  const breakdown = pricing.ok
+    ? splitOrderTotal(pricing.total, pricing.deliveryFee + pricing.pickupFee)
+    : null;
+  const isBelowMinimum = pricing.ok && minOrderAmount > 0 && pricing.subtotal < minOrderAmount;
+  const canProceed = items.length > 0 && pricing.ok && !isBelowMinimum && isAcceptingOrders;
+
+  const feeLabel =
+    activeServiceMode === "delivery"
+      ? dict.deliveryFee
+      : pickupState.selectedRelay
+        ? `${dict.pickupLocationFeeLabel} · ${pickupState.selectedRelay.name}`
+        : dict.pickupLocationFeeLabel;
+  const feeValue = pricing.ok
+    ? activeServiceMode === "delivery"
+      ? pricing.deliveryFee > 0
+        ? formatMoney(pricing.deliveryFee, locale)
+        : dict.pickupLocationFeeFree
+      : pricing.pickupFee > 0
+        ? formatMoney(pricing.pickupFee, locale)
+        : pickupState.requiresChoice && pickupState.hasPaidOption
+          ? dict.pickupLocationFeePending
+          : dict.pickupLocationFeeFree
+    : null;
 
   // Empty cart view
   if (items.length === 0) {
@@ -113,12 +167,14 @@ export function CartView({
       </div>
 
       {/* Minimum Order Indicator */}
-      <MinimumOrderBanner
-        subtotalInCents={totalAmountInCents}
-        minOrderAmountInCents={minOrderAmount}
-        dict={dict}
-        locale={locale}
-      />
+      {pricing.ok && (
+        <MinimumOrderBanner
+          subtotalInCents={pricing.subtotal}
+          minOrderAmountInCents={minOrderAmount}
+          dict={dict}
+          locale={locale}
+        />
+      )}
 
       {/* Cart Items List */}
       <div className="space-y-3" data-testid="cart-items-list">
@@ -219,28 +275,60 @@ export function CartView({
         <h2 className="text-label-sm text-muted-foreground tracking-wider uppercase">
           {dict.orderSummary}
         </h2>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">{dict.subtotal}</span>
-          <span className="text-foreground font-medium tabular-nums">
-            {formatMoney(totalAmountInCents, locale)}
-          </span>
-        </div>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">{dict.estimatedTax}</span>
-          <span className="text-foreground font-medium tabular-nums">
-            {formatMoney(Math.round(totalAmountInCents * 0.1), locale)}
-          </span>
-        </div>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">{dict.servicePickup}</span>
-          <span className="text-primary font-medium">{dict.serviceFree}</span>
-        </div>
-        <div className="border-border/60 my-1 flex justify-between border-t pt-2.5 text-sm font-bold sm:text-base">
-          <span className="text-foreground">{dict.orderTotal}</span>
-          <span className="text-foreground tabular-nums">
-            {formatMoney(totalAmountInCents, locale)}
-          </span>
-        </div>
+        {pricing.ok && breakdown ? (
+          <>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-muted-foreground">{dict.subtotal}</span>
+              <span
+                data-testid="cart-subtotal-value"
+                className="text-foreground font-medium tabular-nums"
+              >
+                {formatMoney(breakdown.subtotal, locale)}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="text-muted-foreground">{dict.cartIncludedVat}</span>
+              <span
+                data-testid="cart-tax-value"
+                className="text-foreground font-medium tabular-nums"
+              >
+                {formatMoney(breakdown.includedTax, locale)}
+              </span>
+            </div>
+            <div
+              data-testid="cart-fee-row"
+              className="flex justify-between gap-2 text-xs sm:text-sm"
+            >
+              <span className="text-muted-foreground truncate">{feeLabel}</span>
+              <span
+                data-testid="cart-fee-value"
+                className={
+                  pricing.deliveryFee > 0 || pricing.pickupFee > 0
+                    ? "text-foreground shrink-0 font-medium tabular-nums"
+                    : "text-primary shrink-0 font-medium tabular-nums"
+                }
+              >
+                {feeValue}
+              </span>
+            </div>
+            <div className="border-border/60 my-1 flex justify-between border-t pt-2.5 text-sm font-bold sm:text-base">
+              <span className="text-foreground">{dict.orderTotal}</span>
+              <span data-testid="cart-order-total" className="text-foreground tabular-nums">
+                {formatMoney(breakdown.totalAmount, locale)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div
+            id={pricingErrorId}
+            role="alert"
+            data-testid="cart-pricing-error"
+            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 wrap-anywhere">{dict.pricingUnavailableError}</span>
+          </div>
+        )}
 
         {isBelowMinimum && (
           <div className="border-border bg-muted/60 text-muted-foreground text-caption mt-2 flex items-center gap-2 rounded-lg border p-2">
@@ -271,20 +359,23 @@ export function CartView({
         <Button
           asChild={canProceed}
           disabled={!canProceed}
+          aria-describedby={!pricing.ok ? pricingErrorId : undefined}
           className="h-12 flex-1 rounded-xl text-sm font-semibold shadow-xs sm:text-base"
           data-testid="proceed-checkout-button"
         >
-          {canProceed ? (
+          {canProceed && pricing.ok ? (
             <Link href={`/${locale}/checkout`}>
               <span>
-                {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
+                {dict.proceedToCheckout} • {formatMoney(pricing.total, locale)}
               </span>
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
           ) : (
             <span className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
-              {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
+              {pricing.ok
+                ? `${dict.proceedToCheckout} • ${formatMoney(pricing.total, locale)}`
+                : dict.proceedToCheckout}
             </span>
           )}
         </Button>

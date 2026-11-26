@@ -11,7 +11,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(21);
+select plan(29);
 
 insert into public.businesses (id, name, slug, currency)
 values
@@ -163,6 +163,63 @@ select is(
   (select count(*)::int from public.order_items where order_id = '0a000000-0000-0000-0000-000000000001'),
   0,
   'deleting an order cascades to its items'
+);
+
+-- ----------------------------------------------------------------------------
+-- orders.pickup_location_id (20260101000036)
+-- ----------------------------------------------------------------------------
+insert into public.pickup_locations (id, business_id, name, address, postcode)
+values
+  ('f1000000-0000-0000-0000-000000000001'::uuid, '10000000-0000-0000-0000-000000000001'::uuid, 'Relay A', '1 rue A', '75010'),
+  ('f2000000-0000-0000-0000-000000000002'::uuid, '20000000-0000-0000-0000-000000000002'::uuid, 'Relay B', '2 rue B', '75013');
+
+select ok(
+  (select convalidated from pg_constraint where conname = 'orders_business_pickup_location_fkey' and contype = 'f'),
+  'the composite pickup location foreign key exists and is validated'
+);
+
+select ok(
+  (select convalidated from pg_constraint where conname = 'orders_pickup_location_consistency' and contype = 'c'),
+  'orders_pickup_location_consistency check constraint exists and is validated'
+);
+
+select throws_ok(
+  $$insert into public.orders (business_id, order_number, guest_id, service_type, channel, requested_date, total_amount, pickup_location_id)
+    values ('10000000-0000-0000-0000-000000000001', 10, '9a000000-0000-0000-0000-000000000001', 'delivery', 'storefront', current_date, 500, 'f1000000-0000-0000-0000-000000000001')$$,
+  '23514', null, 'a non-pickup order cannot be inserted with a pickup_location_id'
+);
+
+select throws_ok(
+  $$insert into public.orders (business_id, order_number, guest_id, service_type, channel, requested_date, total_amount, pickup_fee_cents)
+    values ('10000000-0000-0000-0000-000000000001', 11, '9a000000-0000-0000-0000-000000000001', 'dine-in', 'storefront', current_date, 600, 100)$$,
+  '23514', null, 'a non-pickup order cannot be inserted with a non-zero pickup_fee_cents'
+);
+
+select throws_ok(
+  $$update public.orders set pickup_location_id = 'f1000000-0000-0000-0000-000000000001' where id = '0b000000-0000-0000-0000-000000000002'$$,
+  '23503', null, 'an order cannot point at another business pickup location'
+);
+
+update public.orders
+set pickup_location_id = 'f2000000-0000-0000-0000-000000000002', pickup_location_name = 'Relay B', pickup_fee_cents = 150
+where id = '0b000000-0000-0000-0000-000000000002';
+
+select throws_ok(
+  $$update public.orders set service_type = 'delivery', pickup_fee_cents = 0 where id = '0b000000-0000-0000-0000-000000000002'$$,
+  '23514', null, 'a pickup order with a pickup location cannot be updated to a non-pickup service type'
+);
+
+delete from public.pickup_locations where id = 'f2000000-0000-0000-0000-000000000002';
+
+select throws_ok(
+  $$update public.orders set service_type = 'delivery' where id = '0b000000-0000-0000-0000-000000000002'$$,
+  '23514', null, 'a pickup order with a non-zero pickup fee cannot be updated to a non-pickup service type'
+);
+
+select ok(
+  (select pickup_location_id is null and business_id = '20000000-0000-0000-0000-000000000002'::uuid and pickup_location_name = 'Relay B'
+   from public.orders where id = '0b000000-0000-0000-0000-000000000002'),
+  'deleting a pickup location nulls only orders.pickup_location_id and keeps the snapshot'
 );
 
 -- ----------------------------------------------------------------------------

@@ -155,11 +155,47 @@ vi.mock("@/features/orders/order-data", async (importActual) => ({
             updatedAt: "2026-10-13T12:00:00.000Z",
           },
           guest: null,
+          shop: {
+            name: "Test Shop",
+            address: "52 Quai de la Rapée, 75012 Paris",
+          },
         },
       };
     }
     return null;
   }),
+  getManualOrderFormData: vi.fn(async () => ({
+    products: [
+      {
+        id: "p-1",
+        businessId: "11111111-1111-4111-8111-111111111111",
+        categoryId: "cat-1",
+        name: "Burger Maison",
+        description: null,
+        price: 850,
+        unitCost: 300,
+        stock: 12,
+        visible: true,
+        allergens: [],
+        suggestAddOns: true,
+        imageUrl: null,
+        createdAt: "2026-10-01T10:00:00.000Z",
+        updatedAt: "2026-10-01T10:00:00.000Z",
+      },
+    ],
+    today: "2026-10-15",
+    pickupLocations: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Gare RER B",
+        address: "Place du 8 mai 1945",
+        postcode: "93210",
+        feeCents: 0,
+      },
+    ],
+    shopPickupEnabled: true,
+    shopName: "Test Shop",
+  })),
 }));
 
 vi.mock("@/features/orders", () => ({
@@ -183,18 +219,22 @@ describe("Orders Pages", () => {
   });
 
   describe("OrderDetailPage (Screen M-21)", () => {
-    it("renders order detail for valid order ID", async () => {
+    it("renders order detail with shop pickup fallback for valid order ID", async () => {
       const page = await OrderDetailPage({ params: Promise.resolve({ id: "ord-1" }) });
       render(page);
 
       expect(auth.requireManagerSession).toHaveBeenCalled();
       expect(screen.getByRole("heading", { name: "Order #42", level: 1 })).toBeDefined();
       expect(screen.getByText("Jean Dupont")).toBeDefined();
+      expect(screen.getByTestId("order-pickup-name").textContent).toBe("Test Shop");
+      expect(screen.getByTestId("order-pickup-address").textContent).toBe(
+        "52 Quai de la Rapée, 75012 Paris",
+      );
     });
   });
 
   describe("NewOrderPage (Screen M-30)", () => {
-    it("renders manual order entry form with products", async () => {
+    it("renders manual order entry form with products and active relays", async () => {
       const page = await NewOrderPage();
       render(page);
 
@@ -202,6 +242,7 @@ describe("Orders Pages", () => {
       expect(screen.getByRole("heading", { name: "New Order", level: 1 })).toBeDefined();
       expect(screen.getByText("Burger Maison")).toBeDefined();
       expect(screen.getByText("12 in stock")).toBeDefined();
+      expect(screen.getByTestId("pickup-location-select")).toBeDefined();
     });
   });
 });

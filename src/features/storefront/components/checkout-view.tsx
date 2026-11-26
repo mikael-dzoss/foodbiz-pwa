@@ -6,6 +6,7 @@ import { ArrowLeft, ShoppingBag, User } from "lucide-react";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import type { StorefrontPickupLocation } from "@/domain/pickup-location";
 import { Button } from "@/components/ui/button";
 import { useCart } from "../context/cart-context";
 import { CheckoutForm } from "./checkout-form";
@@ -14,6 +15,8 @@ import type { CheckoutFormData } from "@/domain/checkout";
 export interface CheckoutViewProps {
   business: StorefrontBusiness;
   settings: BusinessSettings | null;
+  shopPickupEnabled?: boolean;
+  pickupLocations?: readonly StorefrontPickupLocation[];
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   isOpen: boolean;
@@ -27,6 +30,8 @@ export interface CheckoutViewProps {
 export function CheckoutView({
   business,
   settings,
+  shopPickupEnabled,
+  pickupLocations,
   locale,
   dict,
   isOpen,
@@ -84,6 +89,8 @@ export function CheckoutView({
       <CheckoutForm
         business={business}
         settings={settings}
+        shopPickupEnabled={shopPickupEnabled}
+        pickupLocations={pickupLocations}
         locale={locale}
         dict={dict}
         isOpen={isOpen}

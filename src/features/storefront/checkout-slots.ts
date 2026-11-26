@@ -122,6 +122,19 @@ export function formatNextOpeningLabel(
   return dict.checkoutSlotAt.replace("{day}", day).replace("{time}", slot.time);
 }
 
+/** Next opening label while `schedule` is closed at `now`, else `null`. */
+export function closedNextOpeningLabelForSchedule(
+  schedule: OpeningSchedule,
+  tz: string,
+  now: Date,
+  locale: SupportedLocale,
+  dict: StorefrontDictionary,
+): string | null {
+  if (isOpenAt(schedule, tz, now)) return null;
+  const next = nextOpening(schedule, tz, now);
+  return next ? formatNextOpeningLabel(next, getZonedDay(now, tz), locale, dict) : null;
+}
+
 /** Next opening label while the shop is closed per its structured hours, else `null`. */
 export function closedNextOpeningLabel(
   settings: BusinessSettings | null,
@@ -129,9 +142,11 @@ export function closedNextOpeningLabel(
   locale: SupportedLocale,
   dict: StorefrontDictionary,
 ): string | null {
-  const schedule = scheduleFromSettings(settings);
-  const tz = settings?.timezone ?? DEFAULT_TIMEZONE;
-  if (isOpenAt(schedule, tz, now)) return null;
-  const next = nextOpening(schedule, tz, now);
-  return next ? formatNextOpeningLabel(next, getZonedDay(now, tz), locale, dict) : null;
+  return closedNextOpeningLabelForSchedule(
+    scheduleFromSettings(settings),
+    settings?.timezone ?? DEFAULT_TIMEZONE,
+    now,
+    locale,
+    dict,
+  );
 }

@@ -8,7 +8,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(7);
+select plan(9);
 
 -- Ensure table grants for standard Supabase API roles
 grant usage on schema public to anon, authenticated, service_role;
@@ -206,6 +206,33 @@ select lives_ok(
     '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb
   )$$,
   'replace_order_items succeeds for service_role'
+);
+
+-- Test 7: the stored pickup fee survives an item edit and stays in the total
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.orders set pickup_fee_cents = 150 where id = '0a000000-0000-0000-0000-000000000099'::uuid;
+set local role service_role;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'service_role';
+set local "request.jwt.claims" = '{"role": "service_role"}';
+
+select is(
+  (select public.replace_order_items(
+    '10000000-0000-0000-0000-000000000001'::uuid,
+    '0a000000-0000-0000-0000-000000000099'::uuid,
+    '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 2}]'::jsonb
+  ) ->> 'total_amount')::integer,
+  1150,
+  'replace_order_items keeps the stored pickup fee in the total (2 x 500 + 150)'
+);
+
+select is(
+  (select pickup_fee_cents from public.orders where id = '0a000000-0000-0000-0000-000000000099'::uuid),
+  150,
+  'replace_order_items leaves pickup_fee_cents unchanged'
 );
 
 select * from finish();

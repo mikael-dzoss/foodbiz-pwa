@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import type { HoursException, WeeklyHours } from "./opening-hours";
+
 import {
+  buildDirectionsUrl,
   canDeactivatePickupLocation,
   canDeletePickupLocation,
   canDisableShopPickup,
   createPickupLocationSchema,
   hasActivePickupOption,
   pickupLocationSchema,
+  pickupScheduleFor,
   reorderPickupLocationsSchema,
+  resolvePickupDisplay,
   updatePickupLocationSchema,
 } from "./pickup-location";
 
@@ -152,5 +157,147 @@ describe("pickup option rules", () => {
     expect(canDisableShopPickup(ctx(true, [], false))).toBe(true);
     expect(canDeactivatePickupLocation(ctx(false, [on(true)], false), ID_A)).toBe(true);
     expect(canDeletePickupLocation(ctx(false, [on(true)], false), ID_A)).toBe(true);
+  });
+});
+
+describe("pickupScheduleFor", () => {
+  const open = [{ open: "09:00", close: "18:00" }];
+  const relayRanges = [{ open: "07:00", close: "20:00" }];
+  const week = (override: Partial<WeeklyHours> = {}): WeeklyHours => ({
+    mon: open,
+    tue: open,
+    wed: open,
+    thu: open,
+    fri: open,
+    sat: open,
+    sun: open,
+    ...override,
+  });
+  const closure: HoursException = { from: "2030-01-01", to: "2030-01-02", ranges: [] };
+  const special: HoursException = {
+    from: "2030-02-01",
+    to: "2030-02-01",
+    ranges: [{ open: "10:00", close: "12:00" }],
+  };
+
+  it("returns the business schedule unchanged when the location has no hours", () => {
+    const business = { weekly: week({ mon: [] }), exceptions: [closure, special] };
+    expect(pickupScheduleFor(business, null)).toBe(business);
+  });
+
+  it("keeps the location ranges but empties the weekdays the business is closed", () => {
+    const business = { weekly: week({ mon: [] }), exceptions: [] };
+    const result = pickupScheduleFor(business, week({ mon: relayRanges, tue: relayRanges }));
+    expect(result.weekly?.mon).toEqual([]);
+    expect(result.weekly?.tue).toEqual(relayRanges);
+    expect(result.weekly?.wed).toEqual(open);
+  });
+
+  it("applies only the business closed exceptions, never its special hours", () => {
+    const business = { weekly: week(), exceptions: [closure, special] };
+    expect(pickupScheduleFor(business, week()).exceptions).toEqual([closure]);
+  });
+
+  it("closes no weekday when the business has no weekly hours, and still applies only closed exceptions", () => {
+    const result = pickupScheduleFor(
+      { weekly: null, exceptions: [closure, special] },
+      week({ sun: relayRanges }),
+    );
+    expect(result.weekly).toEqual(week({ sun: relayRanges }));
+    expect(result.exceptions).toEqual([closure]);
+  });
+
+  it("does not mutate its inputs", () => {
+    const business = { weekly: week({ mon: [] }), exceptions: [closure, special] };
+    const location = week({ mon: relayRanges });
+    const before = structuredClone({ business, location });
+    pickupScheduleFor(business, location);
+    expect({ business, location }).toEqual(before);
+  });
+});
+
+describe("buildDirectionsUrl and resolvePickupDisplay", () => {
+  it("builds an encoded Google Maps search URL and returns null for blank addresses", () => {
+    expect(buildDirectionsUrl("12 Place Jean Jaurès, 93100 Montreuil")).toBe(
+      "https://www.google.com/maps/search/?api=1&query=12%20Place%20Jean%20Jaur%C3%A8s%2C%2093100%20Montreuil",
+    );
+    expect(buildDirectionsUrl("   ")).toBeNull();
+    expect(buildDirectionsUrl(null)).toBeNull();
+    expect(buildDirectionsUrl(undefined)).toBeNull();
+  });
+
+  it("returns null for delivery and non-pickup orders", () => {
+    expect(
+      resolvePickupDisplay(
+        "delivery",
+        { name: "Relay", address: "10 Rue Relay" },
+        { name: "Shop", address: "52 Quai" },
+        "Store Pickup",
+      ),
+    ).toBeNull();
+  });
+
+  it("resolves relay location name and address without leaking shop address when relay address is null", () => {
+    expect(
+      resolvePickupDisplay(
+        "pickup",
+        { name: "Gare RER B", address: "Place du 8 Mai, 93210" },
+        { name: "Les Saveurs", address: "52 Quai de la Rapée" },
+        "Store Pickup",
+      ),
+    ).toEqual({
+      isRelay: true,
+      name: "Gare RER B",
+      address: "Place du 8 Mai, 93210",
+      directionsUrl:
+        "https://www.google.com/maps/search/?api=1&query=Place%20du%208%20Mai%2C%2093210",
+    });
+
+    expect(
+      resolvePickupDisplay(
+        "pickup",
+        { name: "Gare RER B", address: null },
+        { name: "Les Saveurs", address: "52 Quai de la Rapée" },
+        "Store Pickup",
+      ),
+    ).toEqual({
+      isRelay: true,
+      name: "Gare RER B",
+      address: null,
+      directionsUrl: null,
+    });
+  });
+
+  it("falls back to the shop name and address when pickupLocation has null name or is absent", () => {
+    expect(
+      resolvePickupDisplay(
+        "pickup",
+        { name: null, address: "52 Quai de la Rapée, 75012 Paris" },
+        { name: "Les Saveurs", address: "Fallback address" },
+        "Store Pickup",
+      ),
+    ).toEqual({
+      isRelay: false,
+      name: "Les Saveurs",
+      address: "52 Quai de la Rapée, 75012 Paris",
+      directionsUrl:
+        "https://www.google.com/maps/search/?api=1&query=52%20Quai%20de%20la%20Rap%C3%A9e%2C%2075012%20Paris",
+    });
+
+    expect(
+      resolvePickupDisplay("pickup", null, { name: "Les Saveurs", address: "52 Quai" }, "Shop"),
+    ).toEqual({
+      isRelay: false,
+      name: "Les Saveurs",
+      address: "52 Quai",
+      directionsUrl: "https://www.google.com/maps/search/?api=1&query=52%20Quai",
+    });
+
+    expect(resolvePickupDisplay("pickup", null, undefined, "Store Pickup")).toEqual({
+      isRelay: false,
+      name: "Store Pickup",
+      address: null,
+      directionsUrl: null,
+    });
   });
 });

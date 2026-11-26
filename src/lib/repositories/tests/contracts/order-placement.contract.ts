@@ -18,6 +18,11 @@ export type OpeningHoursSetter = (hours: {
 }) => Promise<void>;
 
 export interface OrderPlacementContractOptions {
+  /**
+   * Repositories of a manager of the business (able to create pickup locations); the relay-order
+   * cases are skipped when omitted (the placement contract itself runs anonymously).
+   */
+  readonly managerRepositories?: () => Promise<Repositories> | Repositories;
   /** Required for the opening-hours cases; they are skipped when omitted. */
   readonly setOpeningHours?: OpeningHoursSetter;
   /**
@@ -416,6 +421,246 @@ export function describeOrderPlacementContract(
         );
         expect(placed.orderId).toBeDefined();
       });
+    });
+
+    describe.skipIf(!options.managerRepositories)("pickup locations (#386)", () => {
+      const createRelay = async (
+        extra: {
+          name?: string;
+          feeCents?: number;
+          isActive?: boolean;
+          weeklyHours?: WeeklyHours | null;
+        } = {},
+      ) =>
+        (await options.managerRepositories!()).pickupLocations.create(businessId, {
+          name: "Contract Relay",
+          address: "18 Rue de Dunkerque",
+          postcode: "75010",
+          feeCents: 150,
+          ...extra,
+        });
+      const removeRelay = async (id: string) => {
+        await (
+          await options.managerRepositories!()
+        ).pickupLocations
+          .delete(businessId, id)
+          .catch(() => undefined);
+      };
+
+      it("stores the relay and its fee, and tracking shows where to collect (relay and shop)", async () => {
+        const repos = await getRepositories();
+        const manager = await options.managerRepositories!();
+        const { productId, qty } = await pickOrderable(repos);
+        const price = (await repos.products.findById(businessId, productId))?.price ?? 0;
+        const relay = await createRelay();
+        try {
+          const placed = await repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }], {
+              pickupLocationId: relay.id,
+            }),
+          );
+          expect(placed.totalAmount).toBe(price * qty + 150);
+          const stored = await manager.orders.findById(businessId, placed.orderId);
+          expect(stored?.pickupFeeCents).toBe(150);
+          expect(stored?.pickupLocation).toEqual({
+            id: relay.id,
+            name: "Contract Relay",
+            address: "18 Rue de Dunkerque, 75010",
+          });
+          const tracked = await repos.orders.findByTrackingToken(placed.trackingToken);
+          expect(tracked?.pickupLocation).toEqual({
+            name: "Contract Relay",
+            address: "18 Rue de Dunkerque, 75010",
+          });
+
+          const shopPlaced = await repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }]),
+          );
+          const biz = await manager.business.findById(businessId);
+          const shopTracked = await repos.orders.findByTrackingToken(shopPlaced.trackingToken);
+          expect(shopTracked?.pickupLocation).toEqual({
+            name: null,
+            address: biz?.address?.trim() || null,
+          });
+        } finally {
+          await removeRelay(relay.id);
+        }
+      });
+
+      it("rejects an unknown or inactive location without touching stock", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const before = await stockOf(repos, productId);
+        const inactive = await createRelay({ isActive: false });
+        try {
+          for (const pickupLocationId of [crypto.randomUUID(), inactive.id]) {
+            await expectRejection(
+              repos.orders.place(
+                businessId,
+                orderInput(freshPhone(), [{ productId, quantity: qty }], { pickupLocationId }),
+              ),
+              "PICKUP_LOCATION_INVALID",
+            );
+          }
+          expect(await stockOf(repos, productId)).toBe(before);
+        } finally {
+          await removeRelay(inactive.id);
+        }
+      });
+
+      it("rejects a location on a delivery order", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const relay = await createRelay();
+        try {
+          await expectRejection(
+            repos.orders.place(
+              businessId,
+              orderInput(freshPhone(), [{ productId, quantity: qty }], {
+                serviceType: "delivery",
+                deliveryAddress: "12 Rue de Rivoli, 75001 Paris",
+                pickupLocationId: relay.id,
+              }),
+            ),
+            "PICKUP_LOCATION_INVALID",
+          );
+        } finally {
+          await removeRelay(relay.id);
+        }
+      });
+
+      it("requires a choice when several relays are offered without shop pickup, and auto-selects a lone relay", async () => {
+        const repos = await getRepositories();
+        const manager = await options.managerRepositories!();
+        const { productId, qty } = await pickOrderable(repos);
+        const price = (await repos.products.findById(businessId, productId))?.price ?? 0;
+        const relayA = await createRelay({ name: "Relay A", feeCents: 150 });
+        const relayB = await createRelay({ name: "Relay B", feeCents: 200 });
+        try {
+          await manager.business.updateSettings(businessId, { shopPickupEnabled: false });
+
+          await expectRejection(
+            repos.orders.place(
+              businessId,
+              orderInput(freshPhone(), [{ productId, quantity: qty }]),
+            ),
+            "PICKUP_LOCATION_REQUIRED",
+          );
+
+          await removeRelay(relayB.id);
+          const auto = await repos.orders.place(
+            businessId,
+            orderInput(freshPhone(), [{ productId, quantity: qty }]),
+          );
+          expect(auto.totalAmount).toBe(price * qty + 150);
+          const stored = await manager.orders.findById(businessId, auto.orderId);
+          expect(stored?.pickupLocation?.id).toBe(relayA.id);
+        } finally {
+          await manager.business.updateSettings(businessId, { shopPickupEnabled: true });
+          await removeRelay(relayA.id);
+          await removeRelay(relayB.id);
+        }
+      });
+
+      it("includes pickupLocationId in the idempotency payload", async () => {
+        const repos = await getRepositories();
+        const { productId, qty } = await pickOrderable(repos);
+        const relay = await createRelay();
+        const phone = freshPhone();
+        const idempotencyKey = crypto.randomUUID();
+        try {
+          const first = await repos.orders.place(
+            businessId,
+            orderInput(phone, [{ productId, quantity: qty }], {
+              idempotencyKey,
+              pickupLocationId: relay.id,
+            }),
+          );
+          const replay = await repos.orders.place(
+            businessId,
+            orderInput(phone, [{ productId, quantity: qty }], {
+              idempotencyKey,
+              pickupLocationId: relay.id,
+            }),
+          );
+          expect(replay.orderId).toBe(first.orderId);
+          expect(replay.replayed).toBe(true);
+
+          await expectRejection(
+            repos.orders.place(
+              businessId,
+              orderInput(phone, [{ productId, quantity: qty }], { idempotencyKey }),
+            ),
+            "INVALID_INPUT",
+          );
+        } finally {
+          await removeRelay(relay.id);
+        }
+      });
+
+      it.skipIf(!options.setOpeningHours)(
+        "enforces relay hours and business closures on relay slots",
+        async () => {
+          const repos = await getRepositories();
+          const { productId, qty } = await pickOrderable(repos);
+          const settings = await repos.business.getSettings(businessId);
+          const businessToday = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
+          const tomorrow = addCalendarDays(businessToday, 1);
+          const tomorrowKey = DAY_KEYS[(new Date(`${tomorrow}T12:00:00Z`).getUTCDay() + 6) % 7];
+          const allDay = [{ open: "00:00", close: "24:00" }];
+          const makeWeek = (
+            override: Partial<
+              Record<(typeof DAY_KEYS)[number], { open: string; close: string }[]>
+            > = {},
+          ): WeeklyHours => ({
+            ...(Object.fromEntries(DAY_KEYS.map((k) => [k, allDay])) as WeeklyHours),
+            ...override,
+          });
+
+          const closedRelay = await createRelay({
+            name: "Closed Tomorrow Relay",
+            weeklyHours: makeWeek({ [tomorrowKey]: [] }),
+          });
+          const openRelay = await createRelay({
+            name: "Open Relay",
+            weeklyHours: makeWeek(),
+          });
+          try {
+            await options.setOpeningHours!({ weeklyHours: makeWeek(), hoursExceptions: [] });
+            await expectRejection(
+              repos.orders.place(
+                businessId,
+                orderInput(freshPhone(), [{ productId, quantity: qty }], {
+                  requestedDate: tomorrow,
+                  pickupLocationId: closedRelay.id,
+                }),
+              ),
+              "SLOT_CLOSED_DAY",
+            );
+
+            await options.setOpeningHours!({
+              weeklyHours: makeWeek({ [tomorrowKey]: [] }),
+              hoursExceptions: [],
+            });
+            await expectRejection(
+              repos.orders.place(
+                businessId,
+                orderInput(freshPhone(), [{ productId, quantity: qty }], {
+                  requestedDate: tomorrow,
+                  pickupLocationId: openRelay.id,
+                }),
+              ),
+              "SLOT_CLOSED_DAY",
+            );
+          } finally {
+            await options.setOpeningHours!({ weeklyHours: null, hoursExceptions: [] });
+            await removeRelay(closedRelay.id);
+            await removeRelay(openRelay.id);
+          }
+        },
+      );
     });
   });
 }

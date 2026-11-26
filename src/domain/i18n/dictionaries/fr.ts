@@ -418,6 +418,10 @@ export const frDictionary: Dictionary = {
     orderErrorSlotTimeOutsideHours: "L'heure choisie est en dehors des horaires d'ouverture.",
     orderErrorSlotTimeInPast:
       "L'heure choisie est déjà passée. Veuillez choisir une heure plus tardive.",
+    orderErrorPickupLocationInvalid:
+      "Le point de retrait choisi n'est plus disponible. Veuillez en choisir un autre.",
+    orderErrorPickupLocationRequired: "Veuillez choisir où retirer votre commande.",
+    orderErrorPickupNotAvailable: "Le retrait n'est pas disponible pour le moment.",
     checkoutDateTomorrow: "Demain",
     checkoutChooseDate: "Choisissez une date",
     checkoutChooseTime: "Choisissez une heure",
@@ -467,6 +471,28 @@ export const frDictionary: Dictionary = {
     todayExceptionLabel: "Aujourd'hui",
     todayExceptionClosed: "Fermé aujourd'hui",
     todayExceptionOpen: "Horaires spéciaux aujourd'hui : {hours}",
+
+    // Storefront pickup location picker (#386)
+    pickupLocationSectionTitle: "Lieu de retrait",
+    pickupLocationChoosePrompt: "Choisissez où retirer votre commande",
+    pickupLocationShopFallback: "Boutique",
+    pickupLocationFeeFree: "Gratuit",
+    pickupLocationFeeLabel: "Frais de retrait",
+    pickupLocationFeePending: "Selon le lieu",
+    pickupLocationFeeShort: "+{amount} de retrait",
+    pickupLocationSameAsShopHours: "Mêmes horaires que la boutique",
+    pickupLocationShowAll: "Tout afficher ({count})",
+    pickupLocationShowFewer: "Afficher moins",
+    pickupLocationChooseTile: "Choisir un point de retrait",
+    pickupLocationCount: "{count} lieux",
+    pickupLocationClosedNextOpening:
+      "Ce point de retrait est fermé pour le moment et ouvre {when}. Programmez votre commande pour plus tard.",
+    pickupLocationClosedScheduleNotice:
+      "Ce point de retrait est actuellement fermé. Votre commande sera préparée pour le créneau choisi.",
+    pickupLocationWithFee: "Retrait ({amount})",
+    cartIncludedVat: "TVA incluse (10 %)",
+    pricingUnavailableError:
+      "Nous n'avons pas pu calculer le total de votre commande. Veuillez vérifier ou vider votre panier.",
   },
   quickAdd: {
     title: "Ajout rapide",
@@ -853,7 +879,10 @@ export const frDictionary: Dictionary = {
     pickupWindow: "Créneau de retrait",
     deliveryAddress: "Adresse de livraison",
     deliveryTo: "Livraison à",
+    // Pickup location (#387)
+    collectAt: "Retrait à",
     directions: "Itinéraire",
+    directionsAria: "Itinéraire vers {place} (ouvre un nouvel onglet)",
     orderSummary: "Récapitulatif de commande",
     subtotal: "Sous-total",
     taxIncluded: "TVA incluse (10%)",

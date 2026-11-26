@@ -40,6 +40,9 @@ export default async function CartPage({ params }: CartPageProps) {
         dict={dict.storefront}
         minOrderAmount={catalog.settings?.minOrderAmount ?? 0}
         isAcceptingOrders={catalog.isAcceptingOrders}
+        settings={catalog.settings}
+        shopPickupEnabled={catalog.shopPickupEnabled}
+        pickupLocations={catalog.pickupLocations}
       />
     </Suspense>
   );

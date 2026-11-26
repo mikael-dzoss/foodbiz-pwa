@@ -282,6 +282,9 @@ export interface StorefrontDictionary {
   orderErrorSlotDateOutOfWindow: string;
   orderErrorSlotTimeOutsideHours: string;
   orderErrorSlotTimeInPast: string;
+  orderErrorPickupLocationInvalid: string;
+  orderErrorPickupLocationRequired: string;
+  orderErrorPickupNotAvailable: string;
   checkoutDateTomorrow: string;
   checkoutChooseDate: string;
   checkoutChooseTime: string;
@@ -330,6 +333,25 @@ export interface StorefrontDictionary {
   todayExceptionLabel: string;
   todayExceptionClosed: string;
   todayExceptionOpen: string;
+
+  // Storefront pickup location picker (#386)
+  pickupLocationSectionTitle: string;
+  pickupLocationChoosePrompt: string;
+  pickupLocationShopFallback: string;
+  pickupLocationFeeFree: string;
+  pickupLocationFeeLabel: string;
+  pickupLocationFeePending: string;
+  pickupLocationFeeShort: string;
+  pickupLocationSameAsShopHours: string;
+  pickupLocationShowAll: string;
+  pickupLocationShowFewer: string;
+  pickupLocationChooseTile: string;
+  pickupLocationCount: string;
+  pickupLocationClosedNextOpening: string;
+  pickupLocationClosedScheduleNotice: string;
+  pickupLocationWithFee: string;
+  cartIncludedVat: string;
+  pricingUnavailableError: string;
 }
 
 export interface QuickAddDictionary {
@@ -817,7 +839,10 @@ export interface OrderTrackingDictionary {
   pickupWindow: string;
   deliveryAddress: string;
   deliveryTo: string;
+  // Pickup location (#387)
+  collectAt: string;
   directions: string;
+  directionsAria: string;
   orderSummary: string;
   subtotal: string;
   taxIncluded: string;

@@ -38,6 +38,7 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
       order={order}
       settings={settings}
       businessName={business.name}
+      businessAddress={business.address}
       token={token}
       locale={locale}
       dict={getDictionary(locale)}

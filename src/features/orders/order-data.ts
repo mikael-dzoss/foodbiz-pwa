@@ -3,14 +3,37 @@ import "server-only";
 import { z } from "zod";
 import { getRepositories } from "@/lib/repositories";
 import { requireAuthenticatedAction } from "@/features/auth";
+import { getBusinessToday } from "@/features/settings/settings-data";
 import {
   type NamedOrder,
   type OrderStatus,
   type Guest,
+  type Product,
   serviceTypeSchema,
   uuidSchema,
   UNKNOWN_GUEST_NAME,
 } from "@/domain";
+
+export interface OrderShopInfo {
+  name: string;
+  address: string | null;
+}
+
+export interface ManualOrderPickupOption {
+  id: string;
+  name: string;
+  address: string;
+  postcode: string;
+  feeCents: number;
+}
+
+export interface ManualOrderFormData {
+  products: Product[];
+  today: string;
+  pickupLocations: ManualOrderPickupOption[];
+  shopPickupEnabled: boolean;
+  shopName: string;
+}
 
 export interface EnrichedOrder extends NamedOrder {
   guestPhone?: string | null;
@@ -170,10 +193,10 @@ export async function listOrders(filter?: ListOrdersFilter): Promise<ListOrdersR
   };
 }
 
-/** A single order with its guest, or null when the id is malformed or unknown to this business. */
+/** A single order with its guest and shop details, or null when the id is malformed or unknown. */
 export async function getOrder(
   orderId: string,
-): Promise<{ order: EnrichedOrder; guest: Guest | null } | null> {
+): Promise<{ order: EnrichedOrder; guest: Guest | null; shop: OrderShopInfo | null } | null> {
   const { businessId } = await requireAuthenticatedAction();
   const parsedId = uuidSchema.safeParse(orderId);
   if (!parsedId.success) return null;
@@ -182,7 +205,10 @@ export async function getOrder(
   const order = await repos.orders.findById(businessId, parsedId.data);
   if (!order) return null;
 
-  const guest = await repos.guests.findById(businessId, order.guestId);
+  const [guest, business] = await Promise.all([
+    repos.guests.findById(businessId, order.guestId),
+    repos.business.findById(businessId),
+  ]);
   return {
     order: {
       ...order,
@@ -192,5 +218,38 @@ export async function getOrder(
       deliveryAddress: order.deliveryAddress ?? guest?.address ?? null,
     },
     guest,
+    shop: business ? { name: business.name, address: business.address ?? null } : null,
+  };
+}
+
+/** Data for the manual order screen: visible products, business date and active relay locations. */
+export async function getManualOrderFormData(): Promise<ManualOrderFormData> {
+  const { session, businessId } = await requireAuthenticatedAction();
+  const repos = getRepositories();
+
+  const [products, settings, locations, today] = await Promise.all([
+    repos.products.list(businessId, { visibleOnly: true }),
+    repos.business.getSettings(businessId),
+    repos.pickupLocations.listByBusiness(businessId),
+    getBusinessToday(),
+  ]);
+
+  const pickupLocations: ManualOrderPickupOption[] = locations
+    .filter((location) => location.isActive)
+    .toSorted((a, b) => a.sortOrder - b.sortOrder)
+    .map((location) => ({
+      id: location.id,
+      name: location.name,
+      address: location.address,
+      postcode: location.postcode,
+      feeCents: location.feeCents,
+    }));
+
+  return {
+    products,
+    today,
+    pickupLocations,
+    shopPickupEnabled: settings?.shopPickupEnabled ?? true,
+    shopName: session.business.name,
   };
 }

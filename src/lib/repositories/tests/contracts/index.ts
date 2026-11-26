@@ -48,6 +48,7 @@ export function describeRepositoryContracts(
     describeOrderStateContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeOrderPlacementContract(getRepositories, businessId, {
       setOpeningHours: options.setOpeningHours,
+      managerRepositories: getRepositories,
     });
     describeGuestRepositoryContract(getRepositories, businessId);
     describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);

@@ -155,6 +155,25 @@ describe("placeOrderInputSchema", () => {
     }
   });
 
+  it("accepts a pickup location only for pickup orders", () => {
+    const pickupLocationId = "22222222-2222-4222-8222-222222222222";
+    expect(placeOrderInputSchema.safeParse({ ...validBase, pickupLocationId }).success).toBe(true);
+    expect(placeOrderInputSchema.safeParse({ ...validBase, pickupLocationId: null }).success).toBe(
+      true,
+    );
+    expect(
+      placeOrderInputSchema.safeParse({ ...validBase, pickupLocationId: "not-a-uuid" }).success,
+    ).toBe(false);
+    const delivery = placeOrderInputSchema.safeParse({
+      ...validBase,
+      serviceType: "delivery",
+      deliveryAddress: "12 Rue de Rivoli, Paris",
+      pickupLocationId,
+    });
+    expect(delivery.success).toBe(false);
+    if (!delivery.success) expect(delivery.error.issues[0].path).toEqual(["pickupLocationId"]);
+  });
+
   it("fails when items list is empty", () => {
     const result = placeOrderInputSchema.safeParse({
       ...validBase,

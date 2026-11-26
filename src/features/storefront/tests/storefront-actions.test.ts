@@ -695,3 +695,256 @@ describe("placeOrderAction business resolution", () => {
     placeSpy.mockRestore();
   });
 });
+
+describe("placeOrderAction pickup locations (#386)", () => {
+  const bId = DEMO_BUSINESS_ID;
+  const payload = {
+    items: [{ productId: DEMO_PRODUCT.beignetsSouffles.id, quantity: 2 }], // 2 x 1000
+    name: "Camille Claudel",
+    phone: "+33699887766",
+    serviceType: "pickup" as const,
+    isAsap: true,
+    paymentPreference: "on_handover" as const,
+  };
+  const allDay = [{ open: "00:00", close: "24:00" }];
+  const week = (override: Partial<WeeklyHours> = {}): WeeklyHours => ({
+    mon: allDay,
+    tue: allDay,
+    wed: allDay,
+    thu: allDay,
+    fri: allDay,
+    sat: allDay,
+    sun: allDay,
+    ...override,
+  });
+
+  const addRelay = async (
+    extra: { feeCents?: number; weeklyHours?: WeeklyHours | null; isActive?: boolean } = {},
+  ) =>
+    getMockRepositories().pickupLocations.create(bId, {
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque",
+      postcode: "75010",
+      feeCents: 150,
+      ...extra,
+    });
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    getMockRepositories().reset();
+    getGlobalRateLimiter().reset();
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: null,
+      hoursExceptions: [],
+    });
+  });
+
+  it("stores the relay and its fee on the order and in the total", async () => {
+    const relay = await addRelay();
+    const result = await placeOrderAction({
+      ...payload,
+      pickupLocationId: relay.id,
+      idempotencyKey: idem("pl-relay"),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.totalAmount).toBe(2150);
+    const order = await getMockRepositories().orders.findById(bId, result.data.orderId);
+    expect(order?.pickupFeeCents).toBe(150);
+    expect(order?.pickupLocation).toEqual({
+      id: relay.id,
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque, 75010",
+    });
+  });
+
+  it("treats a missing location as the shop while shop pickup is on", async () => {
+    await addRelay();
+    const result = await placeOrderAction({ ...payload, idempotencyKey: idem("pl-shop") });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.totalAmount).toBe(2000);
+    const order = await getMockRepositories().orders.findById(bId, result.data.orderId);
+    expect(order?.pickupLocation).toBeNull();
+  });
+
+  it("refuses an unknown or inactive location", async () => {
+    const inactive = await addRelay({ isActive: false });
+    for (const pickupLocationId of [crypto.randomUUID(), inactive.id]) {
+      const result = await placeOrderAction({
+        ...payload,
+        pickupLocationId,
+        idempotencyKey: idem(`pl-invalid-${pickupLocationId}`),
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe("PICKUP_LOCATION_INVALID");
+    }
+  });
+
+  it("refuses a pickup location on a delivery order", async () => {
+    const relay = await addRelay();
+    const result = await placeOrderAction({
+      ...payload,
+      serviceType: "delivery",
+      deliveryAddress: "12 Rue de Rivoli, 75001 Paris",
+      pickupLocationId: relay.id,
+      idempotencyKey: idem("pl-delivery"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("VALIDATION");
+  });
+
+  it("requires a choice when several relays are offered without shop pickup", async () => {
+    const first = await addRelay();
+    await addRelay();
+    await getMockRepositories().business.updateSettings(bId, { shopPickupEnabled: false });
+
+    const missing = await placeOrderAction({ ...payload, idempotencyKey: idem("pl-required") });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.reason).toBe("PICKUP_LOCATION_REQUIRED");
+
+    const chosen = await placeOrderAction({
+      ...payload,
+      pickupLocationId: first.id,
+      idempotencyKey: idem("pl-chosen"),
+    });
+    expect(chosen.ok).toBe(true);
+  });
+
+  it("selects a lone relay automatically when shop pickup is off", async () => {
+    const relay = await addRelay();
+    await getMockRepositories().business.updateSettings(bId, { shopPickupEnabled: false });
+    const result = await placeOrderAction({ ...payload, idempotencyKey: idem("pl-auto") });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const order = await getMockRepositories().orders.findById(bId, result.data.orderId);
+    expect(order?.pickupLocation?.id).toBe(relay.id);
+    expect(result.data.totalAmount).toBe(2150);
+  });
+
+  it("validates the slot against the relay hours and the business closed days", async () => {
+    const settings = await getMockRepositories().business.getSettings(bId);
+    const today = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
+    const tomorrow = addCalendarDays(today, 1);
+    const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+    const tomorrowKey = days[new Date(`${tomorrow}T12:00:00Z`).getUTCDay()];
+    const scheduled = { ...payload, isAsap: false, requestedDate: tomorrow };
+
+    // The relay is closed tomorrow; the shop is open: only the relay refuses.
+    const closedRelay = await addRelay({ weeklyHours: week({ [tomorrowKey]: [] }) });
+    await getMockRepositories().business.updateSettings(bId, { weeklyHours: week() });
+    const refused = await placeOrderAction({
+      ...scheduled,
+      pickupLocationId: closedRelay.id,
+      idempotencyKey: idem("pl-slot-relay"),
+    });
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.reason).toBe("SLOT_CLOSED_DAY");
+    expect(
+      (await placeOrderAction({ ...scheduled, idempotencyKey: idem("pl-slot-shop") })).ok,
+    ).toBe(true);
+
+    // The business is closed tomorrow: a relay open that day stays closed.
+    const openRelay = await addRelay({ weeklyHours: week() });
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: week({ [tomorrowKey]: [] }),
+    });
+    const businessClosed = await placeOrderAction({
+      ...scheduled,
+      pickupLocationId: openRelay.id,
+      idempotencyKey: idem("pl-slot-business"),
+    });
+    expect(businessClosed.ok).toBe(false);
+    if (!businessClosed.ok) expect(businessClosed.reason).toBe("SLOT_CLOSED_DAY");
+  });
+
+  it("refuses with PICKUP_NOT_AVAILABLE when shop pickup is off and no active relay exists", async () => {
+    await getMockRepositories().business.updateSettings(bId, { shopPickupEnabled: false });
+    const result = await placeOrderAction({
+      ...payload,
+      idempotencyKey: idem("pl-no-option"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("PICKUP_NOT_AVAILABLE");
+  });
+
+  it("keeps the minimum order check on items subtotal without counting the relay fee", async () => {
+    const relay = await addRelay({ feeCents: 300 });
+    await getMockRepositories().business.updateSettings(bId, { minOrderAmount: 2100 });
+    const result = await placeOrderAction({
+      ...payload, // 2 x 1000 = 2000 < 2100 (even though 2000 + 300 = 2300)
+      pickupLocationId: relay.id,
+      idempotencyKey: idem("pl-min-order"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("MINIMUM_ORDER_UNMET");
+  });
+
+  it("rejects an ASAP order at a closed relay while the shop is open, and honours relay hours on auto-select", async () => {
+    const closedAllWeek = week({
+      mon: [],
+      tue: [],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: [],
+    });
+    const relay = await addRelay({ weeklyHours: closedAllWeek });
+    await getMockRepositories().business.updateSettings(bId, { weeklyHours: week() });
+
+    const explicit = await placeOrderAction({
+      ...payload,
+      pickupLocationId: relay.id,
+      idempotencyKey: idem("pl-asap-closed-relay"),
+    });
+    expect(explicit.ok).toBe(false);
+    if (!explicit.ok) expect(explicit.reason).toBe("SLOT_CLOSED_NOW");
+
+    // Auto-selected lone relay also enforces the relay's hours.
+    await getMockRepositories().business.updateSettings(bId, { shopPickupEnabled: false });
+    const auto = await placeOrderAction({
+      ...payload,
+      idempotencyKey: idem("pl-asap-auto-closed-relay"),
+    });
+    expect(auto.ok).toBe(false);
+    if (!auto.ok) expect(auto.reason).toBe("SLOT_CLOSED_NOW");
+  });
+
+  it("applies business closure exceptions to a relay and ignores business special-hours exceptions", async () => {
+    const settings = await getMockRepositories().business.getSettings(bId);
+    const today = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
+    const tomorrow = addCalendarDays(today, 1);
+    const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+    const tomorrowKey = days[new Date(`${tomorrow}T12:00:00Z`).getUTCDay()];
+    const scheduled = { ...payload, isAsap: false, requestedDate: tomorrow };
+
+    // Business closure exception overrides an open relay.
+    const openRelay = await addRelay({ weeklyHours: week() });
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: week(),
+      hoursExceptions: [{ from: tomorrow, to: tomorrow, ranges: [] }],
+    });
+    const closedEx = await placeOrderAction({
+      ...scheduled,
+      pickupLocationId: openRelay.id,
+      idempotencyKey: idem("pl-ex-closed"),
+    });
+    expect(closedEx.ok).toBe(false);
+    if (!closedEx.ok) expect(closedEx.reason).toBe("SLOT_CLOSED_DAY");
+
+    // Business special-hours exception does NOT open a relay on its closed weekday.
+    const closedTomorrowRelay = await addRelay({ weeklyHours: week({ [tomorrowKey]: [] }) });
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: week(),
+      hoursExceptions: [{ from: tomorrow, to: tomorrow, ranges: allDay }],
+    });
+    const specialEx = await placeOrderAction({
+      ...scheduled,
+      pickupLocationId: closedTomorrowRelay.id,
+      idempotencyKey: idem("pl-ex-special"),
+    });
+    expect(specialEx.ok).toBe(false);
+    if (!specialEx.ok) expect(specialEx.reason).toBe("SLOT_CLOSED_DAY");
+  });
+});

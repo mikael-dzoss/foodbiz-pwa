@@ -139,4 +139,38 @@ describe("CheckoutPage", () => {
     expect(screen.getByTestId("scheduled-timing-inputs")).toBeDefined();
     expect(screen.getByTestId("checkout-closed-schedule-notice")).toBeDefined();
   });
+
+  it("passes active pickupLocations and shopPickupEnabled from catalog into CheckoutView (#386)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-26T11:00:00Z"));
+    const catalog = await storefront.getStorefrontCatalog();
+    vi.spyOn(storefront, "getStorefrontCatalog").mockResolvedValue({
+      ...catalog,
+      shopPickupEnabled: true,
+      pickupLocations: [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+          name: "Gare RER B",
+          description: "North exit",
+          address: "Place de la gare",
+          postcode: "93210",
+          feeCents: 150,
+          weeklyHours: null,
+          sortOrder: 0,
+        },
+      ],
+    });
+
+    const page = await CheckoutPage({ params: Promise.resolve({ locale: "en" }) });
+    const content = await resolveSuspenseContent(page);
+
+    render(
+      <CartProvider initialItems={sampleCartItems} initialServiceMode="pickup">
+        {content}
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("checkout-pickup-picker").textContent).toContain("Gare RER B");
+    expect((screen.getByTestId("place-order-button") as HTMLButtonElement).disabled).toBe(true);
+  });
 });

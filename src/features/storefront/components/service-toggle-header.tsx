@@ -7,6 +7,7 @@ import type { BusinessSettings } from "@/domain/business";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
 import { interpolate, type StorefrontDictionary, type SupportedLocale } from "@/domain/i18n";
 import { rangesForDate, type OpeningSchedule } from "@/domain/opening-hours";
+import { pickupScheduleFor, type StorefrontPickupLocation } from "@/domain/pickup-location";
 import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { SegmentedControl, useToastOptional } from "@/components/ui";
 import {
@@ -15,15 +16,21 @@ import {
   type StorefrontServiceMode,
 } from "../context/cart-context";
 import { useOpenNowStatus } from "../use-is-open-now";
+import { usePickupLocation } from "../use-pickup-location";
 import { OrderingDetailsDialog } from "./ordering-details-dialog";
 import { Button } from "@/components/ui/button";
+
+const EMPTY_PICKUP_LOCATIONS: readonly StorefrontPickupLocation[] = [];
 
 export interface ServiceToggleHeaderProps {
   isAcceptingOrders: boolean;
   isOpen: boolean;
   orderTimingScheduled?: boolean;
   openingHoursText?: string | null;
+  businessName?: string | null;
   businessAddress?: string | null;
+  shopPickupEnabled?: boolean;
+  pickupLocations?: readonly StorefrontPickupLocation[];
   settings?:
     | (Pick<
         BusinessSettings,
@@ -32,7 +39,12 @@ export interface ServiceToggleHeaderProps {
         Partial<
           Pick<
             BusinessSettings,
-            "leadTimeValue" | "leadTimeUnit" | "weeklyHours" | "hoursExceptions" | "timezone"
+            | "leadTimeValue"
+            | "leadTimeUnit"
+            | "weeklyHours"
+            | "hoursExceptions"
+            | "timezone"
+            | "shopPickupEnabled"
           >
         >)
     | null;
@@ -45,7 +57,10 @@ export function ServiceToggleHeader({
   isOpen,
   orderTimingScheduled = true,
   openingHoursText,
+  businessName,
   businessAddress,
+  shopPickupEnabled,
+  pickupLocations = EMPTY_PICKUP_LOCATIONS,
   settings,
   locale,
   dict,
@@ -63,17 +78,27 @@ export function ServiceToggleHeader({
     pickup: pickupEnabled,
   });
 
+  const resolvedShopPickupEnabled = shopPickupEnabled ?? settings?.shopPickupEnabled ?? true;
+  const pickupState = usePickupLocation(resolvedShopPickupEnabled, pickupLocations);
+
   const deliveryFee = settings?.deliveryFee ?? 0;
   const minOrderAmount = settings?.minOrderAmount ?? 0;
-  // Structured hours (#372) are evaluated on the client clock; `isOpen` (cached) is the fallback
-  // for free-text hours and the neutral state before hydration.
-  const hasStructuredHours =
-    Boolean(settings?.weeklyHours) || (settings?.hoursExceptions?.length ?? 0) > 0;
   const timeZone = settings?.timezone ?? DEFAULT_TIMEZONE;
-  const schedule = useMemo<OpeningSchedule>(
+  const businessSchedule = useMemo<OpeningSchedule>(
     () => ({ weekly: settings?.weeklyHours ?? null, exceptions: settings?.hoursExceptions ?? [] }),
     [settings?.weeklyHours, settings?.hoursExceptions],
   );
+  // Relay locations follow their own hours intersected with business closed days/closures (#386).
+  const schedule = useMemo<OpeningSchedule>(
+    () =>
+      activeMode === "pickup" && pickupState.selectedRelay
+        ? pickupScheduleFor(businessSchedule, pickupState.selectedRelay.weeklyHours)
+        : businessSchedule,
+    [activeMode, businessSchedule, pickupState.selectedRelay],
+  );
+  // Structured hours (#372) are evaluated on the client clock; `isOpen` (cached) is the fallback
+  // for free-text hours and the neutral state before hydration.
+  const hasStructuredHours = schedule.weekly !== null || schedule.exceptions.length > 0;
   const openNow = useOpenNowStatus(schedule, timeZone);
   const structuredStatus = hasStructuredHours ? openNow : null;
   // Structured hours but no client clock yet (SSR / first paint): neutral, never the cached flag.
@@ -212,6 +237,35 @@ export function ServiceToggleHeader({
                 </span>
               )}
             </>
+          ) : pickupState.unavailable ? (
+            <span className="text-muted-foreground text-label-strong inline-flex items-center gap-1">
+              {dict.orderErrorPickupNotAvailable}
+              <InfoGlyph label={dict.orderingDetailsOpen} />
+            </span>
+          ) : pickupState.requiresChoice ? (
+            <>
+              <span className="text-foreground text-label-strong inline-flex items-center gap-1">
+                {dict.pickupLocationChooseTile}
+                <InfoGlyph label={dict.orderingDetailsOpen} />
+              </span>
+              <span className="text-muted-foreground text-caption mt-0.5 tabular-nums">
+                {interpolate(dict.pickupLocationCount, { count: String(pickupState.optionCount) })}
+              </span>
+            </>
+          ) : pickupState.selectedRelay ? (
+            <>
+              <span className="text-foreground text-label-strong inline-flex items-center gap-1 tabular-nums">
+                {pickupState.selectedRelay.feeCents > 0
+                  ? interpolate(dict.pickupLocationFeeShort, {
+                      amount: formatMoney(pickupState.selectedRelay.feeCents, locale),
+                    })
+                  : dict.noFees}
+                <InfoGlyph label={dict.orderingDetailsOpen} />
+              </span>
+              <span className="text-muted-foreground text-caption mt-0.5 line-clamp-1">
+                {pickupState.selectedRelay.name}
+              </span>
+            </>
           ) : (
             <>
               <span className="text-foreground text-label-strong inline-flex items-center gap-1 font-semibold">
@@ -306,7 +360,14 @@ export function ServiceToggleHeader({
         mode={activeMode}
         deliveryFeeText={deliveryFee > 0 ? formatMoney(deliveryFee, locale) : dict.freeDelivery}
         minOrderText={minOrderAmount > 0 ? formatMoney(minOrderAmount, locale) : null}
+        businessName={businessName}
         pickupAddress={businessAddress}
+        shopPickupEnabled={resolvedShopPickupEnabled}
+        pickupLocations={pickupLocations}
+        businessSchedule={businessSchedule}
+        openingHoursText={openingHoursText}
+        selectedPickupChoice={pickupState.selectedChoice}
+        onSelectPickupLocation={pickupState.selectPickupLocation}
         hoursText={legacyHoursText ?? (todayRangesText || null)}
         statusText={
           !isAcceptingOrders
@@ -317,6 +378,7 @@ export function ServiceToggleHeader({
         }
         isOpenNow={isStoreOpen}
         leadTimeText={leadTimeText}
+        locale={locale}
         dict={dict}
       />
     </section>
