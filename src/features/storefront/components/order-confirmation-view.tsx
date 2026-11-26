@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertCircle, CheckCircle2, MapPin } from "lucide-react";
+import { AlertCircle, CheckCircle2, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { BusinessSettings } from "@/domain/business";
-import type { PublicOrder } from "@/domain/order";
+import { publicDeliveryAddress, type PublicOrder } from "@/domain/order";
 import type { Dictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { CopyPaymentRecipient } from "./copy-payment-recipient";
@@ -35,8 +35,7 @@ export function OrderConfirmationView({
   const instructions =
     locale === "fr" ? settings?.paymentInstructionsFr : settings?.paymentInstructionsEn;
   const needsPayment = order.paid === "unpaid" && order.status !== "CANCELLED";
-  const deliveryAddress =
-    order.serviceType === "delivery" ? order.deliveryAddress?.trim() || null : null;
+  const deliveryAddress = publicDeliveryAddress(order.serviceType, order.deliveryAddress);
   const paymentStatus =
     order.paid === "paid"
       ? tracking.paidBadge
@@ -88,18 +87,20 @@ export function OrderConfirmationView({
 
       {deliveryAddress && (
         <section
-          className="border-border bg-card space-y-1 rounded-lg border p-4"
-          aria-labelledby="confirmation-delivery-address"
+          className="border-border bg-card space-y-3 rounded-lg border p-4"
+          aria-labelledby="confirmation-delivery-title"
           data-testid="confirmation-delivery-address"
         >
-          <h2
-            id="confirmation-delivery-address"
-            className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium"
-          >
-            <MapPin className="text-primary h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span>{tracking.deliveryTo}</span>
+          <h2 id="confirmation-delivery-title" className="text-title-sm flex items-center gap-1.5">
+            <Truck className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{tracking.fulfillmentDetails}</span>
           </h2>
-          <p className="text-foreground text-sm font-semibold wrap-break-word">{deliveryAddress}</p>
+          <dl>
+            <dt className="text-muted-foreground text-xs font-medium">{tracking.deliveryTo}</dt>
+            <dd className="text-foreground mt-0.5 text-xs font-semibold wrap-break-word">
+              {deliveryAddress}
+            </dd>
+          </dl>
         </section>
       )}
 

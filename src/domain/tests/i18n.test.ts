@@ -51,6 +51,8 @@ describe("Internationalisation Foundation (#31)", () => {
     expect(frKeysTracking).toEqual(enKeysTracking);
     expect(enDictionary.orderTracking.deliveryTo).toBe("Delivery to");
     expect(frDictionary.orderTracking.deliveryTo).toBe("Livraison à");
+    expect(enDictionary.orderTracking.fulfillmentDetails).toBe("Fulfillment Details");
+    expect(frDictionary.orderTracking.fulfillmentDetails).toBe("Détails de la commande");
   });
 
   it("ensures all French strings are non-empty and translated", () => {

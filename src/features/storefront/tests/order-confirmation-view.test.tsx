@@ -145,8 +145,13 @@ for (const locale of ["en", "fr"] as const) {
       );
 
       const addressSection = screen.getByTestId("confirmation-delivery-address");
-      expect(addressSection.textContent).toContain(locale === "fr" ? "Livraison à" : "Delivery to");
-      expect(addressSection.textContent).toContain(deliveryAddress);
+      expect(
+        screen.getByRole("heading", { name: dict.orderTracking.fulfillmentDetails }),
+      ).toBeDefined();
+      expect(addressSection.querySelector("dl dt")?.textContent).toBe(
+        locale === "fr" ? "Livraison à" : "Delivery to",
+      );
+      expect(addressSection.querySelector("dl dd")?.textContent).toBe(deliveryAddress);
 
       rerender(
         <OrderConfirmationView

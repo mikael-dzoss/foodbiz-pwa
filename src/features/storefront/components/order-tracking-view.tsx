@@ -8,6 +8,7 @@ import {
   ChefHat,
   PackageCheck,
   Store,
+  Truck,
   MapPin,
   Phone,
   AlertTriangle,
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   formatMoney,
   formatTime,
+  publicDeliveryAddress,
   type PublicOrder,
   type OrderStatus,
   type SupportedLocale,
@@ -52,7 +54,7 @@ export function OrderTrackingView({
   const isCancelled = order.status === "CANCELLED";
   const isCompleted = order.status === "COMPLETED";
   const isDelivery = order.serviceType === "delivery";
-  const deliveryAddress = isDelivery ? order.deliveryAddress?.trim() || null : null;
+  const deliveryAddress = publicDeliveryAddress(order.serviceType, order.deliveryAddress);
 
   const cleanPhone = business.phone?.replace(/\D/g, "");
   const mapsUrl =
@@ -344,7 +346,19 @@ export function OrderTrackingView({
           >
             <div className="border-border/60 flex items-center justify-between border-b pb-2.5">
               <div className="flex items-center gap-1.5">
-                <Store className="text-primary h-4 w-4" />
+                {isDelivery ? (
+                  <Truck
+                    className="text-primary h-4 w-4"
+                    aria-hidden="true"
+                    data-testid="tracking-delivery-icon"
+                  />
+                ) : (
+                  <Store
+                    className="text-primary h-4 w-4"
+                    aria-hidden="true"
+                    data-testid="tracking-pickup-icon"
+                  />
+                )}
                 <h3 className="text-label-sm text-muted-foreground tracking-wider uppercase">
                   {dict.fulfillmentDetails}
                 </h3>
@@ -364,19 +378,19 @@ export function OrderTrackingView({
                 </p>
               </div>
 
-              {isDelivery ? (
-                deliveryAddress ? (
-                  <div
-                    className="border-border/60 border-t pt-2.5"
-                    data-testid="tracking-delivery-address"
-                  >
-                    <p className="text-muted-foreground text-xs font-medium">{dict.deliveryTo}</p>
-                    <p className="text-foreground mt-0.5 text-xs font-semibold wrap-break-word">
-                      {deliveryAddress}
-                    </p>
-                  </div>
-                ) : null
-              ) : (
+              {isDelivery && deliveryAddress && (
+                <dl
+                  className="border-border/60 border-t pt-2.5"
+                  data-testid="tracking-delivery-address"
+                >
+                  <dt className="text-muted-foreground text-xs font-medium">{dict.deliveryTo}</dt>
+                  <dd className="text-foreground mt-0.5 text-xs font-semibold wrap-break-word">
+                    {deliveryAddress}
+                  </dd>
+                </dl>
+              )}
+
+              {!isDelivery && (
                 <div className="border-border/60 flex items-start justify-between gap-3 border-t pt-2.5">
                   <div>
                     <p className="text-foreground text-xs font-bold">{business.name}</p>

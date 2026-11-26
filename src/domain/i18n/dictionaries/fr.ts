@@ -640,7 +640,7 @@ export const frDictionary: Dictionary = {
     liveOrderProgress: "Progression de la commande",
     updatingLive: "Mise à jour en direct",
     currentStatus: "Statut actuel",
-    fulfillmentDetails: "Détails de retrait",
+    fulfillmentDetails: "Détails de la commande",
     pickupWindow: "Créneau de retrait",
     deliveryAddress: "Adresse de livraison",
     deliveryTo: "Livraison à",
