@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertCircle, CheckCircle2, Truck } from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPin, Store, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { BusinessSettings } from "@/domain/business";
 import { publicDeliveryAddress, type PublicOrder } from "@/domain/order";
+import { resolvePickupDisplay } from "@/domain/pickup-location";
 import type { Dictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import { CopyPaymentRecipient } from "./copy-payment-recipient";
@@ -13,6 +14,7 @@ export function OrderConfirmationView({
   order,
   settings,
   businessName,
+  businessAddress,
   token,
   locale,
   dict,
@@ -27,6 +29,7 @@ export function OrderConfirmationView({
     | "paymentInstructionsFr"
   > | null;
   businessName: string;
+  businessAddress?: string | null;
   token: string;
   locale: SupportedLocale;
   dict: Dictionary;
@@ -49,6 +52,12 @@ export function OrderConfirmationView({
     locale === "fr" ? settings?.paymentInstructionsFr : settings?.paymentInstructionsEn;
   const needsPayment = order.paid === "unpaid" && order.status !== "CANCELLED";
   const deliveryAddress = publicDeliveryAddress(order.serviceType, order.deliveryAddress);
+  const pickupDisplay = resolvePickupDisplay(
+    order.serviceType,
+    order.pickupLocation,
+    { name: businessName, address: businessAddress },
+    businessName,
+  );
   const paymentStatus =
     order.paid === "paid"
       ? tracking.paidBadge
@@ -114,6 +123,50 @@ export function OrderConfirmationView({
               {deliveryAddress}
             </dd>
           </dl>
+        </section>
+      )}
+
+      {pickupDisplay && (
+        <section
+          className="border-border bg-card space-y-3 rounded-lg border p-4"
+          aria-labelledby="confirmation-pickup-title"
+          data-testid="confirmation-pickup-location"
+        >
+          <h2 id="confirmation-pickup-title" className="text-title-sm flex items-center gap-1.5">
+            <Store className="text-primary h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{tracking.fulfillmentDetails}</span>
+          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <dl className="min-w-0 flex-1">
+              <dt className="text-muted-foreground text-xs font-medium">{tracking.collectAt}</dt>
+              <dd
+                className="text-foreground mt-0.5 text-xs font-bold wrap-break-word"
+                data-testid="confirmation-pickup-name"
+              >
+                {pickupDisplay.name}
+              </dd>
+              {pickupDisplay.address && (
+                <dd
+                  className="text-muted-foreground mt-0.5 text-xs wrap-break-word"
+                  data-testid="confirmation-pickup-address"
+                >
+                  {pickupDisplay.address}
+                </dd>
+              )}
+            </dl>
+            {pickupDisplay.directionsUrl && (
+              <a
+                href={pickupDisplay.directionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="confirmation-directions-link"
+                className="border-border hover:bg-muted text-primary inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
+              >
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{tracking.directions}</span>
+              </a>
+            )}
+          </div>
         </section>
       )}
 

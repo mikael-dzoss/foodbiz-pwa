@@ -21,6 +21,7 @@ for (const locale of ["en", "fr"] as const) {
       dict,
       token: "secret-link",
       businessName: fixtures.business.name,
+      businessAddress: fixtures.business.address,
     };
 
     it.each(["revolut", "wero"] as const)(
@@ -205,6 +206,72 @@ for (const locale of ["en", "fr"] as const) {
         />,
       );
       expect(screen.queryByTestId("confirmation-delivery-address")).toBeNull();
+    });
+
+    it("shows Collect at block with relay or shop fallback and encoded Directions link only for pickup (#387)", () => {
+      const relayAddress = "12 Place Jean Jaurès, 93100 Montreuil";
+      const { rerender } = render(
+        <OrderConfirmationView
+          {...props}
+          order={{
+            ...order,
+            serviceType: "pickup",
+            pickupLocation: { name: "Marché de Montreuil", address: relayAddress },
+          }}
+          settings={fixtures.settings}
+        />,
+      );
+
+      const pickupSection = screen.getByTestId("confirmation-pickup-location");
+      expect(pickupSection.querySelector("dl dt")?.textContent).toBe(dict.orderTracking.collectAt);
+      expect(screen.getByTestId("confirmation-pickup-name").textContent).toBe(
+        "Marché de Montreuil",
+      );
+      expect(screen.getByTestId("confirmation-pickup-address").textContent).toBe(relayAddress);
+      const directionsLink = screen.getByTestId("confirmation-directions-link");
+      expect(directionsLink.getAttribute("href")).toBe(
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(relayAddress)}`,
+      );
+      expect(directionsLink.getAttribute("target")).toBe("_blank");
+      expect(directionsLink.getAttribute("rel")).toBe("noopener noreferrer");
+
+      // Shop fallback when pickupLocation name is null (tracking RPC shop pickup)
+      rerender(
+        <OrderConfirmationView
+          {...props}
+          order={{
+            ...order,
+            serviceType: "pickup",
+            pickupLocation: { name: null, address: fixtures.business.address ?? null },
+          }}
+          settings={fixtures.settings}
+        />,
+      );
+      expect(screen.getByTestId("confirmation-pickup-name").textContent).toBe(
+        fixtures.business.name,
+      );
+      expect(screen.getByTestId("confirmation-pickup-address").textContent).toBe(
+        fixtures.business.address,
+      );
+      expect(screen.getByTestId("confirmation-directions-link").getAttribute("href")).toBe(
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fixtures.business.address!)}`,
+      );
+
+      // Delivery shows nothing for Collect at
+      rerender(
+        <OrderConfirmationView
+          {...props}
+          order={{
+            ...order,
+            serviceType: "delivery",
+            deliveryAddress: "10 Rue de Rivoli, Paris",
+            pickupLocation: { name: "Marché de Montreuil", address: relayAddress },
+          }}
+          settings={fixtures.settings}
+        />,
+      );
+      expect(screen.queryByTestId("confirmation-pickup-location")).toBeNull();
+      expect(screen.queryByTestId("confirmation-directions-link")).toBeNull();
     });
   });
 }
