@@ -13,11 +13,12 @@ import {
   Mail,
   Send,
   Users,
-  CheckCircle2,
 } from "lucide-react";
+import { APP_METADATA } from "@/config/app";
 import type { BusinessSettings } from "@/domain/business";
 import type { SettingsDictionary } from "@/domain/i18n";
 import { SoonBadge } from "@/components/feedback";
+import { InstallGuide } from "@/components/pwa";
 import { ActionBar, Button, Switch, useToast } from "@/components/ui";
 import { updateNotificationSettingsAction } from "../actions";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
@@ -41,17 +42,22 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
   const [soundAlerts, setSoundAlerts] = useState(settings.soundAlerts ?? true);
 
   // 2. PWA installation state (shared hook)
-  const { isStandalone, canPrompt, promptInstall } = usePwaInstall();
+  const { isStandalone, platform, promptInstall } = usePwaInstall();
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
-  const handleInstallClick = async () => {
-    if (canPrompt) {
-      if ((await promptInstall()) === "accepted") {
+  const handleNativeInstall = async () => {
+    setInstalling(true);
+    try {
+      const outcome = await promptInstall();
+      if (outcome === "accepted") {
+        setGuideOpen(false);
         showToast(x.pwaInstalled);
+      } else if (outcome === "dismissed") {
+        setGuideOpen(false);
       }
-    } else if (isStandalone) {
-      showToast(x.pwaAlreadyInstalled);
-    } else {
-      showToast(x.pwaHowTo);
+    } finally {
+      setInstalling(false);
     }
   };
 
@@ -159,49 +165,38 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
           {dict.notifications.appSection}
         </h2>
         <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
-          {/* Install App Card */}
-          <div className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                  <Smartphone className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-foreground text-sm font-semibold">
+          {/* Install App Card (hidden when already running as an installed standalone app) */}
+          {!isStandalone && (
+            <div className="p-4" data-testid="manager-install-app-card">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                    <Smartphone className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <span className="text-foreground block text-sm font-semibold">
                       {dict.notifications.installAppTitle}
                     </span>
-                    {isStandalone && (
-                      <span
-                        data-testid="badge-installed"
-                        className="bg-primary-soft text-primary-soft-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-                      >
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>{dict.notifications.installedBadge}</span>
-                      </span>
-                    )}
+                    <p className="text-body-sm text-muted-foreground mt-0.5">
+                      {dict.notifications.installAppDesc}
+                    </p>
                   </div>
-                  <p className="text-body-sm text-muted-foreground mt-0.5">
-                    {dict.notifications.installAppDesc}
-                  </p>
                 </div>
               </div>
-            </div>
 
-            <Button
-              variant="unstyled"
-              size="none"
-              type="button"
-              onClick={handleInstallClick}
-              data-testid="button-install-pwa"
-              className="bg-muted hover:bg-muted/80 active:bg-muted/90 text-foreground focus-visible:ring-ring mt-3.5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            >
-              <Download className="h-4 w-4" />
-              <span>
-                {isStandalone ? "Reinstall / Check Status" : dict.notifications.installAppButton}
-              </span>
-            </Button>
-          </div>
+              <Button
+                variant="unstyled"
+                size="none"
+                type="button"
+                onClick={() => setGuideOpen(true)}
+                data-testid="button-install-pwa"
+                className="bg-muted hover:bg-muted/80 active:bg-muted/90 text-foreground focus-visible:ring-ring mt-3.5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                <span>{dict.notifications.installAppButton}</span>
+              </Button>
+            </div>
+          )}
 
           {/* Link to About & Support */}
           <Link
@@ -310,6 +305,18 @@ export function NotificationsAppForm({ settings, dict }: NotificationsAppFormPro
           {isPending ? dict.saving : dict.notifications.saveButton}
         </Button>
       </ActionBar>
+      {/* Shared PWA install guidance dialog */}
+      <InstallGuide
+        open={guideOpen}
+        onOpenChange={setGuideOpen}
+        appName={APP_METADATA.manager.name}
+        platform={platform}
+        copy={managerDict.installGuide}
+        onInstall={handleNativeInstall}
+        installing={installing}
+        closeLabel={managerDict.common.close}
+        data-testid="manager-install-guide"
+      />
     </form>
   );
 }
