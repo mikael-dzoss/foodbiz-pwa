@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -13,23 +13,32 @@ import {
   ChevronDown,
   AlertTriangle,
 } from "lucide-react";
+import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
+import type { StorefrontPickupLocation } from "@/domain/pickup-location";
+import { calculateOrderTotals } from "@/domain/pricing";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToastOptional } from "@/components/ui";
 import { SoonBadge } from "@/components/feedback";
-import { useCart } from "../context/cart-context";
+import { resolveServiceMode, useCart } from "../context/cart-context";
+import { usePickupLocation } from "../use-pickup-location";
 import { CartItemCard } from "./cart-item-card";
 import { MinimumOrderBanner } from "./minimum-order-banner";
+
+const EMPTY_PICKUP_LOCATIONS: readonly StorefrontPickupLocation[] = [];
 
 export interface CartViewProps {
   locale: SupportedLocale;
   dict: StorefrontDictionary;
   minOrderAmount?: number; // cents
   isAcceptingOrders?: boolean;
+  settings?: Pick<BusinessSettings, "serviceTypes" | "deliveryFee" | "shopPickupEnabled"> | null;
+  shopPickupEnabled?: boolean;
+  pickupLocations?: readonly StorefrontPickupLocation[];
 }
 
 export function CartView({
@@ -37,6 +46,9 @@ export function CartView({
   dict,
   minOrderAmount = 0,
   isAcceptingOrders = true,
+  settings = null,
+  shopPickupEnabled,
+  pickupLocations = EMPTY_PICKUP_LOCATIONS,
 }: CartViewProps) {
   const {
     items,
@@ -47,13 +59,63 @@ export function CartView({
     totalAmountInCents,
     notes,
     setNotes,
+    serviceMode,
   } = useCart();
   const toast = useToastOptional();
   const showToast = toast?.showToast ?? (() => {});
   const [isNotesOpen, setIsNotesOpen] = useState(notes.length > 0);
 
-  const isBelowMinimum = minOrderAmount > 0 && totalAmountInCents < minOrderAmount;
+  const activeServiceMode = resolveServiceMode(serviceMode, settings?.serviceTypes);
+  const resolvedShopPickupEnabled = shopPickupEnabled ?? settings?.shopPickupEnabled ?? true;
+  const pickupState = usePickupLocation(resolvedShopPickupEnabled, pickupLocations);
+
+  const pricing = useMemo(() => {
+    const result = calculateOrderTotals({
+      items: items.map((item) => ({
+        productId: item.productId,
+        productName: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+      })),
+      serviceType: activeServiceMode,
+      deliveryFee: settings?.deliveryFee ?? 0,
+      pickupFee: activeServiceMode === "pickup" ? (pickupState.selectedRelay?.feeCents ?? 0) : 0,
+    });
+    return result.ok
+      ? result
+      : {
+          subtotal: totalAmountInCents,
+          deliveryFee: 0,
+          pickupFee: 0,
+          total: totalAmountInCents,
+        };
+  }, [
+    items,
+    activeServiceMode,
+    settings?.deliveryFee,
+    pickupState.selectedRelay?.feeCents,
+    totalAmountInCents,
+  ]);
+
+  const isBelowMinimum = minOrderAmount > 0 && pricing.subtotal < minOrderAmount;
   const canProceed = items.length > 0 && !isBelowMinimum && isAcceptingOrders;
+
+  const feeLabel =
+    activeServiceMode === "delivery"
+      ? dict.deliveryFee
+      : pickupState.selectedRelay
+        ? `${dict.pickupLocationFeeLabel} · ${pickupState.selectedRelay.name}`
+        : dict.pickupLocationFeeLabel;
+  const feeValue =
+    activeServiceMode === "delivery"
+      ? pricing.deliveryFee > 0
+        ? formatMoney(pricing.deliveryFee, locale)
+        : dict.pickupLocationFeeFree
+      : pricing.pickupFee > 0
+        ? formatMoney(pricing.pickupFee, locale)
+        : pickupState.requiresChoice && pickupState.hasPaidOption
+          ? dict.pickupLocationFeePending
+          : dict.pickupLocationFeeFree;
 
   // Empty cart view
   if (items.length === 0) {
@@ -222,23 +284,32 @@ export function CartView({
         <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">{dict.subtotal}</span>
           <span className="text-foreground font-medium tabular-nums">
-            {formatMoney(totalAmountInCents, locale)}
+            {formatMoney(pricing.subtotal, locale)}
           </span>
         </div>
         <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-muted-foreground">{dict.estimatedTax}</span>
           <span className="text-foreground font-medium tabular-nums">
-            {formatMoney(Math.round(totalAmountInCents * 0.1), locale)}
+            {formatMoney(Math.round(pricing.subtotal * 0.1), locale)}
           </span>
         </div>
-        <div className="flex justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground">{dict.servicePickup}</span>
-          <span className="text-primary font-medium">{dict.serviceFree}</span>
+        <div data-testid="cart-fee-row" className="flex justify-between gap-2 text-xs sm:text-sm">
+          <span className="text-muted-foreground truncate">{feeLabel}</span>
+          <span
+            data-testid="cart-fee-value"
+            className={
+              pricing.deliveryFee > 0 || pricing.pickupFee > 0
+                ? "text-foreground shrink-0 font-medium tabular-nums"
+                : "text-primary shrink-0 font-medium tabular-nums"
+            }
+          >
+            {feeValue}
+          </span>
         </div>
         <div className="border-border/60 my-1 flex justify-between border-t pt-2.5 text-sm font-bold sm:text-base">
           <span className="text-foreground">{dict.orderTotal}</span>
-          <span className="text-foreground tabular-nums">
-            {formatMoney(totalAmountInCents, locale)}
+          <span data-testid="cart-order-total" className="text-foreground tabular-nums">
+            {formatMoney(pricing.total, locale)}
           </span>
         </div>
 
@@ -277,14 +348,14 @@ export function CartView({
           {canProceed ? (
             <Link href={`/${locale}/checkout`}>
               <span>
-                {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
+                {dict.proceedToCheckout} • {formatMoney(pricing.total, locale)}
               </span>
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
           ) : (
             <span className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
-              {dict.proceedToCheckout} • {formatMoney(totalAmountInCents, locale)}
+              {dict.proceedToCheckout} • {formatMoney(pricing.total, locale)}
             </span>
           )}
         </Button>

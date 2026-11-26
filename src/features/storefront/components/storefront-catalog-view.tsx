@@ -90,7 +90,10 @@ export function StorefrontCatalogView({ catalog, locale, dict }: StorefrontCatal
         isOpen={catalog.isOpen}
         orderTimingScheduled={catalog.settings?.orderTimingScheduled ?? true}
         openingHoursText={catalog.openingHoursText}
+        businessName={catalog.business.name}
         businessAddress={catalog.business.address}
+        shopPickupEnabled={catalog.shopPickupEnabled}
+        pickupLocations={catalog.pickupLocations}
         settings={catalog.settings}
         locale={locale}
         dict={dict}
