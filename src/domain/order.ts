@@ -66,7 +66,7 @@ export type OrderItem = z.infer<typeof orderItemSchema>;
 export const orderPickupLocationSchema = z.object({
   id: uuidSchema.nullable(),
   name: z.string().trim().min(1),
-  address: z.string().trim().min(1),
+  address: z.string().trim().min(1).nullable(),
 });
 export type OrderPickupLocation = z.infer<typeof orderPickupLocationSchema>;
 

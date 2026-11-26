@@ -11,6 +11,7 @@ import {
   expenseSchema,
   guestSchema,
   orderItemSchema,
+  orderPickupLocationSchema,
   orderSchema,
   publicDeliveryAddress,
   publicOrderSchema,
@@ -697,6 +698,38 @@ describe("Order and OrderItem schemas", () => {
     expect(publicDeliveryAddress("pickup", "12 Rue de Rivoli, Paris")).toBeNull();
     expect(publicDeliveryAddress("dine-in", "12 Rue de Rivoli, Paris")).toBeNull();
     expect(publicDeliveryAddress(null, "12 Rue de Rivoli, Paris")).toBeNull();
+  });
+
+  it("validates orderPickupLocationSchema with full snapshot, deleted id, or missing address (#386)", () => {
+    expect(
+      orderPickupLocationSchema.parse({
+        id: validUuid,
+        name: "  Gare du Nord  ",
+        address: "  18 Rue de Dunkerque, 75010  ",
+      }),
+    ).toEqual({
+      id: validUuid,
+      name: "Gare du Nord",
+      address: "18 Rue de Dunkerque, 75010",
+    });
+    expect(
+      orderPickupLocationSchema.parse({
+        id: null,
+        name: "Deleted Relay",
+        address: null,
+      }),
+    ).toEqual({
+      id: null,
+      name: "Deleted Relay",
+      address: null,
+    });
+    expect(
+      orderPickupLocationSchema.safeParse({ id: validUuid, name: "   ", address: "1 rue A" })
+        .success,
+    ).toBe(false);
+    expect(
+      orderPickupLocationSchema.safeParse({ id: validUuid, name: "Relay", address: "" }).success,
+    ).toBe(false);
   });
 
   it("publicPickupLocation exposes where to collect only for pickup orders (#386)", () => {

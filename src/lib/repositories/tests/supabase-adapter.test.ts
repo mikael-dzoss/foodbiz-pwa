@@ -1670,5 +1670,100 @@ describe("Supabase Repository Adapter", () => {
       });
       expect((await repos.orders.findByTrackingToken("tk-delivery"))?.pickupLocation).toBeNull();
     });
+
+    it("maps pickup location snapshots on order rows, including missing address and deleted location (#386, #387)", async () => {
+      const orderId = "77777777-7777-4777-8777-777777777701";
+      const locationId = "44444444-4444-4444-8444-444444444444";
+      const baseRow = {
+        id: orderId,
+        business_id: DEMO_BUSINESS_ID,
+        order_number: 99,
+        guest_id: "55555555-5555-4555-8555-555555555501",
+        submitted_name: null,
+        service_type: "pickup",
+        channel: "storefront",
+        status: "NEW",
+        paid: "unpaid",
+        payment_preference: "on_handover",
+        payment_method: null,
+        paid_at: null,
+        refunded_at: null,
+        requested_date: "2026-10-17",
+        requested_time: null,
+        total_amount: 1650,
+        tracking_token: "a1b2c3d4e5f6789012345678abcdef01",
+        cancellation_reason: null,
+        notes: null,
+        delivery_address: null,
+        pickup_location_id: locationId,
+        pickup_location_name: "Gare du Nord",
+        pickup_location_address: "18 Rue de Dunkerque, 75010",
+        pickup_fee_cents: 150,
+        status_history: [],
+        created_at: "2026-10-17T10:00:00+00:00",
+        updated_at: "2026-10-17T10:00:00+00:00",
+        order_items: [
+          {
+            id: "88888888-8888-4888-8888-888888888801",
+            order_id: orderId,
+            business_id: DEMO_BUSINESS_ID,
+            product_id: "33333333-3333-4333-8333-333333333301",
+            product_name: "Poulet Braisé",
+            quantity: 1,
+            unit_price: 1500,
+            total_price: 1500,
+          },
+        ],
+      };
+
+      const fetchMapped = async (override: Partial<typeof baseRow>) => {
+        const chain: Record<string, unknown> = {};
+        chain.select = () => chain;
+        chain.eq = () => chain;
+        chain.maybeSingle = async () => ({ data: { ...baseRow, ...override }, error: null });
+        const repos = createSupabaseRepositories({
+          from: () => chain,
+        } as unknown as SupabaseClient<Database>);
+        return repos.orders.findById(DEMO_BUSINESS_ID, orderId);
+      };
+
+      const full = await fetchMapped({});
+      expect(full?.pickupLocation).toEqual({
+        id: locationId,
+        name: "Gare du Nord",
+        address: "18 Rue de Dunkerque, 75010",
+      });
+      expect(full?.pickupFeeCents).toBe(150);
+
+      // Deleted location: id is null, snapshot stays; missing/blank address maps to null without throwing.
+      const withoutAddress = await fetchMapped({
+        pickup_location_id: null,
+        pickup_location_name: "Deleted Relay",
+        pickup_location_address: null,
+      });
+      expect(withoutAddress?.pickupLocation).toEqual({
+        id: null,
+        name: "Deleted Relay",
+        address: null,
+      });
+
+      const blankAddress = await fetchMapped({
+        pickup_location_address: "   ",
+      });
+      expect(blankAddress?.pickupLocation).toEqual({
+        id: locationId,
+        name: "Gare du Nord",
+        address: null,
+      });
+
+      const shopOrder = await fetchMapped({
+        pickup_location_id: null,
+        pickup_location_name: null,
+        pickup_location_address: null,
+        pickup_fee_cents: 0,
+      });
+      expect(shopOrder?.pickupLocation).toBeNull();
+      expect(shopOrder?.pickupFeeCents).toBe(0);
+    });
   });
 });

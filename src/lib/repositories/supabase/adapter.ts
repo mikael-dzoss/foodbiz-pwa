@@ -197,6 +197,9 @@ function mapOrderRow(row: OrderRowWithItems): Order {
       }))
     : [];
 
+  const pickupName = row.pickup_location_name?.trim() || null;
+  const pickupAddress = row.pickup_location_address?.trim() || null;
+
   return orderSchema.parse({
     id: row.id,
     businessId: row.business_id,
@@ -219,11 +222,11 @@ function mapOrderRow(row: OrderRowWithItems): Order {
     cancellationReason: row.cancellation_reason,
     notes: row.notes,
     deliveryAddress: row.delivery_address,
-    pickupLocation: row.pickup_location_name
+    pickupLocation: pickupName
       ? {
           id: row.pickup_location_id,
-          name: row.pickup_location_name,
-          address: row.pickup_location_address ?? "",
+          name: pickupName,
+          address: pickupAddress,
         }
       : null,
     pickupFeeCents: row.pickup_fee_cents,
