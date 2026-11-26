@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { weeklyHoursSchema } from "@/domain/opening-hours";
 
 import {
   demoBusiness,
@@ -11,7 +12,9 @@ import {
 } from "../mock/fixtures";
 import {
   buildSeedSql,
+  DEMO_STAGING_WEEKLY_HOURS,
   sqlJsonb,
+  sqlNullableJsonb,
   sqlNullableText,
   sqlNumber,
   sqlText,
@@ -179,10 +182,14 @@ describe("buildSeedSql", () => {
     }
   });
 
-  it("includes timezone in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
+  it("includes timezone and weekly_hours in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
     const stmt = extractTableInsert(buildSeedSql(), "business_settings");
     expect(stmt).toMatch(/\btimezone\b/);
     expect(stmt).toContain(sqlText(demoSettings.timezone));
+    expect(stmt).toMatch(/\bweekly_hours\b/);
+    expect(stmt).toContain("weekly_hours = excluded.weekly_hours");
+    // Default seed keeps weekly_hours NULL so CI does not depend on time of day
+    expect(stmt).toContain(`${sqlText(demoSettings.openingHours ?? "")},\n    null,`);
 
     const colMatch = stmt.match(/insert into public\.business_settings \(([\s\S]*?)\)\s*values/);
     expect(colMatch).not.toBeNull();
@@ -200,6 +207,49 @@ describe("buildSeedSql", () => {
         `${col} = excluded.${col}`,
       );
     }
+  });
+
+  it("defines valid realistic staging weekly hours for Les Saveurs du Continent and serializes them into business_settings", () => {
+    expect(weeklyHoursSchema.parse(DEMO_STAGING_WEEKLY_HOURS)).toEqual({
+      mon: [],
+      tue: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      wed: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      thu: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      fri: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sat: [
+        { open: "00:00", close: "01:00" },
+        { open: "11:30", close: "15:00" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sun: [
+        { open: "00:00", close: "01:00" },
+        { open: "12:00", close: "16:00" },
+      ],
+    });
+
+    const sql = buildSeedSql({
+      business: demoBusiness,
+      settings: { ...demoSettings, weeklyHours: DEMO_STAGING_WEEKLY_HOURS },
+      categories: demoCategories,
+      products: demoProducts,
+      guests: demoGuests,
+      orders: demoOrders,
+      expenses: demoExpenses,
+    });
+    const stmt = extractTableInsert(sql, "business_settings");
+    expect(stmt).toContain(sqlJsonb(DEMO_STAGING_WEEKLY_HOURS));
   });
 
   it("uses plain inserts without on conflict or where exists for replaced child tables", () => {
@@ -261,6 +311,9 @@ describe("SQL literal escaping helpers", () => {
     expect(sqlJsonb({ note: "L'atelier", ok: true })).toBe(
       `'{"note":"L''atelier","ok":true}'::jsonb`,
     );
+    expect(sqlNullableJsonb(null)).toBe("null");
+    expect(sqlNullableJsonb(undefined)).toBe("null");
+    expect(sqlNullableJsonb({ ok: true })).toBe(`'{"ok":true}'::jsonb`);
   });
 
   it("formats finite numbers and rejects non-finite numbers", () => {

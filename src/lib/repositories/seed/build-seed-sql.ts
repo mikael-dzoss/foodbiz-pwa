@@ -1,6 +1,7 @@
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { Expense } from "@/domain/expense";
 import type { Guest } from "@/domain/guest";
+import type { WeeklyHours } from "@/domain/opening-hours";
 import type { Order, OrderStatusEvent } from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
 
@@ -23,6 +24,43 @@ export interface SeedFixtures {
   orders: readonly Order[];
   expenses: readonly Expense[];
 }
+
+/**
+ * Realistic structured weekly opening hours for the staging demo shop "Les Saveurs du Continent" (#372):
+ *   - Mon: closed
+ *   - Tue–Thu: 11:30–14:30 and 18:00–22:00
+ *   - Fri: 11:30–14:30 and 18:00–24:00
+ *   - Sat: 00:00–01:00, 11:30–15:00 and 18:00–24:00
+ *   - Sun: 00:00–01:00 and 12:00–16:00
+ */
+export const DEMO_STAGING_WEEKLY_HOURS: WeeklyHours = {
+  mon: [],
+  tue: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  wed: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  thu: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "22:00" },
+  ],
+  fri: [
+    { open: "11:30", close: "14:30" },
+    { open: "18:00", close: "24:00" },
+  ],
+  sat: [
+    { open: "00:00", close: "01:00" },
+    { open: "11:30", close: "15:00" },
+    { open: "18:00", close: "24:00" },
+  ],
+  sun: [
+    { open: "00:00", close: "01:00" },
+    { open: "12:00", close: "16:00" },
+  ],
+};
 
 const DEFAULT_FIXTURES: SeedFixtures = {
   business: demoBusiness,
@@ -98,6 +136,10 @@ export function sqlTextArray(values: readonly string[]): string {
 
 export function sqlJsonb(value: unknown): string {
   return `${sqlText(JSON.stringify(value))}::jsonb`;
+}
+
+export function sqlNullableJsonb(value: unknown): string {
+  return value == null ? "null" : sqlJsonb(value);
 }
 
 function sqlTimestamp(iso: string): string {
@@ -230,6 +272,7 @@ function renderBusinessSettingsInsert(settings: BusinessSettings): string {
     ["accepting_orders", sqlBoolean(settings.acceptingOrders)],
     ["service_types", sqlJsonb(settings.serviceTypes)],
     ["opening_hours", sqlText(settings.openingHours ?? "")],
+    ["weekly_hours", sqlNullableJsonb(settings.weeklyHours ?? null)],
     ["order_timing_asap", sqlBoolean(settings.orderTimingAsap)],
     ["order_timing_scheduled", sqlBoolean(settings.orderTimingScheduled)],
     ["order_timing_time_optional", sqlBoolean(settings.orderTimingTimeOptional)],
