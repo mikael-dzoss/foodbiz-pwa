@@ -471,6 +471,24 @@ export const frDictionary: Dictionary = {
     todayExceptionLabel: "Aujourd'hui",
     todayExceptionClosed: "Fermé aujourd'hui",
     todayExceptionOpen: "Horaires spéciaux aujourd'hui : {hours}",
+
+    // Storefront pickup location picker (#386)
+    pickupLocationSectionTitle: "Lieu de retrait",
+    pickupLocationChoosePrompt: "Choisissez où retirer votre commande",
+    pickupLocationShopFallback: "Boutique",
+    pickupLocationFeeFree: "Gratuit",
+    pickupLocationFeeLabel: "Frais de retrait",
+    pickupLocationFeePending: "Selon le lieu",
+    pickupLocationFeeShort: "+{amount} de retrait",
+    pickupLocationSameAsShopHours: "Mêmes horaires que la boutique",
+    pickupLocationShowAll: "Tout afficher ({count})",
+    pickupLocationShowFewer: "Afficher moins",
+    pickupLocationChooseTile: "Choisir un point de retrait",
+    pickupLocationCount: "{count} lieux",
+    pickupLocationClosedNextOpening:
+      "Ce point de retrait est fermé pour le moment et ouvre {when}. Programmez votre commande pour plus tard.",
+    pickupLocationClosedScheduleNotice:
+      "Ce point de retrait est actuellement fermé. Votre commande sera préparée pour le créneau choisi.",
   },
   quickAdd: {
     title: "Ajout rapide",

@@ -333,6 +333,22 @@ export interface StorefrontDictionary {
   todayExceptionLabel: string;
   todayExceptionClosed: string;
   todayExceptionOpen: string;
+
+  // Storefront pickup location picker (#386)
+  pickupLocationSectionTitle: string;
+  pickupLocationChoosePrompt: string;
+  pickupLocationShopFallback: string;
+  pickupLocationFeeFree: string;
+  pickupLocationFeeLabel: string;
+  pickupLocationFeePending: string;
+  pickupLocationFeeShort: string;
+  pickupLocationSameAsShopHours: string;
+  pickupLocationShowAll: string;
+  pickupLocationShowFewer: string;
+  pickupLocationChooseTile: string;
+  pickupLocationCount: string;
+  pickupLocationClosedNextOpening: string;
+  pickupLocationClosedScheduleNotice: string;
 }
 
 export interface QuickAddDictionary {

@@ -452,6 +452,24 @@ export const enDictionary: Dictionary = {
     todayExceptionLabel: "Today",
     todayExceptionClosed: "Closed today",
     todayExceptionOpen: "Special hours today: {hours}",
+
+    // Storefront pickup location picker (#386)
+    pickupLocationSectionTitle: "Pickup location",
+    pickupLocationChoosePrompt: "Choose where to collect your order",
+    pickupLocationShopFallback: "Shop",
+    pickupLocationFeeFree: "Free",
+    pickupLocationFeeLabel: "Pickup fee",
+    pickupLocationFeePending: "Depends on location",
+    pickupLocationFeeShort: "+{amount} pickup fee",
+    pickupLocationSameAsShopHours: "Same as shop hours",
+    pickupLocationShowAll: "Show all ({count})",
+    pickupLocationShowFewer: "Show fewer",
+    pickupLocationChooseTile: "Choose pickup point",
+    pickupLocationCount: "{count} locations",
+    pickupLocationClosedNextOpening:
+      "This pickup location is closed right now and opens {when}. Schedule your order for later.",
+    pickupLocationClosedScheduleNotice:
+      "This pickup location is currently closed. Your order will be prepared for your chosen slot.",
   },
   quickAdd: {
     title: "Quick Add",
