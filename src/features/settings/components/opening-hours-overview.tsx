@@ -7,10 +7,12 @@ import { HoursSummary } from "./opening-hours";
 export interface OpeningHoursOverviewProps {
   settings: BusinessSettings;
   locale: SupportedLocale;
+  /** Request-time clock so upcoming exceptions render on the server without a layout shift. */
+  now?: Date;
 }
 
 /** Opening hours overview (#372): read-only summary plus links to the editing sub-pages. */
-export function OpeningHoursOverview({ settings, locale }: OpeningHoursOverviewProps) {
+export function OpeningHoursOverview({ settings, locale, now }: OpeningHoursOverviewProps) {
   const dict = getDictionary(locale).settings;
   const oh = dict.openingHours;
   const configured = settings.weeklyHours != null;
@@ -43,6 +45,7 @@ export function OpeningHoursOverview({ settings, locale }: OpeningHoursOverviewP
             exceptions={settings.hoursExceptions}
             locale={locale}
             timeZone={settings.timezone}
+            now={now}
             fallbackText={settings.openingHours}
             maxExceptions={5}
             labels={{

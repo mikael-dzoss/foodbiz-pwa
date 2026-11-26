@@ -134,6 +134,8 @@ export function RegularHoursForm({
       const res = await onClear();
       if (res.ok) {
         setSavedHours(null);
+        setDraft(createDefaultWeeklyHours());
+        setEditorResetKey((key) => key + 1);
         setClearDialogOpen(false);
         toast?.showToast(labels.clearSuccess);
       } else {
@@ -146,6 +148,8 @@ export function RegularHoursForm({
     }
   };
 
+  const baseline = savedHours ?? createDefaultWeeklyHours();
+  const hasChanges = JSON.stringify(draft) !== JSON.stringify(baseline);
   const busy = isPending || isClearing;
 
   return (
@@ -173,7 +177,7 @@ export function RegularHoursForm({
 
         {footerNote && (
           <div
-            data-testid="regular-hours-footer-note"
+            data-testid={`${testId}-footer-note`}
             className="border-border bg-muted/50 text-body-sm text-muted-foreground flex items-start gap-2.5 rounded-xl border px-3.5 py-3"
           >
             <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -188,7 +192,7 @@ export function RegularHoursForm({
               variant="outline"
               onClick={() => setClearDialogOpen(true)}
               disabled={busy}
-              data-testid="clear-structured-hours-button"
+              data-testid={`${testId}-clear`}
               className="border-destructive/30 text-destructive hover:bg-destructive/10 active:bg-destructive/20 w-full rounded-xl"
             >
               {labels.clearButton}
@@ -196,13 +200,13 @@ export function RegularHoursForm({
           </div>
         )}
 
-        <ActionBar data-testid="settings-action-bar">
+        <ActionBar data-testid={`${testId}-action-bar`}>
           <Button
             type="button"
             variant="outline"
             onClick={handleDiscard}
-            disabled={busy}
-            data-testid="discard-button"
+            disabled={busy || !hasChanges}
+            data-testid={`${testId}-discard`}
             className="flex-1 rounded-xl"
           >
             {labels.discardButton}
@@ -211,7 +215,7 @@ export function RegularHoursForm({
             type="submit"
             disabled={busy}
             loading={isPending}
-            data-testid="save-regular-hours-button"
+            data-testid={`${testId}-save`}
             className="flex-1 rounded-xl"
           >
             {isPending ? labels.saving : labels.saveButton}
@@ -230,7 +234,7 @@ export function RegularHoursForm({
           cancelLabel={labels.clearCancelAction}
           confirmLabel={labels.clearConfirmAction}
           onConfirm={handleConfirmClear}
-          data-testid="clear-hours-confirm-dialog"
+          data-testid={`${testId}-clear-dialog`}
         />
       )}
     </>

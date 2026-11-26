@@ -15,5 +15,5 @@ export default async function OpeningHoursPage() {
   const locale = await getManagerLocale();
   const settings = await getBusinessSettings();
 
-  return <OpeningHoursOverview settings={settings} locale={locale} />;
+  return <OpeningHoursOverview settings={settings} locale={locale} now={new Date()} />;
 }

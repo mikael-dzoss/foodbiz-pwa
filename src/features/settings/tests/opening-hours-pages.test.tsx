@@ -52,6 +52,6 @@ describe("RegularHoursSettings (#372)", () => {
     );
     expect(screen.getByRole("heading", { level: 1, name: "Regular hours" })).toBeDefined();
     expect(screen.getByTestId("regular-hours-form")).toBeDefined();
-    expect(screen.getByTestId("clear-structured-hours-button")).toBeDefined();
+    expect(screen.getByTestId("regular-hours-form-clear")).toBeDefined();
   });
 });

@@ -25,7 +25,7 @@ describe("RegularHoursForm (#372)", () => {
       </ToastProvider>,
     );
 
-    fireEvent.click(screen.getByTestId("save-regular-hours-button"));
+    fireEvent.click(screen.getByTestId("regular-hours-form-save"));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(validHours);
@@ -44,7 +44,7 @@ describe("RegularHoursForm (#372)", () => {
 
     // Make Tuesday close before open
     fireEvent.change(screen.getByTestId("time-close-tue-0"), { target: { value: "10:00" } });
-    fireEvent.click(screen.getByTestId("save-regular-hours-button"));
+    fireEvent.click(screen.getByTestId("regular-hours-form-save"));
 
     await waitFor(() => {
       expect(screen.getByTestId("regular-hours-form-error").textContent).toContain(
@@ -67,7 +67,7 @@ describe("RegularHoursForm (#372)", () => {
       </ToastProvider>,
     );
 
-    fireEvent.click(screen.getByTestId("save-regular-hours-button"));
+    fireEvent.click(screen.getByTestId("regular-hours-form-save"));
 
     await waitFor(() => {
       expect(screen.getByTestId("regular-hours-form-error").textContent).toBe(
@@ -91,8 +91,26 @@ describe("RegularHoursForm (#372)", () => {
     fireEvent.change(openTue, { target: { value: "09:00" } });
     expect(openTue.value).toBe("09:00");
 
-    fireEvent.click(screen.getByTestId("discard-button"));
+    expect((screen.getByTestId("regular-hours-form-discard") as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+    fireEvent.click(screen.getByTestId("regular-hours-form-discard"));
+    expect((screen.getByTestId("regular-hours-form-discard") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     expect((screen.getByTestId("time-open-tue-0") as HTMLSelectElement).value).toBe("11:30");
+  });
+
+  it("disables Discard until the draft differs from the saved hours", () => {
+    const onSave = vi.fn(async () => ({ ok: true as const, data: validHours }));
+    render(
+      <ToastProvider>
+        <RegularHoursForm initial={validHours} onSave={onSave} data-testid="pickup-hours" />
+      </ToastProvider>,
+    );
+    expect((screen.getByTestId("pickup-hours-discard") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByTestId("time-open-tue-0"), { target: { value: "09:00" } });
+    expect((screen.getByTestId("pickup-hours-discard") as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("confirms and executes Clear structured hours via ConfirmDialog", async () => {
@@ -106,22 +124,24 @@ describe("RegularHoursForm (#372)", () => {
     );
 
     // Open confirm dialog, cancel first -> onClear not called
-    fireEvent.click(screen.getByTestId("clear-structured-hours-button"));
-    expect(screen.getByTestId("clear-hours-confirm-dialog")).toBeDefined();
-    fireEvent.click(screen.getByTestId("clear-hours-confirm-dialog-cancel"));
+    fireEvent.click(screen.getByTestId("regular-hours-form-clear"));
+    expect(screen.getByTestId("regular-hours-form-clear-dialog")).toBeDefined();
+    fireEvent.click(screen.getByTestId("regular-hours-form-clear-dialog-cancel"));
     expect(onClear).not.toHaveBeenCalled();
 
     // Re-open and confirm -> onClear called, button hidden afterward
-    fireEvent.click(screen.getByTestId("clear-structured-hours-button"));
-    fireEvent.click(screen.getByTestId("clear-hours-confirm-dialog-confirm"));
+    fireEvent.click(screen.getByTestId("regular-hours-form-clear"));
+    fireEvent.click(screen.getByTestId("regular-hours-form-clear-dialog-confirm"));
 
     await waitFor(() => {
       expect(onClear).toHaveBeenCalledTimes(1);
     });
     await waitFor(() => {
-      expect(screen.queryByTestId("clear-structured-hours-button")).toBeNull();
+      expect(screen.queryByTestId("regular-hours-form-clear")).toBeNull();
     });
     expect(screen.getByText(enDictionary.settings.openingHours.clearSuccess)).toBeDefined();
+    // The draft and editor reset to the default schedule (Tuesday was 11:30-14:30).
+    expect((screen.getByTestId("time-open-every_day-0") as HTMLSelectElement).value).toBe("09:00");
   });
 
   it("omits clear button when onClear is absent or initial is null, and displays footerNote", () => {
@@ -135,8 +155,8 @@ describe("RegularHoursForm (#372)", () => {
       />,
     );
 
-    expect(screen.queryByTestId("clear-structured-hours-button")).toBeNull();
-    expect(screen.getByTestId("regular-hours-footer-note").textContent).toBe(
+    expect(screen.queryByTestId("regular-hours-form-clear")).toBeNull();
+    expect(screen.getByTestId("regular-hours-form-footer-note").textContent).toBe(
       "Shop closures and holidays apply to all pickup points",
     );
 
@@ -148,6 +168,6 @@ describe("RegularHoursForm (#372)", () => {
         onClear={vi.fn(async () => ({ ok: true as const, data: null }))}
       />,
     );
-    expect(screen.queryByTestId("clear-structured-hours-button")).toBeNull();
+    expect(screen.queryByTestId("regular-hours-form-clear")).toBeNull();
   });
 });

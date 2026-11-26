@@ -131,7 +131,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
           >
             <div className="flex min-w-0 items-center gap-3.5">
               <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                <Clock className="h-5 w-5" />
+                <Clock className="h-5 w-5" aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <span className="text-foreground block text-sm font-semibold">
@@ -142,7 +142,7 @@ export function SettingsHub({ session, dict }: SettingsHubProps) {
                 </span>
               </div>
             </div>
-            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" />
+            <ChevronRight className="text-muted-foreground/60 h-5 w-5 shrink-0" aria-hidden="true" />
           </Link>
 
           {/* Ordering */}
