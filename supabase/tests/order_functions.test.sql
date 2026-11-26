@@ -10,7 +10,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(45);
+select plan(48);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -950,6 +950,101 @@ select throws_ok(
   'P0002',
   null,
   'cancel_order throws P0002 for non-existent order'
+);
+
+-- ----------------------------------------------------------------------------
+-- Section 6: Card on handover & card payment method (Tests 46-48, #377)
+-- ----------------------------------------------------------------------------
+
+-- Test 46: Storefront accepts on_handover when cash is false and card is true
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+update public.business_settings
+set payment_methods = '{"cash": false, "card": true, "revolut": true, "wero": true}'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+create temp table t_order_card_handover on commit drop as
+select public.place_order(
+  '10000000-0000-0000-0000-000000000001'::uuid,
+  'Card Guest',
+  '+33600000022',
+  'pickup'::public.order_service_type,
+  'storefront'::public.order_channel,
+  current_date,
+  '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
+  null,
+  'on_handover'::public.order_payment_preference
+) as res;
+grant select on t_order_card_handover to public;
+
+select ok(
+  (select res ? 'order_id' from t_order_card_handover),
+  'storefront accepts on_handover when cash=false and card=true'
+);
+
+-- Test 47: Storefront rejects on_handover when cash=false and card=false (22023)
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+
+update public.business_settings
+set payment_methods = '{"cash": false, "card": false, "revolut": true, "wero": true}'::jsonb
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
+
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid,
+    'No Handover Guest',
+    '+33600000023',
+    'pickup'::public.order_service_type,
+    'storefront'::public.order_channel,
+    current_date,
+    '[{"product_id": "da000000-0000-0000-0000-000000000001", "quantity": 1}]'::jsonb,
+    null,
+    'on_handover'::public.order_payment_preference
+  )$$,
+  '22023',
+  'INVALID_PAYMENT_PREFERENCE: on_handover is not an enabled payment method',
+  'storefront rejects on_handover when cash=false and card=false (22023)'
+);
+
+-- Test 48: Marking an order paid with method 'card' succeeds and persists 'card'
+set local role authenticated;
+set local "request.jwt.claim.sub" = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+set local "request.jwt.claim.role" = 'authenticated';
+set local "request.jwt.claims" = '{"sub": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "role": "authenticated"}';
+
+create temp table t_pay_card on commit drop as
+select public.record_order_payment(
+  '10000000-0000-0000-0000-000000000001'::uuid,
+  (select (res->>'order_id')::uuid from t_order_card_handover),
+  'card'::public.order_payment_method,
+  false
+) as res;
+grant select on t_pay_card to public;
+
+select is(
+  (
+    select (select res->>'paid' from t_pay_card) || '/' || payment_method::text
+    from public.orders
+    where id = (select (res->>'order_id')::uuid from t_order_card_handover)
+  ),
+  'paid/card',
+  'record_order_payment accepts card and stores payment_method = card'
 );
 
 select * from finish();

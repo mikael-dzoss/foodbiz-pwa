@@ -97,6 +97,16 @@ describe("database types generator and drift check (#119)", () => {
     expect(output).toContain("weight?: number;");
   });
 
+  it("includes enum values added with `alter type ... add value` in later migrations", () => {
+    const output = generateTypesFromSql(`
+      create type order_payment_method as enum ('cash', 'revolut', 'wero');
+      alter type public.order_payment_method add value if not exists 'card';
+      alter type order_payment_method add value if not exists 'card';
+    `);
+
+    expect(output).toContain('order_payment_method: "cash" | "revolut" | "wero" | "card";');
+  });
+
   it("generates typed RPC functions when public SQL functions are declared", () => {
     const output = generateTypesFromSql(`
       create type status_enum as enum ('ok', 'err');

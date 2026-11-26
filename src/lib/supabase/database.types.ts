@@ -736,7 +736,7 @@ export type Database = {
       order_service_type: "pickup" | "delivery" | "dine-in";
       order_channel: "storefront" | "phone" | "whatsapp" | "in-person";
       order_payment_preference: "revolut" | "wero" | "on_handover";
-      order_payment_method: "cash" | "revolut" | "wero";
+      order_payment_method: "cash" | "revolut" | "wero" | "card";
     };
     CompositeTypes: {
       [_ in never]: never;
