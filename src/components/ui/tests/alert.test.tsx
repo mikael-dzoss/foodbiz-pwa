@@ -63,6 +63,15 @@ describe("Alert", () => {
     expect(screen.getByTestId("warning-as-alert").getAttribute("role")).toBe("alert");
   });
 
+  it("renders no live-region role for static content when role is none", () => {
+    render(
+      <Alert tone="warning" role="none" data-testid="static-note">
+        Kitchen note
+      </Alert>,
+    );
+    expect(screen.getByTestId("static-note").hasAttribute("role")).toBe(false);
+  });
+
   it("forwards ref and tabIndex so callers can programmatically focus the notice", () => {
     const ref = React.createRef<HTMLDivElement>();
     render(

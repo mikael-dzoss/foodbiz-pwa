@@ -714,7 +714,7 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
 
         {/* Special Instructions Pill BEFORE Subtotal (per user instruction) */}
         {currentOrder.notes && (
-          <Alert tone="warning" className="my-2.5">
+          <Alert tone="warning" role="none" className="my-2.5">
             <strong className="font-semibold">{t.kitchenNote}</strong> {currentOrder.notes}
           </Alert>
         )}
@@ -837,7 +837,7 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
           )}
 
           {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" && (
-            <Alert tone="warning" title={t.paidBeforeCancel}>
+            <Alert tone="warning" role="none" title={t.paidBeforeCancel}>
               <div className="mt-1 flex flex-col gap-2">
                 <Button
                   type="button"
@@ -1037,7 +1037,11 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
           contentClassName="max-w-none flex-col items-stretch gap-2"
           data-testid="order-actions-bar"
         >
-          {isReadyNotPaid && <Alert tone="warning">{t.paymentRequired}</Alert>}
+          {isReadyNotPaid && (
+            <Alert tone="warning" role="none">
+              {t.paymentRequired}
+            </Alert>
+          )}
 
           <div className="flex items-center gap-2">
             {currentOrder.status === "NEW" ? (

@@ -915,7 +915,7 @@ export function ManualOrderForm({
 
             {/* Notes */}
             {notes.trim() && (
-              <Alert tone="warning">
+              <Alert tone="warning" role="none">
                 <span className="font-semibold">{t.preview.kitchenNote}</span> {notes}
               </Alert>
             )}

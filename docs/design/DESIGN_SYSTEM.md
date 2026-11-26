@@ -192,7 +192,7 @@ Every component exposes `data-testid` and supports light/dark. States to design 
 
 Shared bordered inline notice box (`flex items-start gap-2 rounded-xl border p-3 text-body-sm`), always pairing a soft tinted surface with an `aria-hidden` leading icon (`shrink-0`, aligned with the first line) and wrapping cleanly at 360 px.
 
-- **Props:** `tone: "error" | "warning" | "info"`, optional `title?: ReactNode` (`text-label-md`), optional `icon?: ReactNode` (defaults: `AlertCircle`, `AlertTriangle`, `Info`), optional `role?: "alert" | "status"` override, forwarded `ref` + `tabIndex` (adds focus ring when focusable), passthrough `id`, `data-testid`, `className`, `aria-*`.
+- **Props:** `tone: "error" | "warning" | "info"`, optional `title?: ReactNode` (`text-label-md`), optional `icon?: ReactNode` (defaults: `AlertCircle`, `AlertTriangle`, `Info`), optional `role?: "alert" | "status" | "none"` override (`"status"` for an error already shown on load, `"none"` for static content such as a kitchen note), forwarded `ref` + `tabIndex` (adds focus ring when focusable), passthrough `id`, `data-testid`, `className`, `aria-*`.
 - **Tones & default roles:**
   - `error` → `border-destructive/30 bg-destructive/10 text-destructive`, default `role="alert"`.
   - `warning` → `border-warning/30 bg-warning-soft text-warning-soft-foreground`, default `role="status"`.

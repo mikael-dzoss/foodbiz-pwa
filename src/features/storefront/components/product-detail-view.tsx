@@ -193,6 +193,7 @@ export function ProductDetailView({
       {isClosedButAccepting && (
         <Alert
           tone="warning"
+          role="none"
           icon={<Clock className="h-4 w-4" />}
           data-testid="product-closed-schedule-notice"
         >

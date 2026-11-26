@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 
 export type AlertTone = "error" | "warning" | "info";
 
-export type AlertRole = "alert" | "status";
+/** `"none"` renders no live-region role, for notices that are static page content. */
+export type AlertRole = "alert" | "status" | "none";
 
 export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "role" | "title"> {
   tone: AlertTone;
@@ -12,7 +13,10 @@ export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "
   title?: React.ReactNode;
   /** Optional leading icon override; defaults to a tone-appropriate lucide icon. */
   icon?: React.ReactNode;
-  /** Overrides the default live-region role (`error` → `"alert"`, `warning`/`info` → `"status"`). */
+  /**
+   * Overrides the default live-region role (`error` → `"alert"`, `warning`/`info` → `"status"`).
+   * Use `"status"` for an error that is already shown on load and `"none"` for static content.
+   */
   role?: AlertRole | undefined;
   "data-testid"?: string;
 }
@@ -46,11 +50,12 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
   ) => {
     const DefaultIcon = defaultIconByTone[tone];
     const resolvedRole = role ?? defaultRoleByTone[tone];
+    const roleAttribute = resolvedRole === "none" ? undefined : resolvedRole;
 
     return (
       <div
         ref={ref}
-        role={resolvedRole}
+        role={roleAttribute}
         tabIndex={tabIndex}
         data-testid={testId}
         className={cn(

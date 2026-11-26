@@ -836,7 +836,7 @@ export function CheckoutForm({
       </div>
 
       {!resolvedAcceptingOrders && (
-        <Alert tone="error" data-testid="checkout-not-accepting-notice">
+        <Alert tone="error" role="status" data-testid="checkout-not-accepting-notice">
           {dict.checkoutBlockedNotAccepting}
         </Alert>
       )}

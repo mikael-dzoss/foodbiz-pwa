@@ -208,6 +208,7 @@ export function OrderTrackingView({
             {isCancelled ? (
               <Alert
                 tone="error"
+                role="status"
                 title={dict.orderCancelledTitle}
                 icon={<AlertTriangle className="h-4 w-4" />}
                 data-testid="tracking-cancellation-banner"
