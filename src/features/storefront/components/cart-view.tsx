@@ -161,7 +161,7 @@ export function CartView({
             placeholder={dict.promoPlaceholder}
             disabled
             aria-label={`${dict.discountCode} (${dict.soon})`}
-            className="h-9 text-xs"
+            className="h-9"
           />
           <Button
             type="button"
@@ -207,7 +207,7 @@ export function CartView({
               onChange={(e) => setNotes(e.target.value)}
               placeholder={dict.notesPlaceholder}
               rows={3}
-              className="resize-none text-xs"
+              className="resize-none"
               data-testid="cart-kitchen-note-input"
             />
           </div>

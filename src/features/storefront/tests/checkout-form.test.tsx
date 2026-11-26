@@ -309,7 +309,12 @@ describe("CheckoutView & CheckoutForm", () => {
     fireEvent.click(scheduleOption);
 
     expect(screen.getByTestId("scheduled-timing-inputs")).toBeDefined();
-    expect(screen.getByTestId("checkout-date-input")).toBeDefined();
+    const dateInput = screen.getByTestId("checkout-date-input");
+    const timeInput = screen.getByTestId("checkout-time-input");
+    expect(dateInput.className).toContain("w-full");
+    expect(dateInput.className).toContain("min-w-0");
+    expect(timeInput.className).toContain("w-full");
+    expect(timeInput.className).toContain("min-w-0");
   });
 
   it("gates Place Order button until valid name and phone are entered", () => {

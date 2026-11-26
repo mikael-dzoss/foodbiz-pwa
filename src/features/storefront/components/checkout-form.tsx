@@ -674,7 +674,7 @@ export function CheckoutForm({
                   data-testid="scheduled-timing-inputs"
                   className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2"
                 >
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <label htmlFor={dateId} className="text-foreground text-caption font-medium">
                       {dict.scheduledDate} <span className="text-destructive">*</span>
                     </label>
@@ -685,12 +685,12 @@ export function CheckoutForm({
                       value={requestedDate}
                       onChange={(e) => setRequestedDate(e.target.value)}
                       data-testid="checkout-date-input"
-                      className="h-9 text-xs"
+                      className="h-9 w-full min-w-0"
                       required
                     />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <label htmlFor={timeId} className="text-foreground text-caption font-medium">
                       {dict.scheduledTime}
                     </label>
@@ -700,7 +700,7 @@ export function CheckoutForm({
                       value={requestedTime}
                       onChange={(e) => setRequestedTime(e.target.value)}
                       data-testid="checkout-time-input"
-                      className="h-9 text-xs"
+                      className="h-9 w-full min-w-0"
                     />
                   </div>
                 </div>
