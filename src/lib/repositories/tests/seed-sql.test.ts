@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { weeklyHoursSchema } from "@/domain/opening-hours";
+import { hoursExceptionsSchema, weeklyHoursSchema } from "@/domain/opening-hours";
 
 import {
   demoBusiness,
@@ -12,6 +12,7 @@ import {
 } from "../mock/fixtures";
 import {
   buildSeedSql,
+  DEMO_STAGING_HOURS_EXCEPTIONS,
   DEMO_STAGING_WEEKLY_HOURS,
   sqlJsonb,
   sqlNullableJsonb,
@@ -182,14 +183,14 @@ describe("buildSeedSql", () => {
     }
   });
 
-  it("includes timezone and weekly_hours in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
+  it("includes timezone, weekly_hours, and hours_exceptions in business_settings and upserts all non-id, non-business_id columns on conflict (business_id)", () => {
     const stmt = extractTableInsert(buildSeedSql(), "business_settings");
     expect(stmt).toMatch(/\btimezone\b/);
     expect(stmt).toContain(sqlText(demoSettings.timezone));
     expect(stmt).toMatch(/\bweekly_hours\b/);
     expect(stmt).toContain("weekly_hours = excluded.weekly_hours");
-    // Default seed keeps weekly_hours NULL so CI does not depend on time of day
-    expect(stmt).toContain(`${sqlText(demoSettings.openingHours ?? "")},\n    null,`);
+    expect(stmt).toMatch(/\bhours_exceptions\b/);
+    expect(stmt).toContain("hours_exceptions = excluded.hours_exceptions");
 
     const colMatch = stmt.match(/insert into public\.business_settings \(([\s\S]*?)\)\s*values/);
     expect(colMatch).not.toBeNull();
@@ -209,7 +210,11 @@ describe("buildSeedSql", () => {
     }
   });
 
-  it("defines valid realistic staging weekly hours for Les Saveurs du Continent and serializes them into business_settings", () => {
+  it("seeds realistic weekly_hours and relative-dated upcoming hours_exceptions for Les Saveurs du Continent while keeping mock fixtures null / []", () => {
+    // Mock fixtures stay unconstrained so mock-mode tests/e2e never depend on time of day
+    expect(demoSettings.weeklyHours).toBeNull();
+    expect(demoSettings.hoursExceptions).toEqual([]);
+
     expect(weeklyHoursSchema.parse(DEMO_STAGING_WEEKLY_HOURS)).toEqual({
       mon: [],
       tue: [
@@ -239,17 +244,18 @@ describe("buildSeedSql", () => {
       ],
     });
 
-    const sql = buildSeedSql({
-      business: demoBusiness,
-      settings: { ...demoSettings, weeklyHours: DEMO_STAGING_WEEKLY_HOURS },
-      categories: demoCategories,
-      products: demoProducts,
-      guests: demoGuests,
-      orders: demoOrders,
-      expenses: demoExpenses,
-    });
-    const stmt = extractTableInsert(sql, "business_settings");
+    const parsedExceptions = hoursExceptionsSchema.parse(DEMO_STAGING_HOURS_EXCEPTIONS);
+    expect(parsedExceptions).toHaveLength(2);
+    expect(parsedExceptions.some((e) => e.ranges.length === 0 && e.note === "Congés annuels")).toBe(
+      true,
+    );
+    expect(parsedExceptions.some((e) => e.ranges.length > 0 && Boolean(e.note))).toBe(true);
+
+    const stmt = extractTableInsert(buildSeedSql(), "business_settings");
     expect(stmt).toContain(sqlJsonb(DEMO_STAGING_WEEKLY_HOURS));
+    expect(stmt).toContain("Congés annuels");
+    expect(stmt).toContain("to_char(date '");
+    expect(stmt).toContain("+ v_days, 'YYYY-MM-DD')");
   });
 
   it("uses plain inserts without on conflict or where exists for replaced child tables", () => {
@@ -346,6 +352,7 @@ describe("buildSeedSql edge cases", () => {
         ...demoSettings,
         id: undefined,
         openingHours: "Mon's: 08:00-18:00",
+        hoursExceptions: [{ from: "2026-11-01", to: "2026-11-01", ranges: [] }],
         paymentInstructionsEn: "Pay at L'Atelier",
         paymentInstructionsFr: "Payer à l'atelier",
       },
@@ -437,6 +444,7 @@ describe("buildSeedSql edge cases", () => {
     // business_settings without id omits the id column so DB default applies
     const settingsStmt = extractTableInsert(sql, "business_settings");
     expect(settingsStmt).not.toMatch(/insert into public\.business_settings \(\s*id,/);
+    expect(settingsStmt).not.toContain("'note'");
   });
 
   it("rejects orders without status history and text containing the $seed$ tag", () => {
@@ -475,6 +483,7 @@ describe("buildSeedSql edge cases", () => {
     expect(sql).toContain("v_days := 0;");
     expect(sql).toContain("insert into public.businesses (");
     expect(sql).toContain("insert into public.business_settings (");
+    expect(extractTableInsert(sql, "business_settings")).toContain("'[]'::jsonb");
     expect(sql).not.toContain("insert into public.product_categories (");
     expect(sql).not.toContain("insert into public.products (");
     expect(sql).not.toContain("insert into public.guests (");

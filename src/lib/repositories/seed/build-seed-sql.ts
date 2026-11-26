@@ -1,7 +1,7 @@
 import type { Business, BusinessSettings } from "@/domain/business";
 import type { Expense } from "@/domain/expense";
 import type { Guest } from "@/domain/guest";
-import type { WeeklyHours } from "@/domain/opening-hours";
+import type { HoursException, WeeklyHours } from "@/domain/opening-hours";
 import type { Order, OrderStatusEvent } from "@/domain/order";
 import type { Product, ProductCategory } from "@/domain/product";
 
@@ -62,9 +62,38 @@ export const DEMO_STAGING_WEEKLY_HOURS: WeeklyHours = {
   ],
 };
 
+/**
+ * Upcoming exceptional days for the seeded demo shop "Les Saveurs du Continent" (#375),
+ * anchored relative to the demo orders' anchor date (`2026-10-09`, shifted to today in
+ * Europe/Paris by `v_days` when `supabase/seed.sql` runs):
+ *   - +7 days: special continuous hours day ("Ouverture exceptionnelle")
+ *   - +14..+16 days: 3-day closed holiday ("Congés annuels")
+ */
+export const DEMO_STAGING_HOURS_EXCEPTIONS: readonly HoursException[] = [
+  {
+    from: "2026-10-16",
+    to: "2026-10-16",
+    ranges: [{ open: "11:00", close: "16:00" }],
+    note: "Ouverture exceptionnelle",
+  },
+  {
+    from: "2026-10-23",
+    to: "2026-10-25",
+    ranges: [],
+    note: "Congés annuels",
+  },
+];
+
 const DEFAULT_FIXTURES: SeedFixtures = {
   business: demoBusiness,
-  settings: demoSettings,
+  settings: {
+    ...demoSettings,
+    weeklyHours: DEMO_STAGING_WEEKLY_HOURS,
+    hoursExceptions: DEMO_STAGING_HOURS_EXCEPTIONS.map((ex) => ({
+      ...ex,
+      ranges: ex.ranges.map((r) => ({ ...r })),
+    })),
+  },
   categories: demoCategories,
   products: demoProducts,
   guests: demoGuests,
@@ -140,6 +169,22 @@ export function sqlJsonb(value: unknown): string {
 
 export function sqlNullableJsonb(value: unknown): string {
   return value == null ? "null" : sqlJsonb(value);
+}
+
+function sqlShiftedHoursExceptions(exceptions: readonly HoursException[] | undefined): string {
+  if (!exceptions || exceptions.length === 0) {
+    return "'[]'::jsonb";
+  }
+  const entries = exceptions.map((ex) => {
+    const fields = [
+      `'from', to_char(${sqlShiftedDate(ex.from)}, 'YYYY-MM-DD')`,
+      `'to', to_char(${sqlShiftedDate(ex.to)}, 'YYYY-MM-DD')`,
+      `'ranges', ${sqlJsonb(ex.ranges)}`,
+      ...(ex.note !== undefined ? [`'note', ${sqlText(ex.note)}`] : []),
+    ];
+    return `      jsonb_build_object(${fields.join(", ")})`;
+  });
+  return `jsonb_build_array(\n${entries.join(",\n")}\n    )`;
 }
 
 function sqlTimestamp(iso: string): string {
@@ -273,6 +318,7 @@ function renderBusinessSettingsInsert(settings: BusinessSettings): string {
     ["service_types", sqlJsonb(settings.serviceTypes)],
     ["opening_hours", sqlText(settings.openingHours ?? "")],
     ["weekly_hours", sqlNullableJsonb(settings.weeklyHours ?? null)],
+    ["hours_exceptions", sqlShiftedHoursExceptions(settings.hoursExceptions)],
     ["order_timing_asap", sqlBoolean(settings.orderTimingAsap)],
     ["order_timing_scheduled", sqlBoolean(settings.orderTimingScheduled)],
     ["order_timing_time_optional", sqlBoolean(settings.orderTimingTimeOptional)],
