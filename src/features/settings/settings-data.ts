@@ -28,6 +28,7 @@ function defaultSettings(businessId: string): BusinessSettings {
     openingHours: "",
     weeklyHours: null,
     hoursExceptions: [],
+    shopPickupEnabled: true,
     orderTimingAsap: true,
     orderTimingScheduled: true,
     orderTimingTimeOptional: true,
@@ -61,4 +62,29 @@ export const getBusinessTimeZone = cache(async (): Promise<string> => {
 export async function getBusinessToday(): Promise<string> {
   const [now, timeZone] = await Promise.all([getRequestNow(), getBusinessTimeZone()]);
   return getZonedDay(now, timeZone);
+}
+
+/** Everything the pickup locations page shows: shop row, relay locations and the pickup switch. */
+export async function getPickupLocationsPageData() {
+  const { businessId } = await requireAuthenticatedAction();
+  const repos = getRepositories();
+  const [business, settings, locations] = await Promise.all([
+    repos.business.findById(businessId),
+    repos.business.getSettings(businessId),
+    repos.pickupLocations.listByBusiness(businessId),
+  ]);
+  if (!business) throw new Error("Business not found");
+  return {
+    shop: { name: business.name, address: business.address ?? null },
+    shopPickupEnabled: settings?.shopPickupEnabled ?? true,
+    pickupServiceEnabled: settings?.serviceTypes.pickup ?? true,
+    locations,
+  };
+}
+
+/** One of the signed-in business's pickup locations, or `null` when it does not exist. */
+export async function getPickupLocation(id: string) {
+  const { businessId } = await requireAuthenticatedAction();
+  const locations = await getRepositories().pickupLocations.listByBusiness(businessId);
+  return locations.find((location) => location.id === id) ?? null;
 }

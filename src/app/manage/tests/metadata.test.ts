@@ -23,6 +23,8 @@ import { generateMetadata as accountSettingsMetadata } from "../(authenticated)/
 import { generateMetadata as businessSettingsMetadata } from "../(authenticated)/settings/business/page";
 import { generateMetadata as openingHoursSettingsMetadata } from "../(authenticated)/settings/opening-hours/page";
 import { generateMetadata as regularHoursSettingsMetadata } from "../(authenticated)/settings/opening-hours/regular/page";
+import { generateMetadata as pickupLocationsSettingsMetadata } from "../(authenticated)/settings/pickup-locations/page";
+import { generateMetadata as pickupLocationHoursMetadata } from "../(authenticated)/settings/pickup-locations/[id]/hours/page";
 import { generateMetadata as orderingSettingsMetadata } from "../(authenticated)/settings/ordering/page";
 import { generateMetadata as paymentSettingsMetadata } from "../(authenticated)/settings/payment/page";
 import { generateMetadata as inventorySettingsMetadata } from "../(authenticated)/settings/inventory-finance/page";
@@ -205,6 +207,22 @@ describe("manager layout and page metadata (EN & FR)", () => {
         expected: (l: SupportedLocale) => ({
           title: getDictionary(l).settings.openingHours.regularTitle,
           description: getDictionary(l).settings.openingHours.regularDescription,
+        }),
+      },
+      {
+        name: "settings/pickup-locations",
+        fn: pickupLocationsSettingsMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.pickupLocations.title,
+          description: getDictionary(l).settings.pickupLocations.description,
+        }),
+      },
+      {
+        name: "settings/pickup-locations/[id]/hours",
+        fn: pickupLocationHoursMetadata,
+        expected: (l: SupportedLocale) => ({
+          title: getDictionary(l).settings.pickupLocations.hoursTitle,
+          description: getDictionary(l).settings.pickupLocations.hoursDescription,
         }),
       },
       {

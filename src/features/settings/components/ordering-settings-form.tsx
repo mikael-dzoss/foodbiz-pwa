@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   ChevronLeft,
+  ChevronRight,
   Clock,
   Truck,
   ShoppingBag,
@@ -250,6 +251,31 @@ export function OrderingSettingsForm({ settings, dict, locale = "en" }: Ordering
               data-testid="switch-service-pickup"
               aria-label={dict.ordering.pickupLabel}
             />
+          </div>
+
+          {/* Pickup locations (#385) */}
+          <div>
+            <Link
+              href="/manage/settings/pickup-locations"
+              data-testid="link-pickup-locations"
+              className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-12 items-center justify-between gap-3 px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <span className="flex items-center gap-2.5">
+                <MapPin className="text-muted-foreground h-4 w-4" aria-hidden="true" />
+                <span className="text-foreground text-sm font-medium">
+                  {dict.pickupLocations.manageLink}
+                </span>
+              </span>
+              <ChevronRight className="text-muted-foreground/60 h-5 w-5" aria-hidden="true" />
+            </Link>
+            {!pickup && (
+              <p
+                data-testid="pickup-locations-off-hint"
+                className="text-body-sm text-muted-foreground px-4 pb-3"
+              >
+                {dict.pickupLocations.pickupOffHint}
+              </p>
+            )}
           </div>
 
           {/* Delivery */}

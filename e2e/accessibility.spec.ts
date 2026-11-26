@@ -63,6 +63,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       "/manage/settings/opening-hours",
       "/manage/settings/opening-hours/regular",
       "/manage/settings/opening-hours/exceptions",
+      "/manage/settings/pickup-locations",
       "/manage/settings/ordering",
       "/manage/settings/payment",
       "/manage/settings/inventory-finance",

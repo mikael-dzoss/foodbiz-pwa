@@ -3,6 +3,7 @@ import type { Expense } from "@/domain/expense";
 import type { Guest } from "@/domain/guest";
 import type { HoursException, WeeklyHours } from "@/domain/opening-hours";
 import type { Order, OrderStatusEvent } from "@/domain/order";
+import type { PickupLocation } from "@/domain/pickup-location";
 import type { Product, ProductCategory } from "@/domain/product";
 
 import {
@@ -23,6 +24,8 @@ export interface SeedFixtures {
   guests: readonly Guest[];
   orders: readonly Order[];
   expenses: readonly Expense[];
+  /** Relay pickup locations (#385); omitted means none. */
+  pickupLocations?: readonly PickupLocation[];
 }
 
 /**
@@ -84,11 +87,62 @@ export const DEMO_STAGING_HOURS_EXCEPTIONS: readonly HoursException[] = [
   },
 ];
 
+const NO_HOURS: WeeklyHours = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+
+/**
+ * Two Ile-de-France RER relay points for the seeded demo shop (#385): a free one open on
+ * weekday evenings and a paid one open on weekend lunchtimes. Both use their own weekly hours;
+ * the business closing days and holidays override them.
+ */
+export const DEMO_STAGING_PICKUP_LOCATIONS: readonly PickupLocation[] = [
+  {
+    id: "14000000-0000-4000-8000-000000000001",
+    businessId: demoBusiness.id,
+    name: "Gare RER B – La Plaine Stade de France",
+    description: "Meeting point at the station forecourt, side of the Stade de France.",
+    address: "Place de la Gare, La Plaine Stade de France",
+    postcode: "93210",
+    feeCents: 0,
+    weeklyHours: {
+      ...NO_HOURS,
+      tue: [{ open: "18:00", close: "20:00" }],
+      wed: [{ open: "18:00", close: "20:00" }],
+      thu: [{ open: "18:00", close: "20:00" }],
+      fri: [{ open: "18:00", close: "20:00" }],
+      sat: [{ open: "18:00", close: "20:00" }],
+    },
+    isActive: true,
+    sortOrder: 0,
+    createdAt: "2026-10-01T09:00:00.000Z",
+    updatedAt: "2026-10-01T09:00:00.000Z",
+  },
+  {
+    id: "14000000-0000-4000-8000-000000000002",
+    businessId: demoBusiness.id,
+    name: "Gare RER D – Saint-Denis",
+    description: "Meeting point at the main station entrance.",
+    address: "Place Pierre Semard, Saint-Denis",
+    postcode: "93200",
+    feeCents: 150,
+    weeklyHours: {
+      ...NO_HOURS,
+      fri: [{ open: "12:00", close: "14:00" }],
+      sat: [{ open: "12:00", close: "14:00" }],
+      sun: [{ open: "12:00", close: "14:00" }],
+    },
+    isActive: true,
+    sortOrder: 1,
+    createdAt: "2026-10-01T09:00:00.000Z",
+    updatedAt: "2026-10-01T09:00:00.000Z",
+  },
+];
+
 const DEFAULT_FIXTURES: SeedFixtures = {
   business: demoBusiness,
   settings: {
     ...demoSettings,
     weeklyHours: DEMO_STAGING_WEEKLY_HOURS,
+    shopPickupEnabled: true,
     hoursExceptions: DEMO_STAGING_HOURS_EXCEPTIONS.map((ex) => ({
       ...ex,
       ranges: ex.ranges.map((r) => ({ ...r })),
@@ -99,6 +153,7 @@ const DEFAULT_FIXTURES: SeedFixtures = {
   guests: demoGuests,
   orders: demoOrders,
   expenses: demoExpenses,
+  pickupLocations: DEMO_STAGING_PICKUP_LOCATIONS,
 };
 
 const HEADER_COMMENT = [
@@ -123,6 +178,7 @@ const DELETE_TABLES_FK_ORDER = [
   "expenses",
   "products",
   "product_categories",
+  "pickup_locations",
 ] as const;
 
 export function sqlText(value: string): string {
@@ -319,6 +375,7 @@ function renderBusinessSettingsInsert(settings: BusinessSettings): string {
     ["opening_hours", sqlText(settings.openingHours ?? "")],
     ["weekly_hours", sqlNullableJsonb(settings.weeklyHours ?? null)],
     ["hours_exceptions", sqlShiftedHoursExceptions(settings.hoursExceptions)],
+    ["shop_pickup_enabled", sqlBoolean(settings.shopPickupEnabled ?? true)],
     ["order_timing_asap", sqlBoolean(settings.orderTimingAsap)],
     ["order_timing_scheduled", sqlBoolean(settings.orderTimingScheduled)],
     ["order_timing_time_optional", sqlBoolean(settings.orderTimingTimeOptional)],
@@ -612,6 +669,47 @@ function renderExpensesInsert(expenses: readonly Expense[]): string | null {
   ].join("\n");
 }
 
+function renderPickupLocationsInsert(locations: readonly PickupLocation[]): string | null {
+  if (locations.length === 0) return null;
+
+  const columns = [
+    "id",
+    "business_id",
+    "name",
+    "description",
+    "address",
+    "postcode",
+    "fee_cents",
+    "weekly_hours",
+    "is_active",
+    "sort_order",
+  ] as const;
+
+  const rows = locations.map(
+    (location) =>
+      `    (${[
+        sqlUuid(location.id),
+        sqlUuid(location.businessId),
+        sqlText(location.name),
+        sqlNullableText(location.description),
+        sqlText(location.address),
+        sqlText(location.postcode),
+        sqlNumber(location.feeCents),
+        sqlNullableJsonb(location.weeklyHours),
+        sqlBoolean(location.isActive),
+        sqlNumber(location.sortOrder),
+      ].join(", ")})`,
+  );
+
+  return [
+    "  -- 9. Pickup Locations",
+    `  insert into public.pickup_locations (`,
+    `    ${columns.join(",\n    ")}`,
+    `  ) values`,
+    `${rows.join(",\n")};`,
+  ].join("\n");
+}
+
 export function buildSeedSql(fixtures: SeedFixtures = DEFAULT_FIXTURES): string {
   const anchorDate = findAnchorDate(fixtures.orders);
   const shiftAssignment =
@@ -630,6 +728,7 @@ export function buildSeedSql(fixtures: SeedFixtures = DEFAULT_FIXTURES): string 
     renderOrdersInsert(fixtures.orders),
     renderOrderItemsInsert(fixtures.orders),
     renderExpensesInsert(fixtures.expenses),
+    renderPickupLocationsInsert(fixtures.pickupLocations ?? []),
   ].filter((stmt): stmt is string => stmt !== null);
 
   return [

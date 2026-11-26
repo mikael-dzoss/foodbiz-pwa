@@ -45,6 +45,7 @@ export const demoSettings: BusinessSettings = {
     ...ex,
     ranges: ex.ranges.map((r) => ({ ...r })),
   })),
+  shopPickupEnabled: DEMO_CATALOG_SETTINGS.shopPickupEnabled,
   orderTimingAsap: DEMO_CATALOG_SETTINGS.orderTimingAsap,
   orderTimingScheduled: DEMO_CATALOG_SETTINGS.orderTimingScheduled,
   orderTimingTimeOptional: DEMO_CATALOG_SETTINGS.orderTimingTimeOptional,

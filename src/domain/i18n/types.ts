@@ -437,6 +437,8 @@ export interface CommonDictionary {
   actionReasons: {
     STOCK_ERROR: string;
     ORDER_STATE_CONFLICT: string;
+    LAST_PICKUP_OPTION: string;
+    PICKUP_LOCATIONS_LIMIT: string;
   };
   /** Manager area error boundary (a page read failed). */
   pageError: {
@@ -708,6 +710,64 @@ export interface SettingsDictionary {
     errorNoteTooLong: string;
     errorTooMany: string;
     errorNoRanges: string;
+  };
+  pickupLocations: {
+    title: string;
+    description: string;
+    navDescription: string;
+    shopName: string;
+    shopHint: string;
+    shopPickupLabel: string;
+    relaySection: string;
+    addButton: string;
+    emptyTitle: string;
+    emptyHint: string;
+    free: string;
+    sameAsShopHours: string;
+    inactive: string;
+    editAria: string;
+    moveUpAria: string;
+    moveDownAria: string;
+    sheetAddTitle: string;
+    sheetEditTitle: string;
+    sheetDescription: string;
+    nameLabel: string;
+    descriptionLabel: string;
+    addressLabel: string;
+    postcodeLabel: string;
+    postcodeHint: string;
+    feeLabel: string;
+    feeHint: string;
+    activeLabel: string;
+    activeHint: string;
+    hoursSection: string;
+    editHoursRow: string;
+    editHoursNewHint: string;
+    saveButton: string;
+    cancelButton: string;
+    deleteButton: string;
+    saveSuccess: string;
+    deleteSuccess: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    errorName: string;
+    errorAddress: string;
+    errorPostcode: string;
+    errorFee: string;
+    backToLocations: string;
+    hoursTitle: string;
+    hoursDescription: string;
+    hoursFooterNote: string;
+    clearButton: string;
+    clearConfirmTitle: string;
+    clearConfirmDescription: string;
+    clearConfirmAction: string;
+    clearSuccess: string;
+    manageLink: string;
+    movedAnnouncement: string;
+    limitHint: string;
+    pickupOffNotice: string;
+    pickupOffHint: string;
   };
 }
 

@@ -22,6 +22,8 @@ import {
   type OrderStatus,
   type PlacedOrderSummary,
 } from "@/domain/order";
+import type { PickupLocation } from "@/domain/pickup-location";
+import { MAX_PICKUP_LOCATIONS } from "@/domain/pickup-location";
 import type { Product, ProductCategory } from "@/domain/product";
 import type {
   BusinessRepository,
@@ -30,6 +32,7 @@ import type {
   GuestRepository,
   MemberRepository,
   OrderRepository,
+  PickupLocationRepository,
   ProductRepository,
   Repositories,
 } from "@/domain/repositories";
@@ -202,6 +205,80 @@ export function createMockRepositories(
         `Category ${id} not found`,
       );
       fixtures.categories.splice(idx, 1);
+    },
+  };
+
+  const sortedLocations = (bId: string): PickupLocation[] =>
+    fixtures.pickupLocations
+      .filter((l) => l.businessId === bId)
+      .toSorted((a, b) => a.sortOrder - b.sortOrder);
+
+  const pickupLocations: PickupLocationRepository = {
+    async listByBusiness(bId, options) {
+      const list = sortedLocations(bId);
+      return structuredClone(options?.activeOnly ? list.filter((l) => l.isActive) : list);
+    },
+    async create(bId, input) {
+      const existing = sortedLocations(bId);
+      if (existing.length >= MAX_PICKUP_LOCATIONS) {
+        throw new Error(`A business can have at most ${MAX_PICKUP_LOCATIONS} pickup locations`);
+      }
+      const now = new Date().toISOString();
+      const location: PickupLocation = {
+        id: input.id ?? crypto.randomUUID(),
+        businessId: bId,
+        name: input.name,
+        description: input.description ?? null,
+        address: input.address,
+        postcode: input.postcode,
+        feeCents: input.feeCents ?? 0,
+        weeklyHours: input.weeklyHours ?? null,
+        isActive: input.isActive ?? true,
+        sortOrder: input.sortOrder ?? (existing.at(-1)?.sortOrder ?? -1) + 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      fixtures.pickupLocations.push(location);
+      return structuredClone(location);
+    },
+    async update(bId, id, input) {
+      const idx = findIndexOrThrow(
+        fixtures.pickupLocations,
+        (l) => l.businessId === bId && l.id === id,
+        `Pickup location ${id} not found`,
+      );
+      const definedPatch = Object.fromEntries(
+        Object.entries(input).filter(([, value]) => value !== undefined),
+      );
+      const updated: PickupLocation = {
+        ...fixtures.pickupLocations[idx],
+        ...structuredClone(definedPatch),
+        updatedAt: new Date().toISOString(),
+      };
+      fixtures.pickupLocations[idx] = updated;
+      return structuredClone(updated);
+    },
+    async delete(bId, id) {
+      const idx = findIndexOrThrow(
+        fixtures.pickupLocations,
+        (l) => l.businessId === bId && l.id === id,
+        `Pickup location ${id} not found`,
+      );
+      fixtures.pickupLocations.splice(idx, 1);
+    },
+    async reorder(bId, ids) {
+      for (const id of ids) {
+        findIndexOrThrow(
+          fixtures.pickupLocations,
+          (l) => l.businessId === bId && l.id === id,
+          `Pickup location ${id} not found`,
+        );
+      }
+      fixtures.pickupLocations = fixtures.pickupLocations.map((l) => {
+        const position = ids.indexOf(l.id);
+        return l.businessId === bId && position !== -1 ? { ...l, sortOrder: position } : l;
+      });
+      return structuredClone(sortedLocations(bId));
     },
   };
 
@@ -962,6 +1039,7 @@ export function createMockRepositories(
     },
     guests,
     members,
+    pickupLocations,
     expenses: { ...expenses, delete: (bId, id) => runAs(role, () => expenses.delete(bId, id)) },
     business: {
       ...business,
@@ -970,7 +1048,18 @@ export function createMockRepositories(
     },
   });
 
-  return { products, categories, orders, guests, expenses, business, members, reset, withRole };
+  return {
+    products,
+    categories,
+    orders,
+    guests,
+    expenses,
+    business,
+    members,
+    pickupLocations,
+    reset,
+    withRole,
+  };
 }
 
 // Kept on globalThis: Next bundles route handlers and pages separately, so a module-level

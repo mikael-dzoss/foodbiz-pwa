@@ -237,9 +237,30 @@ create table business_settings (
   -- Structured weekly opening hours (#372) and exceptions (#375) (see 5.2.4)
   weekly_hours jsonb null constraint business_settings_weekly_hours_valid check (weekly_hours is null or public.valid_weekly_hours(weekly_hours)),
   hours_exceptions jsonb not null default '[]'::jsonb constraint business_settings_hours_exceptions_valid check (public.valid_hours_exceptions(hours_exceptions)),
+  -- The shop itself as a pickup option next to relay locations (#385, see 5.2.5)
+  shop_pickup_enabled boolean not null default true,
   updated_at timestamptz not null default now(),
   constraint business_settings_business_id_unique unique (business_id)
 );
+
+-- Relay pickup locations (#385, migration 20260101000035; see 5.2.5)
+create table pickup_locations (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 80 and name = btrim(name)),
+  description text null check (char_length(description) <= 200),
+  address text not null check (char_length(address) between 1 and 200),
+  postcode text not null check (postcode ~ '^[0-9]{5}$'),
+  fee_cents integer not null default 0 check (fee_cents between 0 and 10000), -- 0 = free
+  weekly_hours jsonb null check (weekly_hours is null or public.valid_weekly_hours(weekly_hours)),
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint pickup_locations_business_id_id_key unique (business_id, id)
+);
+
+create index idx_pickup_locations_business_sort on pickup_locations(business_id, sort_order);
 
 -- ----------------------------------------------------------------------------
 -- 2. Product Catalog & Inventory
@@ -469,6 +490,7 @@ $$ language sql stable;
 | `guests`              | Direct read denied; inserted via atomic checkout function (#121)                                             | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
 | `orders`              | No direct access: RPC only (`place_order`, `get_order_by_tracking_token`, `storefront_order_tracking_token`) | `SELECT` via `is_business_member(business_id)`; **no direct `INSERT`/`UPDATE`** (functions only, see 5.6); `DELETE` for `owner` only           |
 | `order_items`         | No direct access: item snapshots only inside the `get_order_by_tracking_token` RPC payload                   | `SELECT` via `is_business_member(business_id)`; no direct write (`place_order`, `replace_order_items`)                                         |
+| `pickup_locations`    | `SELECT` where `is_active` (storefront; explicit `SELECT`-only grant)                                        | `SELECT` active rows or any row of own business; `INSERT`/`UPDATE`/`DELETE` via `is_business_member(business_id)` (max 20 per business)        |
 | `rate_limit_attempts` | No access (RLS, no policies, privileges revoked); written by `SECURITY DEFINER` functions only               | No access                                                                                                                                      |
 | `expenses`            | Deny all                                                                                                     | `SELECT`/`INSERT`/`UPDATE` via `is_business_member(business_id)`; `DELETE` for `owner` only                                                    |
 
@@ -498,6 +520,14 @@ See [5.6](#56-order-state-functions).
 - `public.valid_hours_exceptions(p jsonb) returns boolean` (`IMMUTABLE`, no `::time`/`::date` casts — uses regex, calendar validation and `IMMUTABLE` `pg_catalog.make_date`): validates an array of at most 100 non-overlapping `{from, to, ranges, note?}` objects with valid `YYYY-MM-DD` dates, `to >= from`, inclusive span ≤ 60 days, optional `note` ≤ 50 characters, and `ranges` following the same per-day rules as `weekly_hours`. Used by `business_settings_hours_exceptions_valid`.
 - `public.is_open_at(p_hours jsonb, p_exceptions jsonb, p_tz text, p_at timestamptz) returns boolean` (`STABLE`): resolves any covering exception on the local date in `p_tz` first; if none matches and `p_hours` is `null`, returns `true`; otherwise evaluates half-open `[open, close)` membership in `p_tz` (DST-safe, supports `24:00` close).
 - `public.slot_error(p_hours jsonb, p_exceptions jsonb, p_tz text, p_now timestamptz, p_date date, p_time time, p_is_asap boolean, p_horizon_days integer default 30) returns text` (`STABLE`): returns `null` when valid, or one of `'date_out_of_window'`, `'closed_now'`, `'closed_day'`, `'time_outside_hours'`, `'time_in_past'` in the same order and semantics as `validateSlot` (booking window `[today, today + p_horizon_days]` always checked in `p_tz`; exceptions override weekly hours even when `p_hours` is `null`; dates with neither skip opening-hour checks; time-optional checks remaining 15-minute stepped slots with lead 0). Enforced by `place_order` for the storefront channel (migration 034).
+
+### 5.2.5 Pickup locations (#385)
+
+`pickup_locations` (migration `20260101000035_pickup_locations.sql`) stores relay points (for example RER stations) a business offers next to its own shop: name, description, address, 5-digit French postcode, fee in integer cents (`0` = free), optional `weekly_hours` (same shape and `valid_weekly_hours` check as `business_settings.weekly_hours`), `is_active` and `sort_order`. Locations have no exceptions of their own: the business `hours_exceptions` (closing days, holidays) override every location's hours. A `BEFORE INSERT` trigger (`enforce_pickup_locations_limit`, serialised per business with an advisory transaction lock) rejects a 21st location with SQLSTATE `23514`.
+
+RLS: `anon` and `authenticated` read active rows (storefront); members of the business read all their rows and insert, update and delete their own (`is_business_member`). Grants are explicit: `anon` `SELECT`; `authenticated` and `service_role` `SELECT`/`INSERT`/`UPDATE`/`DELETE`.
+
+`business_settings.shop_pickup_enabled` (`boolean not null default true`, readable by `anon`) turns the shop itself off as a pickup option so a business can offer relay locations only. The rule "Pickup stays offered while at least one option (shop or relay location) is active" (only while `service_types.pickup` is on) is enforced in the Server Actions of `src/features/settings/pickup-location-actions.ts` using the pure helpers in [`src/domain/pickup-location.ts`](../../src/domain/pickup-location.ts), not in SQL.
 
 ### 5.3 Public Guest Tracking & Verification
 
@@ -696,14 +726,15 @@ Internal helpers, executable by no API role: `apply_order_transition` (core of e
 
 ## 6. Domain Model Mapping
 
-| PostgreSQL Table     | TypeScript Domain Model (`src/domain/`)                                       | Repository Interface (`src/domain/repositories/types.ts`) |
-| :------------------- | :---------------------------------------------------------------------------- | :-------------------------------------------------------- |
-| `businesses`         | [`Business`](../../src/domain/business.ts) (`businessSchema`)                 | `BusinessRepository`                                      |
-| `business_members`   | [`BusinessMember`](../../src/domain/business.ts) (`businessMemberSchema`)     | `MemberRepository`                                        |
-| `business_settings`  | [`BusinessSettings`](../../src/domain/business.ts) (`businessSettingsSchema`) | `BusinessRepository.getSettings`                          |
-| `product_categories` | [`ProductCategory`](../../src/domain/product.ts) (`productCategorySchema`)    | `CategoryRepository`                                      |
-| `products`           | [`Product`](../../src/domain/product.ts) (`productSchema`)                    | `ProductRepository`                                       |
-| `guests`             | [`Guest`](../../src/domain/guest.ts) (`guestSchema`)                          | `GuestRepository`                                         |
-| `orders`             | [`Order`](../../src/domain/order.ts) (`orderSchema`)                          | `OrderRepository`                                         |
-| `order_items`        | [`OrderItem`](../../src/domain/order.ts) (`orderItemSchema`)                  | Nested within `OrderRepository`                           |
-| `expenses`           | [`Expense`](../../src/domain/expense.ts) (`expenseSchema`)                    | `ExpenseRepository`                                       |
+| PostgreSQL Table     | TypeScript Domain Model (`src/domain/`)                                          | Repository Interface (`src/domain/repositories/types.ts`) |
+| :------------------- | :------------------------------------------------------------------------------- | :-------------------------------------------------------- |
+| `businesses`         | [`Business`](../../src/domain/business.ts) (`businessSchema`)                    | `BusinessRepository`                                      |
+| `business_members`   | [`BusinessMember`](../../src/domain/business.ts) (`businessMemberSchema`)        | `MemberRepository`                                        |
+| `business_settings`  | [`BusinessSettings`](../../src/domain/business.ts) (`businessSettingsSchema`)    | `BusinessRepository.getSettings`                          |
+| `product_categories` | [`ProductCategory`](../../src/domain/product.ts) (`productCategorySchema`)       | `CategoryRepository`                                      |
+| `products`           | [`Product`](../../src/domain/product.ts) (`productSchema`)                       | `ProductRepository`                                       |
+| `guests`             | [`Guest`](../../src/domain/guest.ts) (`guestSchema`)                             | `GuestRepository`                                         |
+| `orders`             | [`Order`](../../src/domain/order.ts) (`orderSchema`)                             | `OrderRepository`                                         |
+| `order_items`        | [`OrderItem`](../../src/domain/order.ts) (`orderItemSchema`)                     | Nested within `OrderRepository`                           |
+| `expenses`           | [`Expense`](../../src/domain/expense.ts) (`expenseSchema`)                       | `ExpenseRepository`                                       |
+| `pickup_locations`   | [`PickupLocation`](../../src/domain/pickup-location.ts) (`pickupLocationSchema`) | `PickupLocationRepository`                                |

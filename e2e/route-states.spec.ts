@@ -20,6 +20,7 @@ const MANAGER_ROUTES = [
   "/manage/settings/opening-hours",
   "/manage/settings/opening-hours/regular",
   "/manage/settings/opening-hours/exceptions",
+  "/manage/settings/pickup-locations",
   "/manage/settings/ordering",
   "/manage/settings/payment",
 ];

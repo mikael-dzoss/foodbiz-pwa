@@ -48,6 +48,7 @@ export interface DemoCatalogSettings {
   readonly openingHours: string;
   readonly weeklyHours: WeeklyHours | null;
   readonly hoursExceptions: readonly HoursException[];
+  readonly shopPickupEnabled: boolean;
   readonly orderTimingAsap: boolean;
   readonly orderTimingScheduled: boolean;
   readonly orderTimingTimeOptional: boolean;
@@ -147,6 +148,7 @@ export const DEMO_CATALOG_SETTINGS: DemoCatalogSettings = {
   openingHours: "Mar–Dim 11:00–21:00 · fermé le lundi",
   weeklyHours: null,
   hoursExceptions: [],
+  shopPickupEnabled: true,
   orderTimingAsap: true,
   orderTimingScheduled: true,
   orderTimingTimeOptional: false,

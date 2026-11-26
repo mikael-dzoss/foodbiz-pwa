@@ -12,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(35);
+select plan(38);
 
 -- ----------------------------------------------------------------------------
 -- 1. Exhaustive table guard: any new public base table must be added here
@@ -33,6 +33,7 @@ select set_eq(
     'guests',
     'order_items',
     'orders',
+    'pickup_locations',
     'product_categories',
     'products',
     'rate_limit_attempts'
@@ -121,6 +122,11 @@ select table_privs_are('public', 'order_items', 'anon', array['SELECT'], 'order_
 select table_privs_are('public', 'order_items', 'authenticated', array['SELECT'], 'order_items privileges for authenticated');
 select table_privs_are('public', 'order_items', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'order_items privileges for service_role');
 
+-- pickup_locations
+select table_privs_are('public', 'pickup_locations', 'anon', array['SELECT'], 'pickup_locations privileges for anon');
+select table_privs_are('public', 'pickup_locations', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'pickup_locations privileges for authenticated');
+select table_privs_are('public', 'pickup_locations', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'pickup_locations privileges for service_role');
+
 -- rate_limit_attempts
 select table_privs_are('public', 'rate_limit_attempts', 'anon', '{}'::name[], 'rate_limit_attempts privileges for anon');
 select table_privs_are('public', 'rate_limit_attempts', 'authenticated', '{}'::name[], 'rate_limit_attempts privileges for authenticated');
@@ -158,6 +164,7 @@ select results_eq(
     'payment_methods',
     'revolut_revtag',
     'service_types',
+    'shop_pickup_enabled',
     'timezone',
     'weekly_hours',
     'wero_identifier'

@@ -86,6 +86,8 @@ const mockCatalog: StorefrontCatalogData = {
     soundAlerts: true,
     timezone: "Europe/Paris",
   },
+  shopPickupEnabled: true,
+  pickupLocations: [],
   categories: [
     {
       id: "cat-1",

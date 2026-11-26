@@ -126,6 +126,7 @@ export type Database = {
           timezone: string;
           weekly_hours: Json | null;
           hours_exceptions: Json;
+          shop_pickup_enabled: boolean;
         };
         Insert: {
           id?: string;
@@ -156,6 +157,7 @@ export type Database = {
           timezone?: string;
           weekly_hours?: Json | null;
           hours_exceptions?: Json;
+          shop_pickup_enabled?: boolean;
         };
         Update: {
           id?: string;
@@ -186,6 +188,7 @@ export type Database = {
           timezone?: string;
           weekly_hours?: Json | null;
           hours_exceptions?: Json;
+          shop_pickup_enabled?: boolean;
         };
         Relationships: [
           {
@@ -555,6 +558,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      pickup_locations: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          description: string | null;
+          address: string;
+          postcode: string;
+          fee_cents: number;
+          weekly_hours: Json | null;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          description?: string | null;
+          address: string;
+          postcode: string;
+          fee_cents?: number;
+          weekly_hours?: Json | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          description?: string | null;
+          address?: string;
+          postcode?: string;
+          fee_cents?: number;
+          weekly_hours?: Json | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pickup_locations_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -768,6 +824,13 @@ export type Database = {
           p_lead_minutes?: number;
         };
         Returns: string;
+      };
+      reorder_pickup_locations: {
+        Args: {
+          p_business_id: string;
+          p_ids: string[];
+        };
+        Returns: undefined;
       };
     };
     Enums: {
