@@ -21,6 +21,7 @@ import {
   resolvePickupState,
   SHOP_PICKUP_VALUE,
 } from "../pickup-options";
+import { storefrontPricing } from "../storefront-pricing";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -250,10 +251,72 @@ describe("pickup-options helpers (#386)", () => {
       "15:00–18:00",
     );
   });
+
+  it("computes storefront pricing cleanly and returns ok: false on invalid inputs without fallback totals", () => {
+    expect(
+      storefrontPricing({
+        items: cartItems,
+        serviceType: "pickup",
+        deliveryFee: 250,
+        pickupFee: 150,
+      }),
+    ).toEqual({
+      ok: true,
+      subtotal: 2000,
+      deliveryFee: 0,
+      pickupFee: 150,
+      total: 2150,
+    });
+
+    expect(
+      storefrontPricing({
+        items: cartItems,
+        serviceType: "delivery",
+        deliveryFee: 250,
+        pickupFee: 150,
+      }),
+    ).toEqual({
+      ok: true,
+      subtotal: 2000,
+      deliveryFee: 250,
+      pickupFee: 0,
+      total: 2250,
+    });
+
+    expect(
+      storefrontPricing({
+        items: [{ ...cartItems[0], price: -10 }],
+        serviceType: "pickup",
+      }),
+    ).toMatchObject({ ok: false });
+
+    expect(
+      storefrontPricing({
+        items: [{ ...cartItems[0], quantity: 1.5 }],
+        serviceType: "pickup",
+      }),
+    ).toMatchObject({ ok: false });
+
+    expect(
+      storefrontPricing({
+        items: cartItems,
+        serviceType: "delivery",
+        deliveryFee: -50,
+      }),
+    ).toEqual({ ok: false, reason: "INVALID_DELIVERY_FEE" });
+
+    expect(
+      storefrontPricing({
+        items: cartItems,
+        serviceType: "pickup",
+        pickupFee: Number.NaN,
+      }),
+    ).toEqual({ ok: false, reason: "INVALID_PICKUP_FEE" });
+  });
 });
 
 describe("PickupLocationPicker component (#386)", () => {
-  it("renders a single shop option as preselected and read-only (no radios)", () => {
+  it("renders a single shop option as preselected read-only group with aria-labelledby (no radios)", () => {
     render(
       <PickupLocationPicker
         shopPickupEnabled={true}
@@ -268,12 +331,43 @@ describe("PickupLocationPicker component (#386)", () => {
       />,
     );
 
+    const group = screen.getByRole("group", { name: enDict.pickupLocationSectionTitle });
+    expect(group.getAttribute("data-testid")).toBe("pickup-location-picker");
     const card = screen.getByTestId("pickup-location-readonly");
     expect(card.textContent).toContain(business.name);
     expect(card.textContent).toContain(business.address);
     expect(card.textContent).toContain("Free");
     expect(card.textContent).toContain("09:00–19:00");
     expect(screen.queryByRole("radio")).toBeNull();
+  });
+
+  it("scopes the unavailable notice testid from the picker data-testid", () => {
+    const { rerender } = render(
+      <PickupLocationPicker
+        shopPickupEnabled={false}
+        pickupLocations={[]}
+        businessSchedule={{ weekly: businessWeeklyHours, exceptions: [] }}
+        selectedChoice={null}
+        onSelect={vi.fn()}
+        locale="en"
+        dict={enDict}
+      />,
+    );
+    expect(screen.getByTestId("pickup-location-picker-unavailable")).toBeDefined();
+
+    rerender(
+      <PickupLocationPicker
+        shopPickupEnabled={false}
+        pickupLocations={[]}
+        businessSchedule={{ weekly: businessWeeklyHours, exceptions: [] }}
+        selectedChoice={null}
+        onSelect={vi.fn()}
+        locale="en"
+        dict={enDict}
+        data-testid="custom-picker"
+      />,
+    );
+    expect(screen.getByTestId("custom-picker-unavailable")).toBeDefined();
   });
 
   it("hides shop when shopPickupEnabled is false and renders lone relay read-only", () => {
@@ -385,7 +479,7 @@ describe("PickupLocationPicker component (#386)", () => {
     ).toBe(true);
   });
 
-  it("passes axe-core WCAG 2.2 AA checks in radio group mode", async () => {
+  it("renders min-w-0 on fieldset, wrap-anywhere on long option text, and links inline error via aria-describedby", async () => {
     const { container } = render(
       <main>
         <h1>Checkout</h1>
@@ -395,14 +489,59 @@ describe("PickupLocationPicker component (#386)", () => {
           businessName={business.name}
           businessAddress={business.address}
           businessSchedule={{ weekly: businessWeeklyHours, exceptions: [] }}
-          selectedChoice={RELAY_A_ID}
+          selectedChoice={null}
           onSelect={vi.fn()}
           locale="en"
           dict={enDict}
           showRequiredPrompt
+          error={enDict.orderErrorPickupLocationInvalid}
         />
       </main>,
     );
+
+    const fieldset = screen.getByTestId("pickup-location-picker");
+    expect(fieldset.className).toContain("min-w-0");
+    const alert = within(fieldset).getByTestId("pickup-location-picker-error");
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(alert.textContent).toBe(enDict.orderErrorPickupLocationInvalid);
+    expect(fieldset.getAttribute("aria-describedby")).toBe(alert.id);
+
+    const firstRadio = screen.getByTestId(`pickup-location-radio-${SHOP_PICKUP_VALUE}`);
+    expect(firstRadio.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(screen.getByTestId(`pickup-location-option-${RELAY_A_ID}`).innerHTML).toContain(
+      "wrap-anywhere",
+    );
+
+    const results = await axe.run(container, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
+      rules: { "color-contrast": { enabled: false } },
+    });
+    expect(results.violations).toEqual([]);
+  });
+
+  it("passes axe-core WCAG 2.2 AA checks in read-only single-option group mode with error", async () => {
+    const { container } = render(
+      <main>
+        <h1>Checkout</h1>
+        <PickupLocationPicker
+          shopPickupEnabled={true}
+          pickupLocations={[]}
+          businessName={business.name}
+          businessAddress={business.address}
+          businessSchedule={{ weekly: businessWeeklyHours, exceptions: [] }}
+          selectedChoice={SHOP_PICKUP_VALUE}
+          onSelect={vi.fn()}
+          locale="en"
+          dict={enDict}
+          error={enDict.orderErrorPickupNotAvailable}
+        />
+      </main>,
+    );
+
+    const group = screen.getByRole("group", { name: enDict.pickupLocationSectionTitle });
+    const alert = within(group).getByTestId("pickup-location-picker-error");
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(group.getAttribute("aria-describedby")).toBe(alert.id);
 
     const results = await axe.run(container, {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] },
@@ -487,6 +626,9 @@ describe("Storefront pickup location integration (#386)", () => {
       </ToastProvider>,
     );
 
+    expect(screen.getByTestId("cart-subtotal-value").textContent).toBe("€18.00");
+    expect(screen.getByTestId("cart-tax-value").textContent).toBe("€2.00");
+    expect(screen.getByText(enDict.cartIncludedVat)).toBeDefined();
     expect(screen.getByTestId("cart-fee-row").textContent).toContain("Gare RER B");
     expect(screen.getByTestId("cart-fee-value").textContent).toBe("€1.50");
     expect(screen.getByTestId("cart-order-total").textContent).toBe("€21.50");
@@ -579,7 +721,7 @@ describe("Storefront pickup location integration (#386)", () => {
       </CartProvider>,
     );
 
-    expect(screen.getByTestId("pickup-location-unavailable")).toBeDefined();
+    expect(screen.getByTestId("checkout-pickup-picker-unavailable")).toBeDefined();
     expect((screen.getByTestId("place-order-button") as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByTestId("checkout-blocked-reason").textContent).toBe(
       enDict.orderErrorPickupNotAvailable,
@@ -861,7 +1003,7 @@ describe("Storefront pickup location integration (#386)", () => {
     ["fr", "PICKUP_LOCATION_REQUIRED", frDict.orderErrorPickupLocationRequired],
     ["fr", "PICKUP_NOT_AVAILABLE", frDict.orderErrorPickupNotAvailable],
   ] as const)(
-    "displays localized %s inline server error for %s without exposing raw server text",
+    "displays localized %s inline server error for %s inside the picker without exposing raw server text",
     async (locale, reason, expectedMessage) => {
       vi.spyOn(await import("../storefront-actions"), "placeOrderAction").mockResolvedValue({
         ok: false,
@@ -891,10 +1033,143 @@ describe("Storefront pickup location integration (#386)", () => {
       fillCheckoutContact();
       fireEvent.submit(screen.getByTestId("checkout-form"));
 
-      const alert = await screen.findByTestId("checkout-error-feedback");
+      const picker = screen.getByTestId("checkout-pickup-picker");
+      const alert = await within(picker).findByTestId("checkout-pickup-picker-error");
       expect(alert.getAttribute("role")).toBe("alert");
       expect(alert.textContent).toBe(expectedMessage);
       expect(alert.textContent).not.toContain("RAW_PG_DETAIL");
+      expect(picker.getAttribute("aria-describedby")).toBe(alert.id);
+      expect(screen.queryByTestId("checkout-error-feedback")).toBeNull();
+      await waitFor(() => expect(document.activeElement).toBe(picker));
     },
   );
+
+  it.each(["PICKUP_LOCATION_INVALID", "PICKUP_LOCATION_REQUIRED"] as const)(
+    "clears stored choice, focuses the picker radios, and blocks re-sending a stale relay on %s",
+    async (reason) => {
+      vi.spyOn(await import("../storefront-actions"), "placeOrderAction").mockResolvedValue({
+        ok: false,
+        code: "CONFLICT",
+        reason,
+        message: "stale relay",
+      });
+
+      render(
+        <CartProvider initialItems={cartItems} initialServiceMode="pickup">
+          <CheckoutView
+            business={business}
+            settings={baseSettings}
+            shopPickupEnabled={true}
+            pickupLocations={[{ ...relayA, weeklyHours: null }, relayB]}
+            locale="en"
+            dict={enDict}
+            isOpen
+            isAcceptingOrders
+            nowIso={THU_11_00_PARIS}
+            redirectDelayMs={50}
+          />
+        </CartProvider>,
+      );
+
+      // Select Relay A and submit
+      fireEvent.click(screen.getByTestId(`pickup-location-radio-${RELAY_A_ID}`));
+      expect(localStorage.getItem(PICKUP_LOCATION_STORAGE_KEY)).toBe(RELAY_A_ID);
+      fillCheckoutContact();
+      fireEvent.submit(screen.getByTestId("checkout-form"));
+
+      const picker = screen.getByTestId("checkout-pickup-picker");
+      const alert = await within(picker).findByTestId("checkout-pickup-picker-error");
+      expect(alert.getAttribute("role")).toBe("alert");
+      expect(picker.getAttribute("aria-describedby")).toBe(alert.id);
+      expect(screen.queryByTestId("checkout-error-feedback")).toBeNull();
+
+      // Stored choice cleared so the stale relay cannot be re-sent
+      expect(localStorage.getItem(PICKUP_LOCATION_STORAGE_KEY)).toBeNull();
+      expect((screen.getByTestId("place-order-button") as HTMLButtonElement).disabled).toBe(true);
+
+      // Focus moved to the first radio inside the picker
+      const firstRadio = screen.getByTestId(`pickup-location-radio-${SHOP_PICKUP_VALUE}`);
+      await waitFor(() => expect(document.activeElement).toBe(firstRadio));
+
+      // Picking another location clears the error and re-enables ordering
+      fireEvent.click(firstRadio);
+      expect(screen.queryByTestId("checkout-pickup-picker-error")).toBeNull();
+      expect((screen.getByTestId("place-order-button") as HTMLButtonElement).disabled).toBe(false);
+    },
+  );
+
+  it("formats single paid relay pickup toggle label via localized i18n template in EN and FR", () => {
+    const { rerender } = render(
+      <CartProvider initialItems={cartItems} initialServiceMode="pickup">
+        <CheckoutView
+          business={business}
+          settings={{ ...baseSettings, shopPickupEnabled: false }}
+          shopPickupEnabled={false}
+          pickupLocations={[{ ...relayA, weeklyHours: null }]}
+          locale="en"
+          dict={enDict}
+          isOpen
+          isAcceptingOrders
+          nowIso={THU_11_00_PARIS}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("service-pickup-button").textContent).toContain("Pickup (€1.50)");
+
+    rerender(
+      <CartProvider initialItems={cartItems} initialServiceMode="pickup">
+        <CheckoutView
+          business={business}
+          settings={{ ...baseSettings, shopPickupEnabled: false }}
+          shopPickupEnabled={false}
+          pickupLocations={[{ ...relayA, weeklyHours: null }]}
+          locale="fr"
+          dict={frDict}
+          isOpen
+          isAcceptingOrders
+          nowIso={THU_11_00_PARIS}
+        />
+      </CartProvider>,
+    );
+
+    expect(screen.getByTestId("service-pickup-button").textContent).toMatch(/Retrait \(1,50\s€\)/);
+  });
+
+  it("blocks checkout with a visible reason and logs when storefront pricing fails", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const corruptedItems = [{ ...cartItems[0], price: -100 }];
+
+    render(
+      <CartProvider initialItems={corruptedItems} initialServiceMode="pickup">
+        <CheckoutView
+          business={business}
+          settings={baseSettings}
+          shopPickupEnabled={true}
+          pickupLocations={[]}
+          locale="en"
+          dict={enDict}
+          isOpen
+          isAcceptingOrders
+          nowIso={THU_11_00_PARIS}
+        />
+      </CartProvider>,
+    );
+
+    const alert = screen.getByTestId("checkout-pricing-error");
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(alert.textContent).toBe(enDict.pricingUnavailableError);
+    expect(screen.queryByTestId("checkout-order-total")).toBeNull();
+
+    const submitBtn = screen.getByTestId("place-order-button") as HTMLButtonElement;
+    expect(submitBtn.disabled).toBe(true);
+    expect(submitBtn.textContent).toBe(enDict.placeOrder);
+    expect(screen.getByTestId("checkout-blocked-reason").textContent).toBe(
+      enDict.pricingUnavailableError,
+    );
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(String(errorSpy.mock.calls[0][0])).toContain("storefront_pricing_failed");
+    errorSpy.mockRestore();
+  });
 });
