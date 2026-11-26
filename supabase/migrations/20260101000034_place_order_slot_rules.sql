@@ -10,14 +10,18 @@
 --   in the future). Failures raise `SLOT_INVALID: <reason>` (errcode 22023) with
 --   reason in date_out_of_window | closed_now | closed_day | time_outside_hours |
 --   time_in_past. Manual (manager) orders are unchanged. `p_is_asap` is part of
---   the idempotency payload hash.
+--   the idempotency payload hash; a stored pre-034 hash (computed without
+--   is_asap) still matches a non-ASAP retry, so in-flight retries keep replaying.
 --
 --   The signature changes, so the 13-argument overload is dropped first (no stale
 --   overload). Grants are restated as in 20260101000014.
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
 --   drop function if exists public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean, uuid, boolean);
---   -- re-create place_order from 20260101000032_card_payment_method.sql
+--   -- re-create place_order from 20260101000032_card_payment_method.sql, then restate its
+--   -- revoke/grant for the 13-arg signature:
+--   revoke all on function public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean, uuid) from public;
+--   grant execute on function public.place_order(uuid, text, text, public.order_service_type, public.order_channel, date, jsonb, time, public.order_payment_preference, text, text, boolean, uuid) to anon, authenticated, service_role;
 -- ============================================================================
 
 -- Fail fast instead of queueing behind a long transaction while holding the lock request.
@@ -60,7 +64,9 @@ declare
   v_slot_error text;
   v_is_privileged boolean;
   v_existing record;
+  v_payload jsonb;
   v_payload_hash text;
+  v_legacy_hash text;
   v_max_line numeric;
   v_total_quantity numeric;
   v_phone_key text;
@@ -155,32 +161,27 @@ begin
   if p_idempotency_key is not null then
     perform pg_advisory_xact_lock(hashtext('place_order_idem:' || p_business_id::text || ':' || p_idempotency_key::text));
 
-    v_payload_hash := encode(
-      sha256(
-        convert_to(
-          jsonb_build_object(
-            'items', (
-              select jsonb_agg(jsonb_build_object('product_id', t.product_id, 'quantity', t.quantity) order by t.product_id)
-              from (
-                select
-                  coalesce(elem->>'product_id', elem->>'productId')::uuid as product_id,
-                  sum(coalesce(elem->>'quantity', elem->>'qty')::numeric) as quantity
-                from jsonb_array_elements(p_items) elem
-                group by coalesce(elem->>'product_id', elem->>'productId')::uuid
-              ) t
-            ),
-            'service_type', p_service_type,
-            'requested_date', p_requested_date,
-            'requested_time', coalesce(p_requested_time::text, ''),
-            'payment_preference', p_payment_preference,
-            'is_asap', coalesce(p_is_asap, false),
-            'phone', p_guest_phone
-          )::text,
-          'UTF8'
-        )
+    v_payload := jsonb_build_object(
+      'items', (
+        select jsonb_agg(jsonb_build_object('product_id', t.product_id, 'quantity', t.quantity) order by t.product_id)
+        from (
+          select
+            coalesce(elem->>'product_id', elem->>'productId')::uuid as product_id,
+            sum(coalesce(elem->>'quantity', elem->>'qty')::numeric) as quantity
+          from jsonb_array_elements(p_items) elem
+          group by coalesce(elem->>'product_id', elem->>'productId')::uuid
+        ) t
       ),
-      'hex'
+      'service_type', p_service_type,
+      'requested_date', p_requested_date,
+      'requested_time', coalesce(p_requested_time::text, ''),
+      'payment_preference', p_payment_preference,
+      'is_asap', coalesce(p_is_asap, false),
+      'phone', p_guest_phone
     );
+    v_payload_hash := encode(sha256(convert_to(v_payload::text, 'UTF8')), 'hex');
+    -- Pre-034 orders stored a hash without is_asap; jsonb key order is canonical, so removing the key reproduces it.
+    v_legacy_hash := encode(sha256(convert_to((v_payload - 'is_asap')::text, 'UTF8')), 'hex');
 
     select o.id, o.order_number, o.tracking_token, o.submitted_name, o.total_amount,
            o.idempotency_payload_hash, g.phone as guest_phone
@@ -193,7 +194,9 @@ begin
     if found then
       if v_existing.guest_phone is distinct from p_guest_phone
          or (v_existing.idempotency_payload_hash is not null
-             and v_existing.idempotency_payload_hash <> v_payload_hash) then
+             and v_existing.idempotency_payload_hash <> v_payload_hash
+             and not (v_existing.idempotency_payload_hash = v_legacy_hash
+                      and coalesce(p_is_asap, false) is false)) then
         raise exception 'INVALID_IDEMPOTENCY_KEY: key was already used for a different order' using errcode = '22023';
       end if;
       return jsonb_build_object(

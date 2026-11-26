@@ -10,7 +10,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(63);
+select plan(65);
 
 -- ----------------------------------------------------------------------------
 -- Test Seeds
@@ -1380,7 +1380,48 @@ select throws_like(
   'replaying an idempotency key with a different p_is_asap is rejected'
 );
 
--- Test 63: exactly one place_order overload remains
+-- Test 63: a pre-034 stored hash (computed without is_asap) still replays a non-ASAP retry
+set local role postgres;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'postgres';
+set local "request.jwt.claims" = '{}';
+update public.orders
+set idempotency_payload_hash = encode(sha256(convert_to(
+  jsonb_build_object(
+    'items', jsonb_build_array(jsonb_build_object('product_id', 'da000000-0000-0000-0000-0000000000a1'::uuid, 'quantity', 1::numeric)),
+    'service_type', 'pickup'::public.order_service_type,
+    'requested_date', (now() at time zone 'Europe/Paris')::date,
+    'requested_time', '',
+    'payment_preference', 'on_handover'::public.order_payment_preference,
+    'phone', '+33600000040'
+  )::text, 'UTF8')), 'hex')
+where idempotency_key = '5a5a5a5a-0000-4000-8000-000000000001';
+set local role anon;
+set local "request.jwt.claim.sub" = '';
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+select is(
+  (select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000040',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_idempotency_key := '5a5a5a5a-0000-4000-8000-000000000001') ->> 'replayed'),
+  'true',
+  'a legacy (pre-is_asap) stored hash still replays a non-ASAP retry'
+);
+
+-- Test 64: a legacy stored hash does not replay an ASAP retry
+select throws_like(
+  $$select public.place_order(
+    '10000000-0000-0000-0000-000000000001'::uuid, 'Slot Guest', '+33600000040',
+    'pickup'::public.order_service_type, 'storefront'::public.order_channel,
+    (now() at time zone 'Europe/Paris')::date,
+    '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_idempotency_key := '5a5a5a5a-0000-4000-8000-000000000001', p_is_asap := true)$$,
+  'INVALID_IDEMPOTENCY_KEY%',
+  'a legacy stored hash does not replay an ASAP retry'
+);
+
+-- Test 65: exactly one place_order overload remains
 set local role postgres;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claim.role" = 'postgres';
