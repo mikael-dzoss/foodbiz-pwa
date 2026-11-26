@@ -416,6 +416,7 @@ export const enDictionary: Dictionary = {
     timeInvalidError: "Please enter a valid time (HH:MM)",
     notesTooLongError: "Notes must be 500 characters or fewer",
     fieldInvalidError: "Please check this field",
+    formValidationSummary: "Please fix the highlighted fields",
   },
   quickAdd: {
     title: "Quick Add",

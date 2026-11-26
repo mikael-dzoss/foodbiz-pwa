@@ -298,6 +298,7 @@ export interface StorefrontDictionary {
   timeInvalidError: string;
   notesTooLongError: string;
   fieldInvalidError: string;
+  formValidationSummary: string;
 }
 
 export interface QuickAddDictionary {

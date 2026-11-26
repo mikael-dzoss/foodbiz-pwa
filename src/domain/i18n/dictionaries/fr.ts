@@ -431,6 +431,7 @@ export const frDictionary: Dictionary = {
     timeInvalidError: "Veuillez saisir une heure valide (HH:MM)",
     notesTooLongError: "Les instructions doivent contenir 500 caractères maximum",
     fieldInvalidError: "Veuillez vérifier ce champ",
+    formValidationSummary: "Veuillez corriger les champs signalés",
   },
   quickAdd: {
     title: "Ajout rapide",

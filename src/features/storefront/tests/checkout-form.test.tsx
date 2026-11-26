@@ -3,12 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDictionary } from "@/domain/i18n";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
 import { CheckoutView } from "../components/checkout-view";
-import {
-  CheckoutForm,
-  mapCheckoutIssueToDictKey,
-  resetGuestContactCache,
-} from "../components/checkout-form";
-import { GUEST_CONTACT_STORAGE_KEY } from "@/domain/checkout";
+import { CheckoutForm, resetGuestContactCache } from "../components/checkout-form";
+import { GUEST_CONTACT_STORAGE_KEY, mapCheckoutIssueToDictKey } from "@/domain/checkout";
 import { DEMO_PRODUCT, demoBusiness } from "@/lib/repositories/mock/fixtures";
 import type { BusinessSettings } from "@/domain/business";
 import type { StorefrontBusiness } from "@/domain/storefront-business";
@@ -430,8 +426,18 @@ describe("CheckoutView & CheckoutForm", () => {
     const notesInput = screen.getByTestId("checkout-notes-input");
     fireEvent.change(notesInput, { target: { value: "x".repeat(501) } });
 
+    // Live region is silent before submit
+    const liveSummary = screen.getByTestId("checkout-validation-summary");
+    expect(liveSummary.getAttribute("aria-live")).toBe("polite");
+    expect(liveSummary.className).toContain("sr-only");
+    expect(liveSummary.textContent).toBe("");
+
     fireEvent.click(screen.getByTestId("place-order-button"));
     expect(onSubmitOrder).not.toHaveBeenCalled();
+
+    // Single polite live region announces localized summary without per-field role="alert" double announcements
+    expect(liveSummary.textContent).toBe(dict.formValidationSummary);
+    expect(screen.queryByRole("alert")).toBeNull();
 
     const nameInput = screen.getByTestId("checkout-name-input");
     const phoneInput = screen.getByTestId("checkout-phone-input");
@@ -451,7 +457,7 @@ describe("CheckoutView & CheckoutForm", () => {
       [notesInput, "checkout-notes-field-error", dict.notesTooLongError],
     ] as const) {
       const errorEl = screen.getByTestId(errorTestId);
-      expect(errorEl.getAttribute("role")).toBe("alert");
+      expect(errorEl.getAttribute("role")).toBeNull();
       expect(errorEl.textContent).toBe(expectedText);
       expect(input.getAttribute("aria-invalid")).toBe("true");
       const describedByIds = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
@@ -470,6 +476,12 @@ describe("CheckoutView & CheckoutForm", () => {
     fireEvent.change(phoneInput, { target: { value: "+33612345678" } });
     fireEvent.click(screen.getByTestId("place-order-button"));
     expect(document.activeElement).toBe(addressInput);
+
+    // Fix remaining fields -> live summary clears automatically
+    fireEvent.change(addressInput, { target: { value: "10 Rue de la Paix" } });
+    fireEvent.change(dateInput, { target: { value: "2026-12-01" } });
+    fireEvent.change(notesInput, { target: { value: "Ring bell" } });
+    expect(liveSummary.textContent).toBe("");
   });
 
   it("shows per-field errors only after blur, not while typing before first blur, and clears as soon as valid (#351)", () => {
@@ -519,17 +531,27 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(screen.getByTestId("checkout-name-field-error").textContent).toBe(dict.nameTooLongError);
   });
 
-  it("keeps scheduled date/time inputs outside the radio label so clicking date does not toggle timing (#351)", () => {
+  it("stretches the scheduled radio label across the full card while keeping date/time inputs outside and above it (#351)", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
       </CartProvider>,
     );
 
+    const scheduleCard = screen.getByTestId("timing-scheduled-card");
     const scheduleLabel = screen.getByTestId("timing-scheduled-option");
+    expect(scheduleCard.className).toContain("relative");
+    expect(scheduleLabel.className).toContain("after:absolute");
+    expect(scheduleLabel.className).toContain("after:inset-0");
+
+    // Clicking the card's stretched label selects scheduled mode
     fireEvent.click(scheduleLabel);
 
-    const dateInput = screen.getByTestId("checkout-date-input");
+    const timingInputs = screen.getByTestId("scheduled-timing-inputs");
+    expect(timingInputs.className).toContain("relative");
+    expect(timingInputs.className).toContain("z-10");
+
+    const dateInput = screen.getByTestId("checkout-date-input") as HTMLInputElement;
     const timeInput = screen.getByTestId("checkout-time-input");
 
     // Inputs are siblings after the label, never nested inside the radio label
@@ -537,16 +559,21 @@ describe("CheckoutView & CheckoutForm", () => {
     expect(scheduleLabel.contains(timeInput)).toBe(false);
     expect(scheduleLabel.querySelectorAll("label").length).toBe(0);
 
-    // Clicking the date input keeps scheduled mode open and allows blur validation
+    // Clicking and typing in the date input keeps scheduled mode selected and does not toggle ASAP
     fireEvent.click(dateInput);
+    fireEvent.change(dateInput, { target: { value: "2026-12-01" } });
+    expect(dateInput.value).toBe("2026-12-01");
     expect(screen.getByTestId("scheduled-timing-inputs")).toBeDefined();
+
+    // Clearing and blurring triggers date validation
+    fireEvent.change(dateInput, { target: { value: "" } });
     fireEvent.blur(dateInput);
     expect(screen.getByTestId("checkout-date-field-error").textContent).toBe(
       dict.dateRequiredError,
     );
   });
 
-  it("renders French validation messages with zero English Zod literals when locale is fr (#351)", () => {
+  it("renders French validation messages and polite summary with zero English Zod literals when locale is fr (#351)", () => {
     const frDict = getDictionary("fr").storefront;
 
     render(
@@ -568,6 +595,17 @@ describe("CheckoutView & CheckoutForm", () => {
 
     fireEvent.click(screen.getByTestId("place-order-button"));
 
+    const liveSummary = screen.getByTestId("checkout-validation-summary");
+    expect(liveSummary.textContent).toBe(frDict.formValidationSummary);
+
+    const errorTestIds = [
+      "checkout-name-field-error",
+      "checkout-phone-field-error",
+      "delivery-address-container-error",
+      "checkout-date-field-error",
+      "checkout-notes-field-error",
+    ] as const;
+
     expect(screen.getByTestId("checkout-name-field-error").textContent).toBe(
       frDict.nameRequiredError,
     );
@@ -587,10 +625,10 @@ describe("CheckoutView & CheckoutForm", () => {
       frDict.notesTooLongError,
     );
 
-    const allErrorText = screen
-      .getAllByRole("alert")
-      .map((el) => el.textContent ?? "")
-      .join(" ");
+    const allErrorText = [
+      liveSummary.textContent ?? "",
+      ...errorTestIds.map((id) => screen.getByTestId(id).textContent ?? ""),
+    ].join(" ");
     expect(allErrorText).not.toMatch(/Please|Invalid|Delivery address|Name must be|Notes must be/);
   });
 

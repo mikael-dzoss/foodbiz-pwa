@@ -33,7 +33,10 @@ import type { StorefrontBusiness } from "@/domain/storefront-business";
 import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting";
 import {
+  checkoutFieldIssues,
   checkoutFormSchema,
+  mapCheckoutIssueToDictKey,
+  type CheckoutFieldName,
   type CheckoutFormData,
   type PlaceOrderReason,
   type PlaceOrderSuccessData,
@@ -41,7 +44,7 @@ import {
   guestContactStorageSchema,
   type GuestContactStorage,
 } from "@/domain/checkout";
-import { GUEST_NAME_MAX_LENGTH, GUEST_NAME_MIN_LENGTH, normalizePhoneNumber } from "@/domain/guest";
+import { normalizePhoneNumber } from "@/domain/guest";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -76,64 +79,26 @@ function placeOrderErrorKey(failure: ActionFailure): keyof StorefrontDictionary 
   );
 }
 
-const FIELD_DOM_ORDER = [
+const FOCUSABLE_FIELD_ORDER = [
   "name",
   "phone",
-  "serviceType",
   "deliveryAddress",
   "requestedDate",
   "requestedTime",
-  "paymentPreference",
   "notes",
 ] as const;
 
-type CheckoutFieldName = (typeof FIELD_DOM_ORDER)[number];
+type FocusableCheckoutField = (typeof FOCUSABLE_FIELD_ORDER)[number];
 
-const CHECKOUT_FIELD_SET: ReadonlySet<string> = new Set(FIELD_DOM_ORDER);
-
-function isCheckoutFieldName(value: PropertyKey | undefined): value is CheckoutFieldName {
-  return typeof value === "string" && CHECKOUT_FIELD_SET.has(value);
-}
-
-type CheckoutErrorDictKey =
-  | "nameRequiredError"
-  | "nameTooLongError"
-  | "phoneRequiredError"
-  | "phoneInvalidError"
-  | "addressRequiredError"
-  | "addressTooLongError"
-  | "dateRequiredError"
-  | "dateInvalidError"
-  | "timeInvalidError"
-  | "notesTooLongError"
-  | "fieldInvalidError";
-
-/** Maps a checkout Zod issue to a localized StorefrontDictionary key (never exposing raw English Zod text). */
-export function mapCheckoutIssueToDictKey(
-  issue: { path: ReadonlyArray<PropertyKey>; code: string },
-  rawName: string,
-): CheckoutErrorDictKey {
-  const field = issue.path[0];
-  switch (field) {
-    case "name": {
-      const normalizedLength = [...rawName.trim().replace(/\s+/g, " ").normalize("NFC")].length;
-      if (normalizedLength > GUEST_NAME_MAX_LENGTH) return "nameTooLongError";
-      if (normalizedLength < GUEST_NAME_MIN_LENGTH) return "nameRequiredError";
-      return "fieldInvalidError";
-    }
-    case "phone":
-      return issue.code === "too_small" ? "phoneRequiredError" : "phoneInvalidError";
-    case "deliveryAddress":
-      return issue.code === "too_big" ? "addressTooLongError" : "addressRequiredError";
-    case "requestedDate":
-      return issue.code === "invalid_format" ? "dateInvalidError" : "dateRequiredError";
-    case "requestedTime":
-      return "timeInvalidError";
-    case "notes":
-      return issue.code === "too_big" ? "notesTooLongError" : "fieldInvalidError";
-    default:
-      return "fieldInvalidError";
-  }
+function omitKey(
+  record: Partial<Record<CheckoutFieldName, boolean>>,
+  ...keys: ReadonlyArray<CheckoutFieldName>
+): Partial<Record<CheckoutFieldName, boolean>> {
+  if (!keys.some((key) => record[key])) return record;
+  const omitted = new Set<string>(keys);
+  return Object.fromEntries(Object.entries(record).filter(([key]) => !omitted.has(key))) as Partial<
+    Record<CheckoutFieldName, boolean>
+  >;
 }
 
 const guestContactListeners = new Set<() => void>();
@@ -271,8 +236,9 @@ export function CheckoutForm({
   const [touchedFields, setTouchedFields] = useState<Partial<Record<CheckoutFieldName, boolean>>>(
     {},
   );
+  const [hasInvalidSubmit, setHasInvalidSubmit] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{
-    field: CheckoutFieldName;
+    field: FocusableCheckoutField;
     seq: number;
   } | null>(null);
 
@@ -291,23 +257,12 @@ export function CheckoutForm({
   const handleSelectServiceType = (mode: "pickup" | "delivery") => {
     setCustomServiceType(mode);
     setServiceMode(mode);
-    setTouchedFields((prev) => {
-      if (!prev.deliveryAddress) return prev;
-      const { deliveryAddress: _cleared, ...rest } = prev;
-      void _cleared;
-      return rest;
-    });
+    setTouchedFields((prev) => omitKey(prev, "deliveryAddress"));
   };
 
   const handleSelectTiming = (asap: boolean) => {
     setIsAsap(asap);
-    setTouchedFields((prev) => {
-      if (!prev.requestedDate && !prev.requestedTime) return prev;
-      const { requestedDate: _d, requestedTime: _t, ...rest } = prev;
-      void _d;
-      void _t;
-      return rest;
-    });
+    setTouchedFields((prev) => omitKey(prev, "requestedDate", "requestedTime"));
   };
 
   // Unique IDs for accessibility
@@ -352,48 +307,11 @@ export function CheckoutForm({
       };
     }
 
+    const issuesByField = checkoutFieldIssues(rawForm, result);
     const errors: Partial<Record<CheckoutFieldName, string>> = {};
-    const recordIssues = (
-      issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; code: string }>,
-    ) => {
-      for (const issue of issues) {
-        const rawField = issue.path[0];
-        if (isCheckoutFieldName(rawField) && !errors[rawField]) {
-          errors[rawField] = dict[mapCheckoutIssueToDictKey(issue, name)];
-        }
-      }
-    };
-
-    recordIssues(result.error.issues);
-
-    // Zod skips object-level superRefine whenever any base field fails.
-    // Re-run conditional rules against the same schema so deliveryAddress and
-    // requestedDate still report errors independently on blur or submit.
-    if (serviceType === "delivery" && !errors.deliveryAddress) {
-      const deliveryCheck = checkoutFormSchema.safeParse({
-        name: "Placeholder",
-        phone: "+33612345678",
-        serviceType: "delivery",
-        deliveryAddress,
-        isAsap: true,
-        paymentPreference: "on_handover",
-      });
-      if (!deliveryCheck.success) {
-        recordIssues(deliveryCheck.error.issues);
-      }
-    }
-
-    if (!isAsap && !errors.requestedDate) {
-      const scheduleCheck = checkoutFormSchema.safeParse({
-        name: "Placeholder",
-        phone: "+33612345678",
-        serviceType: "pickup",
-        isAsap: false,
-        requestedDate: requestedDate || undefined,
-        paymentPreference: "on_handover",
-      });
-      if (!scheduleCheck.success) {
-        recordIssues(scheduleCheck.error.issues);
+    for (const [field, issue] of Object.entries(issuesByField)) {
+      if (issue) {
+        errors[field as CheckoutFieldName] = dict[mapCheckoutIssueToDictKey(issue, name)];
       }
     }
 
@@ -424,7 +342,7 @@ export function CheckoutForm({
 
   useEffect(() => {
     if (!focusRequest) return;
-    const refMap: Partial<Record<CheckoutFieldName, HTMLElement | null>> = {
+    const refMap: Record<FocusableCheckoutField, HTMLElement | null> = {
       name: nameInputRef.current,
       phone: phoneInputRef.current,
       deliveryAddress: addressInputRef.current,
@@ -532,6 +450,7 @@ export function CheckoutForm({
     if (!validationResult.success) {
       event.preventDefault();
       setErrorFeedback(null);
+      setHasInvalidSubmit(true);
 
       const activeFields: CheckoutFieldName[] = [
         "name",
@@ -555,7 +474,7 @@ export function CheckoutForm({
         return next;
       });
 
-      const firstInvalidField = FIELD_DOM_ORDER.find((field) => Boolean(fieldErrors[field]));
+      const firstInvalidField = FOCUSABLE_FIELD_ORDER.find((field) => Boolean(fieldErrors[field]));
       if (firstInvalidField) {
         if (firstInvalidField === "name" && isNameLocked) {
           setIsUnlocked(true);
@@ -565,7 +484,10 @@ export function CheckoutForm({
           seq: (prev?.seq ?? 0) + 1,
         }));
       }
+      return;
     }
+
+    setHasInvalidSubmit(false);
   };
 
   // Confirmation view displayed upon order submission announcing redirection
@@ -620,6 +542,15 @@ export function CheckoutForm({
       data-testid="checkout-form"
       noValidate
     >
+      {/* Single polite live region for invalid submit summary (avoids double announcements with focused aria-describedby) */}
+      <p
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="checkout-validation-summary"
+      >
+        {hasInvalidSubmit && !validationResult.success ? dict.formValidationSummary : ""}
+      </p>
       {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
       <div
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
@@ -677,6 +608,7 @@ export function CheckoutForm({
             label={dict.fullName}
             required
             error={visibleErrors.name}
+            announceError={false}
             data-testid="checkout-name-field"
           >
             {(control) => (
@@ -721,6 +653,7 @@ export function CheckoutForm({
           label={dict.phone}
           required
           error={visibleErrors.phone}
+          announceError={false}
           data-testid="checkout-phone-field"
           hint={
             <span className="flex items-center gap-1.5">
@@ -807,7 +740,6 @@ export function CheckoutForm({
 
         {visibleErrors.serviceType && (
           <p
-            role="alert"
             data-testid="checkout-service-type-error"
             className="text-body-sm text-destructive flex items-start gap-1.5"
           >
@@ -842,6 +774,7 @@ export function CheckoutForm({
             label={dict.deliveryAddress}
             required
             error={visibleErrors.deliveryAddress}
+            announceError={false}
             data-testid="delivery-address-container"
           >
             <Input
@@ -906,7 +839,8 @@ export function CheckoutForm({
 
           {/* Schedule Later Option */}
           <div
-            className={`rounded-xl border p-3.5 transition-all ${
+            data-testid="timing-scheduled-card"
+            className={`relative rounded-xl border p-3.5 transition-all ${
               !isAsap
                 ? "border-primary bg-primary/5 text-foreground ring-primary ring-1"
                 : "border-border bg-card text-muted-foreground hover:border-border/80"
@@ -914,7 +848,7 @@ export function CheckoutForm({
           >
             <label
               data-testid="timing-scheduled-option"
-              className="flex cursor-pointer items-start gap-3"
+              className="flex cursor-pointer items-start gap-3 after:absolute after:inset-0"
             >
               <div className="pt-0.5">
                 <span
@@ -941,13 +875,14 @@ export function CheckoutForm({
             {!isAsap && (
               <div
                 data-testid="scheduled-timing-inputs"
-                className="grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2 sm:pl-7"
+                className="relative z-10 grid grid-cols-1 gap-2.5 pt-2.5 sm:grid-cols-2 sm:pl-7"
               >
                 <Field
                   id={dateId}
                   label={dict.scheduledDate}
                   required
                   error={visibleErrors.requestedDate}
+                  announceError={false}
                   className="min-w-0"
                   data-testid="checkout-date-field"
                 >
@@ -968,6 +903,7 @@ export function CheckoutForm({
                   id={timeId}
                   label={dict.scheduledTime}
                   error={visibleErrors.requestedTime}
+                  announceError={false}
                   className="min-w-0"
                   data-testid="checkout-time-field"
                 >
@@ -1151,7 +1087,6 @@ export function CheckoutForm({
         </div>
         {visibleErrors.paymentPreference && (
           <p
-            role="alert"
             data-testid="checkout-payment-preference-error"
             className="text-body-sm text-destructive flex items-start gap-1.5"
           >
@@ -1162,16 +1097,16 @@ export function CheckoutForm({
       </section>
 
       {/* 5. Notes */}
-      <section className="border-border bg-card rounded-xl border p-4 shadow-2xs sm:p-5">
+      <section className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-2xs sm:p-5">
+        <h2 className="text-title-sm text-foreground flex items-center gap-1.5">
+          <span className="text-primary font-bold">5.</span>
+          {dict.orderNotes}
+        </h2>
         <Field
           id={notesId}
-          label={
-            <span className="text-title-sm text-foreground flex items-center gap-1.5">
-              <span className="text-primary font-bold">5.</span>
-              {dict.orderNotes}
-            </span>
-          }
+          label={dict.addKitchenNote}
           error={visibleErrors.notes}
+          announceError={false}
           data-testid="checkout-notes-field"
         >
           <Textarea
