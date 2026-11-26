@@ -209,6 +209,8 @@ describe("Business schemas", () => {
       paymentMethods: { cash: true, revolut: true, wero: true },
     });
     expect(missingCard.success).toBe(false);
+  });
+
   it("validates BusinessSettings weeklyHours (valid, null, and rejects invalid)", () => {
     const validHours = {
       mon: [],
