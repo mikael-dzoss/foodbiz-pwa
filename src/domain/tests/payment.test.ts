@@ -60,21 +60,35 @@ describe("Payment model and rules", () => {
   });
 
   describe("paymentMethodSchema", () => {
-    it("accepts cash, revolut, wero", () => {
+    it("accepts cash, card, revolut, wero", () => {
       expect(paymentMethodSchema.safeParse("cash").success).toBe(true);
+      expect(paymentMethodSchema.safeParse("card").success).toBe(true);
       expect(paymentMethodSchema.safeParse("revolut").success).toBe(true);
       expect(paymentMethodSchema.safeParse("wero").success).toBe(true);
     });
 
     it("rejects unsupported methods", () => {
       expect(paymentMethodSchema.safeParse("on_handover").success).toBe(false);
-      expect(paymentMethodSchema.safeParse("card").success).toBe(false);
       expect(paymentMethodSchema.safeParse("crypto").success).toBe(false);
       expect(paymentMethodSchema.safeParse("").success).toBe(false);
     });
   });
 
   describe("markOrderPaid", () => {
+    it("marks order as paid with card method", () => {
+      const order = createMockOrder({ paid: "unpaid" });
+      const result = markOrderPaid(order, {
+        paymentMethod: "card",
+        paidAt: "2026-10-09T14:30:00.000Z",
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.order.paid).toBe("paid");
+        expect(result.order.paymentMethod).toBe("card");
+      }
+    });
+
     it("marks order as paid with provided method and timestamp", () => {
       const order = createMockOrder({ paid: "unpaid" });
       const result = markOrderPaid(order, {

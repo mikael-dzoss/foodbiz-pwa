@@ -5,6 +5,7 @@ import {
   businessSchema,
   updateBusinessProfileSchema,
   businessSettingsSchema,
+  updatePaymentSettingsSchema,
   expenseSchema,
   guestSchema,
   orderItemSchema,
@@ -168,6 +169,39 @@ describe("Business schemas", () => {
       lowStockThreshold: -1,
     };
     expect(businessSettingsSchema.safeParse(invalid).success).toBe(false);
+  });
+
+  it("defaults paymentMethods.card to false when omitted in BusinessSettings", () => {
+    const parsed = businessSettingsSchema.parse({
+      businessId: validUuid,
+      paymentMethods: { cash: true, revolut: true, wero: false },
+    });
+    expect(parsed.paymentMethods).toEqual({
+      cash: true,
+      card: false,
+      revolut: true,
+      wero: false,
+    });
+  });
+
+  it("accepts card-only in updatePaymentSettingsSchema and rejects all methods disabled", () => {
+    const cardOnly = updatePaymentSettingsSchema.safeParse({
+      paymentMethods: { cash: false, card: true, revolut: false, wero: false },
+    });
+    expect(cardOnly.success).toBe(true);
+    if (cardOnly.success) {
+      expect(cardOnly.data.paymentMethods).toEqual({
+        cash: false,
+        card: true,
+        revolut: false,
+        wero: false,
+      });
+    }
+
+    const noneEnabled = updatePaymentSettingsSchema.safeParse({
+      paymentMethods: { cash: false, card: false, revolut: false, wero: false },
+    });
+    expect(noneEnabled.success).toBe(false);
   });
 });
 

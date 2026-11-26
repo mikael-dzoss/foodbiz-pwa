@@ -57,6 +57,7 @@ export interface DemoCatalogSettings {
   readonly weroIdentifier: string;
   readonly paymentMethods: {
     readonly cash: boolean;
+    readonly card: boolean;
     readonly revolut: boolean;
     readonly wero: boolean;
   };
@@ -153,6 +154,7 @@ export const DEMO_CATALOG_SETTINGS: DemoCatalogSettings = {
   weroIdentifier: "+33639980001",
   paymentMethods: {
     cash: true,
+    card: false,
     revolut: true,
     wero: true,
   },

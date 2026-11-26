@@ -125,7 +125,7 @@ begin
     'Europe/Paris',
     '@saveurscontinent',
     '+33639980001',
-    '{"cash":true,"revolut":true,"wero":true}'::jsonb,
+    '{"cash":true,"card":false,"revolut":true,"wero":true}'::jsonb,
     'Pay with Revolut or Wero when you order, or in cash at pickup or delivery. Questions? Message us on WhatsApp.',
     'Payez par Revolut ou Wero à la commande, ou en espèces au retrait ou à la livraison. Une question ? Écrivez-nous sur WhatsApp.',
     true,

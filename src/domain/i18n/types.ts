@@ -299,6 +299,11 @@ export interface StorefrontDictionary {
   notesTooLongError: string;
   fieldInvalidError: string;
   formValidationSummary: string;
+  // Handover payment option variants (#377)
+  payOnHandoverCash: string;
+  payOnHandoverCashSubtext: string;
+  payOnHandoverCard: string;
+  payOnHandoverCardSubtext: string;
 }
 
 export interface QuickAddDictionary {
@@ -548,6 +553,9 @@ export interface SettingsDictionary {
     saveSuccess: string;
     discardButton: string;
     atLeastOneMethodError: string;
+    // Card on handover toggle (#377)
+    cardLabel: string;
+    cardDesc: string;
   };
   inventoryFinance: {
     title: string;

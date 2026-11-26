@@ -253,7 +253,7 @@ const en: OrdersDictionary = {
     CANCELLED: "Cancelled",
   },
   payment: { paid: "Paid", unpaid: "Unpaid", refunded: "Refunded", refundDue: "Refund Due" },
-  paymentMethods: { cash: "Cash", revolut: "Revolut", wero: "Wero" },
+  paymentMethods: { cash: "Cash", card: "Card", revolut: "Revolut", wero: "Wero" },
   paymentPreferences: { revolut: "Revolut", wero: "Wero", on_handover: "On handover" },
   channels: {
     storefront: "Storefront",
@@ -500,7 +500,7 @@ const fr: OrdersDictionary = {
     CANCELLED: "Annulée",
   },
   payment: { paid: "Payée", unpaid: "Impayée", refunded: "Remboursée", refundDue: "À rembourser" },
-  paymentMethods: { cash: "Espèces", revolut: "Revolut", wero: "Wero" },
+  paymentMethods: { cash: "Espèces", card: "Carte", revolut: "Revolut", wero: "Wero" },
   paymentPreferences: { revolut: "Revolut", wero: "Wero", on_handover: "À la remise" },
   channels: {
     storefront: "Boutique en ligne",

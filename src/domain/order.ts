@@ -41,7 +41,7 @@ export type Channel = z.infer<typeof channelSchema>;
 export const paymentPreferenceSchema = z.enum(["revolut", "wero", "on_handover"]);
 export type PaymentPreference = z.infer<typeof paymentPreferenceSchema>;
 
-export const paymentMethodSchema = z.enum(["cash", "revolut", "wero"]);
+export const paymentMethodSchema = z.enum(["cash", "card", "revolut", "wero"]);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 export const orderStatusEventSchema = z.object({

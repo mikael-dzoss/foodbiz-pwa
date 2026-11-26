@@ -332,6 +332,20 @@ export function createMockRepositories(
           );
         }
 
+        const pref = input.paymentPreference ?? "on_handover";
+        const pm = settings?.paymentMethods;
+        if (pm) {
+          const allowed =
+            pref === "on_handover"
+              ? (pm.cash ?? true) || (pm.card ?? false)
+              : pref === "revolut"
+                ? (pm.revolut ?? true)
+                : (pm.wero ?? true);
+          if (!allowed) {
+            throw new OrderRepoError("Please check your order details.", "INVALID_INPUT");
+          }
+        }
+
         // Same caps as place_order (MAX_* in src/domain/anti-abuse.ts), on per-product totals.
         const perProduct = new Map<string, number>();
         for (const item of input.items) {

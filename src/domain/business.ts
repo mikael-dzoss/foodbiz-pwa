@@ -131,10 +131,11 @@ export const businessSettingsSchema = z.object({
   paymentMethods: z
     .object({
       cash: z.boolean().default(true),
+      card: z.boolean().default(false),
       revolut: z.boolean().default(true),
       wero: z.boolean().default(true),
     })
-    .default({ cash: true, revolut: true, wero: true }),
+    .default({ cash: true, card: false, revolut: true, wero: true }),
   paymentInstructionsEn: z.string().trim().max(1000).optional().default(""),
   paymentInstructionsFr: z.string().trim().max(1000).optional().default(""),
 
@@ -183,6 +184,7 @@ export const updatePaymentSettingsSchema = z
     weroIdentifier: z.string().trim().optional().default(""),
     paymentMethods: z.object({
       cash: z.boolean(),
+      card: z.boolean().default(false),
       revolut: z.boolean(),
       wero: z.boolean(),
     }),
@@ -190,7 +192,11 @@ export const updatePaymentSettingsSchema = z
     paymentInstructionsFr: z.string().trim().max(1000).optional().default(""),
   })
   .refine(
-    (data) => data.paymentMethods.cash || data.paymentMethods.revolut || data.paymentMethods.wero,
+    (data) =>
+      data.paymentMethods.cash ||
+      data.paymentMethods.card ||
+      data.paymentMethods.revolut ||
+      data.paymentMethods.wero,
     {
       error: "At least one payment option must be enabled",
       path: ["paymentMethods"],
