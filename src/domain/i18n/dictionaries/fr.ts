@@ -1,4 +1,5 @@
 import type { Dictionary } from "../types";
+import { installGuideCopy } from "../areas/install-guide";
 import { managerFr } from "./manager-fr";
 
 export const frDictionary: Dictionary = {
@@ -220,10 +221,6 @@ export const frDictionary: Dictionary = {
     installAppTitle: "Installer l'application",
     installAppSubtitle: "Commandez plus vite depuis votre écran d'accueil",
     installAppButton: "Installer",
-    installIosTitle: "Ajouter à l'écran d'accueil",
-    installIosStep1: "Touchez le bouton Partager dans la barre de Safari.",
-    installIosStep2: "Faites défiler et choisissez « Sur l'écran d'accueil ».",
-    installIosStep3: "Touchez « Ajouter » pour confirmer.",
     installAppDone: "Application installée",
     footerShopInformation: "Informations boutique",
     footerContactUs: "Nous contacter",
@@ -598,10 +595,9 @@ export const frDictionary: Dictionary = {
       soundAlertsLabel: "Signal sonore de commande",
       soundAlertsDesc: "Émettre un son distinctif lorsqu'une commande est passée",
       appSection: "Application et PWA",
-      installAppTitle: "FoodBiz Manager PWA",
+      installAppTitle: "FoodBiz Manager",
       installAppDesc: "Installer le tableau de bord sur votre écran d'accueil",
       installAppButton: "Installer l'application",
-      installedBadge: "Installée",
       aboutLinkText: "À propos et support",
       soonSection: "Fonctionnalités à venir",
       saveButton: "Enregistrer l'application",
@@ -738,4 +734,5 @@ export const frDictionary: Dictionary = {
       auth_failed: "Impossible de finaliser la connexion. Veuillez réessayer.",
     },
   },
+  installGuide: installGuideCopy.fr,
 };

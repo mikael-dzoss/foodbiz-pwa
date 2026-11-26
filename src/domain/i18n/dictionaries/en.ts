@@ -1,4 +1,5 @@
 import type { Dictionary } from "../types";
+import { installGuideCopy } from "../areas/install-guide";
 import { managerEn } from "./manager-en";
 
 export const enDictionary: Dictionary = {
@@ -211,10 +212,6 @@ export const enDictionary: Dictionary = {
     installAppTitle: "Install the app",
     installAppSubtitle: "Order faster from your home screen",
     installAppButton: "Install",
-    installIosTitle: "Add to Home Screen",
-    installIosStep1: "Tap the Share button in Safari's toolbar.",
-    installIosStep2: "Scroll and choose “Add to Home Screen”.",
-    installIosStep3: "Tap “Add” to confirm.",
     installAppDone: "App installed",
     footerShopInformation: "Shop information",
     footerContactUs: "Contact us",
@@ -584,10 +581,9 @@ export const enDictionary: Dictionary = {
       soundAlertsLabel: "Audio Chime on Orders",
       soundAlertsDesc: "Play an audible sound chime when a customer places an order",
       appSection: "Application & PWA",
-      installAppTitle: "FoodBiz Manager PWA",
+      installAppTitle: "FoodBiz Manager",
       installAppDesc: "Install this dashboard to your home screen for rapid offline-ready access",
-      installAppButton: "Install App",
-      installedBadge: "Installed",
+      installAppButton: "Install app",
       aboutLinkText: "About & Support Details",
       soonSection: "Upcoming Capabilities",
       saveButton: "Save App Settings",
@@ -723,4 +719,5 @@ export const enDictionary: Dictionary = {
       auth_failed: "Unable to complete sign-in. Please try again.",
     },
   },
+  installGuide: installGuideCopy.en,
 };
