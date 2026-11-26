@@ -95,6 +95,9 @@ test("manager adds a relay pickup location and sees it listed", async ({ page })
   await page.getByTestId("pickup-location-postcode").fill("75011");
   await page.getByTestId("pickup-location-fee").fill("2.50");
   await page.getByTestId("pickup-location-save").click();
+  // After create the sheet stays open in edit mode so hours can be set next.
+  await expect(page.getByTestId("pickup-location-edit-hours")).toBeVisible();
+  await page.getByTestId("pickup-location-cancel").click();
   await expect(page.getByTestId("pickup-location-sheet")).not.toBeVisible();
   const list = page.getByTestId("pickup-locations-list");
   await expect(list).toContainText(name);

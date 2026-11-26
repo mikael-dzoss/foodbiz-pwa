@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { requireManagerSession } from "@/lib/auth";
 import { getDictionary } from "@/domain/i18n";
 import { HoursExceptionsSettings } from "@/features/settings/components/hours-exceptions-settings";
@@ -14,6 +15,8 @@ export default async function HoursExceptionsPage() {
   await requireManagerSession();
   const locale = await getManagerLocale();
   const settings = await getBusinessSettings();
+  // Request-time: the overview compares against "now" (upcoming exceptions).
+  await connection();
 
   return (
     <HoursExceptionsSettings
