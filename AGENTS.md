@@ -10,13 +10,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # FoodBiz PWA — Agent Contract
 
-Next.js 16.4 App Router PWA (customer storefront + installable manager dashboard) on Supabase, TypeScript strict, Tailwind v4, zod v4, Vitest, Vercel. Details: [architecture.md#stack](docs/architecture.md#stack).
+Next.js 16.4 App Router PWA (installable customer storefront + installable manager dashboard) on Supabase, TypeScript strict, Tailwind v4, zod v4, Vitest, Vercel. Details: [architecture.md#stack](docs/architecture.md#stack).
 
 ## Project Layout
 
 ```text
 /src
-├── app/          → Routes, layouts, manifest.ts, globals.css (theme tokens)
+├── app/          → Routes, layouts, manifests ([locale]/manifest.webmanifest, manage/manifest.webmanifest), globals.css (theme tokens)
 ├── proxy.ts      → Request proxy (session refresh via lib/supabase/proxy)
 ├── config/       → Env parsing (zod) and app metadata
 ├── lib/repositories/ → Mock and Supabase adapters behind `domain/repositories` interfaces

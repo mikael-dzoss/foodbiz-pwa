@@ -1,6 +1,6 @@
 # Architecture
 
-One Next.js codebase serves two audiences: the **customer storefront** (public, server-rendered, EN/FR, under `src/app/[locale]`) and the **manager dashboard** (installable PWA, behind Google sign-in, under `src/app/manage`). Data lives in Supabase. Nothing is deployed yet: see [`DEPLOYMENT.md`](DEPLOYMENT.md).
+One Next.js codebase serves two installable PWA audiences: the **customer storefront** (public, server-rendered, EN/FR, under `src/app/[locale]`) and the **manager dashboard** (behind Google sign-in, under `src/app/manage`). Data lives in Supabase. Nothing is deployed yet: see [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 ## Stack
 
@@ -22,16 +22,16 @@ Versions come from [`package.json`](../package.json).
 
 Dependencies point one way: `domain` ← `lib/repositories` ← `features` ← `app`.
 
-| Folder            | Holds                                                                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/domain/`     | zod schemas and types, pure logic (pricing, KPIs, order lifecycle, anti-abuse limits), i18n dictionaries, repository interfaces               |
-| `src/config/`     | Env parsing (`env.ts`) and app metadata                                                                                                       |
-| `src/lib/`        | `repositories/` (mock and Supabase adapters), `supabase/` (clients, storage, realtime), `auth/` (session, access), rate limiter               |
-| `src/features/`   | One folder per feature (storefront, orders, products, expenses, customers, dashboard, settings, auth, manager): Server Actions and components |
-| `src/components/` | Shared UI primitives (`ui/`), feedback, navigation, theme, icons                                                                              |
-| `src/app/`        | Routes, layouts, `manifest.ts`, `globals.css`; thin, they compose features                                                                    |
-| `src/proxy.ts`    | Request proxy (Next.js 16 name for middleware): session refresh                                                                               |
-| `supabase/`       | Migrations, pgTAP tests (`supabase/tests/`), `seed.sql`, `config.toml`                                                                        |
+| Folder            | Holds                                                                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/domain/`     | zod schemas and types, pure logic (pricing, KPIs, order lifecycle, anti-abuse limits), i18n dictionaries, repository interfaces                 |
+| `src/config/`     | Env parsing (`env.ts`) and app metadata                                                                                                         |
+| `src/lib/`        | `repositories/` (mock and Supabase adapters), `supabase/` (clients, storage, realtime), `auth/` (session, access), rate limiter                 |
+| `src/features/`   | One folder per feature (storefront, orders, products, expenses, customers, dashboard, settings, auth, manager): Server Actions and components   |
+| `src/components/` | Shared UI primitives (`ui/`), feedback, navigation, theme, icons                                                                                |
+| `src/app/`        | Routes, layouts, web app manifests (`[locale]/manifest.webmanifest`, `manage/manifest.webmanifest`), `globals.css`; thin, they compose features |
+| `src/proxy.ts`    | Request proxy (Next.js 16 name for middleware): session refresh                                                                                 |
+| `supabase/`       | Migrations, pgTAP tests (`supabase/tests/`), `seed.sql`, `config.toml`                                                                          |
 
 `domain/` imports no React, Next or Supabase. Rules per layer: [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](../.agents/rules/).
 
@@ -124,7 +124,12 @@ Which tiers a change needs, and the CI cost, are in [`CONTRIBUTING.md`](CONTRIBU
 
 ## PWA
 
-`src/app/manifest.ts` serves the manifest (standalone, portrait, SVG icon `public/icons/icon.svg`). The root layout sets Apple web app metadata and the theme colour. `use-pwa-install.ts` and `install-app-card.tsx` provide an install prompt. There is no service worker.
+Both the customer storefront and the manager dashboard are installable as separate PWAs with distinct manifests served by route handlers (Next.js only treats `manifest.*` as a metadata file at the app root):
+
+- **Storefront** (`src/app/[locale]/manifest.webmanifest/route.ts`): `id: "/"`, `scope: "/"`, `start_url: "/{locale}"`, shop name and description from cached `getStorefrontCatalog()`, linked via `metadata.manifest` in `src/app/[locale]/layout.tsx`.
+- **Manager** (`src/app/manage/manifest.webmanifest/route.ts`): `id: "/manage"`, `scope: "/manage/"`, `start_url: "/manage"`, `"FoodBiz Manager"`, linked via `metadata.manifest` in `src/app/manage/layout.tsx`.
+
+Both reuse the shared colours and icons (`public/icons/`: 192/512 PNG, maskable 512 PNG, SVG) from `src/config/app.ts`, and each section layout sets its own `applicationName` and `appleWebApp.title`. `src/proxy.ts` excludes `*.webmanifest` so browsers can fetch either manifest without auth cookies. `use-pwa-install.ts` and `install-app-card.tsx` provide an install prompt. There is no service worker.
 
 ## Data model
 

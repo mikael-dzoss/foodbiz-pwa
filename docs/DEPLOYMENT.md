@@ -355,3 +355,7 @@ Promotions are PRs (never direct pushes) opened and merged by maintainers; hotfi
 
 1. Run **Actions → Promote → staging**, merge the PR with a **merge commit** (not squash) once CI is green, and qualify on staging.
 2. Run **Actions → Promote → main**, merge, and tag the release (`git tag -a vX.Y.Z`, semantic versioning).
+
+### Upgrade notes
+
+- **Split PWA manifests (#349):** Storefront home-screen icons installed before this fix carry the manager manifest `id` (`/manage`) and will keep opening `/manage`; remove the old icon and re-add the storefront from the browser. Existing manager installs keep `id: "/manage"` and update in place.
