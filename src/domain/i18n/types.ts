@@ -602,7 +602,6 @@ export interface OrderConfirmationDictionary {
   awaiting: string;
   receivedHelp: string;
   paymentTitle: string;
-  handover: string;
   revtag: string;
   weroIdentifier: string;
   amount: string;

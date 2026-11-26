@@ -606,7 +606,6 @@ export const enDictionary: Dictionary = {
     awaiting: "Awaiting kitchen confirmation",
     receivedHelp: "The kitchen will review your order and confirm availability.",
     paymentTitle: "Payment instructions",
-    handover: "Pay at pickup/delivery: cash, Revolut or Wero.",
     revtag: "Revolut revtag",
     weroIdentifier: "Wero identifier",
     amount: "Amount to send",

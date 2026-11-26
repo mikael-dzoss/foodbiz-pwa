@@ -196,7 +196,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
   for (const value of privateValues) expect(confirmationHTML).not.toContain(value);
   await expect(page.getByTestId("confirmation-delivery-address")).toContainText(deliveryAddress);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
-  await expect(page.getByTestId("confirmation-payment")).toContainText("cash, Revolut or Wero");
+  await expect(page.getByTestId("confirmation-payment")).toContainText("Pay in cash at pickup or delivery");
   await expect(page.getByTestId("confirmation-payment")).toContainText("Unpaid");
   // Once hydrated and idle the confirmation must have stayed put (no redirect away).
   await page.waitForLoadState("networkidle");

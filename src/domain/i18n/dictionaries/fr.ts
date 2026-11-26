@@ -620,7 +620,6 @@ export const frDictionary: Dictionary = {
     awaiting: "En attente de confirmation par la cuisine",
     receivedHelp: "La cuisine va examiner votre commande et confirmer la disponibilité.",
     paymentTitle: "Instructions de paiement",
-    handover: "Payez au retrait ou à la livraison : espèces, Revolut ou Wero.",
     revtag: "Revtag Revolut",
     weroIdentifier: "Identifiant Wero",
     amount: "Montant à envoyer",
