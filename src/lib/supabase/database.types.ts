@@ -125,6 +125,7 @@ export type Database = {
           updated_at: string;
           timezone: string;
           weekly_hours: Json | null;
+          hours_exceptions: Json;
         };
         Insert: {
           id?: string;
@@ -154,6 +155,7 @@ export type Database = {
           updated_at?: string;
           timezone?: string;
           weekly_hours?: Json | null;
+          hours_exceptions?: Json;
         };
         Update: {
           id?: string;
@@ -183,6 +185,7 @@ export type Database = {
           updated_at?: string;
           timezone?: string;
           weekly_hours?: Json | null;
+          hours_exceptions?: Json;
         };
         Relationships: [
           {
@@ -735,9 +738,16 @@ export type Database = {
         };
         Returns: boolean;
       };
+      valid_hours_exceptions: {
+        Args: {
+          p: Json;
+        };
+        Returns: boolean;
+      };
       is_open_at: {
         Args: {
           p_hours: Json;
+          p_exceptions: Json;
           p_tz: string;
           p_at: string;
         };
@@ -746,6 +756,7 @@ export type Database = {
       slot_error: {
         Args: {
           p_hours: Json;
+          p_exceptions: Json;
           p_tz: string;
           p_now: string;
           p_date: string;

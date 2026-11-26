@@ -1,8 +1,9 @@
 -- ============================================================================
--- Test Suite: opening_hours.test.sql (#372)
--- Description: pgTAP tests for business_settings.weekly_hours, the IMMUTABLE
---              validator valid_weekly_hours, STABLE helpers is_open_at and
---              slot_error, anon storefront column grant, RLS isolation, and
+-- Test Suite: opening_hours.test.sql (#372, #375)
+-- Description: pgTAP tests for business_settings.weekly_hours and
+--              hours_exceptions, IMMUTABLE validators valid_weekly_hours and
+--              valid_hours_exceptions, STABLE helpers is_open_at and
+--              slot_error, anon storefront column grants, RLS isolation, and
 --              function execute privileges.
 -- Does not re-grant privileges (the migrations' privileges are under test).
 -- ============================================================================
@@ -11,7 +12,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(72);
+select plan(112);
 
 -- ----------------------------------------------------------------------------
 -- Seeds (run as migration/table owner)
@@ -195,12 +196,143 @@ select is(
 );
 
 -- ----------------------------------------------------------------------------
--- Section 2: Column CHECK, RLS, and privilege checks (Tests 22-33)
+-- Section 2: valid_hours_exceptions(jsonb) (Tests 22-41)
+-- ----------------------------------------------------------------------------
+select is(public.valid_hours_exceptions('[]'::jsonb), true, 'valid_hours_exceptions accepts empty array');
+
+select is(
+  public.valid_hours_exceptions('[
+    {"from": "2026-07-30", "to": "2026-08-03", "ranges": [], "note": "Congés annuels"},
+    {"from": "2026-08-04", "to": "2026-08-04", "ranges": [{"open": "10:00", "close": "14:00"}, {"open": "18:00", "close": "24:00"}]}
+  ]'::jsonb),
+  true,
+  'valid_hours_exceptions accepts adjacent holiday + special hours with 24:00 close and note'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-08-01", "to": "2026-09-29", "ranges": []}]'::jsonb),
+  true,
+  'valid_hours_exceptions accepts exact 60-day inclusive span (Aug 1 to Sep 29)'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2024-02-29", "to": "2024-02-29", "ranges": []}]'::jsonb),
+  true,
+  'valid_hours_exceptions accepts leap day 2024-02-29'
+);
+
+select is(
+  public.valid_hours_exceptions(jsonb_build_array(jsonb_build_object('from', '2026-08-01', 'to', '2026-08-01', 'ranges', '[]'::jsonb, 'note', repeat('a', 50)))),
+  true,
+  'valid_hours_exceptions accepts note of exact length 50'
+);
+
+select is(
+  public.valid_hours_exceptions('[
+    {"from": "2026-08-10", "to": "2026-08-12", "ranges": []},
+    {"from": "2026-08-01", "to": "2026-08-05", "ranges": []}
+  ]'::jsonb),
+  true,
+  'valid_hours_exceptions accepts unsorted non-overlapping periods'
+);
+
+select is(public.valid_hours_exceptions(null), false, 'valid_hours_exceptions rejects null');
+select is(public.valid_hours_exceptions('{}'::jsonb), false, 'valid_hours_exceptions rejects non-array JSON');
+
+select is(
+  public.valid_hours_exceptions(
+    (select jsonb_agg(jsonb_build_object('from', to_char(date '2026-01-01' + g, 'YYYY-MM-DD'), 'to', to_char(date '2026-01-01' + g, 'YYYY-MM-DD'), 'ranges', '[]'::jsonb))
+     from generate_series(0, 100) as g)
+  ),
+  false,
+  'valid_hours_exceptions rejects 101 periods (> MAX_EXCEPTIONS)'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-08-10", "to": "2026-08-09", "ranges": []}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects to < from'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-08-01", "to": "2026-09-30", "ranges": []}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects 61-day inclusive span (> 60)'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-02-30", "to": "2026-02-30", "ranges": []}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects invalid calendar date 2026-02-30'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-02-29", "to": "2026-02-29", "ranges": []}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects non-leap day 2026-02-29'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-8-01", "to": "2026-08-02", "ranges": []}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects unpadded date string'
+);
+
+select is(
+  public.valid_hours_exceptions(jsonb_build_array(jsonb_build_object('from', '2026-08-01', 'to', '2026-08-01', 'ranges', '[]'::jsonb, 'note', repeat('a', 51)))),
+  false,
+  'valid_hours_exceptions rejects note longer than 50 chars'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-08-01", "to": "2026-08-01", "ranges": [], "note": 123}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects non-string note'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-08-01", "to": "2026-08-01", "ranges": [], "extra": true}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects extra key on exception object'
+);
+
+select is(
+  public.valid_hours_exceptions('[{"from": "2026-08-01", "to": "2026-08-01", "ranges": [{"open": "09:00", "close": "12:00"}, {"open": "12:00", "close": "15:00"}]}]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects touching ranges inside an exception'
+);
+
+select is(
+  public.valid_hours_exceptions('[
+    {"from": "2026-08-01", "to": "2026-08-05", "ranges": []},
+    {"from": "2026-08-05", "to": "2026-08-07", "ranges": []}
+  ]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects overlapping periods sharing a boundary date'
+);
+
+select is(
+  public.valid_hours_exceptions('[
+    {"from": "2026-08-03", "to": "2026-08-04", "ranges": []},
+    {"from": "2026-08-01", "to": "2026-08-10", "ranges": []}
+  ]'::jsonb),
+  false,
+  'valid_hours_exceptions rejects unsorted overlapping periods'
+);
+
+-- ----------------------------------------------------------------------------
+-- Section 3: Column CHECK, RLS, and privilege checks (Tests 42-59)
 -- ----------------------------------------------------------------------------
 select is(
   (select weekly_hours from public.business_settings where business_id = '31000000-0000-0000-0000-000000000001'),
   null::jsonb,
   'business_settings.weekly_hours defaults to null'
+);
+
+select is(
+  (select hours_exceptions from public.business_settings where business_id = '31000000-0000-0000-0000-000000000001'),
+  '[]'::jsonb,
+  'business_settings.hours_exceptions defaults to empty jsonb array'
 );
 
 set local role authenticated;
@@ -229,13 +361,29 @@ select lives_ok(
   'a manager can clear weekly_hours back to null'
 );
 
+select lives_ok(
+  $$update public.business_settings
+    set hours_exceptions = '[{"from": "2026-08-01", "to": "2026-08-05", "ranges": [], "note": "Congés annuels"}]'::jsonb
+    where business_id = '31000000-0000-0000-0000-000000000001'$$,
+  'a manager can update hours_exceptions to valid exceptions'
+);
+
+select throws_ok(
+  $$update public.business_settings
+    set hours_exceptions = '[{"from": "2026-08-05", "to": "2026-08-01", "ranges": []}]'::jsonb
+    where business_id = '31000000-0000-0000-0000-000000000001'$$,
+  '23514',
+  null,
+  'CHECK constraint rejects invalid hours_exceptions'
+);
+
 select is(
   (select count(*)::integer from public.business_settings where business_id = '32000000-0000-0000-0000-000000000002'),
   0,
-  'a manager cannot read another business weekly_hours (RLS unchanged)'
+  'a manager cannot read another business weekly_hours or hours_exceptions (RLS unchanged)'
 );
 
--- Store a valid value for anon read verification
+-- Store valid values for anon read verification
 select lives_ok(
   $$update public.business_settings
     set weekly_hours = '{"mon": [{"open": "09:00", "close": "17:00"}], "tue": [], "wed": [], "thu": [], "fri": [], "sat": [], "sun": []}'::jsonb
@@ -256,8 +404,16 @@ select is(
   'anon can read weekly_hours (storefront column grant)'
 );
 
+select is(
+  (select hours_exceptions -> 0 ->> 'note'
+   from public.business_settings
+   where business_id = '31000000-0000-0000-0000-000000000001'),
+  'Congés annuels',
+  'anon can read hours_exceptions (storefront column grant)'
+);
+
 -- RLS silently filters anon writes to 0 rows; verify after reset role.
-update public.business_settings set weekly_hours = null;
+update public.business_settings set weekly_hours = null, hours_exceptions = '[]'::jsonb;
 
 reset role;
 
@@ -270,53 +426,79 @@ select is(
 );
 
 select is(
+  (select hours_exceptions -> 0 ->> 'note'
+   from public.business_settings
+   where business_id = '31000000-0000-0000-0000-000000000001'),
+  'Congés annuels',
+  'anon cannot modify hours_exceptions (RLS filters every row)'
+);
+
+select is(
   (select count(*)::integer
    from pg_catalog.pg_proc p
    cross join lateral aclexplode(p.proacl) a
    where p.pronamespace = 'public'::regnamespace
-     and p.proname in ('valid_weekly_hours', 'is_open_at', 'slot_error')
+     and p.proname in ('valid_weekly_hours', 'valid_hours_exceptions', 'is_open_at', 'slot_error')
      and a.grantee = 0),
   0,
-  'PUBLIC has no execute privilege on valid_weekly_hours, is_open_at, or slot_error'
+  'PUBLIC has no execute privilege on opening-hours functions'
 );
 
 select ok(
   has_function_privilege('anon', 'public.valid_weekly_hours(jsonb)', 'execute')
-  and has_function_privilege('anon', 'public.is_open_at(jsonb, text, timestamptz)', 'execute')
-  and has_function_privilege('anon', 'public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer)', 'execute'),
-  'anon can execute valid_weekly_hours, is_open_at, and slot_error'
+  and has_function_privilege('anon', 'public.valid_hours_exceptions(jsonb)', 'execute')
+  and has_function_privilege('anon', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
+  and has_function_privilege('anon', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)', 'execute'),
+  'anon can execute all opening-hours functions'
 );
 
 select ok(
   has_function_privilege('authenticated', 'public.valid_weekly_hours(jsonb)', 'execute')
-  and has_function_privilege('authenticated', 'public.is_open_at(jsonb, text, timestamptz)', 'execute')
-  and has_function_privilege('authenticated', 'public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer)', 'execute')
+  and has_function_privilege('authenticated', 'public.valid_hours_exceptions(jsonb)', 'execute')
+  and has_function_privilege('authenticated', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
+  and has_function_privilege('authenticated', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)', 'execute')
   and has_function_privilege('service_role', 'public.valid_weekly_hours(jsonb)', 'execute')
-  and has_function_privilege('service_role', 'public.is_open_at(jsonb, text, timestamptz)', 'execute')
-  and has_function_privilege('service_role', 'public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer)', 'execute'),
-  'authenticated and service_role can execute valid_weekly_hours, is_open_at, and slot_error'
+  and has_function_privilege('service_role', 'public.valid_hours_exceptions(jsonb)', 'execute')
+  and has_function_privilege('service_role', 'public.is_open_at(jsonb, jsonb, text, timestamptz)', 'execute')
+  and has_function_privilege('service_role', 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)', 'execute'),
+  'authenticated and service_role can execute all opening-hours functions'
 );
 
 select ok(
   (select provolatile from pg_catalog.pg_proc where oid = 'public.valid_weekly_hours(jsonb)'::regprocedure) = 'i'
-  and (select provolatile from pg_catalog.pg_proc where oid = 'public.is_open_at(jsonb, text, timestamptz)'::regprocedure) = 's'
-  and (select provolatile from pg_catalog.pg_proc where oid = 'public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer)'::regprocedure) = 's',
-  'valid_weekly_hours is IMMUTABLE and is_open_at / slot_error are STABLE'
+  and (select provolatile from pg_catalog.pg_proc where oid = 'public.valid_hours_exceptions(jsonb)'::regprocedure) = 'i'
+  and (select provolatile from pg_catalog.pg_proc where oid = 'public.is_open_at(jsonb, jsonb, text, timestamptz)'::regprocedure) = 's'
+  and (select provolatile from pg_catalog.pg_proc where oid = 'public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer)'::regprocedure) = 's',
+  'validators are IMMUTABLE and is_open_at / slot_error are STABLE'
 );
 
+-- Verify private column stays denied to anon
+set local role anon;
+set local "request.jwt.claim.role" = 'anon';
+set local "request.jwt.claims" = '{"role": "anon"}';
+
+select throws_ok(
+  'select tax_percentage from public.business_settings',
+  '42501',
+  null,
+  'anon still cannot read private business_settings columns'
+);
+
+reset role;
+
 -- ----------------------------------------------------------------------------
--- Section 3: is_open_at(p_hours, p_tz, p_at) (Tests 34-46)
+-- Section 4: is_open_at(p_hours, p_exceptions, p_tz, p_at) (Tests 60-78)
 -- ----------------------------------------------------------------------------
 select is(
-  public.is_open_at(null, 'Europe/Paris', '2026-07-12T03:00:00Z'::timestamptz),
+  public.is_open_at(null, '[]'::jsonb, 'Europe/Paris', '2026-07-12T03:00:00Z'::timestamptz),
   true,
-  'is_open_at returns true when weekly_hours is null'
+  'is_open_at returns true when weekly_hours is null and no exception applies'
 );
 
--- Mon 2026-07-06 in Europe/Paris (CEST = UTC+2): ranges 09:00-12:00, 14:00-18:00; Sun closed
 select is(
   public.is_open_at(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-06T07:00:00Z'::timestamptz
   ),
@@ -327,6 +509,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-06T08:30:00Z'::timestamptz
   ),
@@ -337,6 +520,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-06T10:00:00Z'::timestamptz
   ),
@@ -347,6 +531,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-06T11:00:00Z'::timestamptz
   ),
@@ -357,6 +542,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-12T08:00:00Z'::timestamptz
   ),
@@ -364,10 +550,10 @@ select is(
   'is_open_at is false on a closed weekday (Sunday)'
 );
 
--- 24:00 close and midnight rollover: Fri 2026-07-10 18:00-24:00, Sat 2026-07-11 00:00-01:00 (CEST = UTC+2)
 select is(
   public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[{"open":"18:00","close":"24:00"}],"sat":[{"open":"00:00","close":"01:00"}],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-10T21:59:59Z'::timestamptz
   ),
@@ -378,6 +564,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[{"open":"18:00","close":"24:00"}],"sat":[{"open":"00:00","close":"01:00"}],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-10T22:00:00Z'::timestamptz
   ),
@@ -388,6 +575,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[{"open":"18:00","close":"24:00"}],"sat":[{"open":"00:00","close":"01:00"}],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-07-10T23:00:00Z'::timestamptz
   ),
@@ -395,10 +583,10 @@ select is(
   'is_open_at is false at 01:00:00 Saturday when continuation closes at 01:00'
 );
 
--- DST spring-forward Sunday in Europe/Paris: 2026-03-29 (01:59 CET -> 03:00 CEST at 01:00Z)
 select is(
   public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[{"open":"03:00","close":"04:00"}]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-03-29T00:59:00Z'::timestamptz
   ),
@@ -409,6 +597,7 @@ select is(
 select is(
   public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[{"open":"03:00","close":"04:00"}]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-03-29T01:00:00Z'::timestamptz
   ),
@@ -416,30 +605,32 @@ select is(
   'is_open_at handles DST spring-forward Sunday at jump (01:00Z = 03:00 CEST)'
 );
 
--- DST fall-back Sunday in Europe/Paris: 2026-10-25 (00:30Z = 02:30 CEST, 01:30Z = 02:30 CET, 02:30Z = 03:30 CET)
 select ok(
   public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[{"open":"02:00","close":"03:00"}]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-10-25T00:30:00Z'::timestamptz
   )
   and public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[{"open":"02:00","close":"03:00"}]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-10-25T01:30:00Z'::timestamptz
   )
   and not public.is_open_at(
     '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[{"open":"02:00","close":"03:00"}]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris',
     '2026-10-25T02:30:00Z'::timestamptz
   ),
   'is_open_at handles DST fall-back Sunday repeated 02:30 hour and 03:30 close in Europe/Paris'
 );
 
--- Cross-timezone day boundary: 2026-07-06T02:00:00Z = Mon 04:00 Paris, Sun 22:00 New York
 select is(
   public.is_open_at(
     '{"mon":[{"open":"00:00","close":"24:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'America/New_York',
     '2026-07-06T02:00:00Z'::timestamptz
   ),
@@ -447,15 +638,80 @@ select is(
   'is_open_at evaluates weekday in business timezone (Sun 22:00 EDT is closed)'
 );
 
+-- Exception overrides in is_open_at (#375)
+select is(
+  public.is_open_at(
+    '{"mon":[{"open":"09:00","close":"18:00"}],"tue":[{"open":"09:00","close":"18:00"}],"wed":[{"open":"09:00","close":"18:00"}],"thu":[{"open":"09:00","close":"18:00"}],"fri":[{"open":"09:00","close":"18:00"}],"sat":[],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[],"note":"Congés annuels"}]'::jsonb,
+    'Europe/Paris',
+    '2026-07-31T08:00:00Z'::timestamptz
+  ),
+  false,
+  'is_open_at: closed holiday exception overrides normally open Friday'
+);
+
+select is(
+  public.is_open_at(
+    '{"mon":[{"open":"09:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}],"note":"Ouverture exceptionnelle"}]'::jsonb,
+    'Europe/Paris',
+    '2026-07-12T09:00:00Z'::timestamptz
+  ),
+  true,
+  'is_open_at: special hours exception opens normally closed Sunday'
+);
+
+select is(
+  public.is_open_at(
+    null,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[],"note":"Congés annuels"}]'::jsonb,
+    'Europe/Paris',
+    '2026-08-01T10:00:00Z'::timestamptz
+  ),
+  false,
+  'is_open_at: closed exception applies even when weekly_hours is null'
+);
+
+select is(
+  public.is_open_at(
+    null,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}]}]'::jsonb,
+    'Europe/Paris',
+    '2026-07-12T09:00:00Z'::timestamptz
+  ),
+  true,
+  'is_open_at: custom hours exception applies when weekly_hours is null (inside range -> true)'
+);
+
+select is(
+  public.is_open_at(
+    null,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}]}]'::jsonb,
+    'Europe/Paris',
+    '2026-07-12T13:00:00Z'::timestamptz
+  ),
+  false,
+  'is_open_at: custom hours exception applies when weekly_hours is null (outside range -> false)'
+);
+
+select is(
+  public.is_open_at(
+    null,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[]}]'::jsonb,
+    'Europe/Paris',
+    '2026-08-04T02:00:00Z'::timestamptz
+  ),
+  true,
+  'is_open_at: uncovered date with weekly_hours null returns true'
+);
+
 -- ----------------------------------------------------------------------------
--- Section 4: slot_error(...) (Tests 47-72)
--- Reference week: Mon-Fri 09:00-12:00 & 14:00-18:00, Sat 10:00-14:00, Sun closed
--- Reference now:  2026-07-06T08:00:00Z = Mon 2026-07-06 10:00 CEST (Paris)
---                 today+30 = 2026-08-05 (Wed); today+31 = 2026-08-06
+-- Section 5: slot_error(...) (Tests 79-112)
 -- ----------------------------------------------------------------------------
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"wed":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"thu":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"fri":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"sat":[{"open":"10:00","close":"14:00"}],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', time '10:30', false
   ),
   null::text,
@@ -465,6 +721,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[{"open":"09:00","close":"12:00"}],"thu":[{"open":"09:00","close":"12:00"}],"fri":[{"open":"09:00","close":"12:00"}],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-08-05', time '10:30', false
   ),
   null::text,
@@ -474,6 +731,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-05', time '10:30', false
   ),
   'date_out_of_window',
@@ -483,6 +741,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[{"open":"09:00","close":"12:00"}],"thu":[{"open":"09:00","close":"12:00"}],"fri":[{"open":"09:00","close":"12:00"}],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-08-06', time '10:30', false
   ),
   'date_out_of_window',
@@ -492,6 +751,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-13', time '10:00', false, 7
   ),
   null::text,
@@ -501,6 +761,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-14', time '10:00', false, 7
   ),
   'date_out_of_window',
@@ -510,32 +771,32 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-05', null, true
   ),
   'date_out_of_window',
   'slot_error enforces booking window before ASAP check'
 );
 
--- Null hours skip
 select is(
   public.slot_error(
-    null, 'Europe/Paris', '2026-07-06T16:00:00Z'::timestamptz, date '2026-07-12', time '03:00', false
+    null, '[]'::jsonb, 'Europe/Paris', '2026-07-06T16:00:00Z'::timestamptz, date '2026-07-12', time '03:00', false
   ),
   null::text,
-  'slot_error skips opening-hour checks when weekly_hours is null (scheduled)'
+  'slot_error skips opening-hour checks when weekly_hours is null and no exception applies'
 );
 
 select is(
   public.slot_error(
-    null, 'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-06', null, true
+    null, '[]'::jsonb, 'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-06', null, true
   ),
   null::text,
-  'slot_error skips closed_now when weekly_hours is null (ASAP)'
+  'slot_error skips closed_now when weekly_hours is null and no exception applies'
 );
 
 select is(
   public.slot_error(
-    null, 'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-05', null, false
+    null, '[]'::jsonb, 'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-05', null, false
   ),
   'date_out_of_window',
   'slot_error still enforces lower window bound when weekly_hours is null'
@@ -543,16 +804,16 @@ select is(
 
 select is(
   public.slot_error(
-    null, 'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-08-06', null, false
+    null, '[]'::jsonb, 'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-08-06', null, false
   ),
   'date_out_of_window',
   'slot_error still enforces upper window bound when weekly_hours is null'
 );
 
--- ASAP
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', null, true
   ),
   null::text,
@@ -562,16 +823,17 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T10:30:00Z'::timestamptz, date '2026-07-06', null, true
   ),
   'closed_now',
   'slot_error rejects ASAP when store is currently closed (lunch gap)'
 );
 
--- Closed day
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-12', time '10:00', false
   ),
   'closed_day',
@@ -581,16 +843,17 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-12', null, false
   ),
   'closed_day',
   'slot_error rejects time-optional scheduled order on a closed weekday'
 );
 
--- Time outside hours
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"},{"open":"14:00","close":"18:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-07', time '13:00', false
   ),
   'time_outside_hours',
@@ -600,6 +863,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[],"tue":[{"open":"09:00","close":"18:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-07', time '18:00', false
   ),
   'time_outside_hours',
@@ -609,6 +873,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[],"tue":[{"open":"00:00","close":"24:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-07', time '24:00', false
   ),
   'time_outside_hours',
@@ -618,16 +883,17 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', time '08:00', false
   ),
   'time_outside_hours',
   'slot_error returns time_outside_hours before time_in_past when time is both outside range and in past'
 );
 
--- Time in past (explicit time on today, lead = 0)
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', time '10:00', false
   ),
   'time_in_past',
@@ -637,17 +903,17 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"09:00","close":"12:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-06', time '10:01', false
   ),
   null::text,
   'slot_error accepts today slot one minute after now'
 );
 
--- Time-optional (p_time is null; step = 15, lead = 0)
--- Range 14:00-18:00 -> stepped slots 14:00..17:45. At 17:44 CEST (15:44Z) slot 17:45 remains; at 17:45 CEST (15:45Z) none remain.
 select is(
   public.slot_error(
     '{"mon":[{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T15:44:00Z'::timestamptz, date '2026-07-06', null, false
   ),
   null::text,
@@ -657,16 +923,17 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"14:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T15:45:00Z'::timestamptz, date '2026-07-06', null, false
   ),
   'time_in_past',
   'slot_error rejects time-optional today when at last 15-min slot (17:45) and no later slot exists'
 );
 
--- Non-aligned open minute: 11:05-11:25 -> stepped slots 11:05 and 11:20.
 select is(
   public.slot_error(
     '{"mon":[{"open":"11:05","close":"11:25"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T09:19:00Z'::timestamptz, date '2026-07-06', null, false
   ),
   null::text,
@@ -676,6 +943,7 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"11:05","close":"11:25"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T09:20:00Z'::timestamptz, date '2026-07-06', null, false
   ),
   'time_in_past',
@@ -685,10 +953,92 @@ select is(
 select is(
   public.slot_error(
     '{"mon":[{"open":"14:00","close":"18:00"}],"tue":[{"open":"09:00","close":"12:00"}],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[]'::jsonb,
     'Europe/Paris', '2026-07-06T16:00:00Z'::timestamptz, date '2026-07-07', null, false
   ),
   null::text,
   'slot_error accepts time-optional scheduled order on an open future day'
+);
+
+-- Exception overrides in slot_error (#375)
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"18:00"}],"tue":[{"open":"09:00","close":"18:00"}],"wed":[{"open":"09:00","close":"18:00"}],"thu":[{"open":"09:00","close":"18:00"}],"fri":[{"open":"09:00","close":"18:00"}],"sat":[],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[],"note":"Congés annuels"}]'::jsonb,
+    'Europe/Paris', '2026-07-31T08:00:00Z'::timestamptz, date '2026-07-31', null, true
+  ),
+  'closed_now',
+  'slot_error: holiday exception rejects ASAP on normally open Friday -> closed_now'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"18:00"}],"tue":[{"open":"09:00","close":"18:00"}],"wed":[{"open":"09:00","close":"18:00"}],"thu":[{"open":"09:00","close":"18:00"}],"fri":[{"open":"09:00","close":"18:00"}],"sat":[{"open":"10:00","close":"14:00"}],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[],"note":"Congés annuels"}]'::jsonb,
+    'Europe/Paris', '2026-07-28T08:00:00Z'::timestamptz, date '2026-08-01', time '11:00', false
+  ),
+  'closed_day',
+  'slot_error: holiday exception across month boundary rejects scheduled order -> closed_day'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}],"note":"Ouverture exceptionnelle"}]'::jsonb,
+    'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-12', time '11:30', false
+  ),
+  null::text,
+  'slot_error: special hours exception on normally closed Sunday accepts in-range slot'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[{"open":"09:00","close":"18:00"}],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}]}]'::jsonb,
+    'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-12', time '15:00', false
+  ),
+  'time_outside_hours',
+  'slot_error: special hours exception rejects out-of-range slot -> time_outside_hours'
+);
+
+select is(
+  public.slot_error(
+    '{"mon":[],"tue":[],"wed":[],"thu":[],"fri":[],"sat":[],"sun":[]}'::jsonb,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}]}]'::jsonb,
+    'Europe/Paris', '2026-07-12T09:00:00Z'::timestamptz, date '2026-07-12', null, true
+  ),
+  null::text,
+  'slot_error: special hours exception accepts ASAP on normally closed Sunday'
+);
+
+select is(
+  public.slot_error(
+    null,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[],"note":"Congés annuels"}]'::jsonb,
+    'Europe/Paris', '2026-08-01T10:00:00Z'::timestamptz, date '2026-08-01', null, true
+  ),
+  'closed_now',
+  'slot_error: holiday exception rejects ASAP even when weekly_hours is null'
+);
+
+select is(
+  public.slot_error(
+    null,
+    '[{"from":"2026-07-30","to":"2026-08-03","ranges":[],"note":"Congés annuels"}]'::jsonb,
+    'Europe/Paris', '2026-07-28T08:00:00Z'::timestamptz, date '2026-08-01', time '11:00', false
+  ),
+  'closed_day',
+  'slot_error: holiday exception rejects scheduled order even when weekly_hours is null'
+);
+
+select is(
+  public.slot_error(
+    null,
+    '[{"from":"2026-07-12","to":"2026-07-12","ranges":[{"open":"10:00","close":"14:00"}]}]'::jsonb,
+    'Europe/Paris', '2026-07-06T08:00:00Z'::timestamptz, date '2026-07-12', time '16:00', false
+  ),
+  'time_outside_hours',
+  'slot_error: custom hours exception enforces time_outside_hours even when weekly_hours is null'
 );
 
 select * from finish();

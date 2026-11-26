@@ -1,26 +1,38 @@
 -- ============================================================================
 -- Migration: 20260101000033_weekly_opening_hours.sql
--- Description: Structured weekly opening hours per business (#372).
+-- Description: Structured weekly opening hours (#372) and exceptional days /
+--              holidays (#375) per business.
 --
---   Adds nullable `business_settings.weekly_hours` (jsonb) validated by an
---   IMMUTABLE helper `public.valid_weekly_hours(jsonb)` mirroring the exact
---   constants and rules of `src/domain/opening-hours.ts` (7 keys mon..sun,
---   <= 4 ranges per day, open 00:00..23:59, close 00:00..24:00, close > open,
---   sorted non-overlapping non-touching; zero-padded string comparisons with
---   COLLATE "C", no ::time casts so the function stays genuinely IMMUTABLE).
---
---   Also adds STABLE SQL helpers `public.is_open_at` and `public.slot_error`
---   mirroring `isOpenAt` and `validateSlot` in `src/domain/opening-hours.ts`
---   for later server-side enforcement in `place_order` (not touched here).
+--   Adds:
+--     - `business_settings.weekly_hours` (jsonb null), validated by IMMUTABLE
+--       `public.valid_weekly_hours(jsonb)` mirroring `src/domain/opening-hours.ts`
+--       (7 keys mon..sun, <= 4 ranges per day, open 00:00..23:59, close
+--       00:00..24:00, close > open, sorted non-overlapping non-touching;
+--       COLLATE "C", no ::time casts).
+--     - `business_settings.hours_exceptions` (jsonb not null default '[]'),
+--       validated by IMMUTABLE `public.valid_hours_exceptions(jsonb)` (<= 100
+--       non-overlapping {from, to, ranges, note?} objects, valid YYYY-MM-DD
+--       dates via regex + calendar check + IMMUTABLE pg_catalog.make_date,
+--       to >= from, inclusive span <= 60 days, note <= 50 chars, per-day range
+--       rules matching weekly_hours; no ::time/::date casts).
+--     - STABLE SQL helpers `public.is_open_at(p_hours, p_exceptions, p_tz, p_at)`
+--       and `public.slot_error(p_hours, p_exceptions, p_tz, p_now, p_date, p_time,
+--       p_is_asap, p_horizon_days)` mirroring `isOpenAt` and `validateSlot` in
+--       `src/domain/opening-hours.ts` for later server-side enforcement in
+--       `place_order` (not touched here). Exceptions override weekly hours even
+--       when weekly_hours is null; dates with neither skip opening-hour checks.
 --
 --   Access: manager-editable (not owner-only) and readable by `anon` via the
 --   storefront column-level SELECT grant on `business_settings`.
 --
 -- Rollback note (development/emergency only; production migrations are forward-only):
---   drop function if exists public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer);
---   drop function if exists public.is_open_at(jsonb, text, timestamptz);
+--   drop function if exists public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer);
+--   drop function if exists public.is_open_at(jsonb, jsonb, text, timestamptz);
+--   alter table public.business_settings drop constraint if exists business_settings_hours_exceptions_valid;
+--   alter table public.business_settings drop column if exists hours_exceptions;
 --   alter table public.business_settings drop constraint if exists business_settings_weekly_hours_valid;
 --   alter table public.business_settings drop column if exists weekly_hours;
+--   drop function if exists public.valid_hours_exceptions(jsonb);
 --   drop function if exists public.valid_weekly_hours(jsonb);
 -- ============================================================================
 
@@ -28,7 +40,7 @@
 set lock_timeout = '5s';
 
 -- ----------------------------------------------------------------------------
--- 1. IMMUTABLE shape & invariant validator (mirrors src/domain/opening-hours.ts)
+-- 1. IMMUTABLE shape & invariant validators (mirror src/domain/opening-hours.ts)
 -- ----------------------------------------------------------------------------
 create or replace function public.valid_weekly_hours(p jsonb)
 returns boolean
@@ -122,24 +134,213 @@ begin
 end;
 $$;
 
+create or replace function public.valid_hours_exceptions(p jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_len integer;
+  v_i integer;
+  v_ex jsonb;
+  v_key_count integer;
+  v_has_note boolean;
+  v_from text;
+  v_to text;
+  v_fy integer;
+  v_fm integer;
+  v_fd integer;
+  v_ty integer;
+  v_tm integer;
+  v_td integer;
+  v_max_day integer;
+  v_ranges jsonb;
+  v_range_count integer;
+  v_j integer;
+  v_range jsonb;
+  v_range_key_count integer;
+  v_open text;
+  v_close text;
+  v_prev_close text;
+begin
+  if p is null or jsonb_typeof(p) <> 'array' then
+    return false;
+  end if;
+
+  v_len := jsonb_array_length(p);
+  if v_len > 100 then
+    return false;
+  end if;
+
+  for v_i in 0 .. v_len - 1 loop
+    v_ex := p -> v_i;
+    if jsonb_typeof(v_ex) <> 'object' then
+      return false;
+    end if;
+
+    v_has_note := v_ex ? 'note';
+    select count(*) into v_key_count from jsonb_object_keys(v_ex);
+    if v_key_count <> (case when v_has_note then 4 else 3 end)
+      or not (v_ex ? 'from')
+      or not (v_ex ? 'to')
+      or not (v_ex ? 'ranges')
+    then
+      return false;
+    end if;
+
+    if jsonb_typeof(v_ex -> 'from') <> 'string'
+      or jsonb_typeof(v_ex -> 'to') <> 'string'
+    then
+      return false;
+    end if;
+
+    v_from := v_ex ->> 'from';
+    v_to := v_ex ->> 'to';
+
+    if v_from !~ '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+      or v_to !~ '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+    then
+      return false;
+    end if;
+
+    -- Validate real calendar dates without non-immutable ::date casts
+    v_fy := substr(v_from, 1, 4)::integer;
+    v_fm := substr(v_from, 6, 2)::integer;
+    v_fd := substr(v_from, 9, 2)::integer;
+    if v_fy < 1 then
+      return false;
+    end if;
+    v_max_day := case
+      when v_fm in (4, 6, 9, 11) then 30
+      when v_fm = 2 then case when (v_fy % 4 = 0 and (v_fy % 100 <> 0 or v_fy % 400 = 0)) then 29 else 28 end
+      else 31
+    end;
+    if v_fd > v_max_day then
+      return false;
+    end if;
+
+    v_ty := substr(v_to, 1, 4)::integer;
+    v_tm := substr(v_to, 6, 2)::integer;
+    v_td := substr(v_to, 9, 2)::integer;
+    if v_ty < 1 then
+      return false;
+    end if;
+    v_max_day := case
+      when v_tm in (4, 6, 9, 11) then 30
+      when v_tm = 2 then case when (v_ty % 4 = 0 and (v_ty % 100 <> 0 or v_ty % 400 = 0)) then 29 else 28 end
+      else 31
+    end;
+    if v_td > v_max_day then
+      return false;
+    end if;
+
+    -- Lexicographical order on zero-padded YYYY-MM-DD (to >= from)
+    if v_to collate "C" < v_from collate "C" then
+      return false;
+    end if;
+
+    -- Inclusive span <= 60 days using IMMUTABLE pg_catalog.make_date & date_mi
+    if (pg_catalog.make_date(v_ty, v_tm, v_td) - pg_catalog.make_date(v_fy, v_fm, v_fd)) + 1 > 60 then
+      return false;
+    end if;
+
+    -- Optional note: string, <= 50 characters
+    if v_has_note then
+      if jsonb_typeof(v_ex -> 'note') <> 'string' or char_length(v_ex ->> 'note') > 50 then
+        return false;
+      end if;
+    end if;
+
+    -- Per-day ranges: same rules as weekly_hours (<= 4, sorted, non-touching, close > open)
+    v_ranges := v_ex -> 'ranges';
+    if jsonb_typeof(v_ranges) <> 'array' then
+      return false;
+    end if;
+
+    v_range_count := jsonb_array_length(v_ranges);
+    if v_range_count > 4 then
+      return false;
+    end if;
+
+    v_prev_close := null;
+    for v_j in 0 .. v_range_count - 1 loop
+      v_range := v_ranges -> v_j;
+      if jsonb_typeof(v_range) <> 'object' then
+        return false;
+      end if;
+
+      select count(*) into v_range_key_count from jsonb_object_keys(v_range);
+      if v_range_key_count <> 2 or not (v_range ? 'open') or not (v_range ? 'close') then
+        return false;
+      end if;
+
+      if jsonb_typeof(v_range -> 'open') <> 'string'
+        or jsonb_typeof(v_range -> 'close') <> 'string'
+      then
+        return false;
+      end if;
+
+      v_open := v_range ->> 'open';
+      v_close := v_range ->> 'close';
+
+      if v_open !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then
+        return false;
+      end if;
+      if v_close !~ '^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$' then
+        return false;
+      end if;
+      if not (v_close collate "C" > v_open collate "C") then
+        return false;
+      end if;
+      if v_prev_close is not null and not (v_prev_close collate "C" < v_open collate "C") then
+        return false;
+      end if;
+
+      v_prev_close := v_close;
+    end loop;
+  end loop;
+
+  -- Periods must not overlap each other (adjacent days to1 + 1 = from2 are allowed).
+  if v_len > 1 and exists (
+    select 1
+    from jsonb_array_elements(p) with ordinality as a(elem, ord)
+    join jsonb_array_elements(p) with ordinality as b(elem, ord)
+      on a.ord < b.ord
+     and (a.elem ->> 'from') collate "C" <= (b.elem ->> 'to') collate "C"
+     and (b.elem ->> 'from') collate "C" <= (a.elem ->> 'to') collate "C"
+  ) then
+    return false;
+  end if;
+
+  return true;
+end;
+$$;
+
 -- ----------------------------------------------------------------------------
--- 2. Nullable business_settings.weekly_hours column & storefront column grant
+-- 2. business_settings columns & storefront column grants
 -- ----------------------------------------------------------------------------
 alter table public.business_settings
   add column weekly_hours jsonb null
   constraint business_settings_weekly_hours_valid
     check (weekly_hours is null or public.valid_weekly_hours(weekly_hours));
 
--- Storefront-public column list (see 20260101000030): add weekly_hours additively so
--- grants from concurrent migrations are preserved; authenticated/service_role already
--- hold table-level privileges.
-grant select (weekly_hours) on table public.business_settings to anon;
+alter table public.business_settings
+  add column hours_exceptions jsonb not null default '[]'::jsonb
+  constraint business_settings_hours_exceptions_valid
+    check (public.valid_hours_exceptions(hours_exceptions));
+
+-- Storefront-public column list (see 20260101000030): add weekly_hours and hours_exceptions
+-- additively so grants from concurrent migrations are preserved; authenticated/service_role
+-- already hold table-level privileges.
+grant select (weekly_hours, hours_exceptions) on table public.business_settings to anon;
 
 -- ----------------------------------------------------------------------------
--- 3. STABLE evaluation helpers (mirror isOpenAt & validateSlot in domain)
+-- 3. STABLE evaluation helpers (mirror rangesForDate, isOpenAt & validateSlot)
 -- ----------------------------------------------------------------------------
 create or replace function public.is_open_at(
   p_hours jsonb,
+  p_exceptions jsonb,
   p_tz text,
   p_at timestamptz
 )
@@ -151,22 +352,47 @@ as $$
 declare
   v_days constant text[] := array['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
   v_local timestamp;
+  v_date_str text;
   v_day text;
   v_hhmm text;
   v_ranges jsonb;
+  v_ex_ranges jsonb;
+  v_has_exception boolean := false;
 begin
-  if p_hours is null then
-    return true;
-  end if;
-
   if p_tz is null or p_at is null then
+    if p_hours is null
+      and (p_exceptions is null or jsonb_typeof(p_exceptions) <> 'array' or jsonb_array_length(p_exceptions) = 0)
+    then
+      return true;
+    end if;
     return false;
   end if;
 
   v_local := p_at at time zone p_tz;
-  v_day := v_days[extract(isodow from v_local)::integer];
+  v_date_str := to_char(v_local, 'YYYY-MM-DD');
   v_hhmm := to_char(v_local, 'HH24:MI');
-  v_ranges := p_hours -> v_day;
+
+  if p_exceptions is not null and jsonb_typeof(p_exceptions) = 'array' then
+    select ex -> 'ranges'
+      into v_ex_ranges
+    from jsonb_array_elements(p_exceptions) as ex
+    where (ex ->> 'from') collate "C" <= v_date_str collate "C"
+      and v_date_str collate "C" <= (ex ->> 'to') collate "C"
+    limit 1;
+
+    if found then
+      v_has_exception := true;
+      v_ranges := v_ex_ranges;
+    end if;
+  end if;
+
+  if not v_has_exception then
+    if p_hours is null then
+      return true;
+    end if;
+    v_day := v_days[extract(isodow from v_local)::integer];
+    v_ranges := p_hours -> v_day;
+  end if;
 
   if v_ranges is null or jsonb_typeof(v_ranges) <> 'array' then
     return false;
@@ -183,6 +409,7 @@ $$;
 
 create or replace function public.slot_error(
   p_hours jsonb,
+  p_exceptions jsonb,
   p_tz text,
   p_now timestamptz,
   p_date date,
@@ -201,8 +428,11 @@ declare
   v_local_now timestamp;
   v_today date;
   v_now_min integer;
+  v_date_str text;
   v_day text;
   v_ranges jsonb;
+  v_ex_ranges jsonb;
+  v_has_exception boolean := false;
   v_time_min integer;
   v_min_min integer;
 begin
@@ -219,19 +449,37 @@ begin
     return 'date_out_of_window';
   end if;
 
-  if p_hours is null then
-    return null;
-  end if;
-
   if coalesce(p_is_asap, false) then
-    if public.is_open_at(p_hours, p_tz, p_now) then
+    if public.is_open_at(p_hours, p_exceptions, p_tz, p_now) then
       return null;
     end if;
     return 'closed_now';
   end if;
 
-  v_day := v_days[extract(isodow from p_date)::integer];
-  v_ranges := p_hours -> v_day;
+  -- Resolve ranges for p_date (mirrors rangesForDate): exception overrides weekly even if weekly is null.
+  v_date_str := to_char(p_date, 'YYYY-MM-DD');
+  if p_exceptions is not null and jsonb_typeof(p_exceptions) = 'array' then
+    select ex -> 'ranges'
+      into v_ex_ranges
+    from jsonb_array_elements(p_exceptions) as ex
+    where (ex ->> 'from') collate "C" <= v_date_str collate "C"
+      and v_date_str collate "C" <= (ex ->> 'to') collate "C"
+    limit 1;
+
+    if found then
+      v_has_exception := true;
+      v_ranges := v_ex_ranges;
+    end if;
+  end if;
+
+  if not v_has_exception then
+    if p_hours is null then
+      return null;
+    end if;
+    v_day := v_days[extract(isodow from p_date)::integer];
+    v_ranges := p_hours -> v_day;
+  end if;
+
   if v_ranges is null or jsonb_typeof(v_ranges) <> 'array' or jsonb_array_length(v_ranges) = 0 then
     return 'closed_day';
   end if;
@@ -290,10 +538,13 @@ $$;
 revoke all on function public.valid_weekly_hours(jsonb) from public;
 grant execute on function public.valid_weekly_hours(jsonb) to anon, authenticated, service_role;
 
-revoke all on function public.is_open_at(jsonb, text, timestamptz) from public;
-grant execute on function public.is_open_at(jsonb, text, timestamptz) to anon, authenticated, service_role;
+revoke all on function public.valid_hours_exceptions(jsonb) from public;
+grant execute on function public.valid_hours_exceptions(jsonb) to anon, authenticated, service_role;
 
-revoke all on function public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer) from public;
-grant execute on function public.slot_error(jsonb, text, timestamptz, date, time, boolean, integer) to anon, authenticated, service_role;
+revoke all on function public.is_open_at(jsonb, jsonb, text, timestamptz) from public;
+grant execute on function public.is_open_at(jsonb, jsonb, text, timestamptz) to anon, authenticated, service_role;
+
+revoke all on function public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer) from public;
+grant execute on function public.slot_error(jsonb, jsonb, text, timestamptz, date, time, boolean, integer) to anon, authenticated, service_role;
 
 reset lock_timeout;

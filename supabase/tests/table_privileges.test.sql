@@ -144,6 +144,7 @@ select results_eq(
     'business_id',
     'currency',
     'delivery_fee',
+    'hours_exceptions',
     'id',
     'lead_time_unit',
     'lead_time_value',
