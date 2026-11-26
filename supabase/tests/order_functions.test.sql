@@ -1903,13 +1903,11 @@ set local role postgres;
 set local "request.jwt.claim.sub" = '';
 set local "request.jwt.claim.role" = 'postgres';
 set local "request.jwt.claims" = '{}';
-update public.business_settings set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d), hours_exceptions = '[]'::jsonb
+update public.business_settings
+set weekly_hours = (select jsonb_object_agg(d, '[{"open":"00:00","close":"24:00"}]'::jsonb) from unnest(array['mon','tue','wed','thu','fri','sat','sun']) d),
+    hours_exceptions = '[]'::jsonb,
+    shop_pickup_enabled = false
 where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
-
-set local role service_role;
-set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claim.role" = 'service_role';
-set local "request.jwt.claims" = '{"role": "service_role"}';
 
 set local role service_role;
 set local "request.jwt.claim.sub" = '';
@@ -1931,7 +1929,7 @@ set local "request.jwt.claims" = '{}';
 
 select ok(
   (select o.pickup_location_id from public.orders o where o.id = (select (res ->> 'order_id')::uuid from t_reloc_manual_null)) is null,
-  'manual order without a location means the shop'
+  'manual order without a location means the shop (even when shop pickup is off and relays exist)'
 );
 
 set local role service_role;
@@ -1958,10 +1956,8 @@ select is(
   'manual order at a relay stores the fee in the total'
 );
 
-set local role anon;
-set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claim.role" = 'anon';
-set local "request.jwt.claims" = '{"role": "anon"}';
+update public.business_settings set shop_pickup_enabled = true
+where business_id = '10000000-0000-0000-0000-000000000001'::uuid;
 
 set local role anon;
 set local "request.jwt.claim.sub" = '';
@@ -1976,13 +1972,8 @@ select public.place_order(
     '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001', p_idempotency_key := '5a5a5a5a-0000-4000-8000-0000000000b1') as res;
 grant select on t_reloc_idem to public;
 
-set local role anon;
-set local "request.jwt.claim.sub" = '';
-set local "request.jwt.claim.role" = 'anon';
-set local "request.jwt.claims" = '{"role": "anon"}';
-
 select is(
-  (select (public.place_order('10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000199', 'pickup'::public.order_service_type, 'storefront'::public.order_channel, (now() at time zone 'Europe/Paris')::date, '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001', p_idempotency_key := '5a5a5a5a-0000-4000-8000-0000000000b1') ->> 'replayed'),
+  (select public.place_order('10000000-0000-0000-0000-000000000001'::uuid, 'Relay Guest', '+33600000199', 'pickup'::public.order_service_type, 'storefront'::public.order_channel, (now() at time zone 'Europe/Paris')::date, '[{"product_id": "da000000-0000-0000-0000-0000000000a1", "quantity": 1}]'::jsonb, p_is_asap := true, p_pickup_location_id := 'f1000000-0000-0000-0000-000000000001', p_idempotency_key := '5a5a5a5a-0000-4000-8000-0000000000b1') ->> 'replayed'),
   'true',
   'a retry with the same relay replays the order'
 );

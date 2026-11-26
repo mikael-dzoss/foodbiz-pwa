@@ -98,7 +98,8 @@ as $$
         (
           select jsonb_agg(e.ex order by e.ord)
           from jsonb_array_elements(p_business_exceptions) with ordinality as e(ex, ord)
-          where jsonb_array_length(e.ex -> 'ranges') = 0
+          where jsonb_typeof(e.ex -> 'ranges') = 'array'
+            and jsonb_array_length(e.ex -> 'ranges') = 0
         ),
         '[]'::jsonb
       )
@@ -132,7 +133,10 @@ as $$
         )
         else 0
       end
-    + greatest(0, coalesce(p_pickup_fee, 0));
+    + case
+        when p_service_type = 'pickup' then greatest(0, coalesce(p_pickup_fee, 0))
+        else 0
+      end;
 $$;
 
 revoke all on function public.order_total_cents(uuid, public.order_service_type, integer, integer)
@@ -595,7 +599,12 @@ begin
         if v_active_relays = 1 then
           select * into v_location
           from public.pickup_locations pl
-          where pl.business_id = p_business_id and pl.is_active;
+          where pl.business_id = p_business_id and pl.is_active
+          order by pl.sort_order, pl.created_at
+          limit 1;
+          if not found then
+            raise exception 'PICKUP_NOT_AVAILABLE: no pickup option is available' using errcode = '22023';
+          end if;
           v_location_id := v_location.id;
         else
           raise exception 'PICKUP_LOCATION_REQUIRED: choose a pickup location' using errcode = '22023';
@@ -883,7 +892,10 @@ as $$
       'delivery_address', case when o.service_type = 'delivery' then o.delivery_address else null end,
       'pickup_location_name', case when o.service_type = 'pickup' then o.pickup_location_name else null end,
       'pickup_location_address', case
-        when o.service_type = 'pickup' then coalesce(o.pickup_location_address, b.address)
+        when o.service_type = 'pickup' then coalesce(
+          nullif(btrim(o.pickup_location_address), ''),
+          nullif(btrim(b.address), '')
+        )
         else null
       end,
       'created_at', o.created_at,
