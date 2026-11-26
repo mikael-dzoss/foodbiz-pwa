@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle } from "lucide-react";
 import { getDictionary, interpolate, type SupportedLocale } from "@/domain/i18n";
 import {
   MAX_EXCEPTION_NOTE_LENGTH,
@@ -12,6 +11,7 @@ import {
   type TimeRange,
 } from "@/domain/opening-hours";
 import {
+  Alert,
   Button,
   Field,
   Input,
@@ -306,14 +306,9 @@ function ExceptionForm({
       </Field>
 
       {(show(errors.form) || submitError) && (
-        <div
-          role="alert"
-          data-testid="exception-form-error"
-          className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border px-3.5 py-3 text-sm"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{show(errors.form) ?? submitError}</span>
-        </div>
+        <Alert tone="error" data-testid="exception-form-error">
+          {show(errors.form) ?? submitError}
+        </Alert>
       )}
 
       <SheetFooter>

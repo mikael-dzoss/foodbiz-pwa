@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ChevronRight, Clock } from "lucide-react";
+import { ChevronRight, Clock } from "lucide-react";
 import { getDictionary, interpolate, type SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting/money";
 import {
@@ -11,6 +11,7 @@ import {
   type PickupLocation,
 } from "@/domain/pickup-location";
 import {
+  Alert,
   Button,
   Field,
   Input,
@@ -276,15 +277,9 @@ function PickupLocationForm({
       </div>
 
       {submitError && (
-        <div
-          role="alert"
-          data-testid="pickup-location-form-error"
-          tabIndex={-1}
-          className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border px-3.5 py-3 text-sm"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{submitError}</span>
-        </div>
+        <Alert tone="error" data-testid="pickup-location-form-error" tabIndex={-1}>
+          {submitError}
+        </Alert>
       )}
 
       <SheetFooter>

@@ -8,7 +8,7 @@ import { formatMoney } from "@/domain/formatting/money";
 import { groupWeeklyHours } from "@/domain/opening-hours";
 import { MAX_PICKUP_LOCATIONS, type PickupLocation } from "@/domain/pickup-location";
 import { actionErrorMessage } from "@/lib/actions/error-message";
-import { Badge, Button, ConfirmDialog, Switch, useToastOptional } from "@/components/ui";
+import { Alert, Badge, Button, ConfirmDialog, Switch, useToastOptional } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
   createPickupLocationAction,
@@ -276,14 +276,9 @@ export function PickupLocationsSettings({
       </p>
 
       {pageError && (
-        <div
-          role="alert"
-          data-testid="pickup-locations-error"
-          className="border-destructive/40 bg-destructive/10 text-destructive mb-4 flex items-start gap-2 rounded-xl border px-3.5 py-3 text-sm"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{pageError}</span>
-        </div>
+        <Alert tone="error" data-testid="pickup-locations-error" className="mb-4">
+          {pageError}
+        </Alert>
       )}
 
       <ul
