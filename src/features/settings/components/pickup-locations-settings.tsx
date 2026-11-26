@@ -90,7 +90,6 @@ export function PickupLocationsSettings({
               : document.querySelector<HTMLElement>('[data-testid="pickup-location-form-error"]');
       element?.focus();
     }, 50);
-    setFocusTarget(null);
   }, [focusTarget]);
 
   const limitReached = locations.length >= MAX_PICKUP_LOCATIONS;
