@@ -8,6 +8,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { Alert } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field } from "@/components/ui/field";
@@ -20,7 +21,7 @@ import {
   type StandardExpenseTag,
 } from "@/domain";
 import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "../expense-actions";
-import { Check, Trash2, FileText, AlertCircle } from "lucide-react";
+import { Check, Trash2, FileText } from "lucide-react";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { useManagerLocale } from "@/components/i18n";
 import { interpolate } from "@/domain/i18n";
@@ -239,14 +240,9 @@ function ExpenseForm({
       </SheetHeader>
 
       {errorMessage && (
-        <div
-          className="border-destructive/20 bg-destructive/10 text-destructive mb-4 flex items-center gap-2 rounded-lg border p-3 text-sm"
-          role="alert"
-          data-testid="expense-error-message"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
+        <Alert tone="error" data-testid="expense-error-message" className="mb-4">
+          {errorMessage}
+        </Alert>
       )}
 
       <form action={formAction} className="space-y-4">

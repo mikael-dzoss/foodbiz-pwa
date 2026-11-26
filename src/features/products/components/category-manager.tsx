@@ -10,6 +10,7 @@ import {
   deleteCategoryAction,
 } from "../category-actions";
 import { Plus, Edit2, Trash2, Check, X, Folder, Info, Lightbulb } from "lucide-react";
+import { Alert } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -165,22 +166,21 @@ export function CategoryManager({ initialCategories, dict: dictOverride }: Categ
 
       {/* Global Action Error Banner */}
       {deleteError && (
-        <div
-          role="alert"
-          className="border-destructive/30 bg-destructive/10 text-destructive flex items-center justify-between rounded-lg border p-3.5 text-xs font-medium"
-        >
-          <span>{deleteError}</span>
-          <Button
-            variant="unstyled"
-            size="none"
-            type="button"
-            data-testid="dismiss-category-error"
-            onClick={() => setDeleteError(null)}
-            className="text-destructive/80 hover:text-destructive min-h-11 min-w-11 text-xs underline"
-          >
-            {t.dismiss}
-          </Button>
-        </div>
+        <Alert tone="error" className="items-center">
+          <div className="flex items-center justify-between gap-2">
+            <span>{deleteError}</span>
+            <Button
+              variant="unstyled"
+              size="none"
+              type="button"
+              data-testid="dismiss-category-error"
+              onClick={() => setDeleteError(null)}
+              className="text-destructive/80 hover:text-destructive min-h-11 min-w-11 shrink-0 text-xs underline"
+            >
+              {t.dismiss}
+            </Button>
+          </div>
+        </Alert>
       )}
 
       {/* 2. Categories List Section (Stitch M-42 List Card) */}
