@@ -266,6 +266,12 @@ export function createMockRepositories(
         `Pickup location ${id} not found`,
       );
       fixtures.pickupLocations.splice(idx, 1);
+      // Mirrors `on delete set null (pickup_location_id)`: clear the FK while keeping the snapshot.
+      fixtures.orders = fixtures.orders.map((order) =>
+        order.businessId === bId && order.pickupLocation?.id === id
+          ? { ...order, pickupLocation: { ...order.pickupLocation, id: null } }
+          : order,
+      );
     },
     async reorder(bId, ids) {
       for (const id of ids) {
@@ -817,8 +823,10 @@ export function createMockRepositories(
       });
       const deliveryFee =
         order.serviceType === "delivery" ? Math.max(0, fixtures.settings.deliveryFee ?? 0) : 0;
+      const pickupFee =
+        order.serviceType === "pickup" ? Math.max(0, order.pickupFeeCents ?? 0) : 0;
       order.items = nextItems;
-      order.totalAmount = subtotal + deliveryFee + (order.pickupFeeCents ?? 0);
+      order.totalAmount = subtotal + deliveryFee + pickupFee;
       order.updatedAt = new Date().toISOString();
       return structuredClone(order);
     },

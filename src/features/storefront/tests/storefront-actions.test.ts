@@ -857,4 +857,94 @@ describe("placeOrderAction pickup locations (#386)", () => {
     expect(businessClosed.ok).toBe(false);
     if (!businessClosed.ok) expect(businessClosed.reason).toBe("SLOT_CLOSED_DAY");
   });
+
+  it("refuses with PICKUP_NOT_AVAILABLE when shop pickup is off and no active relay exists", async () => {
+    await getMockRepositories().business.updateSettings(bId, { shopPickupEnabled: false });
+    const result = await placeOrderAction({
+      ...payload,
+      idempotencyKey: idem("pl-no-option"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("PICKUP_NOT_AVAILABLE");
+  });
+
+  it("keeps the minimum order check on items subtotal without counting the relay fee", async () => {
+    const relay = await addRelay({ feeCents: 300 });
+    await getMockRepositories().business.updateSettings(bId, { minOrderAmount: 2100 });
+    const result = await placeOrderAction({
+      ...payload, // 2 x 1000 = 2000 < 2100 (even though 2000 + 300 = 2300)
+      pickupLocationId: relay.id,
+      idempotencyKey: idem("pl-min-order"),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("MINIMUM_ORDER_UNMET");
+  });
+
+  it("rejects an ASAP order at a closed relay while the shop is open, and honours relay hours on auto-select", async () => {
+    const closedAllWeek = week({
+      mon: [],
+      tue: [],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: [],
+    });
+    const relay = await addRelay({ weeklyHours: closedAllWeek });
+    await getMockRepositories().business.updateSettings(bId, { weeklyHours: week() });
+
+    const explicit = await placeOrderAction({
+      ...payload,
+      pickupLocationId: relay.id,
+      idempotencyKey: idem("pl-asap-closed-relay"),
+    });
+    expect(explicit.ok).toBe(false);
+    if (!explicit.ok) expect(explicit.reason).toBe("SLOT_CLOSED_NOW");
+
+    // Auto-selected lone relay also enforces the relay's hours.
+    await getMockRepositories().business.updateSettings(bId, { shopPickupEnabled: false });
+    const auto = await placeOrderAction({
+      ...payload,
+      idempotencyKey: idem("pl-asap-auto-closed-relay"),
+    });
+    expect(auto.ok).toBe(false);
+    if (!auto.ok) expect(auto.reason).toBe("SLOT_CLOSED_NOW");
+  });
+
+  it("applies business closure exceptions to a relay and ignores business special-hours exceptions", async () => {
+    const settings = await getMockRepositories().business.getSettings(bId);
+    const today = getZonedDay(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
+    const tomorrow = addCalendarDays(today, 1);
+    const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+    const tomorrowKey = days[new Date(`${tomorrow}T12:00:00Z`).getUTCDay()];
+    const scheduled = { ...payload, isAsap: false, requestedDate: tomorrow };
+
+    // Business closure exception overrides an open relay.
+    const openRelay = await addRelay({ weeklyHours: week() });
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: week(),
+      hoursExceptions: [{ from: tomorrow, to: tomorrow, ranges: [] }],
+    });
+    const closedEx = await placeOrderAction({
+      ...scheduled,
+      pickupLocationId: openRelay.id,
+      idempotencyKey: idem("pl-ex-closed"),
+    });
+    expect(closedEx.ok).toBe(false);
+    if (!closedEx.ok) expect(closedEx.reason).toBe("SLOT_CLOSED_DAY");
+
+    // Business special-hours exception does NOT open a relay on its closed weekday.
+    const closedTomorrowRelay = await addRelay({ weeklyHours: week({ [tomorrowKey]: [] }) });
+    await getMockRepositories().business.updateSettings(bId, {
+      weeklyHours: week(),
+      hoursExceptions: [{ from: tomorrow, to: tomorrow, ranges: allDay }],
+    });
+    const specialEx = await placeOrderAction({
+      ...scheduled,
+      pickupLocationId: closedTomorrowRelay.id,
+      idempotencyKey: idem("pl-ex-special"),
+    });
+    expect(specialEx.ok).toBe(false);
+    if (!specialEx.ok) expect(specialEx.reason).toBe("SLOT_CLOSED_DAY");
+  });
 });

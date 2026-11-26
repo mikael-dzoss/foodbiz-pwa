@@ -196,10 +196,13 @@ describe("pickupScheduleFor", () => {
     expect(pickupScheduleFor(business, week()).exceptions).toEqual([closure]);
   });
 
-  it("closes no weekday when the business has no weekly hours", () => {
-    const result = pickupScheduleFor({ weekly: null, exceptions: [] }, week({ sun: relayRanges }));
+  it("closes no weekday when the business has no weekly hours, and still applies only closed exceptions", () => {
+    const result = pickupScheduleFor(
+      { weekly: null, exceptions: [closure, special] },
+      week({ sun: relayRanges }),
+    );
     expect(result.weekly).toEqual(week({ sun: relayRanges }));
-    expect(result.exceptions).toEqual([]);
+    expect(result.exceptions).toEqual([closure]);
   });
 
   it("does not mutate its inputs", () => {

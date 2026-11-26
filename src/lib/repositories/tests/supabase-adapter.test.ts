@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Order, OrderStatus } from "@/domain/order";
 import { validateOrderTransition } from "@/domain/order-lifecycle";
 import { validateSlot, type HoursException, type WeeklyHours } from "@/domain/opening-hours";
+import { pickupScheduleFor } from "@/domain/pickup-location";
 import { DEFAULT_TIMEZONE, getZonedDay } from "@/domain/timezone";
 import type { Repositories } from "@/domain/repositories";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -376,6 +377,14 @@ function createFakeSupabaseClient(
             list.splice(i, 1);
           }
         }
+        if (table === "pickup_locations") {
+          const removedIds = new Set(matched.map((r) => r.id));
+          for (const order of tables.orders) {
+            if (order.pickup_location_id && removedIds.has(order.pickup_location_id)) {
+              order.pickup_location_id = null;
+            }
+          }
+        }
         return { data: matched.length === 1 ? matched[0] : (matched[0] ?? null), error: null };
       }
 
@@ -578,6 +587,7 @@ function createFakeSupabaseClient(
               args.p_requested_time ?? "",
               args.p_payment_preference ?? "on_handover",
               args.p_is_asap ?? false,
+              args.p_pickup_location_id ?? null,
             ]);
             if (
               priorGuest?.phone !== args.p_guest_phone ||
@@ -631,13 +641,37 @@ function createFakeSupabaseClient(
             error: { message, code },
           });
           const bizSettings = tables.business_settings.find((s) => s.business_id === businessId);
-          // Mirrors place_order's slot rules (migration 034) with the domain's validateSlot.
+          // Mirrors place_order's pickup options rules (migration 036).
+          if (args.p_service_type === "pickup") {
+            const activeRelays = tables.pickup_locations
+              .filter((l) => l.business_id === businessId && l.is_active)
+              .toSorted((a, b) => a.sort_order - b.sort_order);
+            const shopEnabled = bizSettings?.shop_pickup_enabled ?? true;
+            if ((shopEnabled ? 1 : 0) + activeRelays.length === 0) {
+              return fail("PICKUP_NOT_AVAILABLE: no pickup option is available");
+            }
+            if (!pickupRow && !shopEnabled) {
+              if (activeRelays.length === 1) {
+                pickupRow = activeRelays[0];
+              } else {
+                return fail("PICKUP_LOCATION_REQUIRED: choose a pickup location");
+              }
+            }
+          }
+          // Mirrors place_order's slot rules (migrations 034 & 036) with the domain's validateSlot.
           if (bizSettings) {
+            const businessSchedule = {
+              weekly: bizSettings.weekly_hours as WeeklyHours | null,
+              exceptions: (bizSettings.hours_exceptions ?? []) as HoursException[],
+            };
+            const schedule = pickupRow
+              ? pickupScheduleFor(
+                  businessSchedule,
+                  (pickupRow.weekly_hours as WeeklyHours | null) ?? null,
+                )
+              : businessSchedule;
             const slot = validateSlot(
-              {
-                weekly: bizSettings.weekly_hours as WeeklyHours | null,
-                exceptions: (bizSettings.hours_exceptions ?? []) as HoursException[],
-              },
+              schedule,
               bizSettings.timezone ?? DEFAULT_TIMEZONE,
               new Date(),
               {
@@ -800,6 +834,7 @@ function createFakeSupabaseClient(
             args.p_requested_time ?? "",
             args.p_payment_preference ?? "on_handover",
             args.p_is_asap ?? false,
+            args.p_pickup_location_id ?? null,
           ]),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -994,7 +1029,9 @@ function createFakeSupabaseClient(
           (st) => st.business_id === order.business_id,
         );
         order.total_amount =
-          subtotal + (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0);
+          subtotal +
+          (order.service_type === "delivery" ? (settings?.delivery_fee ?? 0) : 0) +
+          (order.service_type === "pickup" ? Math.max(0, order.pickup_fee_cents ?? 0) : 0);
         order.updated_at = new Date().toISOString();
         return { data: { order_id: order.id, total_amount: order.total_amount }, error: null };
       }

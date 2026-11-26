@@ -307,5 +307,46 @@ export function describeOrderStateContract(
         repos.orders.replaceItems(businessId, gone, [{ productId: a.id, quantity: 1 }]),
       ).rejects.toMatchObject({ code: "ORDER_STATE_CONFLICT" });
     });
+
+    it("replaceItems keeps the stored pickup fee on a relay order and deleting the relay keeps its snapshot (#386)", async () => {
+      const repos = await getRepositories();
+      const product = await pickStockedProduct(repos, businessId);
+      const relay = await repos.pickupLocations.create(businessId, {
+        name: "State Contract Relay",
+        address: "18 Rue de Dunkerque",
+        postcode: "75010",
+        feeCents: 150,
+      });
+      try {
+        const placed = await repos.orders.place(businessId, {
+          guestName: "Relay State Customer",
+          guestPhone: nextPhone(),
+          serviceType: "pickup",
+          channel: "phone",
+          requestedDate: "2030-01-01",
+          items: [{ productId: product.id, quantity: 1 }],
+          pickupLocationId: relay.id,
+        });
+        expect(placed.totalAmount).toBe(product.price + 150);
+
+        const edited = await repos.orders.replaceItems(businessId, placed.orderId, [
+          { productId: product.id, quantity: 2 },
+        ]);
+        expect(edited.pickupFeeCents).toBe(150);
+        expect(edited.totalAmount).toBe(product.price * 2 + 150);
+
+        // Deleting the relay nulls pickupLocation.id while preserving the snapshot and fee.
+        await repos.pickupLocations.delete(businessId, relay.id);
+        const afterDelete = await repos.orders.findById(businessId, placed.orderId);
+        expect(afterDelete?.pickupLocation).toEqual({
+          id: null,
+          name: "State Contract Relay",
+          address: "18 Rue de Dunkerque, 75010",
+        });
+        expect(afterDelete?.pickupFeeCents).toBe(150);
+      } finally {
+        await repos.pickupLocations.delete(businessId, relay.id).catch(() => undefined);
+      }
+    });
   });
 }
