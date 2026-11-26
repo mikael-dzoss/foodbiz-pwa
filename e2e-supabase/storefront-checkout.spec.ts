@@ -83,6 +83,8 @@ test("anonymous visitor orders from the Supabase catalog and tracks the order", 
   await page.getByTestId("proceed-checkout-button").click();
   await page.getByTestId("checkout-name-input").fill("E2E Supabase Guest");
   await page.getByTestId("checkout-phone-input").fill("+33600000999");
+  // The seeded business offers the shop and two relay points, so a pickup point must be chosen.
+  await page.getByTestId("pickup-location-option-shop").click();
   await page.getByTestId("place-order-button").click();
 
   await expect(page).toHaveURL(/\/en\/order\/[a-f0-9]{32}\/confirmed$/);
