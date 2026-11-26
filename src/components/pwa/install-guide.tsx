@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Download, EllipsisVertical, Monitor, Share, Smartphone } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Download, Monitor, Share, Smartphone } from "lucide-react";
 import { interpolate, type InstallGuideDictionary } from "@/domain/i18n";
 import type { InstallPlatform } from "@/lib/pwa/platform";
 import {
@@ -31,6 +31,16 @@ export interface InstallGuideProps {
   closeLabel?: string;
   /** Unique test id prefix for the dialog and its inner controls. */
   "data-testid"?: string;
+}
+
+function ShareGlyph({ testId }: { testId: string }) {
+  return (
+    <Share
+      data-testid={testId}
+      className="text-primary inline h-4 w-4 align-text-bottom"
+      aria-hidden="true"
+    />
+  );
 }
 
 function StepList({ steps, testId }: { steps: ReadonlyArray<ReactNode>; testId: string }) {
@@ -66,15 +76,28 @@ export function InstallGuide({
   closeLabel,
   "data-testid": testId = "install-guide",
 }: InstallGuideProps) {
-  if (platform === "standalone") return null;
+  // Freeze the platform on open so a late beforeinstallprompt or standalone flip doesn't swap the
+  // dialog body mid-read (or while awaiting the native prompt); re-captured on the next open.
+  const [captured, setCaptured] = useState<{ open: boolean; platform: InstallPlatform }>({
+    open,
+    platform,
+  });
+
+  if (open !== captured.open) {
+    setCaptured({ open, platform });
+  }
+
+  const activePlatform = open ? captured.platform : platform;
+
+  if (activePlatform === "standalone") return null;
 
   const title = interpolate(copy.title, { app: appName });
   const description = interpolate(copy.description, { app: appName });
-  const variantTestId = `${testId}-${platform}`;
-  const isDesktopSafari = platform === "macos-safari";
+  const variantTestId = `${testId}-${activePlatform}`;
+  const isDesktopSafari = activePlatform === "macos-safari";
 
   const renderBody = () => {
-    switch (platform) {
+    switch (activePlatform) {
       case "native-prompt":
         return (
           <p data-testid={variantTestId} className="text-body-sm text-foreground">
@@ -88,12 +111,7 @@ export function InstallGuide({
             testId={variantTestId}
             steps={[
               <>
-                {copy.iosSafariStep1}{" "}
-                <Share
-                  data-testid={`${testId}-share-icon`}
-                  className="text-primary inline h-4 w-4 align-text-bottom"
-                  aria-hidden="true"
-                />
+                {copy.iosSafariStep1} <ShareGlyph testId={`${variantTestId}-share-icon`} />
               </>,
               copy.iosStep2,
               interpolate(copy.iosStep3, { app: appName }),
@@ -107,12 +125,7 @@ export function InstallGuide({
             testId={variantTestId}
             steps={[
               <>
-                {copy.iosOtherStep1}{" "}
-                <Share
-                  data-testid={`${testId}-share-icon`}
-                  className="text-primary inline h-4 w-4 align-text-bottom"
-                  aria-hidden="true"
-                />
+                {copy.iosOtherStep1} <ShareGlyph testId={`${variantTestId}-share-icon`} />
               </>,
               copy.iosStep2,
               interpolate(copy.iosStep3, { app: appName }),
@@ -125,13 +138,7 @@ export function InstallGuide({
           <StepList
             testId={variantTestId}
             steps={[
-              <>
-                {copy.androidStep1}{" "}
-                <EllipsisVertical
-                  className="text-primary inline h-4 w-4 align-text-bottom"
-                  aria-hidden="true"
-                />
-              </>,
+              copy.androidStep1,
               copy.androidStep2,
               interpolate(copy.androidStep3, { app: appName }),
             ]}
@@ -188,7 +195,7 @@ export function InstallGuide({
         <div className="py-1">{renderBody()}</div>
 
         <DialogFooter className="sm:flex-col sm:space-x-0">
-          {platform === "native-prompt" ? (
+          {activePlatform === "native-prompt" ? (
             <Button
               type="button"
               onClick={onInstall}

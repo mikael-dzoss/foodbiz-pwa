@@ -212,7 +212,7 @@ describe("NotificationsAppForm component (M-67)", () => {
     const steps = await screen.findByTestId("manager-install-guide-ios-safari");
     expect(steps.textContent).toContain("Add to Home Screen");
     expect(steps.textContent).toContain("FoodBiz Manager");
-    expect(screen.getByTestId("manager-install-guide-share-icon")).toBeDefined();
+    expect(screen.getByTestId("manager-install-guide-ios-safari-share-icon")).toBeDefined();
   });
 
   it("handles toggling in-app alerts and renders fallback settings", async () => {

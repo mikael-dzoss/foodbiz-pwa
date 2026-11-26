@@ -110,7 +110,7 @@ describe("InstallAppCard (#100, #232)", () => {
     const dialog = await screen.findByRole("dialog", { name: `Install ${SHOP_NAME}` });
     expect(dialog.textContent).toContain("Add to Home Screen");
     expect(screen.getByTestId("storefront-install-guide-ios-safari")).toBeDefined();
-    expect(screen.getByTestId("storefront-install-guide-share-icon")).toBeDefined();
+    expect(screen.getByTestId("storefront-install-guide-ios-safari-share-icon")).toBeDefined();
   });
 
   it("opens the shared guide with non-Safari Share steps on iOS Chrome", async () => {

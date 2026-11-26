@@ -47,9 +47,10 @@ const en: InstallGuideDictionary = {
   nativeBody: "Tap Install below to add {app} to your home screen or desktop.",
   iosSafariStep1: "Tap the Share button in Safari's toolbar.",
   iosOtherStep1: "Tap the Share button in your browser's address bar or toolbar.",
+  // Keep quoted labels ("Add to Home Screen" / "Add") aligned with iOS's exact English menu wording.
   iosStep2: "Scroll down and choose “Add to Home Screen”.",
   iosStep3: "Tap “Add” to install {app}.",
-  androidStep1: "Open your browser's menu.",
+  androidStep1: "Open your browser's menu (⋮ or ≡).",
   androidStep2: "Choose “Install app” or “Add to Home screen”.",
   androidStep3: "Confirm to add {app} to your home screen.",
   macosSafariStep1: "In Safari's top menu bar, click “File”.",
@@ -65,13 +66,15 @@ const fr: InstallGuideDictionary = {
   close: "Fermer",
   done: "Compris",
   installButton: "Installer",
-  nativeBody: "Touchez Installer ci-dessous pour ajouter {app} à votre écran d'accueil ou bureau.",
+  nativeBody:
+    "Touchez Installer ci-dessous pour ajouter {app} à votre écran d'accueil ou à votre bureau.",
   iosSafariStep1: "Touchez le bouton Partager dans la barre d'outils de Safari.",
   iosOtherStep1:
     "Touchez le bouton Partager dans la barre d'adresse ou d'outils de votre navigateur.",
+  // Conserver les libellés « Sur l'écran d'accueil » / « Ajouter » tels qu'affichés dans le menu iOS français.
   iosStep2: "Faites défiler et choisissez « Sur l'écran d'accueil ».",
   iosStep3: "Touchez « Ajouter » pour installer {app}.",
-  androidStep1: "Ouvrez le menu de votre navigateur.",
+  androidStep1: "Ouvrez le menu de votre navigateur (⋮ ou ≡).",
   androidStep2: "Choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
   androidStep3: "Confirmez pour ajouter {app} à votre écran d'accueil.",
   macosSafariStep1: "Dans la barre de menus de Safari, cliquez sur « Fichier ».",

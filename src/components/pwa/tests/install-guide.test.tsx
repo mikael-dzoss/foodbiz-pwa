@@ -66,7 +66,7 @@ describe("InstallGuide (#100)", () => {
     expect(list.textContent).toContain(enCopy.iosSafariStep1);
     expect(list.textContent).toContain("Add to Home Screen");
     expect(list.textContent).toContain("FoodBiz Manager");
-    expect(screen.getByTestId("install-guide-share-icon")).toBeDefined();
+    expect(screen.getByTestId("install-guide-ios-safari-share-icon")).toBeDefined();
   });
 
   it("shows browser address bar / toolbar Share steps with the Share glyph on other iOS browsers", () => {
@@ -85,7 +85,7 @@ describe("InstallGuide (#100)", () => {
     expect(list.textContent).toContain(enCopy.iosOtherStep1);
     expect(list.textContent).toContain("Add to Home Screen");
     expect(list.textContent).toContain("Les Saveurs du Continent");
-    expect(screen.getByTestId("install-guide-share-icon")).toBeDefined();
+    expect(screen.getByTestId("install-guide-ios-other-share-icon")).toBeDefined();
   });
 
   it("shows browser menu install steps on Android without a native prompt", () => {
@@ -101,7 +101,7 @@ describe("InstallGuide (#100)", () => {
 
     const list = screen.getByTestId("install-guide-android-manual");
     expect(list.tagName).toBe("OL");
-    expect(list.textContent).toContain(enCopy.androidStep1);
+    expect(list.textContent).toContain("(⋮ or ≡)");
     expect(list.textContent).toContain("Install app");
     expect(list.textContent).toContain("Add to Home screen");
     expect(list.textContent).toContain("FoodBiz Manager");
@@ -159,6 +159,76 @@ describe("InstallGuide (#100)", () => {
     const dialog = screen.getByRole("dialog", { name: "Installer Les Saveurs du Continent" });
     expect(dialog.textContent).toContain("Sur l'écran d'accueil");
     expect(screen.getByTestId("fr-install-guide-done-button").textContent).toBe(frCopy.done);
+  });
+
+  it("freezes the platform while open so a late prompt or standalone flip does not swap the body", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <InstallGuide
+        open={false}
+        onOpenChange={onOpenChange}
+        appName="FoodBiz Manager"
+        platform="android-manual"
+        copy={enCopy}
+      />,
+    );
+
+    rerender(
+      <InstallGuide
+        open
+        onOpenChange={onOpenChange}
+        appName="FoodBiz Manager"
+        platform="android-manual"
+        copy={enCopy}
+      />,
+    );
+    expect(screen.getByTestId("install-guide-android-manual")).toBeDefined();
+
+    // Late beforeinstallprompt arrives while the dialog is still open: body stays frozen.
+    rerender(
+      <InstallGuide
+        open
+        onOpenChange={onOpenChange}
+        appName="FoodBiz Manager"
+        platform="native-prompt"
+        copy={enCopy}
+      />,
+    );
+    expect(screen.getByTestId("install-guide-android-manual")).toBeDefined();
+    expect(screen.queryByTestId("install-guide-native-prompt")).toBeNull();
+
+    // Standalone flip while still open: stays mounted until closed cleanly.
+    rerender(
+      <InstallGuide
+        open
+        onOpenChange={onOpenChange}
+        appName="FoodBiz Manager"
+        platform="standalone"
+        copy={enCopy}
+      />,
+    );
+    expect(screen.getByTestId("install-guide-android-manual")).toBeDefined();
+
+    // Once closed and reopened with native-prompt, it picks up the new platform.
+    rerender(
+      <InstallGuide
+        open={false}
+        onOpenChange={onOpenChange}
+        appName="FoodBiz Manager"
+        platform="native-prompt"
+        copy={enCopy}
+      />,
+    );
+    rerender(
+      <InstallGuide
+        open
+        onOpenChange={onOpenChange}
+        appName="FoodBiz Manager"
+        platform="native-prompt"
+        copy={enCopy}
+      />,
+    );
+    expect(screen.getByTestId("install-guide-native-prompt")).toBeDefined();
   });
 
   it.each<InstallGuidePlatform>([

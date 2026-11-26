@@ -159,7 +159,7 @@ Interactive local inventory: `/patterns` (dev route).
 ### InstallGuide
 
 - **Import:** `import { InstallGuide } from "@/components/pwa"`
-- `<InstallGuide open onOpenChange appName platform copy onInstall installing closeLabel data-testid />`. Presentation-only PWA install dialog shared by the storefront (`InstallAppCard`) and manager settings (`NotificationsAppForm`). Renders nothing when `platform === "standalone"`. Supports six install paths from `detectInstallPlatform` (`src/lib/pwa/platform.ts`): `native-prompt` (primary Install button wired to `onInstall`), `ios-safari`, `ios-other`, `android-manual`, `macos-safari`, and `generic`. Test ids: `<id>`, `<id>-<platform>`, `<id>-install-button`, `<id>-done-button`, and `<id>-share-icon` (iOS variants).
+- `<InstallGuide open onOpenChange appName platform copy onInstall installing closeLabel data-testid />`. Presentation-only PWA install dialog shared by the storefront (`InstallAppCard`) and manager settings (`NotificationsAppForm`). Renders nothing when `platform === "standalone"`. Supports six install paths from `detectInstallPlatform` (`src/lib/pwa/platform.ts`): `native-prompt` (primary Install button wired to `onInstall`), `ios-safari`, `ios-other`, `android-manual`, `macos-safari`, and `generic`. Test ids: `<id>`, `<id>-<platform>`, `<id>-install-button`, `<id>-done-button`, and `<id>-<platform>-share-icon` (iOS variants).
 
 ### ActionBar
 
