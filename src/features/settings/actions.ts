@@ -11,6 +11,7 @@ import {
   updateBusinessProfileSchema,
   updateOrderingSettingsSchema,
   updateOpeningHoursSchema,
+  updateHoursExceptionsSchema,
   updatePaymentSettingsSchema,
   updateInventoryFinanceSettingsSchema,
   updateNotificationSettingsSchema,
@@ -94,14 +95,29 @@ export const updateOrderingSettingsAction = defineAction(
   },
 );
 
-/** Structured weekly opening hours and optional fallback free-text schedule (#372). */
+/** Structured weekly opening hours, optional exceptions, and optional fallback free-text schedule (#372, #375). */
 export const updateOpeningHoursAction = defineAction(
   "updateOpeningHours",
   { input: updateOpeningHoursSchema },
   async ({ input, businessId }) => {
     const updated = await getRepositories().business.updateSettings(businessId, {
       weeklyHours: input.weeklyHours,
+      ...(input.hoursExceptions !== undefined ? { hoursExceptions: input.hoursExceptions } : {}),
       ...(input.openingHours !== undefined ? { openingHours: input.openingHours } : {}),
+    });
+    revalidateSettings(businessId, "opening-hours");
+    revalidatePath("/manage/settings/ordering");
+    return updated;
+  },
+);
+
+/** Exceptional opening/closing days and holiday overrides (#375). */
+export const updateHoursExceptionsAction = defineAction(
+  "updateHoursExceptions",
+  { input: updateHoursExceptionsSchema },
+  async ({ input, businessId }) => {
+    const updated = await getRepositories().business.updateSettings(businessId, {
+      hoursExceptions: input.hoursExceptions,
     });
     revalidateSettings(businessId, "opening-hours");
     revalidatePath("/manage/settings/ordering");
