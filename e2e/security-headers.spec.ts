@@ -70,7 +70,7 @@ test("storefront and manager HTML link their separate manifests and both return 
   expect(managerRes.headers()["content-type"]).toContain("application/manifest+json");
   const managerManifest = (await managerRes.json()) as Record<string, unknown>;
   expect(managerManifest.id).toBe("/manage");
-  expect(managerManifest.scope).toBe("/manage/");
+  expect(managerManifest.scope).toBe("/manage");
   expect(managerManifest.start_url).toBe("/manage");
   expect(managerManifest.name).toBe("FoodBiz Manager");
 

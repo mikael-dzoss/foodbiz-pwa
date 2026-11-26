@@ -127,7 +127,7 @@ Which tiers a change needs, and the CI cost, are in [`CONTRIBUTING.md`](CONTRIBU
 Both the customer storefront and the manager dashboard are installable as separate PWAs with distinct manifests served by route handlers (Next.js only treats `manifest.*` as a metadata file at the app root):
 
 - **Storefront** (`src/app/[locale]/manifest.webmanifest/route.ts`): `id: "/"`, `scope: "/"`, `start_url: "/{locale}"`, shop name and description from cached `getStorefrontCatalog()`, linked via `metadata.manifest` in `src/app/[locale]/layout.tsx`.
-- **Manager** (`src/app/manage/manifest.webmanifest/route.ts`): `id: "/manage"`, `scope: "/manage/"`, `start_url: "/manage"`, `"FoodBiz Manager"`, linked via `metadata.manifest` in `src/app/manage/layout.tsx`.
+- **Manager** (`src/app/manage/manifest.webmanifest/route.ts`): `id: "/manage"`, `scope: "/manage"` (no trailing slash, so `start_url` stays in scope), `start_url: "/manage"`, `"FoodBiz Manager"`, linked via `metadata.manifest` in `src/app/manage/layout.tsx`.
 
 Both reuse the shared colours and icons (`public/icons/`: 192/512 PNG, maskable 512 PNG, SVG) from `src/config/app.ts`, and each section layout sets its own `applicationName` and `appleWebApp.title`. `src/proxy.ts` excludes `*.webmanifest` so browsers can fetch either manifest without auth cookies. `use-pwa-install.ts` and `install-app-card.tsx` provide an install prompt. There is no service worker.
 

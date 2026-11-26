@@ -5,7 +5,7 @@ import { APP_METADATA } from "@/config/app";
  * Web app manifest for the manager dashboard (`/manage`).
  *
  * Keeps `id: "/manage"` unchanged so existing manager installs update in place, while
- * `scope: "/manage/"` isolates manager installs from the customer storefront. OAuth
+ * `scope: "/manage"` isolates manager installs from the customer storefront. OAuth
  * `/auth/callback` only redirects and ends on `/manage`, so being outside scope is fine.
  */
 export function GET(): Response {

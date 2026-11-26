@@ -19,6 +19,17 @@ describe("GET /[locale]/manifest.webmanifest", () => {
     expect(generateStaticParams()).toEqual(SUPPORTED_LOCALES.map((locale) => ({ locale })));
   });
 
+  it("falls back to the default name when the catalog read fails", async () => {
+    vi.spyOn(catalogData, "getStorefrontCatalog").mockRejectedValue(new Error("db down"));
+    const response = await GET(new Request("http://localhost/en/manifest.webmanifest"), {
+      params: Promise.resolve({ locale: "en" }),
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as MetadataRoute.Manifest;
+    expect(body.name).toBe(APP_METADATA.storefront.defaultName);
+    expect(body.start_url?.startsWith(body.scope ?? "")).toBe(true);
+  });
+
   it.each(SUPPORTED_LOCALES)(
     "returns 200 with storefront manifest JSON for locale %s",
     async (locale) => {
@@ -61,7 +72,7 @@ describe("GET /[locale]/manifest.webmanifest", () => {
     expect(storefront.id).toBe("/");
     expect(manager.id).toBe("/manage");
     expect(storefront.scope).toBe("/");
-    expect(manager.scope).toBe("/manage/");
+    expect(manager.scope).toBe("/manage");
     expect(storefront.start_url).toBe("/en");
     expect(manager.start_url).toBe("/manage");
   });

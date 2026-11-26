@@ -31,16 +31,31 @@ export const APP_METADATA = {
     /** Unchanged so existing manager installs update in place. */
     manifestId: "/manage",
     startUrl: "/manage",
-    scope: "/manage/",
+    /**
+     * No trailing slash: scope matching is a path prefix, so `/manage/` would leave `start_url`
+     * `/manage` out of scope and browsers would ignore the scope. `/auth/callback` is out of
+     * scope but only redirects back to `/manage`, so the OAuth round trip still lands in-app.
+     */
+    scope: "/manage",
     manifestPath: "/manage/manifest.webmanifest",
   },
   storefront: {
     defaultName: "FoodBiz",
+    /** One storefront app for every locale; `start_url` is `/{locale}` (see storefrontManifestPath). */
     manifestId: "/",
+    /**
+     * Contains `/manage`, which is fine: scopes nest and the more specific manager scope wins for
+     * an installed manager app. The storefront no longer links to `/manage`.
+     */
     scope: "/",
     dir: "ltr",
   },
 } as const;
+
+/** URL of the storefront web app manifest for a locale (served by `[locale]/manifest.webmanifest`). */
+export function storefrontManifestPath(locale: string): string {
+  return `/${locale}/manifest.webmanifest`;
+}
 
 /**
  * Whether public legal routes (`/[locale]/legal/privacy`, `/[locale]/legal/terms`) exist.

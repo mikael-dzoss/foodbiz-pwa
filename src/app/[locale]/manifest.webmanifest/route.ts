@@ -23,7 +23,10 @@ export async function GET(
     return new Response(null, { status: 404 });
   }
 
-  const { business } = await getStorefrontCatalog();
+  // Like the OG images, fall back to the default name rather than fail the manifest.
+  const business = await getStorefrontCatalog()
+    .then((catalog) => catalog.business)
+    .catch(() => ({ name: APP_METADATA.storefront.defaultName, description: undefined }));
   const fallbackDescription = interpolate(getDictionary(locale).storefront.metaDescription, {
     business: business.name,
   });

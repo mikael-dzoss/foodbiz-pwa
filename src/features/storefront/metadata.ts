@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { storefrontManifestPath } from "@/config/app";
 import { formatMoney } from "@/domain/formatting";
 import {
   DEFAULT_LOCALE,
@@ -66,7 +67,7 @@ export function buildStorefrontRootMetadata(options: {
       title: businessName,
       statusBarStyle: "default",
     },
-    manifest: `/${locale}/manifest.webmanifest`,
+    manifest: storefrontManifestPath(locale),
     openGraph: {
       title: businessName,
       description,

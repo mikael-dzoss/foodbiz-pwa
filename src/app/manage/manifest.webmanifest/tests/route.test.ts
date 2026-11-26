@@ -15,7 +15,9 @@ describe("GET /manage/manifest.webmanifest", () => {
     const body = (await response.json()) as MetadataRoute.Manifest;
     expect(body.id).toBe("/manage");
     expect(body.start_url).toBe("/manage");
-    expect(body.scope).toBe("/manage/");
+    expect(body.scope).toBe("/manage");
+    // start_url must be within scope (path prefix) or browsers ignore the scope.
+    expect(body.start_url?.startsWith(body.scope ?? "")).toBe(true);
     expect(body.name).toBe("FoodBiz Manager");
     expect(body.short_name).toBe("FoodBiz");
     expect(body.description).toBe(APP_METADATA.manager.description);
