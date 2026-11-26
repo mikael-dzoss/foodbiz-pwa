@@ -215,6 +215,11 @@ export const placeOrderRepoInputSchema = z.object({
   notes: z.string().trim().max(500).optional().nullable(),
   allowRename: z.boolean().optional(),
   /**
+   * ASAP order ("as soon as possible"): storefront placement is refused while the shop is closed.
+   * Defaults to false (a scheduled order on `requestedDate`/`requestedTime`).
+   */
+  isAsap: z.boolean().optional(),
+  /**
    * Client-generated uuid. A repeated call with the same key (per business) returns the original
    * order instead of creating a second one and does not touch stock again.
    */

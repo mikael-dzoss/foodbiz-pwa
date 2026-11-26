@@ -401,13 +401,23 @@ export const frDictionary: Dictionary = {
     orderErrorValidation: "Veuillez vérifier vos informations et réessayer.",
     orderErrorAntiAbuse:
       "Trop de tentatives de commande. Veuillez patienter quelques minutes avant de réessayer.",
-    orderErrorStoreClosed: "La boutique n'accepte pas de commandes pour le moment.",
+    orderErrorStoreClosed:
+      "La boutique n'accepte aucune commande pour le moment, même pour plus tard. Revenez bientôt.",
     orderErrorServiceDisabled:
       "Ce mode de service est actuellement indisponible. Veuillez en choisir un autre.",
     orderErrorMinimum: "Votre commande est inférieure au montant minimum.",
     orderErrorStock:
       "Certains articles de votre panier ne sont plus disponibles. Veuillez vérifier votre panier.",
     orderErrorInternal: "Nous n'avons pas pu enregistrer votre commande. Veuillez réessayer.",
+    orderErrorSlotClosedNow:
+      "La boutique est fermée pour le moment. Choisissez une date et une heure pour commander à l'avance.",
+    orderErrorSlotClosedDay:
+      "La boutique est fermée à la date choisie. Veuillez choisir un autre jour.",
+    orderErrorSlotDateOutOfWindow:
+      "Veuillez choisir une date comprise entre aujourd'hui et dans 30 jours.",
+    orderErrorSlotTimeOutsideHours: "L'heure choisie est en dehors des horaires d'ouverture.",
+    orderErrorSlotTimeInPast:
+      "L'heure choisie est déjà passée. Veuillez choisir une heure plus tardive.",
     pageErrorTitle: "Une erreur est survenue",
     pageErrorMessage: "Nous n'avons pas pu charger cette page. Veuillez réessayer.",
     pageErrorRetry: "Réessayer",

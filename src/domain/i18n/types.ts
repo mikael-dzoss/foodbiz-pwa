@@ -277,6 +277,11 @@ export interface StorefrontDictionary {
   orderErrorMinimum: string;
   orderErrorStock: string;
   orderErrorInternal: string;
+  orderErrorSlotClosedNow: string;
+  orderErrorSlotClosedDay: string;
+  orderErrorSlotDateOutOfWindow: string;
+  orderErrorSlotTimeOutsideHours: string;
+  orderErrorSlotTimeInPast: string;
   pageErrorTitle: string;
   pageErrorMessage: string;
   pageErrorRetry: string;

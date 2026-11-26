@@ -7,6 +7,7 @@ import {
   isValidPhoneNumber,
 } from "./guest";
 import { MAX_LINES_PER_ORDER } from "./anti-abuse";
+import type { SlotErrorReason } from "./opening-hours";
 import {
   MAX_DELIVERY_ADDRESS_LENGTH,
   serviceTypeSchema,
@@ -310,6 +311,29 @@ export const PLACE_ORDER_REASONS = [
   "SERVICE_TYPE_DISABLED",
   "MINIMUM_ORDER_UNMET",
   "STOCK_ERROR",
+  "SLOT_CLOSED_NOW",
+  "SLOT_CLOSED_DAY",
+  "SLOT_DATE_OUT_OF_WINDOW",
+  "SLOT_TIME_OUTSIDE_HOURS",
+  "SLOT_TIME_IN_PAST",
 ] as const;
 
 export type PlaceOrderReason = (typeof PLACE_ORDER_REASONS)[number];
+
+/** Place-order reason (and repository error code) for each opening-hours slot rejection. */
+export const SLOT_ERROR_REASONS = {
+  closed_now: "SLOT_CLOSED_NOW",
+  closed_day: "SLOT_CLOSED_DAY",
+  date_out_of_window: "SLOT_DATE_OUT_OF_WINDOW",
+  time_outside_hours: "SLOT_TIME_OUTSIDE_HOURS",
+  time_in_past: "SLOT_TIME_IN_PAST",
+} as const satisfies Record<SlotErrorReason, PlaceOrderReason>;
+
+/** Client-safe English text per slot rejection (the checkout shows its localized equivalent). */
+export const SLOT_ERROR_MESSAGES = {
+  closed_now: "The store is closed right now. Please choose a date and time to order for later.",
+  closed_day: "The store is closed on the chosen date. Please choose another day.",
+  date_out_of_window: "Please choose a date from today up to 30 days ahead.",
+  time_outside_hours: "The chosen time is outside the store's opening hours.",
+  time_in_past: "The chosen time has already passed. Please choose a later time.",
+} as const satisfies Record<SlotErrorReason, string>;
