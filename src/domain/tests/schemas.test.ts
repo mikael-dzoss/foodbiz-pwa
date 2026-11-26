@@ -776,6 +776,27 @@ describe("Order and OrderItem schemas", () => {
         items: [{ productId: validUuid, quantity: 0 }],
       }).success,
     ).toBe(false);
+
+    // Optional pickupLocationId: uuid or null accepted, non-uuid rejected (#386)
+    const withLocation = manualOrderInputSchema.safeParse({
+      ...valid,
+      pickupLocationId: anotherUuid,
+    });
+    expect(withLocation.success).toBe(true);
+    if (withLocation.success) {
+      expect(withLocation.data.pickupLocationId).toBe(anotherUuid);
+    }
+    const withNullLocation = manualOrderInputSchema.safeParse({
+      ...valid,
+      pickupLocationId: null,
+    });
+    expect(withNullLocation.success).toBe(true);
+    if (withNullLocation.success) {
+      expect(withNullLocation.data.pickupLocationId).toBeNull();
+    }
+    expect(
+      manualOrderInputSchema.safeParse({ ...valid, pickupLocationId: "not-a-uuid" }).success,
+    ).toBe(false);
   });
 
   it("validates updateOrderStatusInputSchema and rejects invalid input", () => {

@@ -50,6 +50,7 @@ const mockOrderRepo = {
         deliveryAddress?: string | null;
         notes?: string | null;
         allowRename?: boolean;
+        pickupLocationId?: string | null;
       },
     ) => {
       // 1. Stock check & decrement
@@ -761,6 +762,75 @@ describe("Order Server Actions", () => {
         // Canonical stored guest name WAS updated
         expect(mockGuests.find((g) => g.id === validGuestId)?.name).toBe("Jean-Paul Dupont");
       }
+    });
+
+    it("passes optional pickupLocationId through to orders.place and defaults omitted/null to null (#386)", async () => {
+      const locationId = "44444444-4444-4444-8444-444444444401";
+      const base = {
+        guestPhone: "+33612345678",
+        guestName: "Jean Dupont",
+        serviceType: "pickup" as const,
+        channel: "phone" as const,
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      };
+
+      const withRelay = await createManualOrderAction({ ...base, pickupLocationId: locationId });
+      expect(withRelay.ok).toBe(true);
+      expect(mockOrderRepo.place).toHaveBeenLastCalledWith(
+        testBusinessId,
+        expect.objectContaining({ pickupLocationId: locationId }),
+      );
+
+      const withNull = await createManualOrderAction({ ...base, pickupLocationId: null });
+      expect(withNull.ok).toBe(true);
+      expect(mockOrderRepo.place).toHaveBeenLastCalledWith(
+        testBusinessId,
+        expect.objectContaining({ pickupLocationId: null }),
+      );
+
+      const omitted = await createManualOrderAction(base);
+      expect(omitted.ok).toBe(true);
+      expect(mockOrderRepo.place).toHaveBeenLastCalledWith(
+        testBusinessId,
+        expect.objectContaining({ pickupLocationId: null }),
+      );
+    });
+
+    it("rejects malformed pickupLocationId and surfaces server-side PICKUP_LOCATION_INVALID (#386)", async () => {
+      const base = {
+        guestPhone: "+33612345678",
+        guestName: "Jean Dupont",
+        serviceType: "pickup" as const,
+        channel: "phone" as const,
+        isAsap: true,
+        items: [{ productId: validProductId, quantity: 1 }],
+      };
+
+      const invalid = await createManualOrderAction({
+        ...base,
+        pickupLocationId: "not-a-uuid",
+      });
+      expect(invalid).toMatchObject({ ok: false, code: "VALIDATION" });
+      if (!invalid.ok) {
+        expect(invalid.fieldErrors?.pickupLocationId).toBeDefined();
+      }
+
+      mockOrderRepo.place.mockRejectedValueOnce(
+        new OrderRepoError(
+          "The chosen pickup location is no longer available.",
+          "PICKUP_LOCATION_INVALID",
+        ),
+      );
+      const serverRejected = await createManualOrderAction({
+        ...base,
+        pickupLocationId: "44444444-4444-4444-8444-444444444499",
+      });
+      expect(serverRejected).toMatchObject({
+        ok: false,
+        code: "CONFLICT",
+        reason: "PICKUP_LOCATION_INVALID",
+      });
     });
   });
 

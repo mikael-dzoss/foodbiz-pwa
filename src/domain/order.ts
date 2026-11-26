@@ -207,6 +207,8 @@ export const manualOrderInputSchema = z.object({
   requestedTime: timeHHMMSchema.optional().nullable(),
   notes: z.string().trim().optional().nullable(),
   paymentPreference: paymentPreferenceSchema.default("on_handover"),
+  /** Relay pickup location (pickup orders only); null/absent means the shop. */
+  pickupLocationId: uuidSchema.nullable().optional(),
   items: z.array(manualOrderItemInputSchema).min(1),
 });
 export type ManualOrderInput = z.infer<typeof manualOrderInputSchema>;
