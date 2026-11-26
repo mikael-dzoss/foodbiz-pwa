@@ -307,8 +307,6 @@ export const frDictionary: Dictionary = {
     freeDelivery: "Livraison gratuite",
     weeklyOpeningHours: "Horaires hebdomadaires",
     holidayScheduleTitle: "Jours fériés",
-    holidayScheduleNotice:
-      "Horaires jours fériés : Ouvert les jours fériés sauf le 1er mai et le 25 décembre.",
     deliveryPolicy: "Conditions de livraison & commande",
     policyMinOrder: "Commande min.",
     policyDeliveryFee: "Frais de livraison",

@@ -84,22 +84,8 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
     ? buildOpenStreetMapEmbedUrl(business.latitude!, business.longitude!)
     : null;
 
-  // Days for the weekly schedule
-  const days = [
-    { key: "monday", label: "Monday", fr: "Lundi" },
-    { key: "tuesday", label: "Tuesday", fr: "Mardi" },
-    { key: "wednesday", label: "Wednesday", fr: "Mercredi" },
-    { key: "thursday", label: "Thursday", fr: "Jeudi" },
-    { key: "friday", label: "Friday", fr: "Vendredi" },
-    { key: "saturday", label: "Saturday", fr: "Samedi" },
-    { key: "sunday", label: "Sunday", fr: "Dimanche" },
-  ];
-
   // Today in the business zone (null until hydrated, so server and client render the same)
   const today = useZonedToday(settings?.timezone ?? DEFAULT_TIMEZONE);
-  // JS weekday (0=Sun, 1=Mon...6=Sat) mapped to our Monday-indexed list; -1 = unknown yet
-  const currentDayIndex = today ? new Date(`${today}T12:00:00Z`).getUTCDay() : -1;
-  const currentMondayIndex = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
 
   const isOpen = settings?.acceptingOrders ?? true;
 
@@ -343,59 +329,19 @@ export function ShopInfoView({ business, settings, locale, dict }: ShopInfoViewP
             </div>
           )}
 
-          {hasStructuredHours ? (
-            <HoursSummary
-              weekly={weeklyHours}
-              exceptions={hoursExceptions}
-              locale={locale}
-              timeZone={settings?.timezone ?? DEFAULT_TIMEZONE}
-              highlightToday
-              fallbackText={settings?.openingHours}
-              labels={{
-                closed: dict.storeClosedBadge,
-                todayBadge: dict.today,
-                upcomingExceptionsTitle: dict.upcomingExceptionsTitle,
-              }}
-            />
-          ) : (
-            <>
-              <div className="border-border/40 divide-border/40 divide-y border-t text-xs">
-                {days.map((day, idx) => {
-                  const isToday = idx === currentMondayIndex;
-                  const isSunday = idx === 6;
-                  return (
-                    <div
-                      key={day.key}
-                      className={`flex items-center justify-between py-2 ${
-                        isToday ? "text-foreground font-semibold" : "text-muted-foreground"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{locale === "fr" ? day.fr : day.label}</span>
-                        {isToday && (
-                          <span className="bg-primary text-primary-foreground text-micro rounded px-1.5 font-semibold">
-                            {dict.today}
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-normal tabular-nums">
-                        {isSunday ? "08:00 – 13:00" : "07:30 – 19:30"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* TODO(business): Dynamic holiday closures & seasonal calendar exceptions (#83) */}
-              <div className="border-border/50 bg-muted/60 text-muted-foreground text-caption flex items-start justify-between gap-2 rounded-lg border p-2.5">
-                <div className="flex items-start gap-2">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                  <span>{dict.holidayScheduleNotice}</span>
-                </div>
-                <SoonBadge />
-              </div>
-            </>
-          )}
+          <HoursSummary
+            weekly={weeklyHours}
+            exceptions={hoursExceptions}
+            locale={locale}
+            timeZone={settings?.timezone ?? DEFAULT_TIMEZONE}
+            highlightToday
+            fallbackText={settings?.openingHours}
+            labels={{
+              closed: dict.storeClosedBadge,
+              todayBadge: dict.today,
+              upcomingExceptionsTitle: dict.upcomingExceptionsTitle,
+            }}
+          />
         </section>
       )}
 

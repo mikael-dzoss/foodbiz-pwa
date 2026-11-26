@@ -295,8 +295,6 @@ export const enDictionary: Dictionary = {
     freeDelivery: "Free delivery",
     weeklyOpeningHours: "Weekly Opening Hours",
     holidayScheduleTitle: "Holiday schedule",
-    holidayScheduleNotice:
-      "Holiday schedule: Open on national bank holidays except May 1st and December 25th.",
     deliveryPolicy: "Delivery & Ordering Policy",
     policyMinOrder: "Min. Order",
     policyDeliveryFee: "Delivery Fee",

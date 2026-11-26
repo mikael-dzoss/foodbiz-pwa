@@ -127,7 +127,7 @@ describe("ShopInfoView (#83)", () => {
     expect(screen.getByText(frDictionary.storefront.address)).toBeDefined();
   });
 
-  it("renders Stitch C-03 elements: weekly hours table with Today badge, holiday panel with SoonBadge, and return button", () => {
+  it("renders Stitch C-03 elements: legacy hours text, no invented holiday panel, card-tap SoonBadge and return button", () => {
     render(
       <ShopInfoView
         business={mockBusiness}
@@ -139,18 +139,15 @@ describe("ShopInfoView (#83)", () => {
 
     // Weekly opening hours header & Today badge
     expect(screen.getByText(enDictionary.storefront.weeklyOpeningHours)).toBeDefined();
-    expect(screen.getByText(enDictionary.storefront.today)).toBeDefined();
-
-    // Holiday schedule notice
-    expect(screen.getByText(enDictionary.storefront.holidayScheduleNotice)).toBeDefined();
+    expect(screen.getByTestId("hours-summary-fallback")).toBeDefined();
+    expect(screen.queryByText("08:00 – 13:00")).toBeNull();
 
     // Accepted payments & card tap soon badge
     expect(screen.getByText(enDictionary.storefront.acceptedPayments)).toBeDefined();
     expect(screen.getByText(enDictionary.storefront.cashOnPickup)).toBeDefined();
 
-    // Soon badges on holiday schedule & card tap
-    const soonBadges = screen.getAllByText("Soon");
-    expect(soonBadges.length).toBeGreaterThanOrEqual(2);
+    // Soon badge on card tap only
+    expect(screen.getAllByText("Soon").length).toBe(1);
 
     // Sticky Return to Catalog CTA
     const returnLink = screen.getByRole("link", {
@@ -484,6 +481,18 @@ describe("ShopInfoView (#83)", () => {
       expect(screen.getByTestId("shop-payment-wero").textContent).toBe("Wero");
       expect(screen.getByTestId("hours-summary-weekly")).toBeDefined();
       expect(screen.queryByText("07:30 – 19:30")).toBeNull();
+    });
+
+    it("hides the hours section when no hours are configured", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{ ...mockSettings, openingHours: "", weeklyHours: null, hoursExceptions: [] }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(screen.queryByText(enDictionary.storefront.weeklyOpeningHours)).toBeNull();
     });
 
     it("shows today's exception note on the day it applies", () => {

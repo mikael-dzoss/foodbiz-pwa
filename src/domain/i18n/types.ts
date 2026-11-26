@@ -179,7 +179,6 @@ export interface StorefrontDictionary {
   freeDelivery: string;
   weeklyOpeningHours: string;
   holidayScheduleTitle: string;
-  holidayScheduleNotice: string;
   deliveryPolicy: string;
   policyMinOrder: string;
   policyDeliveryFee: string;

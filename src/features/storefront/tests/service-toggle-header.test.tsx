@@ -1,3 +1,4 @@
+import { renderToString } from "react-dom/server";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ServiceToggleHeader } from "../components/service-toggle-header";
@@ -399,6 +400,36 @@ describe("ServiceToggleHeader (#193)", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("shows today's structured ranges, not the legacy text, in the details card", async () => {
+      vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+      vi.setSystemTime(new Date("2026-12-01T11:00:00Z")); // Tue 12:00 Paris
+      try {
+        renderHeader(true);
+        fireEvent.click(screen.getByTestId("store-status-tile"));
+        const dialog = await screen.findByTestId("ordering-details-dialog");
+        expect(dialog.textContent).toContain("11:30–14:30");
+        expect(dialog.textContent).not.toContain("07:30 - 19:30");
+        expect(screen.getByTestId("store-status-tile").textContent).not.toContain("07:30 - 19:30");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("renders no invented default times before the client clock is known", () => {
+      const html = renderToString(
+        <ServiceToggleHeader
+          isAcceptingOrders
+          isOpen={false}
+          openingHoursText="07:30 - 19:30"
+          settings={baseSettings}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+      expect(html).not.toContain("07:30");
+      expect(html).not.toContain("19:30");
     });
   });
 });
