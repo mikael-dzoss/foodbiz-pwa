@@ -408,23 +408,6 @@ describe("ShopInfoView (#83)", () => {
         <ShopInfoView
           business={mockBusiness}
           settings={null}
-  describe("structured hours (#372, #375)", () => {
-    const range = [{ open: "11:00", close: "14:00" }];
-    const weekly = {
-      mon: range,
-      tue: range,
-      wed: range,
-      thu: range,
-      fri: range,
-      sat: range,
-      sun: [],
-    };
-
-    it("renders the grouped summary instead of the placeholder table", () => {
-      render(
-        <ShopInfoView
-          business={mockBusiness}
-          settings={{ ...mockSettings, weeklyHours: weekly, hoursExceptions: [] }}
           locale="en"
           dict={enDictionary.storefront}
         />,
@@ -479,6 +462,30 @@ describe("ShopInfoView (#83)", () => {
       expect(screen.getByTestId("shop-payment-card").textContent).toBe("Carte au retrait");
       expect(screen.getByTestId("shop-payment-revolut").textContent).toBe("Revolut (Revtag)");
       expect(screen.getByTestId("shop-payment-wero").textContent).toBe("Wero");
+    });
+  });
+
+  describe("structured hours (#372, #375)", () => {
+    const range = [{ open: "11:00", close: "14:00" }];
+    const weekly = {
+      mon: range,
+      tue: range,
+      wed: range,
+      thu: range,
+      fri: range,
+      sat: range,
+      sun: [],
+    };
+
+    it("renders the grouped summary instead of the placeholder table", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{ ...mockSettings, weeklyHours: weekly, hoursExceptions: [] }}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
       expect(screen.getByTestId("hours-summary-weekly")).toBeDefined();
       expect(screen.queryByText("07:30 – 19:30")).toBeNull();
     });
