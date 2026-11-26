@@ -30,6 +30,7 @@ grant select (
   opening_hours,
   weekly_hours,
   hours_exceptions,
+  shop_pickup_enabled,
   order_timing_asap,
   order_timing_scheduled,
   order_timing_time_optional,
