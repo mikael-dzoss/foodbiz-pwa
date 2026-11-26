@@ -549,7 +549,10 @@ export function CheckoutForm({
         className="sr-only"
         data-testid="checkout-validation-summary"
       >
-        {hasInvalidSubmit && !validationResult.success ? dict.formValidationSummary : ""}
+        {/* Keyed per submit so a repeated invalid submit replaces the node and is re-announced */}
+        {hasInvalidSubmit && !validationResult.success ? (
+          <span key={focusRequest?.seq ?? 0}>{dict.formValidationSummary}</span>
+        ) : null}
       </p>
       {/* Honeypot anti-spam trap (invisible to real users and screen readers) */}
       <div
