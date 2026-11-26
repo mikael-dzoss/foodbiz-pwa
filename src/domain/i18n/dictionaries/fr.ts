@@ -643,6 +643,7 @@ export const frDictionary: Dictionary = {
     fulfillmentDetails: "Détails de retrait",
     pickupWindow: "Créneau de retrait",
     deliveryAddress: "Adresse de livraison",
+    deliveryTo: "Livraison à",
     directions: "Itinéraire",
     orderSummary: "Récapitulatif de commande",
     subtotal: "Sous-total",

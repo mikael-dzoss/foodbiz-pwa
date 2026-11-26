@@ -629,6 +629,7 @@ export const enDictionary: Dictionary = {
     fulfillmentDetails: "Fulfillment Details",
     pickupWindow: "Pickup Window",
     deliveryAddress: "Delivery Address",
+    deliveryTo: "Delivery to",
     directions: "Directions",
     orderSummary: "Order Summary",
     subtotal: "Subtotal",

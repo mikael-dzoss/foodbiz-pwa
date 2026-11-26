@@ -94,6 +94,10 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     expect(screen.getByText(DEMO_PRODUCT.pouletBraise.name)).toBeDefined();
     expect(screen.getByText(DEMO_PRODUCT.folere.name)).toBeDefined();
     expect(screen.getByText(demoBusiness.address!)).toBeDefined();
+    expect(screen.getByTestId("tracking-directions-link").getAttribute("href")).toContain(
+      encodeURIComponent(`${demoBusiness.name}, ${demoBusiness.address}`),
+    );
+    expect(screen.queryByTestId("tracking-delivery-address")).toBeNull();
     expect(screen.getByTestId("tracking-contact-button").getAttribute("href")).toContain(
       `tel:${demoBusiness.phone!.replace(/\D/g, "")}`,
     );
@@ -146,7 +150,7 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
   });
 
-  it("renders delivery progress and unpaid status without private address or notes", () => {
+  it("renders delivery address under Delivery to without shop address, Directions link, or notes (#352)", () => {
     const deliveryOrder: Order = {
       ...mockActiveOrder,
       id: "ord-deliv",
@@ -169,10 +173,54 @@ describe("OrderTrackingView Component (Story #54 AC 3)", () => {
     );
 
     expect(screen.getByText("Delivery")).toBeDefined();
-    expect(screen.queryByText("42 Avenue des Champs-Élysées, 75008 Paris")).toBeNull();
+    const deliverySection = screen.getByTestId("tracking-delivery-address");
+    expect(deliverySection.textContent).toContain("Delivery to");
+    expect(deliverySection.textContent).toContain("42 Avenue des Champs-Élysées, 75008 Paris");
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
     expect(screen.queryByText("Please ring door code 4589B")).toBeNull();
     expect(screen.getByText(enDict.orderTracking.unpaidBadge)).toBeDefined();
     expect(screen.getByTestId("tracking-status-badge").textContent).toContain("Preparing");
+  });
+
+  it("renders French delivery label and hides shop address when delivery address is missing (#352)", () => {
+    const frDeliveryOrder: Order = {
+      ...mockActiveOrder,
+      id: "ord-deliv-fr",
+      orderNumber: 56,
+      serviceType: "delivery",
+      deliveryAddress: "12 Rue de Rivoli, 75001 Paris",
+    };
+
+    const { rerender } = render(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={frDeliveryOrder}
+        business={mockBusiness}
+        locale="fr"
+        dict={frDict.orderTracking}
+      />,
+    );
+
+    const deliverySection = screen.getByTestId("tracking-delivery-address");
+    expect(deliverySection.textContent).toContain("Livraison à");
+    expect(deliverySection.textContent).toContain("12 Rue de Rivoli, 75001 Paris");
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
+
+    rerender(
+      <OrderTrackingView
+        timeZone="Europe/Paris"
+        order={{ ...frDeliveryOrder, deliveryAddress: null }}
+        business={mockBusiness}
+        locale="fr"
+        dict={frDict.orderTracking}
+      />,
+    );
+
+    expect(screen.queryByTestId("tracking-delivery-address")).toBeNull();
+    expect(screen.queryByText(demoBusiness.address!)).toBeNull();
+    expect(screen.queryByTestId("tracking-directions-link")).toBeNull();
   });
 
   it("renders COMPLETED and READY order statuses", () => {

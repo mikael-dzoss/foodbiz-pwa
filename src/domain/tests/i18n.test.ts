@@ -45,6 +45,12 @@ describe("Internationalisation Foundation (#31)", () => {
     const enKeysCommon = Object.keys(enDictionary.common).sort();
     const frKeysCommon = Object.keys(frDictionary.common).sort();
     expect(frKeysCommon).toEqual(enKeysCommon);
+
+    const enKeysTracking = Object.keys(enDictionary.orderTracking).sort();
+    const frKeysTracking = Object.keys(frDictionary.orderTracking).sort();
+    expect(frKeysTracking).toEqual(enKeysTracking);
+    expect(enDictionary.orderTracking.deliveryTo).toBe("Delivery to");
+    expect(frDictionary.orderTracking.deliveryTo).toBe("Livraison à");
   });
 
   it("ensures all French strings are non-empty and translated", () => {

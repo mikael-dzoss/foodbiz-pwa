@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { BusinessSettings } from "@/domain/business";
@@ -35,6 +35,8 @@ export function OrderConfirmationView({
   const instructions =
     locale === "fr" ? settings?.paymentInstructionsFr : settings?.paymentInstructionsEn;
   const needsPayment = order.paid === "unpaid" && order.status !== "CANCELLED";
+  const deliveryAddress =
+    order.serviceType === "delivery" ? order.deliveryAddress?.trim() || null : null;
   const paymentStatus =
     order.paid === "paid"
       ? tracking.paidBadge
@@ -83,6 +85,23 @@ export function OrderConfirmationView({
           </span>
         </div>
       </section>
+
+      {deliveryAddress && (
+        <section
+          className="border-border bg-card space-y-1 rounded-lg border p-4"
+          aria-labelledby="confirmation-delivery-address"
+          data-testid="confirmation-delivery-address"
+        >
+          <h2
+            id="confirmation-delivery-address"
+            className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium"
+          >
+            <MapPin className="text-primary h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>{tracking.deliveryTo}</span>
+          </h2>
+          <p className="text-foreground text-sm font-semibold wrap-break-word">{deliveryAddress}</p>
+        </section>
+      )}
 
       <section
         className="border-border bg-card space-y-3 rounded-lg border p-4"
