@@ -4,23 +4,40 @@ import {
   DAY_KEYS,
   DEFAULT_SLOT_LEAD_MINUTES,
   DEFAULT_SLOT_STEP_MINUTES,
+  MAX_EXCEPTIONS,
+  MAX_EXCEPTION_NOTE_LENGTH,
+  MAX_EXCEPTION_SPAN_DAYS,
   MAX_RANGES_PER_DAY,
   OPEN_TIME_REGEX,
   SLOT_HORIZON_DAYS,
   allowedDates,
   allowedTimes,
   formatWeeklyHours,
+  groupWeeklyHours,
+  hoursExceptionSchema,
+  hoursExceptionsSchema,
   isOpenAt,
   nextOpening,
+  rangesForDate,
   timeRangeSchema,
+  upcomingExceptions,
   validateSlot,
   weeklyHoursSchema,
+  type HoursException,
+  type OpeningSchedule,
   type WeeklyHours,
 } from "./opening-hours";
 import { DEFAULT_TIMEZONE } from "./timezone";
 
 const PARIS = DEFAULT_TIMEZONE; // "Europe/Paris"
 const NEW_YORK = "America/New_York";
+
+function schedule(
+  weekly: WeeklyHours | null,
+  exceptions: readonly HoursException[] = [],
+): OpeningSchedule {
+  return { weekly, exceptions };
+}
 
 const EMPTY_WEEK: WeeklyHours = {
   mon: [],
@@ -326,7 +343,7 @@ describe("isOpenAt (#372)", () => {
       expected: true,
     },
   ])("$label -> $expected", ({ hours, tz, at, expected }) => {
-    expect(isOpenAt(hours, tz, new Date(at))).toBe(expected);
+    expect(isOpenAt(schedule(hours), tz, new Date(at))).toBe(expected);
   });
 });
 
@@ -396,7 +413,7 @@ describe("nextOpening (#372)", () => {
       expected: { date: "2026-10-25", time: "09:00" },
     },
   ])("$label", ({ hours, tz, from, expected }) => {
-    expect(nextOpening(hours, tz, new Date(from))).toEqual(expected);
+    expect(nextOpening(schedule(hours), tz, new Date(from))).toEqual(expected);
   });
 });
 
@@ -519,15 +536,17 @@ describe("allowedTimes (#372)", () => {
       expected: ["23:00", "23:30"],
     },
   ])("$label", ({ hours, date, tz, now, opts, expected }) => {
-    expect(allowedTimes(hours, date, tz, now, opts)).toEqual(expected);
+    expect(allowedTimes(schedule(hours), date, tz, now, opts)).toEqual(expected);
   });
 
   it("throws on invalid stepMinutes or negative leadMinutes", () => {
     expect(() =>
-      allowedTimes(STANDARD_WEEK, "2026-07-07", PARIS, mon1000Paris, { stepMinutes: 0 }),
+      allowedTimes(schedule(STANDARD_WEEK), "2026-07-07", PARIS, mon1000Paris, { stepMinutes: 0 }),
     ).toThrow(RangeError);
     expect(() =>
-      allowedTimes(STANDARD_WEEK, "2026-07-07", PARIS, mon1000Paris, { leadMinutes: -5 }),
+      allowedTimes(schedule(STANDARD_WEEK), "2026-07-07", PARIS, mon1000Paris, {
+        leadMinutes: -5,
+      }),
     ).toThrow(RangeError);
   });
 });
@@ -536,7 +555,7 @@ describe("allowedDates (#372)", () => {
   it("returns today..today+horizonDays inclusive, skipping closed days and exhausted today", () => {
     // 2026-07-06 Mon 10:00 CEST (slots remain today)
     const morning = new Date("2026-07-06T08:00:00Z");
-    expect(allowedDates(STANDARD_WEEK, PARIS, morning, { horizonDays: 7 })).toEqual([
+    expect(allowedDates(schedule(STANDARD_WEEK), PARIS, morning, { horizonDays: 7 })).toEqual([
       "2026-07-06", // Mon
       "2026-07-07", // Tue
       "2026-07-08", // Wed
@@ -549,7 +568,7 @@ describe("allowedDates (#372)", () => {
 
     // 2026-07-06 Mon 17:45 CEST -> last slot is 17:45 (not strictly in future) -> Mon excluded
     const late = new Date("2026-07-06T15:45:00Z");
-    expect(allowedDates(STANDARD_WEEK, PARIS, late, { horizonDays: 2 })).toEqual([
+    expect(allowedDates(schedule(STANDARD_WEEK), PARIS, late, { horizonDays: 2 })).toEqual([
       "2026-07-07",
       "2026-07-08",
     ]);
@@ -566,17 +585,19 @@ describe("allowedDates (#372)", () => {
       sun: [{ open: "09:00", close: "18:00" }],
     });
     const now = new Date("2026-07-06T08:00:00Z"); // Mon 10:00 CEST
-    const dates = allowedDates(allOpen, PARIS, now);
+    const dates = allowedDates(schedule(allOpen), PARIS, now);
     expect(dates).toHaveLength(31); // today + 30 days inclusive
     expect(dates[0]).toBe("2026-07-06");
     expect(dates[dates.length - 1]).toBe("2026-08-05");
 
-    expect(allowedDates(EMPTY_WEEK, PARIS, now)).toEqual([]);
+    expect(allowedDates(schedule(EMPTY_WEEK), PARIS, now)).toEqual([]);
   });
 
   it("throws on negative horizonDays", () => {
     expect(() =>
-      allowedDates(STANDARD_WEEK, PARIS, new Date("2026-07-06T08:00:00Z"), { horizonDays: -1 }),
+      allowedDates(schedule(STANDARD_WEEK), PARIS, new Date("2026-07-06T08:00:00Z"), {
+        horizonDays: -1,
+      }),
     ).toThrow(RangeError);
   });
 });
@@ -804,13 +825,13 @@ describe("validateSlot (#372)", () => {
       expected: { ok: false, reason: "closed_now" },
     },
   ])("$label", ({ hours, tz, now, slot, opts, expected }) => {
-    expect(validateSlot(hours, tz, now, slot, opts)).toEqual(expected);
+    expect(validateSlot(schedule(hours), tz, now, slot, opts)).toEqual(expected);
   });
 
   it("throws on invalid horizonDays or negative leadMinutes", () => {
     expect(() =>
       validateSlot(
-        STANDARD_WEEK,
+        schedule(STANDARD_WEEK),
         PARIS,
         mon1000Paris,
         { date: "2026-07-06", isAsap: true },
@@ -819,7 +840,7 @@ describe("validateSlot (#372)", () => {
     ).toThrow(RangeError);
     expect(() =>
       validateSlot(
-        STANDARD_WEEK,
+        schedule(STANDARD_WEEK),
         PARIS,
         mon1000Paris,
         { date: "2026-07-06", isAsap: true },
@@ -1002,5 +1023,567 @@ describe("formatWeeklyHours (#372)", () => {
       expect(entry.ranges).toEqual(["00:00–24:00"]);
       expect(entry.closed).toBe(false);
     }
+  });
+});
+
+describe("hoursExceptionSchema & hoursExceptionsSchema (#375)", () => {
+  it("exports exception validation constants", () => {
+    expect(MAX_EXCEPTIONS).toBe(100);
+    expect(MAX_EXCEPTION_SPAN_DAYS).toBe(60);
+    expect(MAX_EXCEPTION_NOTE_LENGTH).toBe(50);
+  });
+
+  it.each([
+    {
+      label: "single-day closed holiday with note",
+      input: { from: "2026-07-14", to: "2026-07-14", ranges: [], note: "  Bastille Day  " },
+      expectedNote: "Bastille Day",
+    },
+    {
+      label: "holiday range across month boundary",
+      input: { from: "2026-07-28", to: "2026-08-05", ranges: [], note: "Congés annuels" },
+      expectedNote: "Congés annuels",
+    },
+    {
+      label: "special custom hours without note including 24:00 close",
+      input: {
+        from: "2026-12-31",
+        to: "2026-12-31",
+        ranges: [
+          { open: "11:00", close: "15:00" },
+          { open: "18:00", close: "24:00" },
+        ],
+      },
+      expectedNote: undefined,
+    },
+    {
+      label: "exact 60-day inclusive span (Aug 1 to Sep 29)",
+      input: { from: "2026-08-01", to: "2026-09-29", ranges: [] },
+      expectedNote: undefined,
+    },
+    {
+      label: "leap year Feb 29",
+      input: { from: "2024-02-29", to: "2024-02-29", ranges: [{ open: "10:00", close: "14:00" }] },
+      expectedNote: undefined,
+    },
+    {
+      label: "note of exact max length 50",
+      input: { from: "2026-08-01", to: "2026-08-01", ranges: [], note: "a".repeat(50) },
+      expectedNote: "a".repeat(50),
+    },
+  ])("hoursExceptionSchema accepts $label", ({ input, expectedNote }) => {
+    const parsed = hoursExceptionSchema.safeParse(input);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.note).toBe(expectedNote);
+    }
+  });
+
+  it.each([
+    { label: "to < from", input: { from: "2026-08-10", to: "2026-08-09", ranges: [] } },
+    {
+      label: "61-day inclusive span (> 60)",
+      input: { from: "2026-08-01", to: "2026-09-30", ranges: [] },
+    },
+    {
+      label: "invalid calendar date Feb 30",
+      input: { from: "2026-02-30", to: "2026-02-30", ranges: [] },
+    },
+    {
+      label: "non-leap year Feb 29",
+      input: { from: "2026-02-29", to: "2026-02-29", ranges: [] },
+    },
+    {
+      label: "unpadded month/day",
+      input: { from: "2026-8-01", to: "2026-08-02", ranges: [] },
+    },
+    {
+      label: "note longer than 50 chars",
+      input: { from: "2026-08-01", to: "2026-08-01", ranges: [], note: "a".repeat(51) },
+    },
+    {
+      label: "extra unknown key (strict object)",
+      input: { from: "2026-08-01", to: "2026-08-01", ranges: [], extra: true },
+    },
+    {
+      label: "touching ranges inside exception",
+      input: {
+        from: "2026-08-01",
+        to: "2026-08-01",
+        ranges: [
+          { open: "09:00", close: "12:00" },
+          { open: "12:00", close: "15:00" },
+        ],
+      },
+    },
+    {
+      label: "5 ranges inside exception (> 4)",
+      input: {
+        from: "2026-08-01",
+        to: "2026-08-01",
+        ranges: [
+          { open: "06:00", close: "07:00" },
+          { open: "08:00", close: "09:00" },
+          { open: "10:00", close: "11:00" },
+          { open: "12:00", close: "13:00" },
+          { open: "14:00", close: "15:00" },
+        ],
+      },
+    },
+  ])("hoursExceptionSchema rejects $label", ({ input }) => {
+    expect(hoursExceptionSchema.safeParse(input).success).toBe(false);
+  });
+
+  it("hoursExceptionsSchema accepts adjacent, unsorted, and up to 100 non-overlapping periods", () => {
+    expect(
+      hoursExceptionsSchema.safeParse([
+        { from: "2026-08-06", to: "2026-08-06", ranges: [{ open: "10:00", close: "14:00" }] },
+        { from: "2026-08-01", to: "2026-08-05", ranges: [], note: "Holiday" },
+      ]).success,
+    ).toBe(true);
+
+    const hundred = Array.from({ length: 100 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+      return { from: d, to: d, ranges: [] };
+    });
+    expect(hoursExceptionsSchema.safeParse(hundred).success).toBe(true);
+  });
+
+  it.each([
+    {
+      label: "shared boundary day (to1 === from2)",
+      input: [
+        { from: "2026-08-01", to: "2026-08-05", ranges: [] },
+        { from: "2026-08-05", to: "2026-08-07", ranges: [] },
+      ],
+    },
+    {
+      label: "nested overlap in unsorted order",
+      input: [
+        { from: "2026-08-03", to: "2026-08-04", ranges: [] },
+        { from: "2026-08-01", to: "2026-08-10", ranges: [] },
+      ],
+    },
+    {
+      label: "101 entries (> MAX_EXCEPTIONS)",
+      input: Array.from({ length: 101 }, (_, i) => {
+        const d = new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+        return { from: d, to: d, ranges: [] };
+      }),
+    },
+  ])("hoursExceptionsSchema rejects $label", ({ input }) => {
+    expect(hoursExceptionsSchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe("rangesForDate & exception overrides (#375)", () => {
+  const holidayAcrossMonth: HoursException = {
+    from: "2026-07-30",
+    to: "2026-08-03",
+    ranges: [],
+    note: "Congés annuels",
+  };
+  const specialSunday: HoursException = {
+    from: "2026-07-12",
+    to: "2026-07-12",
+    ranges: [{ open: "10:00", close: "14:00" }],
+    note: "Ouverture exceptionnelle",
+  };
+  const blankNoteException: HoursException = {
+    from: "2026-07-08",
+    to: "2026-07-08",
+    ranges: [],
+    note: "   ",
+  };
+
+  it.each([
+    {
+      label: "closed holiday overrides open weekday with note",
+      sched: schedule(STANDARD_WEEK, [holidayAcrossMonth]),
+      date: "2026-08-01",
+      expected: { ranges: [], note: "Congés annuels", source: "exception" },
+    },
+    {
+      label: "special hours overrides normally closed Sunday with note",
+      sched: schedule(STANDARD_WEEK, [specialSunday]),
+      date: "2026-07-12",
+      expected: {
+        ranges: [{ open: "10:00", close: "14:00" }],
+        note: "Ouverture exceptionnelle",
+        source: "exception",
+      },
+    },
+    {
+      label: "blank note normalizes to null",
+      sched: schedule(STANDARD_WEEK, [blankNoteException]),
+      date: "2026-07-08",
+      expected: { ranges: [], note: null, source: "exception" },
+    },
+    {
+      label: "date outside exception falls back to weekly hours",
+      sched: schedule(STANDARD_WEEK, [holidayAcrossMonth]),
+      date: "2026-07-29",
+      expected: { ranges: STANDARD_WEEK.wed, note: null, source: "weekly" },
+    },
+    {
+      label: "exception applies even when weekly is null",
+      sched: schedule(null, [specialSunday]),
+      date: "2026-07-12",
+      expected: {
+        ranges: [{ open: "10:00", close: "14:00" }],
+        note: "Ouverture exceptionnelle",
+        source: "exception",
+      },
+    },
+    {
+      label: "returns null when weekly is null and no exception covers date",
+      sched: schedule(null, [specialSunday]),
+      date: "2026-07-13",
+      expected: null,
+    },
+    {
+      label: "returns null for invalid calendar date",
+      sched: schedule(STANDARD_WEEK, [holidayAcrossMonth]),
+      date: "2026-02-30",
+      expected: null,
+    },
+  ])("rangesForDate: $label", ({ sched, date, expected }) => {
+    expect(rangesForDate(sched, date)).toEqual(expected);
+  });
+
+  it.each([
+    {
+      label: "isOpenAt: holiday closes normally open day",
+      sched: schedule(STANDARD_WEEK, [holidayAcrossMonth]),
+      at: "2026-07-31T08:00:00Z", // Fri 10:00 CEST (normally open)
+      expected: false,
+    },
+    {
+      label: "isOpenAt: special hours opens normally closed Sunday",
+      sched: schedule(STANDARD_WEEK, [specialSunday]),
+      at: "2026-07-12T09:00:00Z", // Sun 11:00 CEST
+      expected: true,
+    },
+    {
+      label: "isOpenAt: closed exception applies when weekly is null",
+      sched: schedule(null, [holidayAcrossMonth]),
+      at: "2026-08-01T10:00:00Z", // Sat 12:00 CEST
+      expected: false,
+    },
+    {
+      label: "isOpenAt: non-exception day with weekly null is open",
+      sched: schedule(null, [holidayAcrossMonth]),
+      at: "2026-08-04T02:00:00Z", // Tue 04:00 CEST
+      expected: true,
+    },
+    {
+      label: "isOpenAt: special hours exception applies when weekly is null (outside -> false)",
+      sched: schedule(null, [specialSunday]),
+      at: "2026-07-12T13:00:00Z", // Sun 15:00 CEST (closes 14:00)
+      expected: false,
+    },
+  ])("$label -> $expected", ({ sched, at, expected }) => {
+    expect(isOpenAt(sched, PARIS, new Date(at))).toBe(expected);
+  });
+
+  it("nextOpening skips multi-week holidays across month boundary and finds special openings", () => {
+    const longHoliday: HoursException = {
+      from: "2026-07-25",
+      to: "2026-08-09", // 16 days (> 7 days), Sun Aug 9
+      ranges: [],
+      note: "Fermeture estivale",
+    };
+    expect(
+      nextOpening(schedule(STANDARD_WEEK, [longHoliday]), PARIS, new Date("2026-07-26T08:00:00Z")),
+    ).toEqual({ date: "2026-08-10", time: "09:00" });
+
+    // Special opening on normally closed Sunday is found before Monday
+    expect(
+      nextOpening(
+        schedule(STANDARD_WEEK, [specialSunday]),
+        PARIS,
+        new Date("2026-07-11T12:00:00Z"), // Sat 14:00 CEST (after Sat close)
+      ),
+    ).toEqual({ date: "2026-07-12", time: "10:00" });
+
+    // Weekly null + holiday today -> next opening is 00:00 on day after holiday
+    expect(
+      nextOpening(schedule(null, [holidayAcrossMonth]), PARIS, new Date("2026-07-31T10:00:00Z")),
+    ).toEqual({ date: "2026-08-04", time: "00:00" });
+
+    // Weekly null + no exception today -> open right now
+    expect(nextOpening(schedule(null, []), PARIS, new Date("2026-07-06T08:15:00Z"))).toEqual({
+      date: "2026-07-06",
+      time: "10:15",
+    });
+
+    // Empty week + future special opening 15 days out -> finds it
+    expect(
+      nextOpening(
+        schedule(EMPTY_WEEK, [
+          { from: "2026-07-21", to: "2026-07-21", ranges: [{ open: "12:00", close: "16:00" }] },
+        ]),
+        PARIS,
+        new Date("2026-07-06T08:00:00Z"),
+      ),
+    ).toEqual({ date: "2026-07-21", time: "12:00" });
+  });
+
+  it("allowedTimes & allowedDates honor exceptions with both weekly hours and weekly null", () => {
+    const mon1000 = new Date("2026-07-06T08:00:00Z"); // Mon 10:00 CEST
+    const closedWed: HoursException = { from: "2026-07-08", to: "2026-07-08", ranges: [] };
+    const sched = schedule(STANDARD_WEEK, [closedWed, specialSunday]);
+
+    expect(allowedTimes(sched, "2026-07-08", PARIS, mon1000)).toEqual([]);
+    expect(allowedTimes(sched, "2026-07-12", PARIS, mon1000, { stepMinutes: 60 })).toEqual([
+      "10:00",
+      "11:00",
+      "12:00",
+      "13:00",
+    ]);
+    expect(allowedDates(sched, PARIS, mon1000, { horizonDays: 6 })).toEqual([
+      "2026-07-06", // Mon
+      "2026-07-07", // Tue
+      // 2026-07-08 Wed closed by exception
+      "2026-07-09", // Thu
+      "2026-07-10", // Fri
+      "2026-07-11", // Sat
+      "2026-07-12", // Sun opened by special exception!
+    ]);
+
+    // When weekly is null, unconstrained dates stay allowed while closed exceptions are skipped
+    expect(allowedDates(schedule(null, [closedWed]), PARIS, mon1000, { horizonDays: 3 })).toEqual([
+      "2026-07-06",
+      "2026-07-07",
+      // 2026-07-08 skipped
+      "2026-07-09",
+    ]);
+    expect(allowedTimes(schedule(null, [closedWed]), "2026-07-07", PARIS, mon1000)).toEqual([]);
+  });
+
+  it.each([
+    {
+      label: "closed exception on open day rejects ASAP -> closed_now",
+      sched: schedule(STANDARD_WEEK, [holidayAcrossMonth]),
+      now: "2026-07-31T08:00:00Z", // Fri 10:00 CEST
+      slot: { date: "2026-07-31", isAsap: true },
+      expected: { ok: false, reason: "closed_now" },
+    },
+    {
+      label: "closed exception on open day rejects scheduled -> closed_day",
+      sched: schedule(STANDARD_WEEK, [holidayAcrossMonth]),
+      now: "2026-07-28T08:00:00Z",
+      slot: { date: "2026-08-01", time: "11:00", isAsap: false },
+      expected: { ok: false, reason: "closed_day" },
+    },
+    {
+      label: "special hours on normally closed Sunday accepts in-range slot",
+      sched: schedule(STANDARD_WEEK, [specialSunday]),
+      now: "2026-07-06T08:00:00Z",
+      slot: { date: "2026-07-12", time: "11:30", isAsap: false },
+      expected: { ok: true },
+    },
+    {
+      label: "special hours on normally closed Sunday rejects out-of-range slot -> time_outside_hours",
+      sched: schedule(STANDARD_WEEK, [specialSunday]),
+      now: "2026-07-06T08:00:00Z",
+      slot: { date: "2026-07-12", time: "15:00", isAsap: false },
+      expected: { ok: false, reason: "time_outside_hours" },
+    },
+    {
+      label: "special hours on normally closed Sunday accepts ASAP while open",
+      sched: schedule(STANDARD_WEEK, [specialSunday]),
+      now: "2026-07-12T09:00:00Z", // Sun 11:00 CEST
+      slot: { date: "2026-07-12", isAsap: true },
+      expected: { ok: true },
+    },
+    {
+      label: "weekly null + closed holiday rejects scheduled on holiday -> closed_day",
+      sched: schedule(null, [holidayAcrossMonth]),
+      now: "2026-07-28T08:00:00Z",
+      slot: { date: "2026-08-01", time: "11:00", isAsap: false },
+      expected: { ok: false, reason: "closed_day" },
+    },
+    {
+      label: "weekly null + closed holiday rejects ASAP during holiday -> closed_now",
+      sched: schedule(null, [holidayAcrossMonth]),
+      now: "2026-08-01T10:00:00Z",
+      slot: { date: "2026-08-01", isAsap: true },
+      expected: { ok: false, reason: "closed_now" },
+    },
+    {
+      label: "weekly null + special hours enforces custom hours on that date -> time_outside_hours",
+      sched: schedule(null, [specialSunday]),
+      now: "2026-07-06T08:00:00Z",
+      slot: { date: "2026-07-12", time: "16:00", isAsap: false },
+      expected: { ok: false, reason: "time_outside_hours" },
+    },
+    {
+      label: "weekly null + exception skips hours checks on uncovered date inside window",
+      sched: schedule(null, [specialSunday]),
+      now: "2026-07-06T08:00:00Z",
+      slot: { date: "2026-07-13", time: "03:00", isAsap: false },
+      expected: { ok: true },
+    },
+  ])("validateSlot with exceptions: $label", ({ sched, now, slot, expected }) => {
+    expect(validateSlot(sched, PARIS, new Date(now), slot)).toEqual(expected);
+  });
+});
+
+describe("upcomingExceptions (#375)", () => {
+  const past: HoursException = { from: "2026-07-01", to: "2026-07-05", ranges: [], note: "Past" };
+  const ongoing: HoursException = {
+    from: "2026-07-04",
+    to: "2026-07-08",
+    ranges: [],
+    note: "Ongoing",
+  };
+  const futureLate: HoursException = {
+    from: "2026-08-15",
+    to: "2026-08-15",
+    ranges: [{ open: "10:00", close: "14:00" }],
+    note: "Late",
+  };
+  const futureEarly: HoursException = {
+    from: "2026-07-14",
+    to: "2026-07-14",
+    ranges: [],
+    note: "Early",
+  };
+
+  it("filters to current or future exceptions in tz, sorts ascending, respects limit, and does not mutate input", () => {
+    const input = [futureLate, past, futureEarly, ongoing];
+    const snapshot = structuredClone(input);
+    // 2026-07-06 04:00 CEST in Paris, 2026-07-05 22:00 EDT in New York
+    const instant = new Date("2026-07-06T02:00:00Z");
+
+    expect(upcomingExceptions(input, PARIS, instant)).toEqual([ongoing, futureEarly, futureLate]);
+    expect(upcomingExceptions(input, PARIS, instant, 2)).toEqual([ongoing, futureEarly]);
+    expect(upcomingExceptions(input, PARIS, instant, 0)).toEqual([]);
+    // In New York it is still 2026-07-05, so `past` (ending 2026-07-05) is still current!
+    expect(upcomingExceptions(input, NEW_YORK, instant)).toEqual([
+      past,
+      ongoing,
+      futureEarly,
+      futureLate,
+    ]);
+    expect(input).toEqual(snapshot);
+  });
+
+  it("throws RangeError for negative or non-integer limit", () => {
+    expect(() => upcomingExceptions([], PARIS, new Date("2026-07-06T08:00:00Z"), -1)).toThrow(
+      RangeError,
+    );
+    expect(() => upcomingExceptions([], PARIS, new Date("2026-07-06T08:00:00Z"), 1.5)).toThrow(
+      RangeError,
+    );
+  });
+});
+
+describe("groupWeeklyHours (#375)", () => {
+  it("groups consecutive days with identical display ranges in EN and FR", () => {
+    const en = groupWeeklyHours(STANDARD_WEEK, "en");
+    expect(en).toEqual([
+      {
+        days: ["mon", "tue", "wed", "thu", "fri"],
+        label: "Mon–Fri",
+        ranges: ["09:00–12:00", "14:00–18:00"],
+        closed: false,
+      },
+      {
+        days: ["sat"],
+        label: "Saturday",
+        ranges: ["10:00–14:00"],
+        closed: false,
+      },
+      {
+        days: ["sun"],
+        label: "Sunday",
+        ranges: [],
+        closed: true,
+      },
+    ]);
+
+    const fr = groupWeeklyHours(STANDARD_WEEK, "fr");
+    expect(fr.map((g) => g.label)).toEqual(["lun.–ven.", "samedi", "dimanche"]);
+  });
+
+  it("preserves overnight join when grouping Les Saveurs du Continent hours", () => {
+    const demoHours: WeeklyHours = {
+      mon: [],
+      tue: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      wed: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      thu: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "22:00" },
+      ],
+      fri: [
+        { open: "11:30", close: "14:30" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sat: [
+        { open: "00:00", close: "01:00" },
+        { open: "11:30", close: "15:00" },
+        { open: "18:00", close: "24:00" },
+      ],
+      sun: [
+        { open: "00:00", close: "01:00" },
+        { open: "12:00", close: "16:00" },
+      ],
+    };
+
+    expect(groupWeeklyHours(demoHours, "en")).toEqual([
+      { days: ["mon"], label: "Monday", ranges: [], closed: true },
+      {
+        days: ["tue", "wed", "thu"],
+        label: "Tue–Thu",
+        ranges: ["11:30–14:30", "18:00–22:00"],
+        closed: false,
+      },
+      {
+        days: ["fri"],
+        label: "Friday",
+        ranges: ["11:30–14:30", "18:00–01:00 (+1)"],
+        closed: false,
+      },
+      {
+        days: ["sat"],
+        label: "Saturday",
+        ranges: ["11:30–15:00", "18:00–01:00 (+1)"],
+        closed: false,
+      },
+      { days: ["sun"], label: "Sunday", ranges: ["12:00–16:00"], closed: false },
+    ]);
+
+    expect(groupWeeklyHours(demoHours, "fr")[1].label).toBe("mar.–jeu.");
+  });
+
+  it("groups all-closed week and does not merge an absorbed continuation day with an adjacent closed day", () => {
+    expect(groupWeeklyHours(EMPTY_WEEK, "en")).toEqual([
+      {
+        days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        label: "Mon–Sun",
+        ranges: [],
+        closed: true,
+      },
+    ]);
+
+    const absorbedNextToClosed = makeWeek({
+      fri: [{ open: "18:00", close: "24:00" }],
+      sat: [{ open: "00:00", close: "01:00" }],
+    });
+    const grouped = groupWeeklyHours(absorbedNextToClosed, "en");
+    expect(grouped).toEqual([
+      { days: ["mon", "tue", "wed", "thu"], label: "Mon–Thu", ranges: [], closed: true },
+      { days: ["fri"], label: "Friday", ranges: ["18:00–01:00 (+1)"], closed: false },
+      { days: ["sat"], label: "Saturday", ranges: [], closed: false },
+      { days: ["sun"], label: "Sunday", ranges: [], closed: true },
+    ]);
   });
 });
