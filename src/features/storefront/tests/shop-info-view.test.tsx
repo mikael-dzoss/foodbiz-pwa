@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ShopInfoView } from "../components/shop-info-view";
 import { formatMoney } from "@/domain/formatting/money";
 import { DEFAULT_LEAD_TIME, formatLeadTime } from "@/domain/lead-time";
@@ -411,6 +411,23 @@ describe("ShopInfoView (#83)", () => {
         <ShopInfoView
           business={mockBusiness}
           settings={null}
+  describe("structured hours (#372, #375)", () => {
+    const range = [{ open: "11:00", close: "14:00" }];
+    const weekly = {
+      mon: range,
+      tue: range,
+      wed: range,
+      thu: range,
+      fri: range,
+      sat: range,
+      sun: [],
+    };
+
+    it("renders the grouped summary instead of the placeholder table", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{ ...mockSettings, weeklyHours: weekly, hoursExceptions: [] }}
           locale="en"
           dict={enDictionary.storefront}
         />,
@@ -465,6 +482,56 @@ describe("ShopInfoView (#83)", () => {
       expect(screen.getByTestId("shop-payment-card").textContent).toBe("Carte au retrait");
       expect(screen.getByTestId("shop-payment-revolut").textContent).toBe("Revolut (Revtag)");
       expect(screen.getByTestId("shop-payment-wero").textContent).toBe("Wero");
+      expect(screen.getByTestId("hours-summary-weekly")).toBeDefined();
+      expect(screen.queryByText("07:30 – 19:30")).toBeNull();
+    });
+
+    it("shows today's exception note on the day it applies", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-12-25T10:00:00Z"));
+      try {
+        render(
+          <ShopInfoView
+            business={mockBusiness}
+            settings={{
+              ...mockSettings,
+              timezone: "Europe/Paris",
+              weeklyHours: weekly,
+              hoursExceptions: [{ from: "2026-12-25", to: "2026-12-25", ranges: [], note: "Noel" }],
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />,
+        );
+        const note = screen.getByTestId("today-exception");
+        expect(note.textContent).toContain(enDictionary.storefront.todayExceptionClosed);
+        expect(note.textContent).toContain("Noel");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("hides the exception note on other days", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-12-24T10:00:00Z"));
+      try {
+        render(
+          <ShopInfoView
+            business={mockBusiness}
+            settings={{
+              ...mockSettings,
+              timezone: "Europe/Paris",
+              weeklyHours: weekly,
+              hoursExceptions: [{ from: "2026-12-25", to: "2026-12-25", ranges: [], note: "Noel" }],
+            }}
+            locale="en"
+            dict={enDictionary.storefront}
+          />,
+        );
+        expect(screen.queryByTestId("today-exception")).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

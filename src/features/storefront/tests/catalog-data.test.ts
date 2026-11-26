@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { revalidatePath, updateTag } from "next/cache";
 import {
   evaluateStoreOperatingStatus,
+  hasStructuredHours,
   getStorefrontCatalog,
   getStorefrontProduct,
   revalidateStorefrontCatalog,
@@ -58,6 +59,29 @@ describe("catalog-data (#80, #81, #82, #83)", () => {
       expect(res.isOpen).toBe(true);
       expect(res.isAcceptingOrders).toBe(true);
       expect(res.scheduleText).toBeNull();
+    });
+
+    it("returns a neutral isOpen when structured hours exist (evaluated at request/client time)", () => {
+      const range = [{ open: "11:00", close: "12:00" }];
+      const structured = {
+        ...baseSettings,
+        openingHours: "",
+        weeklyHours: {
+          mon: range,
+          tue: range,
+          wed: range,
+          thu: range,
+          fri: range,
+          sat: range,
+          sun: range,
+        },
+      };
+      const res = evaluateStoreOperatingStatus(structured, new Date("2026-10-16T22:00:00Z"));
+      expect(hasStructuredHours(structured)).toBe(true);
+      expect(res.isOpen).toBe(true);
+      expect(hasStructuredHours({ ...baseSettings, weeklyHours: null, hoursExceptions: [] })).toBe(
+        false,
+      );
     });
 
     it("respects acceptingOrders: false regardless of hours", () => {

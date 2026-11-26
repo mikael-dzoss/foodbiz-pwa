@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ServiceToggleHeader } from "../components/service-toggle-header";
 import { CartProvider, resetCartStore, SERVICE_MODE_STORAGE_KEY } from "../context/cart-context";
 import { ToastProvider } from "@/components/ui";
@@ -334,5 +334,71 @@ describe("ServiceToggleHeader (#193)", () => {
     expect(screen.getByTestId("ordering-details-status").textContent).toBe(
       enDictionary.storefront.notAcceptingOrdersShort,
     );
+  });
+
+  describe("structured hours (#372)", () => {
+    const range = [{ open: "11:30", close: "14:30" }];
+    const weeklyHours = {
+      mon: [],
+      tue: range,
+      wed: range,
+      thu: range,
+      fri: range,
+      sat: range,
+      sun: [],
+    };
+    const baseSettings = {
+      serviceTypes: { pickup: true, delivery: true, dineIn: true },
+      deliveryFee: 0,
+      minOrderAmount: 0,
+      orderTimingScheduled: true,
+      timezone: "Europe/Paris",
+      weeklyHours,
+      hoursExceptions: [],
+    };
+
+    function renderHeader(isOpen: boolean) {
+      render(
+        <ToastProvider>
+          <CartProvider>
+            <ServiceToggleHeader
+              isAcceptingOrders={true}
+              isOpen={isOpen}
+              openingHoursText="07:30 - 19:30"
+              settings={baseSettings}
+              locale="en"
+              dict={enDictionary.storefront}
+            />
+          </CartProvider>
+        </ToastProvider>,
+      );
+    }
+
+    it("derives open state and closing time from structured hours, ignoring the cached flag", () => {
+      vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+      vi.setSystemTime(new Date("2026-12-01T11:00:00Z")); // Tue 12:00 Paris
+      try {
+        renderHeader(false);
+        const tile = screen.getByTestId("store-status-tile");
+        expect(tile.textContent).toContain(enDictionary.storefront.storeOpenBadge);
+        expect(tile.textContent).toContain("14:30");
+        expect(tile.textContent).toContain("Closes at 14:30");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("shows the next opening day when closed", () => {
+      vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+      vi.setSystemTime(new Date("2026-11-30T11:00:00Z")); // Mon, closed all day
+      try {
+        renderHeader(true);
+        const tile = screen.getByTestId("store-status-tile");
+        expect(tile.textContent).toContain(enDictionary.storefront.storeClosedBadge);
+        expect(tile.textContent).toContain("Opens Tue 11:30");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

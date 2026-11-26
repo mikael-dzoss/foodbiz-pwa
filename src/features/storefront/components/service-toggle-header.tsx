@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Clock, Info } from "lucide-react";
 import { formatMoney } from "@/domain/formatting/money";
 import type { BusinessSettings } from "@/domain/business";
 import { formatLeadTime, getLeadTime } from "@/domain/lead-time";
-import type { StorefrontDictionary, SupportedLocale } from "@/domain/i18n";
+import { interpolate, type StorefrontDictionary, type SupportedLocale } from "@/domain/i18n";
+import type { OpeningSchedule } from "@/domain/opening-hours";
+import { DEFAULT_TIMEZONE } from "@/domain/timezone";
 import { SegmentedControl, useToastOptional } from "@/components/ui";
 import {
   useCartOptional,
   resolveServiceMode,
   type StorefrontServiceMode,
 } from "../context/cart-context";
+import { useOpenNowStatus } from "../use-is-open-now";
 import { OrderingDetailsDialog } from "./ordering-details-dialog";
 import { Button } from "@/components/ui/button";
 
@@ -26,7 +29,12 @@ export interface ServiceToggleHeaderProps {
         BusinessSettings,
         "serviceTypes" | "deliveryFee" | "minOrderAmount" | "orderTimingScheduled"
       > &
-        Partial<Pick<BusinessSettings, "leadTimeValue" | "leadTimeUnit">>)
+        Partial<
+          Pick<
+            BusinessSettings,
+            "leadTimeValue" | "leadTimeUnit" | "weeklyHours" | "hoursExceptions" | "timezone"
+          >
+        >)
     | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
@@ -57,7 +65,18 @@ export function ServiceToggleHeader({
 
   const deliveryFee = settings?.deliveryFee ?? 0;
   const minOrderAmount = settings?.minOrderAmount ?? 0;
-  const isStoreOpen = isAcceptingOrders && isOpen;
+  // Structured hours (#372) are evaluated on the client clock; `isOpen` (cached) is the fallback
+  // for free-text hours and the neutral state before hydration.
+  const hasStructuredHours =
+    Boolean(settings?.weeklyHours) || (settings?.hoursExceptions?.length ?? 0) > 0;
+  const timeZone = settings?.timezone ?? DEFAULT_TIMEZONE;
+  const schedule = useMemo<OpeningSchedule>(
+    () => ({ weekly: settings?.weeklyHours ?? null, exceptions: settings?.hoursExceptions ?? [] }),
+    [settings?.weeklyHours, settings?.hoursExceptions],
+  );
+  const openNow = useOpenNowStatus(schedule, timeZone);
+  const structuredStatus = hasStructuredHours ? openNow : null;
+  const isStoreOpen = isAcceptingOrders && (structuredStatus ? structuredStatus.isOpen : isOpen);
   const leadTimeText = formatLeadTime(getLeadTime(settings), locale);
   const deliveryFeeText =
     deliveryFee > 0
@@ -70,13 +89,33 @@ export function ServiceToggleHeader({
 
   let openTime = "07:30";
   let closeTime = "19:30";
-  if (openingHoursText) {
+  if (structuredStatus) {
+    if (structuredStatus.closesAt) closeTime = structuredStatus.closesAt;
+  } else if (!hasStructuredHours && openingHoursText) {
     const timeMatch = openingHoursText.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
     if (timeMatch) {
       openTime = timeMatch[1];
       closeTime = timeMatch[2];
     }
   }
+
+  let opensText = `${dict.opensAt} ${openTime}`;
+  if (structuredStatus?.next) {
+    const { date, time } = structuredStatus.next;
+    opensText =
+      date === structuredStatus.today
+        ? `${dict.opensAt} ${time}`
+        : interpolate(dict.opensOnDayAt, {
+            day: new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(
+              new Date(`${date}T12:00:00Z`),
+            ),
+            time,
+          });
+  } else if (structuredStatus) {
+    opensText = "";
+  }
+  const closesText =
+    structuredStatus && !structuredStatus.closesAt ? "" : `${dict.closesAt} ${closeTime}`;
 
   const handleSelectMode = (targetMode: StorefrontServiceMode) => {
     const isTargetEnabled = targetMode === "delivery" ? deliveryEnabled : pickupEnabled;
@@ -212,9 +251,11 @@ export function ServiceToggleHeader({
                 </span>
                 <InfoGlyph label={dict.orderingDetailsOpen} />
               </span>
-              <span className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                {`${dict.closesAt} ${closeTime}`}
-              </span>
+              {closesText && (
+                <span className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                  {closesText}
+                </span>
+              )}
               {openingHoursText && <span className="sr-only">{openingHoursText}</span>}
             </>
           ) : (
@@ -226,9 +267,11 @@ export function ServiceToggleHeader({
                 </span>
                 <InfoGlyph label={dict.orderingDetailsOpen} />
               </span>
-              <span className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                {`${dict.opensAt} ${openTime}`}
-              </span>
+              {opensText && (
+                <span className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                  {opensText}
+                </span>
+              )}
               {orderTimingScheduled && (
                 <span className="text-muted-foreground text-caption mt-0.5 leading-snug">
                   {dict.storeClosedBanner}
@@ -252,8 +295,8 @@ export function ServiceToggleHeader({
           !isAcceptingOrders
             ? dict.notAcceptingOrdersShort
             : isStoreOpen
-              ? `${dict.storeOpenBadge} · ${dict.closesAt} ${closeTime}`
-              : `${dict.storeClosedBadge} · ${dict.opensAt} ${openTime}`
+              ? [dict.storeOpenBadge, closesText].filter(Boolean).join(" · ")
+              : [dict.storeClosedBadge, opensText].filter(Boolean).join(" · ")
         }
         isOpenNow={isStoreOpen}
         leadTimeText={leadTimeText}
