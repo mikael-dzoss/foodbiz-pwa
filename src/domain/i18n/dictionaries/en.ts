@@ -835,6 +835,8 @@ export const enDictionary: Dictionary = {
     pickupWindow: "Pickup Window",
     deliveryAddress: "Delivery Address",
     deliveryTo: "Delivery to",
+    // Pickup location (#387)
+    collectAt: "Collect at",
     directions: "Directions",
     orderSummary: "Order Summary",
     subtotal: "Subtotal",

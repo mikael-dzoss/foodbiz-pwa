@@ -820,6 +820,8 @@ export interface OrderTrackingDictionary {
   pickupWindow: string;
   deliveryAddress: string;
   deliveryTo: string;
+  // Pickup location (#387)
+  collectAt: string;
   directions: string;
   orderSummary: string;
   subtotal: string;

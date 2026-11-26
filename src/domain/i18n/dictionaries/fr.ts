@@ -857,6 +857,8 @@ export const frDictionary: Dictionary = {
     pickupWindow: "Créneau de retrait",
     deliveryAddress: "Adresse de livraison",
     deliveryTo: "Livraison à",
+    // Pickup location (#387)
+    collectAt: "Retrait à",
     directions: "Itinéraire",
     orderSummary: "Récapitulatif de commande",
     subtotal: "Sous-total",
