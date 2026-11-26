@@ -82,6 +82,7 @@ function createFakeSupabaseClient(
         opening_hours: fixtures.settings.openingHours,
         weekly_hours: structuredClone(fixtures.settings.weeklyHours ?? null) as Json | null,
         hours_exceptions: structuredClone(fixtures.settings.hoursExceptions ?? []) as Json,
+        shop_pickup_enabled: fixtures.settings.shopPickupEnabled ?? true,
         order_timing_asap: fixtures.settings.orderTimingAsap,
         order_timing_scheduled: fixtures.settings.orderTimingScheduled,
         order_timing_time_optional: fixtures.settings.orderTimingTimeOptional,
@@ -179,6 +180,20 @@ function createFakeSupabaseClient(
         created_at: o.createdAt,
       })),
     ),
+    pickup_locations: fixtures.pickupLocations.map((l) => ({
+      id: l.id,
+      business_id: l.businessId,
+      name: l.name,
+      description: l.description,
+      address: l.address,
+      postcode: l.postcode,
+      fee_cents: l.feeCents,
+      weekly_hours: structuredClone(l.weeklyHours) as Json | null,
+      is_active: l.isActive,
+      sort_order: l.sortOrder,
+      created_at: l.createdAt,
+      updated_at: l.updatedAt,
+    })),
     expenses: fixtures.expenses.map((e) => ({
       id: e.id,
       business_id: e.businessId,
@@ -294,6 +309,14 @@ function createFakeSupabaseClient(
             }
           }
 
+          if (table === "pickup_locations") {
+            // Table defaults and the 23514 limit trigger of migration 035.
+            if (list.filter((l) => l.business_id === row.business_id).length >= 20) {
+              throw { code: "23514", message: "PICKUP_LOCATIONS_LIMIT" };
+            }
+            row.updated_at ??= row.created_at;
+          }
+
           if (table === "businesses") {
             if (!row.currency) row.currency = "EUR";
             if (!row.created_at) row.created_at = new Date().toISOString();
@@ -313,6 +336,7 @@ function createFakeSupabaseClient(
               opening_hours: "",
               weekly_hours: null,
               hours_exceptions: [],
+              shop_pickup_enabled: true,
               order_timing_asap: true,
               order_timing_scheduled: true,
               order_timing_time_optional: true,
@@ -378,7 +402,8 @@ function createFakeSupabaseClient(
               table === "products" ||
               table === "businesses" ||
               table === "orders" ||
-              table === "business_settings"
+              table === "business_settings" ||
+              table === "pickup_locations"
             ) {
               row.updated_at = new Date().toISOString();
             }

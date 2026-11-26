@@ -36,6 +36,11 @@ import {
   type ReplaceOrderItemInput,
 } from "@/domain/order";
 import {
+  MAX_PICKUP_LOCATIONS,
+  pickupLocationSchema,
+  type PickupLocation,
+} from "@/domain/pickup-location";
+import {
   productCategorySchema,
   productSchema,
   type Product,
@@ -49,6 +54,7 @@ import type {
   CreateExpenseInput,
   CreateGuestInput,
   CreateMemberInput,
+  CreatePickupLocationInput,
   CreateProductInput,
   ExpenseFilter,
   ExpenseRepository,
@@ -56,6 +62,7 @@ import type {
   MemberRepository,
   OrderFilter,
   OrderRepository,
+  PickupLocationRepository,
   ProductFilter,
   ProductRepository,
   Repositories,
@@ -96,7 +103,7 @@ export const PUBLIC_PRODUCT_COLUMNS =
   "id, business_id, category_id, name, description, price, stock, visible, suggest_add_ons, allergens, image_url";
 
 export const PUBLIC_BUSINESS_SETTINGS_COLUMNS =
-  "id, business_id, currency, accepting_orders, service_types, opening_hours, weekly_hours, hours_exceptions, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
+  "id, business_id, currency, accepting_orders, service_types, opening_hours, weekly_hours, hours_exceptions, shop_pickup_enabled, order_timing_asap, order_timing_scheduled, order_timing_time_optional, delivery_fee, min_order_amount, lead_time_value, lead_time_unit, timezone, revolut_revtag, wero_identifier, payment_methods, payment_instructions_en, payment_instructions_fr";
 
 type OrderRowWithItems = Tables<"orders"> & {
   order_items: Tables<"order_items">[];
@@ -140,6 +147,23 @@ function mapCategoryRow(row: Tables<"product_categories">): ProductCategory {
     sortOrder: row.sort_order,
     role: row.role,
     createdAt: toIsoUtc(row.created_at),
+  });
+}
+
+function mapPickupLocationRow(row: Tables<"pickup_locations">): PickupLocation {
+  return pickupLocationSchema.parse({
+    id: row.id,
+    businessId: row.business_id,
+    name: row.name,
+    description: row.description,
+    address: row.address,
+    postcode: row.postcode,
+    feeCents: row.fee_cents,
+    weeklyHours: row.weekly_hours ?? null,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    createdAt: toIsoUtc(row.created_at),
+    updatedAt: toIsoUtc(row.updated_at),
   });
 }
 
@@ -252,6 +276,7 @@ function mapSettingsRow(row: Partial<Tables<"business_settings">>): BusinessSett
     openingHours: row.opening_hours,
     weeklyHours: row.weekly_hours ?? null,
     hoursExceptions: row.hours_exceptions ?? [],
+    shopPickupEnabled: row.shop_pickup_enabled ?? undefined,
     orderTimingAsap: row.order_timing_asap,
     orderTimingScheduled: row.order_timing_scheduled,
     orderTimingTimeOptional: row.order_timing_time_optional,
@@ -616,6 +641,100 @@ export function createSupabaseRepositories(
 
       if (error) throw error;
       if (!data) throw new Error(`Category ${id} not found`);
+    },
+  };
+
+  const pickupLocations: PickupLocationRepository = {
+    async listByBusiness(businessId: string, options): Promise<PickupLocation[]> {
+      const client = await getClient();
+      let query = client.from("pickup_locations").select().eq("business_id", businessId);
+      if (options?.activeOnly) query = query.eq("is_active", true);
+      const { data, error } = await query
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map(mapPickupLocationRow);
+    },
+
+    async create(businessId: string, input: CreatePickupLocationInput): Promise<PickupLocation> {
+      const client = await getClient();
+      let sortOrder = input.sortOrder;
+      if (sortOrder === undefined) {
+        const { data: last, error: lastError } = await client
+          .from("pickup_locations")
+          .select("sort_order")
+          .eq("business_id", businessId)
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastError) throw lastError;
+        sortOrder = last ? last.sort_order + 1 : 0;
+      }
+      const insertData: TablesInsert<"pickup_locations"> = {
+        id: input.id ?? crypto.randomUUID(),
+        business_id: businessId,
+        name: input.name,
+        description: input.description ?? null,
+        address: input.address,
+        postcode: input.postcode,
+        fee_cents: input.feeCents ?? 0,
+        weekly_hours: (input.weeklyHours ?? null) as Json | null,
+        is_active: input.isActive ?? true,
+        sort_order: sortOrder,
+      };
+      const { data, error } = await client
+        .from("pickup_locations")
+        .insert(insertData)
+        .select()
+        .single();
+      if (error) throw error;
+      return mapPickupLocationRow(data);
+    },
+
+    async update(businessId, id, input): Promise<PickupLocation> {
+      const client = await getClient();
+      const updateData: TablesUpdate<"pickup_locations"> = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.address !== undefined) updateData.address = input.address;
+      if (input.postcode !== undefined) updateData.postcode = input.postcode;
+      if (input.feeCents !== undefined) updateData.fee_cents = input.feeCents;
+      if (input.weeklyHours !== undefined)
+        updateData.weekly_hours = (input.weeklyHours ?? null) as Json | null;
+      if (input.isActive !== undefined) updateData.is_active = input.isActive;
+      if (input.sortOrder !== undefined) updateData.sort_order = input.sortOrder;
+
+      const { data, error } = await client
+        .from("pickup_locations")
+        .update(updateData)
+        .eq("business_id", businessId)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error(`Pickup location ${id} not found`);
+      return mapPickupLocationRow(data);
+    },
+
+    async delete(businessId: string, id: string): Promise<void> {
+      const client = await getClient();
+      const { data, error } = await client
+        .from("pickup_locations")
+        .delete()
+        .eq("business_id", businessId)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error(`Pickup location ${id} not found`);
+    },
+
+    async reorder(businessId: string, ids: readonly string[]): Promise<PickupLocation[]> {
+      if (ids.length > MAX_PICKUP_LOCATIONS) throw new Error("Too many pickup locations");
+      for (const [position, id] of ids.entries()) {
+        await pickupLocations.update(businessId, id, { sortOrder: position });
+      }
+      return pickupLocations.listByBusiness(businessId);
     },
   };
 
@@ -1283,6 +1402,8 @@ export function createSupabaseRepositories(
         updateData.weekly_hours = (input.weeklyHours ?? null) as Json | null;
       if (input.hoursExceptions !== undefined)
         updateData.hours_exceptions = input.hoursExceptions as Json;
+      if (input.shopPickupEnabled !== undefined)
+        updateData.shop_pickup_enabled = input.shopPickupEnabled;
       if (input.orderTimingAsap !== undefined) updateData.order_timing_asap = input.orderTimingAsap;
       if (input.orderTimingScheduled !== undefined)
         updateData.order_timing_scheduled = input.orderTimingScheduled;
@@ -1462,5 +1583,5 @@ export function createSupabaseRepositories(
     },
   };
 
-  return { products, categories, orders, guests, expenses, business, members };
+  return { products, categories, orders, guests, expenses, business, members, pickupLocations };
 }

@@ -11,6 +11,7 @@ import { describeMemberRepositoryContract } from "./member.contract";
 import { describeOrderRepositoryContract } from "./order.contract";
 import { describeOrderPlacementContract } from "./order-placement.contract";
 import { describeOrderStateContract } from "./order-state.contract";
+import { describePickupLocationRepositoryContract } from "./pickup-location.contract";
 import { describeProductRepositoryContract } from "./product.contract";
 
 export interface ContractSuiteOptions {
@@ -52,6 +53,7 @@ export function describeRepositoryContracts(
     describeExpenseRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeBusinessRepositoryContract(getRepositories, businessId, options.nonOwnerRepositories);
     describeMemberRepositoryContract(getRepositories, businessId);
+    describePickupLocationRepositoryContract(getRepositories, businessId);
   });
 }
 
@@ -64,5 +66,6 @@ export {
   describeGuestRepositoryContract,
   describeMemberRepositoryContract,
   describeOrderRepositoryContract,
+  describePickupLocationRepositoryContract,
   describeProductRepositoryContract,
 };

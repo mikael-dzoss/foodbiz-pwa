@@ -2,6 +2,7 @@ import type { Business, BusinessMember, BusinessSettings } from "@/domain/busine
 import type { Expense } from "@/domain/expense";
 import type { Guest } from "@/domain/guest";
 import type { Order } from "@/domain/order";
+import type { PickupLocation } from "@/domain/pickup-location";
 import type { Product, ProductCategory } from "@/domain/product";
 
 import {
@@ -27,6 +28,7 @@ export interface MockFixtures {
   guests: Guest[];
   expenses: Expense[];
   orders: Order[];
+  pickupLocations: PickupLocation[];
 }
 
 export function createDefaultFixtures(now: Date = new Date()): MockFixtures {
@@ -43,6 +45,7 @@ export function createDefaultFixtures(now: Date = new Date()): MockFixtures {
     products: structuredClone(demoProducts),
     guests: structuredClone(demoGuests),
     expenses: structuredClone(demoExpenses),
+    pickupLocations: [],
     orders: structuredClone(demoOrders).map((order) =>
       recentOrders.some((recent) => recent.id === order.id)
         ? {
