@@ -92,6 +92,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={{ ...mockSettings, revolutRevtag: revtag }}
           locale="en"
@@ -107,6 +109,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={{ ...mockSettings, revolutRevtag: "" }}
           locale="en"
@@ -121,7 +125,14 @@ describe("CheckoutView & CheckoutForm", () => {
   it("renders empty cart notice when items are empty", () => {
     render(
       <CartProvider initialItems={[]}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+        />
       </CartProvider>,
     );
 
@@ -132,7 +143,14 @@ describe("CheckoutView & CheckoutForm", () => {
   it("keeps the place-order bar in the page flow above the footer (#237)", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+        />
       </CartProvider>,
     );
     const bar = screen.getByTestId("checkout-action-bar");
@@ -146,6 +164,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -172,6 +192,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -202,6 +224,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -223,6 +247,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -253,7 +279,14 @@ describe("CheckoutView & CheckoutForm", () => {
 
     const { unmount } = render(
       <CartProvider initialItems={mockCartItems}>
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+        />
       </CartProvider>,
     );
 
@@ -267,6 +300,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={{
             ...mockSettings,
@@ -285,6 +320,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -323,6 +360,8 @@ describe("CheckoutView & CheckoutForm", () => {
     const { unmount } = render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -411,6 +450,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="delivery">
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -487,7 +528,14 @@ describe("CheckoutView & CheckoutForm", () => {
   it("shows per-field errors only after blur, not while typing before first blur, and clears as soon as valid (#351)", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="delivery">
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+        />
       </CartProvider>,
     );
 
@@ -534,7 +582,14 @@ describe("CheckoutView & CheckoutForm", () => {
   it("stretches the scheduled radio label across the full card while keeping date/time inputs outside and above it (#351)", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+        />
       </CartProvider>,
     );
 
@@ -578,7 +633,14 @@ describe("CheckoutView & CheckoutForm", () => {
 
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="delivery">
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="fr" dict={frDict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="fr"
+          dict={frDict}
+        />
       </CartProvider>,
     );
 
@@ -655,6 +717,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -689,7 +753,14 @@ describe("CheckoutView & CheckoutForm", () => {
   it("prefills notes from Cart and syncs edits back to Cart (#85, #86)", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialNotes="Handle with care">
-        <CheckoutView business={mockBusiness} settings={mockSettings} locale="en" dict={dict} />
+        <CheckoutView
+          isOpen
+          isAcceptingOrders
+          business={mockBusiness}
+          settings={mockSettings}
+          locale="en"
+          dict={dict}
+        />
       </CartProvider>,
     );
 
@@ -704,6 +775,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -729,6 +802,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems}>
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -765,6 +840,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -814,6 +891,8 @@ describe("CheckoutView & CheckoutForm", () => {
     render(
       <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
         <CheckoutView
+          isOpen
+          isAcceptingOrders
           business={mockBusiness}
           settings={mockSettings}
           locale="en"
@@ -874,6 +953,8 @@ describe("CheckoutView & CheckoutForm", () => {
       render(
         <CartProvider initialItems={mockCartItems} initialServiceMode="pickup">
           <CheckoutView
+            isOpen
+            isAcceptingOrders
             business={mockBusiness}
             settings={mockSettings}
             locale={locale}

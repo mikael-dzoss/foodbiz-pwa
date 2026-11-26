@@ -16,8 +16,8 @@ export interface CheckoutViewProps {
   settings: BusinessSettings | null;
   locale: SupportedLocale;
   dict: StorefrontDictionary;
-  isOpen?: boolean;
-  isAcceptingOrders?: boolean;
+  isOpen: boolean;
+  isAcceptingOrders: boolean;
   onSubmitOrder?: (data: CheckoutFormData) => Promise<void> | void;
   redirectDelayMs?: number;
 }

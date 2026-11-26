@@ -191,7 +191,6 @@ export function ProductDetailView({
       {/* Closed-hours Scheduling Notice (#350) */}
       {isClosedButAccepting && (
         <div
-          role="status"
           data-testid="product-closed-schedule-notice"
           className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
         >

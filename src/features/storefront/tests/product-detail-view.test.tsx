@@ -604,7 +604,6 @@ describe("ProductDetailView (#81, #82, #202, #206, #207)", () => {
     );
 
     const noticeEn = screen.getByTestId("product-closed-schedule-notice");
-    expect(noticeEn.getAttribute("role")).toBe("status");
     expect(noticeEn.textContent).toContain(enDictionary.storefront.storeClosedBanner);
 
     const addBtnEn = screen.getByTestId("product-add-button") as HTMLButtonElement;
