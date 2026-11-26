@@ -64,7 +64,7 @@ export async function resolveOgImageSrc(
     const targetPath = path.resolve(publicRoot, local.relativePath);
     if (!targetPath.startsWith(`${publicRoot}${path.sep}`)) return null;
     try {
-      const bytes = await readFile(targetPath);
+      const bytes = await readFile(/* turbopackIgnore: true */ targetPath);
       if (bytes.byteLength === 0 || bytes.byteLength > MAX_PRODUCT_IMAGE_BYTES) return null;
       return `data:${local.mimeType};base64,${bytes.toString("base64")}`;
     } catch {
