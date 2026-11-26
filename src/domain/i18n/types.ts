@@ -304,6 +304,8 @@ export interface StorefrontDictionary {
   payOnHandoverCashSubtext: string;
   payOnHandoverCard: string;
   payOnHandoverCardSubtext: string;
+  cardOnPickup: string;
+  walletTapSoon: string;
 }
 
 export interface QuickAddDictionary {
@@ -613,6 +615,11 @@ export interface OrderConfirmationDictionary {
   copyFailed: string;
   noPaymentNeeded: string;
   nextSteps: string;
+  // Handover payment variants (#377)
+  handoverCash: string;
+  handoverCard: string;
+  handoverCashCard: string;
+  handoverPrepareCard: string;
 }
 
 export interface OrderTrackingDictionary {

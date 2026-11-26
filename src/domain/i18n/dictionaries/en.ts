@@ -421,6 +421,8 @@ export const enDictionary: Dictionary = {
     payOnHandoverCashSubtext: "Pay in cash when you receive your order",
     payOnHandoverCard: "Card on handover",
     payOnHandoverCardSubtext: "Pay by card when you receive your order",
+    cardOnPickup: "Card on pickup",
+    walletTapSoon: "Wallet tap",
   },
   quickAdd: {
     title: "Quick Add",
@@ -620,6 +622,11 @@ export const enDictionary: Dictionary = {
     noPaymentNeeded:
       "No further payment is requested here. Check tracking or contact the shop for details.",
     nextSteps: "Next steps",
+    // Handover payment variants (#377)
+    handoverCash: "Pay in cash at pickup or delivery.",
+    handoverCard: "Pay by card at pickup or delivery.",
+    handoverCashCard: "Pay in cash or by card at pickup or delivery.",
+    handoverPrepareCard: "Please have your card ready.",
   },
   orderTracking: {
     orderLabel: "Order",

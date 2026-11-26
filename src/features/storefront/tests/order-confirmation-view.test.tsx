@@ -61,20 +61,54 @@ for (const locale of ["en", "fr"] as const) {
       },
     );
 
-    it("shows handover instructions without exposing payment identifiers", () => {
-      render(
+    it("shows handover instructions matching enabled cash/card methods without exposing payment identifiers", () => {
+      const { rerender } = render(
         <OrderConfirmationView
           {...props}
           order={{ ...order, paymentPreference: "on_handover" }}
-          settings={{ ...fixtures.settings, revolutRevtag: "@hidden" }}
+          settings={{
+            ...fixtures.settings,
+            revolutRevtag: "@hidden",
+            paymentMethods: { cash: true, card: false, revolut: true, wero: true },
+          }}
         />,
       );
-      expect(screen.getByText(dict.orderConfirmation.handover)).toBeDefined();
+      expect(screen.getByText(dict.orderConfirmation.handoverCash)).toBeDefined();
       expect(screen.queryByText("@hidden")).toBeNull();
       expect(screen.getByTestId("confirmation-handover-prepare").textContent).toBe(
         dict.orderConfirmation.handoverPrepare,
       );
       expect(screen.queryByTestId("confirmation-payment-reference")).toBeNull();
+
+      rerender(
+        <OrderConfirmationView
+          {...props}
+          order={{ ...order, paymentPreference: "on_handover" }}
+          settings={{
+            ...fixtures.settings,
+            paymentMethods: { cash: false, card: true, revolut: true, wero: true },
+          }}
+        />,
+      );
+      expect(screen.getByText(dict.orderConfirmation.handoverCard)).toBeDefined();
+      expect(screen.getByTestId("confirmation-handover-prepare").textContent).toBe(
+        dict.orderConfirmation.handoverPrepareCard,
+      );
+
+      rerender(
+        <OrderConfirmationView
+          {...props}
+          order={{ ...order, paymentPreference: "on_handover" }}
+          settings={{
+            ...fixtures.settings,
+            paymentMethods: { cash: true, card: true, revolut: true, wero: true },
+          }}
+        />,
+      );
+      expect(screen.getByText(dict.orderConfirmation.handoverCashCard)).toBeDefined();
+      expect(screen.getByTestId("confirmation-handover-prepare").textContent).toBe(
+        dict.orderConfirmation.handoverPrepare,
+      );
     });
 
     it("explains missing configuration instead of inventing a recipient", () => {

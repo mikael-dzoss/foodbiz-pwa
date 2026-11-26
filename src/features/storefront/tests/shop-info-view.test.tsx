@@ -404,4 +404,67 @@ describe("ShopInfoView (#83)", () => {
       expect(policy.queryByText(enDictionary.storefront.policyEstTime)).toBeNull();
     });
   });
+
+  describe("accepted payment method badges (#377)", () => {
+    it("defaults to cash, revolut and wero (no card) when settings is null", () => {
+      render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={null}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+
+      expect(screen.getByTestId("shop-payment-cash").textContent).toBe(
+        enDictionary.storefront.cashOnPickup,
+      );
+      expect(screen.queryByTestId("shop-payment-card")).toBeNull();
+      expect(screen.getByTestId("shop-payment-revolut").textContent).toBe("Revolut (Revtag)");
+      expect(screen.getByTestId("shop-payment-wero").textContent).toBe("Wero");
+      expect(screen.queryByText(/Paylib/i)).toBeNull();
+      expect(screen.getByTestId("shop-payment-wallet-tap").textContent).toContain("Wallet tap");
+    });
+
+    it("renders only the enabled payment methods from settings.paymentMethods (EN & FR)", () => {
+      const cardOnlySettings: BusinessSettings = {
+        ...mockSettings,
+        paymentMethods: { cash: false, card: true, revolut: false, wero: false },
+      };
+
+      const { rerender } = render(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={cardOnlySettings}
+          locale="en"
+          dict={enDictionary.storefront}
+        />,
+      );
+
+      expect(screen.queryByTestId("shop-payment-cash")).toBeNull();
+      expect(screen.getByTestId("shop-payment-card").textContent).toBe("Card on pickup");
+      expect(screen.queryByTestId("shop-payment-revolut")).toBeNull();
+      expect(screen.queryByTestId("shop-payment-wero")).toBeNull();
+      expect(screen.getByTestId("shop-payment-wallet-tap")).toBeDefined();
+
+      rerender(
+        <ShopInfoView
+          business={mockBusiness}
+          settings={{
+            ...mockSettings,
+            paymentMethods: { cash: true, card: true, revolut: true, wero: true },
+          }}
+          locale="fr"
+          dict={frDictionary.storefront}
+        />,
+      );
+
+      expect(screen.getByTestId("shop-payment-cash").textContent).toBe(
+        frDictionary.storefront.cashOnPickup,
+      );
+      expect(screen.getByTestId("shop-payment-card").textContent).toBe("Carte au retrait");
+      expect(screen.getByTestId("shop-payment-revolut").textContent).toBe("Revolut (Revtag)");
+      expect(screen.getByTestId("shop-payment-wero").textContent).toBe("Wero");
+    });
+  });
 });

@@ -436,6 +436,8 @@ export const frDictionary: Dictionary = {
     payOnHandoverCashSubtext: "Payez en espèces à la réception de votre commande",
     payOnHandoverCard: "Carte à la remise",
     payOnHandoverCardSubtext: "Payez par carte à la réception de votre commande",
+    cardOnPickup: "Carte au retrait",
+    walletTapSoon: "Paiement mobile",
   },
   quickAdd: {
     title: "Ajout rapide",
@@ -634,6 +636,11 @@ export const frDictionary: Dictionary = {
     noPaymentNeeded:
       "Aucun autre paiement n'est demandé ici. Consultez le suivi ou contactez la boutique pour plus de détails.",
     nextSteps: "Prochaines étapes",
+    // Handover payment variants (#377)
+    handoverCash: "Payez en espèces au retrait ou à la livraison.",
+    handoverCard: "Payez par carte au retrait ou à la livraison.",
+    handoverCashCard: "Payez en espèces ou par carte au retrait ou à la livraison.",
+    handoverPrepareCard: "Veuillez préparer votre carte.",
   },
   orderTracking: {
     orderLabel: "Commande",
