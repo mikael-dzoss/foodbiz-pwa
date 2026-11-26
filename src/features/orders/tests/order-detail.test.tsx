@@ -526,6 +526,98 @@ describe("OrderDetail Component", () => {
       expect(badge.textContent).toBe("Ordered as Marc");
     });
   });
+
+  describe("Pickup location and fee (#387)", () => {
+    const shop = {
+      name: "Les Saveurs du Continent",
+      address: "52 Quai de la Rapée, 75012 Paris",
+    };
+
+    const pickupOrder: EnrichedOrder = {
+      ...mockOrder,
+      serviceType: "pickup",
+      deliveryAddress: null,
+    };
+
+    it("shows relay name, address, encoded Directions link, and fee line when fee > 0", () => {
+      const relayOrder: EnrichedOrder = {
+        ...pickupOrder,
+        pickupLocation: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Marché de Montreuil",
+          address: "12 Place Jean Jaurès, 93100 Montreuil",
+        },
+        pickupFeeCents: 200,
+        totalAmount: 1900,
+      };
+
+      render(<OrderDetail order={relayOrder} shop={shop} />);
+
+      expect(screen.getByTestId("order-pickup-name").textContent).toBe("Marché de Montreuil");
+      expect(screen.getByTestId("order-pickup-address").textContent).toBe(
+        "12 Place Jean Jaurès, 93100 Montreuil",
+      );
+      const directions = screen.getByTestId("order-pickup-directions");
+      expect(directions.getAttribute("href")).toBe(
+        "https://www.google.com/maps/search/?api=1&query=12%20Place%20Jean%20Jaur%C3%A8s%2C%2093100%20Montreuil",
+      );
+      expect(directions.getAttribute("target")).toBe("_blank");
+      expect(directions.getAttribute("rel")).toBe("noopener noreferrer");
+
+      const feeRow = screen.getByTestId("order-pickup-fee");
+      expect(feeRow.textContent).toContain("Pickup fee");
+      expect(feeRow.textContent).toContain("€2.00");
+    });
+
+    it("falls back to shop name and business address for shop pickup and omits zero fee", () => {
+      render(
+        <OrderDetail
+          order={{ ...pickupOrder, pickupLocation: null, pickupFeeCents: 0 }}
+          shop={shop}
+        />,
+      );
+
+      expect(screen.getByTestId("order-pickup-name").textContent).toBe(shop.name);
+      expect(screen.getByTestId("order-pickup-address").textContent).toBe(shop.address);
+      const directions = screen.getByTestId("order-pickup-directions");
+      expect(directions.getAttribute("href")).toBe(
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address)}`,
+      );
+      expect(screen.queryByTestId("order-pickup-fee")).toBeNull();
+    });
+
+    it("hides pickup section and Directions link for delivery orders", () => {
+      render(<OrderDetail order={mockOrder} shop={shop} />);
+      expect(screen.queryByTestId("order-pickup-location")).toBeNull();
+      expect(screen.queryByTestId("order-pickup-directions")).toBeNull();
+      expect(screen.queryByTestId("order-pickup-fee")).toBeNull();
+    });
+
+    it("renders French pickup location, Directions, and fee labels", () => {
+      render(
+        <ManagerLocaleProvider locale="fr">
+          <OrderDetail
+            order={{
+              ...pickupOrder,
+              pickupLocation: {
+                id: null,
+                name: "Point Relais Nord",
+                address: "4 Rue du Nord, 75018 Paris",
+              },
+              pickupFeeCents: 150,
+              totalAmount: 1850,
+            }}
+            shop={shop}
+          />
+        </ManagerLocaleProvider>,
+      );
+
+      expect(screen.getByTestId("order-pickup-location").textContent).toContain("Lieu de retrait");
+      expect(screen.getByTestId("order-pickup-directions").textContent).toContain("Itinéraire");
+      expect(screen.getByTestId("order-pickup-fee").textContent).toContain("Frais de retrait");
+      expect(screen.getByTestId("order-pickup-fee").textContent).toContain("1,50");
+    });
+  });
 });
 
 describe("OrderDetail time zone (#168)", () => {

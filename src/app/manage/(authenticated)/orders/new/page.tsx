@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { getDictionary } from "@/domain/i18n";
 import { requireManagerSession } from "@/lib/auth";
 import { getManagerLocale } from "@/lib/i18n/manager-locale";
-import { getRepositories } from "@/lib/repositories";
+import { getManualOrderFormData } from "@/features/orders/order-data";
 import { ManualOrderForm } from "@/features/orders/components/manual-order-form";
-import { getBusinessToday } from "@/features/settings/settings-data";
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = getDictionary(await getManagerLocale());
@@ -14,20 +13,22 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// Needs the visible product list and the business date before the form can render, so it blocks.
+// Needs the visible product list, active relays and business date before the form can render.
 export const instant = false;
 
 export default async function NewOrderPage() {
-  const session = await requireManagerSession();
-  const repos = getRepositories();
-  const [products, today] = await Promise.all([
-    repos.products.list(session.business.id, { visibleOnly: true }),
-    getBusinessToday(),
-  ]);
+  await requireManagerSession();
+  const data = await getManualOrderFormData();
 
   return (
     <div className="mx-auto max-w-xl">
-      <ManualOrderForm products={products} today={today} />
+      <ManualOrderForm
+        products={data.products}
+        today={data.today}
+        pickupLocations={data.pickupLocations}
+        shopPickupEnabled={data.shopPickupEnabled}
+        shopName={data.shopName}
+      />
     </div>
   );
 }

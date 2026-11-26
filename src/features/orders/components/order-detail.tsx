@@ -18,6 +18,7 @@ import {
   Check,
   Printer,
   ShoppingBag,
+  Store,
   Truck,
   PhoneCall,
   CircleDot,
@@ -42,6 +43,7 @@ import {
   formatDate,
   formatDateTime,
   formatTime,
+  resolvePickupDisplay,
   type OrderStatus,
   type PaymentMethod,
 } from "@/domain";
@@ -53,7 +55,7 @@ import {
   markOrderUnpaidAction,
   markPaidAndCompleteAction,
 } from "../order-actions";
-import type { EnrichedOrder } from "../order-data";
+import type { EnrichedOrder, OrderShopInfo } from "../order-data";
 import { cn } from "@/lib/utils";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import { useManagerLocale } from "@/components/i18n";
@@ -61,6 +63,8 @@ import { interpolate, type OrdersDictionary, type SupportedLocale } from "@/doma
 
 export interface OrderDetailProps {
   order: EnrichedOrder;
+  /** Business name and address for shop-pickup orders (when `order.pickupLocation` is absent). */
+  shop?: OrderShopInfo;
   /** Set for a member who is not an owner: refunds are owner-only, the control is disabled with this reason. */
   refundDisabledReason?: string;
 }
@@ -113,7 +117,7 @@ function formatRequestedDateTime(
   return interpolate(t.dateAsap, { date });
 }
 
-export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
+export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailProps) {
   const timeZone = useBusinessTimeZone();
   const router = useRouter();
   const { locale, dict } = useManagerLocale();
@@ -336,9 +340,19 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
   const cleanPhone = currentOrder.guestPhone?.replace(/\D/g, "");
   const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : null;
 
-  // Tax calculation for breakdown (10% VAT on food)
-  const includedTax = Math.round(currentOrder.totalAmount * 0.1 * 100) / 100;
-  const subtotal = currentOrder.totalAmount - includedTax;
+  // Pickup location display (relay snapshot or shop fallback; null for non-pickup orders)
+  const pickupDisplay = resolvePickupDisplay(
+    currentOrder.serviceType,
+    currentOrder.pickupLocation,
+    shop,
+    o.storePickup,
+  );
+
+  // Tax calculation for breakdown (10% VAT on food; relay pickup fee is already in totalAmount)
+  const pickupFeeCents = currentOrder.pickupFeeCents ?? 0;
+  const foodTotal = Math.max(0, currentOrder.totalAmount - pickupFeeCents);
+  const includedTax = Math.round(foodTotal * 0.1 * 100) / 100;
+  const subtotal = foodTotal - includedTax;
 
   // Predictive Full Journey Timeline
   const timelineSteps = React.useMemo(() => {
@@ -600,15 +614,56 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
             </div>
 
             {/* Delivery address directly below when delivery */}
-            {currentOrder.deliveryAddress && (
+            {currentOrder.serviceType === "delivery" && currentOrder.deliveryAddress && (
               <div className="border-border/60 flex items-start justify-between gap-2 border-t pt-1">
                 <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1.5 font-medium">
-                  <MapPin className="h-3.5 w-3.5" />
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{t.address}</span>
                 </span>
                 <span className="text-foreground text-right font-semibold">
                   {currentOrder.deliveryAddress}
                 </span>
+              </div>
+            )}
+
+            {/* Pickup location directly below when pickup */}
+            {pickupDisplay && (
+              <div
+                className="border-border/60 flex items-start justify-between gap-2 border-t pt-2"
+                data-testid="order-pickup-location"
+              >
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <span className="text-muted-foreground inline-flex items-center gap-1.5 font-medium">
+                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>{t.pickupLocation}</span>
+                  </span>
+                  <p
+                    className="text-foreground font-semibold wrap-break-word"
+                    data-testid="order-pickup-name"
+                  >
+                    {pickupDisplay.name}
+                  </p>
+                  {pickupDisplay.address && (
+                    <p
+                      className="text-muted-foreground wrap-break-word"
+                      data-testid="order-pickup-address"
+                    >
+                      {pickupDisplay.address}
+                    </p>
+                  )}
+                </div>
+                {pickupDisplay.directionsUrl && (
+                  <a
+                    href={pickupDisplay.directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="order-pickup-directions"
+                    className="border-border bg-card hover:bg-muted text-primary inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors active:opacity-80"
+                  >
+                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>{t.directions}</span>
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -683,6 +738,17 @@ export function OrderDetail({ order, refundDisabledReason }: OrderDetailProps) {
               {formatMoney(includedTax, locale)}
             </span>
           </div>
+          {pickupFeeCents > 0 && (
+            <div
+              className="text-muted-foreground flex items-center justify-between"
+              data-testid="order-pickup-fee"
+            >
+              <span>{t.pickupFee}</span>
+              <span className="text-foreground font-medium tabular-nums">
+                {formatMoney(pickupFeeCents, locale)}
+              </span>
+            </div>
+          )}
           <div className="border-border/60 flex items-center justify-between border-t pt-2">
             <span className="text-foreground text-sm font-bold">{t.total}</span>
             <span className="text-foreground text-base font-bold tabular-nums">
