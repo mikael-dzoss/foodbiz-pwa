@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Download, Monitor, Share, Smartphone } from "lucide-react";
+import { useState, type MouseEvent, type ReactNode } from "react";
+import { Check, Copy, Download, ExternalLink, Monitor, Share, Smartphone } from "lucide-react";
 import { interpolate, type InstallGuideDictionary } from "@/domain/i18n";
-import type { InstallPlatform } from "@/lib/pwa/platform";
+import {
+  buildAndroidChromeIntentUrl,
+  isInAppPlatform,
+  type InstallPlatform,
+} from "@/lib/pwa/platform";
 import {
   Button,
   Dialog,
@@ -12,6 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Input,
 } from "@/components/ui";
 
 export interface InstallGuideProps {
@@ -61,6 +66,9 @@ function StepList({ steps, testId }: { steps: ReadonlyArray<ReactNode>; testId: 
   );
 }
 
+type CopyLinkState =
+  { status: "idle" } | { status: "copied" } | { status: "fallback"; url: string };
+
 /**
  * Shared, presentation-only PWA install guide dialog used by both storefront and manager entry points (#100).
  */
@@ -82,21 +90,101 @@ export function InstallGuide({
     open,
     platform,
   });
+  const [copyState, setCopyState] = useState<CopyLinkState>({ status: "idle" });
 
   if (open !== captured.open) {
     setCaptured({ open, platform });
+    if (copyState.status !== "idle") {
+      setCopyState({ status: "idle" });
+    }
   }
 
   const activePlatform = open ? captured.platform : platform;
 
   if (activePlatform === "standalone") return null;
 
+  const isInApp = isInAppPlatform(activePlatform);
+  const isAndroidInApp = isInApp && activePlatform.os === "android";
   const title = interpolate(copy.title, { app: appName });
   const description = interpolate(copy.description, { app: appName });
-  const variantTestId = `${testId}-${activePlatform}`;
+  const variantTestId = isInApp ? `${testId}-in-app` : `${testId}-${activePlatform}`;
   const isDesktopSafari = activePlatform === "macos-safari";
 
+  const handleCopyLink = async () => {
+    const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+    if (typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function") {
+      try {
+        await navigator.clipboard.writeText(currentUrl);
+        setCopyState({ status: "copied" });
+        return;
+      } catch {
+        // Restricted webviews often reject clipboard writes; fall through to the selectable URL.
+      }
+    }
+    setCopyState({ status: "fallback", url: currentUrl });
+  };
+
+  const handleOpenInChrome = (event: MouseEvent<HTMLAnchorElement>) => {
+    // Build intent:// from window.location at click time so SSR/initial render never touches window.
+    event.currentTarget.setAttribute("href", buildAndroidChromeIntentUrl(window.location));
+  };
+
+  const renderInAppBody = () => {
+    if (!isInApp) return null;
+    const hostApp = activePlatform.app ?? copy.inAppGenericName;
+    const steps: ReadonlyArray<ReactNode> =
+      activePlatform.os === "ios"
+        ? [
+            <>
+              {copy.inAppIosStep1} <ShareGlyph testId={`${variantTestId}-share-icon`} />
+            </>,
+            copy.inAppIosStep2,
+          ]
+        : activePlatform.os === "android"
+          ? [copy.inAppAndroidStep1, copy.inAppAndroidStep2]
+          : [copy.inAppOtherStep1, copy.inAppOtherStep2];
+
+    return (
+      <div data-testid={variantTestId} className="space-y-4">
+        <p data-testid={`${variantTestId}-explanation`} className="text-body-sm text-foreground">
+          {interpolate(copy.inAppExplanation, { inApp: hostApp })}
+        </p>
+
+        <StepList testId={`${variantTestId}-steps`} steps={steps} />
+
+        <div role="status" aria-live="polite" className="empty:hidden">
+          {copyState.status === "copied" ? (
+            <p
+              data-testid={`${testId}-copy-confirmation`}
+              className="bg-primary-soft text-primary-soft-foreground text-body-sm flex items-center gap-2 rounded-md px-3 py-2"
+            >
+              <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{copy.inAppLinkCopied}</span>
+            </p>
+          ) : null}
+          {copyState.status === "fallback" ? (
+            <div
+              data-testid={`${testId}-copy-fallback`}
+              className="bg-muted space-y-2 rounded-md p-3"
+            >
+              <p className="text-body-sm text-foreground">{copy.inAppCopyFallback}</p>
+              <Input
+                readOnly
+                value={copyState.url}
+                aria-label={copy.inAppCopyUrlLabel}
+                onFocus={(event) => event.currentTarget.select()}
+                data-testid={`${testId}-copy-fallback-input`}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   const renderBody = () => {
+    if (isInApp) return renderInAppBody();
+
     switch (activePlatform) {
       case "native-prompt":
         return (
@@ -166,6 +254,75 @@ export function InstallGuide({
     }
   };
 
+  const renderFooter = () => {
+    if (isInApp) {
+      return (
+        <>
+          {isAndroidInApp ? (
+            <Button asChild className="w-full gap-2" data-testid={`${testId}-open-chrome-link`}>
+              <a href="#open-in-chrome" onClick={handleOpenInChrome}>
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                <span>{copy.inAppOpenInChrome}</span>
+              </a>
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            variant={isAndroidInApp ? "outline" : "default"}
+            onClick={handleCopyLink}
+            className="w-full gap-2"
+            data-testid={`${testId}-copy-link-button`}
+          >
+            {copyState.status === "copied" ? (
+              <Check className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span>{copy.inAppCopyLink}</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant={isAndroidInApp ? "ghost" : "outline"}
+            onClick={() => onOpenChange(false)}
+            className="w-full"
+            data-testid={`${testId}-done-button`}
+          >
+            {copy.done}
+          </Button>
+        </>
+      );
+    }
+
+    if (activePlatform === "native-prompt") {
+      return (
+        <Button
+          type="button"
+          onClick={onInstall}
+          loading={installing}
+          className="w-full gap-2"
+          data-testid={`${testId}-install-button`}
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          <span>{copy.installButton}</span>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onOpenChange(false)}
+        className="w-full"
+        data-testid={`${testId}-done-button`}
+      >
+        {copy.done}
+      </Button>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -181,6 +338,8 @@ export function InstallGuide({
             >
               {isDesktopSafari ? (
                 <Monitor className="h-5 w-5" />
+              ) : isInApp ? (
+                <ExternalLink className="h-5 w-5" />
               ) : (
                 <Smartphone className="h-5 w-5" />
               )}
@@ -194,29 +353,8 @@ export function InstallGuide({
 
         <div className="py-1">{renderBody()}</div>
 
-        <DialogFooter className="sm:flex-col sm:space-x-0">
-          {activePlatform === "native-prompt" ? (
-            <Button
-              type="button"
-              onClick={onInstall}
-              loading={installing}
-              className="w-full gap-2"
-              data-testid={`${testId}-install-button`}
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              <span>{copy.installButton}</span>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="w-full"
-              data-testid={`${testId}-done-button`}
-            >
-              {copy.done}
-            </Button>
-          )}
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+          {renderFooter()}
         </DialogFooter>
       </DialogContent>
     </Dialog>
