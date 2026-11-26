@@ -22,6 +22,11 @@ export interface FieldProps {
   hintPosition?: "above" | "below";
   /** Localized, user-safe error text. Empty or missing means no error. */
   error?: string | null;
+  /**
+   * Whether the inline error carries `role="alert"` (default `true`). Set `false` when the parent
+   * form announces errors via a single live region + focus management to avoid double announcements.
+   */
+  announceError?: boolean;
   required?: boolean;
   /** Overrides the generated id (keeps an existing `id` on the control stable). */
   id?: string;
@@ -40,6 +45,7 @@ export function Field({
   hint,
   hintPosition = "below",
   error,
+  announceError = true,
   required,
   id,
   className,
@@ -85,7 +91,7 @@ export function Field({
       {error ? (
         <p
           id={errorId}
-          role="alert"
+          role={announceError ? "alert" : undefined}
           data-testid={testId ? `${testId}-error` : undefined}
           className="text-body-sm text-destructive flex items-start gap-1.5"
         >
