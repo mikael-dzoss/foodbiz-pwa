@@ -71,20 +71,18 @@ export function OpeningHoursOverview({ settings, locale, now }: OpeningHoursOver
         <h2 className="text-label-sm text-muted-foreground mb-2 px-1 tracking-wider uppercase">
           {oh.optionsSection}
         </h2>
-        <div className="border-border bg-card divide-border divide-y rounded-2xl border shadow-2xs">
+        <div className="border-border bg-card divide-border divide-y overflow-hidden rounded-2xl border shadow-2xs">
           <Link
             href="/manage/settings/opening-hours/regular"
             data-testid="link-regular-hours"
-            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 rounded-2xl p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
           >
             <div className="flex min-w-0 items-center gap-3.5">
               <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <span className="text-foreground block text-sm font-semibold">
-                  {oh.regularTitle}
-                </span>
+                <span className="text-label-md text-foreground block">{oh.regularTitle}</span>
                 <span className="text-body-sm text-muted-foreground block truncate">
                   {configured ? oh.regularConfigured : oh.regularNotSet}
                 </span>
@@ -98,14 +96,14 @@ export function OpeningHoursOverview({ settings, locale, now }: OpeningHoursOver
           <Link
             href="/manage/settings/opening-hours/exceptions"
             data-testid="link-exceptions"
-            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 rounded-2xl p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 items-center justify-between gap-3 p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
           >
             <div className="flex min-w-0 items-center gap-3.5">
               <div className="bg-primary-soft text-primary-soft-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
                 <CalendarOff className="h-5 w-5" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <span className="text-foreground block text-sm font-semibold">{ex.title}</span>
+                <span className="text-label-md text-foreground block">{ex.title}</span>
                 <span className="text-body-sm text-muted-foreground block truncate">
                   {upcomingCount > 0
                     ? interpolate(ex.rowUpcoming, { count: upcomingCount })

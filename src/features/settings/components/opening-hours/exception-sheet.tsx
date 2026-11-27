@@ -267,6 +267,7 @@ function ExceptionForm({
             groupLabel={t.customHoursGroup}
             labels={rangeLabels}
             disabled={busy}
+            showDivider={false}
             onRangeChange={(index, field, newVal) =>
               setRanges(draft.ranges.map((r, i) => (i === index ? { ...r, [field]: newVal } : r)))
             }

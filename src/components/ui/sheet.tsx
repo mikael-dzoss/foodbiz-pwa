@@ -75,7 +75,7 @@ SheetHeader.displayName = "SheetHeader";
 export const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "border-border bg-card sticky bottom-0 -mx-6 mt-6 -mb-6 flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end",
+      "border-border bg-card pb-safe-4 sticky -bottom-6 z-10 -mx-6 mt-6 -mb-6 flex flex-col-reverse gap-2 border-t px-4 pt-4 sm:flex-row sm:justify-end",
       className,
     )}
     {...props}

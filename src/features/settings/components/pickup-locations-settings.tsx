@@ -2,12 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowDown, ArrowUp, ChevronLeft, MapPin, Plus, Store } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  Clock,
+  MapPin,
+  Plus,
+  Store,
+} from "lucide-react";
 import { getDictionary, interpolate, type SupportedLocale } from "@/domain/i18n";
 import { formatMoney } from "@/domain/formatting/money";
 import { groupWeeklyHours } from "@/domain/opening-hours";
 import { MAX_PICKUP_LOCATIONS, type PickupLocation } from "@/domain/pickup-location";
 import { actionErrorMessage } from "@/lib/actions/error-message";
+import { EmptyState } from "@/components/feedback";
 import { Alert, Badge, Button, ConfirmDialog, Switch, useToastOptional } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
@@ -257,18 +267,16 @@ export function PickupLocationsSettings({
       )}
 
       {!pickupServiceEnabled && (
-        <p
-          data-testid="pickup-service-off-notice"
-          className="border-border bg-muted text-muted-foreground mb-4 rounded-xl border px-3.5 py-3 text-sm"
-        >
+        <Alert tone="warning" data-testid="pickup-service-off-notice" className="mb-4">
           {t.pickupOffNotice}{" "}
           <Link
             href="/manage/settings/ordering"
-            className="text-foreground focus-visible:ring-ring font-medium underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
+            data-testid="pickup-service-off-ordering-link"
+            className="focus-visible:ring-ring font-medium underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
           >
             {dict.ordering.title}
           </Link>
-        </p>
+        </Alert>
       )}
 
       <p role="status" className="sr-only" data-testid="pickup-locations-announcement">
@@ -290,10 +298,10 @@ export function PickupLocationsSettings({
             <Store className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-foreground block truncate text-sm font-semibold">
+            <span className="text-label-md text-foreground line-clamp-2 block">
               {interpolate(t.shopName, { name: shop.name })}
             </span>
-            <span className="text-body-sm text-muted-foreground block truncate">
+            <span className="text-body-sm text-muted-foreground line-clamp-2 block">
               {shop.address ? `${t.shopHint} · ${shop.address}` : t.shopHint}
             </span>
           </div>
@@ -320,7 +328,7 @@ export function PickupLocationsSettings({
         </li>
       </ul>
 
-      <h2 className="text-label-sm text-muted-foreground mt-6 mb-2 tracking-wider uppercase">
+      <h2 className="text-label-sm text-muted-foreground mt-6 mb-2 px-1 tracking-wider uppercase">
         {t.relaySection}
       </h2>
 
@@ -330,55 +338,60 @@ export function PickupLocationsSettings({
       >
         {locations.map((location, index) => {
           const hours = compactHours(location, locale, dict.openingHours.closed);
+          const isFree = location.feeCents === 0;
           return (
             <li
               key={location.id}
               data-testid={`pickup-location-row-${location.id}`}
               className="flex items-stretch"
             >
-              <button
+              <Button
                 type="button"
+                variant="unstyled"
+                size="none"
                 onClick={() => openEdit(location)}
                 aria-label={interpolate(t.editAria, { name: location.name })}
                 data-testid={`pickup-location-edit-${location.id}`}
-                className="hover:bg-muted/50 active:bg-muted focus-visible:ring-ring flex min-h-14 min-w-0 flex-1 items-start gap-3 p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="hover:bg-muted/50 active:bg-muted flex min-h-14 min-w-0 flex-1 flex-col gap-1 p-4 text-left focus-visible:ring-offset-0 focus-visible:ring-inset"
               >
-                <div className="bg-muted text-muted-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                  <MapPin className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "truncate text-sm font-semibold",
-                        location.isActive ? "text-foreground" : "text-muted-foreground",
-                      )}
-                    >
-                      {location.name}
-                    </span>
-                    {!location.isActive && (
-                      <Badge
-                        variant="outline"
-                        data-testid={`pickup-location-inactive-${location.id}`}
-                      >
-                        {t.inactive}
-                      </Badge>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "text-label-md line-clamp-2",
+                      location.isActive ? "text-foreground" : "text-muted-foreground",
                     )}
+                  >
+                    {location.name}
                   </span>
-                  <span className="text-body-sm text-muted-foreground block">
+                  <Badge
+                    variant={isFree ? "success" : "completed"}
+                    data-testid={`pickup-location-fee-${location.id}`}
+                    className={cn("shrink-0 tabular-nums", !isFree && "text-foreground")}
+                  >
+                    {isFree ? t.free : formatMoney(location.feeCents, locale)}
+                  </Badge>
+                  {!location.isActive && (
+                    <Badge
+                      variant="outline"
+                      data-testid={`pickup-location-inactive-${location.id}`}
+                    >
+                      {t.inactive}
+                    </Badge>
+                  )}
+                </span>
+                <span className="text-body-sm text-muted-foreground flex items-start gap-1.5">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0">
                     {location.address}, {location.postcode}
                   </span>
-                  <span className="text-body-sm text-muted-foreground block tabular-nums">
-                    <span data-testid={`pickup-location-fee-${location.id}`}>
-                      {location.feeCents === 0 ? t.free : formatMoney(location.feeCents, locale)}
-                    </span>
-                    {" · "}
-                    <span data-testid={`pickup-location-hours-${location.id}`}>
-                      {hours ?? t.sameAsShopHours}
-                    </span>
+                </span>
+                <span className="text-body-sm text-muted-foreground flex items-start gap-1.5 tabular-nums">
+                  <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span data-testid={`pickup-location-hours-${location.id}`} className="min-w-0">
+                    {hours ?? t.sameAsShopHours}
                   </span>
                 </span>
-              </button>
+              </Button>
               <div className="flex shrink-0 flex-col justify-center pr-1">
                 <Button
                   type="button"
@@ -421,14 +434,13 @@ export function PickupLocationsSettings({
       </ul>
 
       {locations.length === 0 && (
-        <div
+        <EmptyState
+          icon={<MapPin className="h-6 w-6" aria-hidden="true" />}
+          title={t.emptyTitle}
+          description={t.emptyHint}
+          className="mt-4 rounded-2xl"
           data-testid="pickup-locations-empty"
-          className="border-border bg-card mt-4 flex flex-col items-center gap-2 rounded-2xl border p-6 text-center"
-        >
-          <MapPin className="text-muted-foreground h-6 w-6" aria-hidden="true" />
-          <p className="text-label-md text-foreground">{t.emptyTitle}</p>
-          <p className="text-body-sm text-muted-foreground">{t.emptyHint}</p>
-        </div>
+        />
       )}
 
       <PickupLocationSheet

@@ -148,6 +148,8 @@ export interface DayRangesEditorProps {
   groupLabel: string;
   labels: DayRangesEditorLabels;
   disabled?: boolean;
+  /** Render the top divider above the first range row (true when preceded by a day header). */
+  showDivider?: boolean;
   onRangeChange: (rangeIndex: number, field: "open" | "close", value: string) => void;
   onAddRange: () => void;
   onRemoveRange: (rangeIndex: number) => void;
@@ -162,13 +164,14 @@ export function DayRangesEditor({
   groupLabel,
   labels,
   disabled = false,
+  showDivider = true,
   onRangeChange,
   onAddRange,
   onRemoveRange,
 }: DayRangesEditorProps) {
   const baseId = useId();
   return (
-    <div className="border-border/60 mt-3 space-y-3 border-t pt-3">
+    <div className={showDivider ? "border-border/60 mt-3 space-y-3 border-t pt-3" : "space-y-3"}>
       {ranges.map((range, rangeIndex) => {
         const err = rangeErrors.get(rangeIndex);
         const openId = `${baseId}-${groupId}-${rangeIndex}-open`;
