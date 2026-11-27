@@ -63,7 +63,7 @@ export function PickupLocationHoursSettings({
 
       <div className="mb-6">
         <h1 className="text-title-lg text-foreground">{t.hoursTitle}</h1>
-        <p className="text-body-sm text-muted-foreground mt-1">{locationName}</p>
+        <p className="text-label-md text-foreground mt-1">{locationName}</p>
         <p className="text-body-sm text-muted-foreground mt-1">{t.hoursDescription}</p>
       </div>
 

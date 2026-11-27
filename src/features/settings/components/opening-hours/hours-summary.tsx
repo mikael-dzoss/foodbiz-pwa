@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { formatCalendarDate } from "@/domain/formatting/date";
 import type { SupportedLocale } from "@/domain/i18n";
 import {
@@ -112,7 +113,6 @@ export function HoursSummary({
           {grouped.map((group) => {
             const isToday = Boolean(todayDayKey && group.days.includes(todayDayKey));
             const isClosedDisplay = group.closed || group.ranges.length === 0;
-            const rangeText = isClosedDisplay ? labels.closed : group.ranges.join(" · ");
 
             return (
               <li
@@ -148,7 +148,14 @@ export function HoursSummary({
                         : "text-muted-foreground",
                   )}
                 >
-                  {rangeText}
+                  {isClosedDisplay
+                    ? labels.closed
+                    : group.ranges.map((range, idx) => (
+                        <Fragment key={range}>
+                          {idx > 0 && " · "}
+                          <span className="whitespace-nowrap">{range}</span>
+                        </Fragment>
+                      ))}
                 </span>
               </li>
             );

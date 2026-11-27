@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Info } from "lucide-react";
 import { getDictionary, type SupportedLocale } from "@/domain/i18n";
 import { weeklyHoursSchema, type WeeklyHours } from "@/domain/opening-hours";
 import { actionErrorMessage } from "@/lib/actions/error-message";
@@ -171,13 +170,9 @@ export function RegularHoursForm({
         />
 
         {footerNote && (
-          <div
-            data-testid={`${testId}-footer-note`}
-            className="border-border bg-muted/50 text-body-sm text-muted-foreground flex items-start gap-2.5 rounded-xl border px-3.5 py-3"
-          >
-            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <p>{footerNote}</p>
-          </div>
+          <Alert tone="info" role="none" data-testid={`${testId}-footer-note`}>
+            {footerNote}
+          </Alert>
         )}
 
         {onClear && savedHours !== null && (
