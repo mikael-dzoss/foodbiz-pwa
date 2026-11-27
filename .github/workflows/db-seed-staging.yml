@@ -1,7 +1,8 @@
 name: Seed staging database
 
 # Applies supabase/seed.sql (idempotent demo shop seed) to the hosted staging Supabase project.
-# Run after "Migrate staging database". Manual only, restricted to the `staging` branch.
+# Run after "Migrate staging database": it refuses to seed while migrations are pending on staging.
+# Manual only, restricted to the `staging` branch.
 # Uses repository secrets (not GitHub Environments, which require paid plans on private repositories).
 # Runbook: docs/DEPLOYMENT.md
 on:
@@ -10,8 +11,9 @@ on:
 permissions:
   contents: read
 
+# Shared with "Migrate staging database" so a seed waits for a running migration.
 concurrency:
-  group: db-seed-staging
+  group: staging-db
   cancel-in-progress: false
 
 jobs:
@@ -30,9 +32,10 @@ jobs:
         env:
           PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
           ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
         run: |
           missing=0
-          for name in PROJECT_REF ACCESS_TOKEN; do
+          for name in PROJECT_REF ACCESS_TOKEN DB_PASSWORD; do
             if [ -z "${!name}" ]; then
               echo "::error::Missing repository secret STAGING_SUPABASE_${name}."
               missing=1
@@ -54,6 +57,26 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      # The seed targets the latest schema; seeding a staging DB that misses migrations fails midway
+      # (for example the 2026-11-26 run, where the promotion merged after the migration had run).
+      - name: Refuse when migrations are pending
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          out="$(supabase db push --remote --dry-run --agent no 2>&1)" || {
+            echo "::error::Migration history check failed. Run \"Migrate staging database\" on staging first."
+            printf '%s\n' "$out" | sed -E 's#(postgres(ql)?://)[^@ ]+@#\1***@#g'
+            exit 1
+          }
+          if ! grep -q "Remote database is up to date" <<<"$out"; then
+            echo "::error::Migrations are pending on staging. Run \"Migrate staging database\" on staging first."
+            printf '%s\n' "$out" | sed -E 's#(postgres(ql)?://)[^@ ]+@#\1***@#g'
+            exit 1
+          fi
+          echo "Staging schema is up to date."
 
       - name: Log database user
         env:

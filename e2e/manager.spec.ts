@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, signIn } from "./fixtures";
+import { expect, test, signIn, signInWithDemoButton } from "./fixtures";
 import { DEMO_CATEGORY_IDS, DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 test.beforeEach(async ({ page }) => {
   await signIn(page);
+});
+
+test("demo sign-in button opens the dashboard", async ({ page }) => {
+  await page.context().clearCookies();
+  await signInWithDemoButton(page);
 });
 
 test("product CRUD persists edits and soft deletion", async ({ page }) => {

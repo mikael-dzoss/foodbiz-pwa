@@ -27,10 +27,16 @@ describe("RegularHoursForm (#372)", () => {
 
     fireEvent.click(screen.getByTestId("regular-hours-form-save"));
 
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith(validHours);
-    });
-    expect(screen.getByText(enDictionary.settings.openingHours.saveSuccess)).toBeDefined();
+    await waitFor(
+      () => {
+        expect(screen.getByText(enDictionary.settings.openingHours.saveSuccess)).toBeDefined();
+        expect((screen.getByTestId("regular-hours-form-save") as HTMLButtonElement).disabled).toBe(
+          false,
+        );
+      },
+      { timeout: 3000 },
+    );
+    expect(onSave).toHaveBeenCalledWith(validHours);
   });
 
   it("blocks submit when ranges are invalid and does not call onSave", async () => {
@@ -46,11 +52,10 @@ describe("RegularHoursForm (#372)", () => {
     fireEvent.change(screen.getByTestId("time-close-tue-0"), { target: { value: "10:00" } });
     fireEvent.click(screen.getByTestId("regular-hours-form-save"));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("regular-hours-form-error").textContent).toContain(
-        enDictionary.settings.openingHours.errorFixBeforeSave,
-      );
+    const errorAlert = await screen.findByTestId("regular-hours-form-error", undefined, {
+      timeout: 3000,
     });
+    expect(errorAlert.textContent).toContain(enDictionary.settings.openingHours.errorFixBeforeSave);
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -69,11 +74,10 @@ describe("RegularHoursForm (#372)", () => {
 
     fireEvent.click(screen.getByTestId("regular-hours-form-save"));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("regular-hours-form-error").textContent).toBe(
-        enDictionary.common.actionErrors.INTERNAL,
-      );
+    const errorAlert = await screen.findByTestId("regular-hours-form-error", undefined, {
+      timeout: 3000,
     });
+    expect(errorAlert.textContent).toBe(enDictionary.common.actionErrors.INTERNAL);
   });
 
   it("discards unsaved edits back to the saved schedule", () => {
@@ -133,13 +137,13 @@ describe("RegularHoursForm (#372)", () => {
     fireEvent.click(screen.getByTestId("regular-hours-form-clear"));
     fireEvent.click(screen.getByTestId("regular-hours-form-clear-dialog-confirm"));
 
-    await waitFor(() => {
-      expect(onClear).toHaveBeenCalledTimes(1);
-    });
-    await waitFor(() => {
-      expect(screen.queryByTestId("regular-hours-form-clear")).toBeNull();
-    });
-    expect(screen.getByText(enDictionary.settings.openingHours.clearSuccess)).toBeDefined();
+    expect(
+      await screen.findByText(enDictionary.settings.openingHours.clearSuccess, undefined, {
+        timeout: 3000,
+      }),
+    ).toBeDefined();
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("regular-hours-form-clear")).toBeNull();
     // The draft and editor reset to the default schedule (Tuesday was 11:30-14:30).
     expect((screen.getByTestId("time-open-every_day-0") as HTMLSelectElement).value).toBe("09:00");
   });

@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { expect, test, signIn } from "./fixtures";
+import { expect, test, setManagerSession, addToCartFromCatalog } from "./fixtures";
 import { DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 async function expectAccessible(page: Page) {
@@ -77,15 +77,12 @@ for (const colorScheme of ["light", "dark"] as const) {
         { tag: wide ? "@desktop" : [] },
         async ({ page }, testInfo) => {
           if (path.startsWith("/manage") && path !== "/manage/login") {
-            await signIn(page);
+            await setManagerSession(page);
           }
           if (/\/(cart|checkout)$/.test(path)) {
             const locale = path.startsWith("/fr") ? "fr" : "en";
             await page.goto(`/${locale}`);
-            await page
-              .getByTestId(`product-row-${DEMO_PRODUCT.boulettes.id}`)
-              .getByRole("button", { name: new RegExp(`: ${DEMO_PRODUCT.boulettes.name}$`) })
-              .click();
+            await addToCartFromCatalog(page, DEMO_PRODUCT.boulettes.id);
             await page.goto(`/${locale}/cart`);
             for (let i = 0; i < 3; i++) {
               await page
@@ -98,6 +95,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           }
           const response = await page.goto(path);
           expect(response?.status()).toBe(path.endsWith("/does-not-exist") ? 404 : 200);
+          expect(new URL(page.url()).pathname).toBe(path);
           await expect(page.getByRole("main").first()).toBeVisible();
           if (path === "/manage") {
             // Scoped to main: a streamed boundary that React client-rendered can leave its hidden server
@@ -139,9 +137,10 @@ test.describe("skip link and heading structure", () => {
       page,
     }) => {
       if (path.startsWith("/manage") && path !== "/manage/login") {
-        await signIn(page);
+        await setManagerSession(page);
       }
       await page.goto(path);
+      expect(new URL(page.url()).pathname).toBe(path);
       await expect(page.locator("#main-content")).toBeAttached();
       await page.keyboard.press("Tab");
       const skip = page.getByTestId("skip-link");
@@ -162,9 +161,10 @@ test.describe("skip link and heading structure", () => {
   ]) {
     test(`${path} has one h1 and no skipped heading levels`, async ({ page }) => {
       if (path.startsWith("/manage") && path !== "/manage/login") {
-        await signIn(page);
+        await setManagerSession(page);
       }
       await page.goto(path);
+      expect(new URL(page.url()).pathname).toBe(path);
       await expect(page.getByRole("main").first()).toBeVisible();
       const levels = await page.evaluate(() =>
         [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")].map((h) => Number(h.tagName.slice(1))),

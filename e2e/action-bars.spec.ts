@@ -1,5 +1,5 @@
 import { type Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { expect, test, addToCartFromCatalog } from "./fixtures";
 import { DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 async function expectBarAboveFooter(page: Page, barTestId: string) {
@@ -19,10 +19,7 @@ test(
   async ({ page }) => {
     const product = DEMO_PRODUCT.boulettes;
     await page.goto("/en");
-    await page
-      .getByTestId(`product-row-${product.id}`)
-      .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
-      .click();
+    await addToCartFromCatalog(page, product.id);
 
     await page.goto("/en/cart");
     await expect(page.getByTestId("cart-items-list")).toContainText(product.name);

@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, test, signIn } from "./fixtures";
+import { expect, test, signIn, addToCartFromCatalog } from "./fixtures";
 import { getDictionary } from "../src/domain/i18n";
 import { formatMoney } from "../src/domain/formatting";
 import {
@@ -126,10 +126,7 @@ for (const [locale, method, recipient, phone] of [
     const expectedTotal = product.price * 4;
     await page.goto(`/${locale}`);
     await page.getByTestId("service-mode-pickup").click();
-    await page
-      .getByTestId(`product-row-${product.id}`)
-      .getByRole("button", { name: new RegExp(`: ${product.name}$`) })
-      .click();
+    await addToCartFromCatalog(page, product.id);
     await page.goto(`/${locale}/cart`);
     for (let i = 0; i < 3; i++) {
       await page
@@ -165,10 +162,7 @@ test("customer checkout reaches confirmation and tracking reflects manager accep
 }) => {
   const product = DEMO_PRODUCT.boulettes;
   await page.goto("/en");
-  await page
-    .getByTestId(`product-row-${product.id}`)
-    .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
-    .click();
+  await addToCartFromCatalog(page, product.id);
   await page.goto("/en/cart");
   await expect(page.getByTestId("cart-items-list")).toContainText(product.name);
   for (let i = 0; i < 3; i++) {
@@ -273,10 +267,7 @@ test("customer chooses a relay pickup location and its fee is included in cart, 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
-  await page
-    .getByTestId(`product-row-${product.id}`)
-    .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
-    .click();
+  await addToCartFromCatalog(page, product.id);
   await page.goto("/en/cart");
   await expect(page.getByTestId("cart-fee-row")).toContainText(relayName);
   await expect(page.getByTestId("cart-fee-value")).toContainText(formatMoney(relayFeeCents, "en"));

@@ -58,11 +58,13 @@ export async function resolveOgImageSrc(
 
   const local = parseLocalPublicImagePath(trimmed);
   if (local) {
-    const publicRoot = path.resolve(options.publicDir ?? path.join(process.cwd(), "public"));
+    const publicRoot = path.resolve(
+      options.publicDir ?? path.join(/* turbopackIgnore: true */ process.cwd(), "public"),
+    );
     const targetPath = path.resolve(publicRoot, local.relativePath);
     if (!targetPath.startsWith(`${publicRoot}${path.sep}`)) return null;
     try {
-      const bytes = await readFile(targetPath);
+      const bytes = await readFile(/* turbopackIgnore: true */ targetPath);
       if (bytes.byteLength === 0 || bytes.byteLength > MAX_PRODUCT_IMAGE_BYTES) return null;
       return `data:${local.mimeType};base64,${bytes.toString("base64")}`;
     } catch {

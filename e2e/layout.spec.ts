@@ -1,4 +1,4 @@
-import { expect, test, signIn } from "./fixtures";
+import { expect, test, signIn, addToCartFromCatalog } from "./fixtures";
 import { DEMO_PRODUCT } from "../src/lib/repositories/mock/fixtures";
 
 // Layout that really differs between a phone and a wide screen. Each test runs in both projects
@@ -63,10 +63,7 @@ test(
     const product = DEMO_PRODUCT.boulettes;
     await page.goto("/en");
     await expect(page.getByRole("banner")).toBeVisible();
-    await page
-      .getByTestId(`product-row-${product.id}`)
-      .getByRole("button", { name: `Add to cart: ${product.name}`, exact: true })
-      .click();
+    await addToCartFromCatalog(page, product.id);
     await page.goto("/en/cart");
     await expect(page.getByTestId("cart-items-list")).toContainText(product.name);
     await expect(page.getByTestId("cart-action-bar")).toBeVisible();
