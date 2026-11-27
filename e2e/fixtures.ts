@@ -29,8 +29,20 @@ export { expect };
  * (#325). The button flow itself is covered by `signInWithDemoButton` in manager.spec.ts.
  */
 export async function signIn(page: Page): Promise<void> {
+  await setManagerSession(page);
+  await page.goto("/manage");
+  await expect(page).toHaveURL("/manage");
+  await expect(page.getByRole("main").getByTestId("manager-dashboard-view")).toBeVisible();
+}
+
+/**
+ * Gives the page a demo manager session without opening any page, for tests that navigate to their
+ * own manager route next (saves a dashboard load, which costs seconds on a cold dev server). Those
+ * tests must assert they reached their route, since a missing session redirects to the login page.
+ */
+export async function setManagerSession(page: Page): Promise<void> {
   const baseURL = test.info().project.use.baseURL;
-  if (!baseURL) throw new Error("signIn needs a Playwright baseURL");
+  if (!baseURL) throw new Error("setManagerSession needs a Playwright baseURL");
   await page.context().addCookies([
     {
       name: MOCK_AUTH_COOKIE_NAME,
@@ -40,9 +52,6 @@ export async function signIn(page: Page): Promise<void> {
       sameSite: "Lax",
     },
   ]);
-  await page.goto("/manage");
-  await expect(page).toHaveURL("/manage");
-  await expect(page.getByRole("main").getByTestId("manager-dashboard-view")).toBeVisible();
 }
 
 /**
