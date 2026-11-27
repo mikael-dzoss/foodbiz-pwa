@@ -1,11 +1,11 @@
 "use client";
 
 import { useId, useMemo, useState, type RefCallback } from "react";
-import { AlertCircle, ChevronDown, ChevronUp, Clock, MapPin, Store } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, MapPin, Store } from "lucide-react";
 import { interpolate, type StorefrontDictionary, type SupportedLocale } from "@/domain/i18n";
 import type { OpeningSchedule } from "@/domain/opening-hours";
 import type { StorefrontPickupLocation } from "@/domain/pickup-location";
-import { Button } from "@/components/ui/button";
+import { Alert, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
   buildPickupOptionItems,
@@ -159,18 +159,17 @@ export function PickupLocationPicker({
 
   if (options.length === 0) {
     return (
-      <div
+      <Alert
         ref={pickerRef}
         tabIndex={-1}
+        tone="error"
         role={error ? "alert" : "status"}
         data-testid={`${testId}-unavailable`}
-        className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm focus-visible:ring-ring flex items-start gap-2 rounded-xl border p-3 focus:outline-hidden focus-visible:ring-2"
       >
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span data-testid={error ? `${testId}-error` : undefined} className="min-w-0 wrap-anywhere">
+        <span data-testid={error ? `${testId}-error` : undefined}>
           {error ?? dict.orderErrorPickupNotAvailable}
         </span>
-      </div>
+      </Alert>
     );
   }
 
@@ -199,15 +198,9 @@ export function PickupLocationPicker({
           <OptionDetails option={single} locale={locale} dict={dict} />
         </div>
         {error && (
-          <p
-            id={errorId}
-            role="alert"
-            data-testid={`${testId}-error`}
-            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 wrap-anywhere">{error}</span>
-          </p>
+          <Alert tone="error" id={errorId} data-testid={`${testId}-error`}>
+            {error}
+          </Alert>
         )}
       </div>
     );
@@ -231,15 +224,9 @@ export function PickupLocationPicker({
       </legend>
 
       {error && (
-        <p
-          id={errorId}
-          role="alert"
-          data-testid={`${testId}-error`}
-          className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="min-w-0 wrap-anywhere">{error}</span>
-        </p>
+        <Alert tone="error" id={errorId} data-testid={`${testId}-error`}>
+          {error}
+        </Alert>
       )}
 
       {showRequiredPrompt && !selectedChoice && !error && (

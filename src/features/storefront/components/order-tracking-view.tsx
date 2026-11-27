@@ -14,7 +14,7 @@ import {
   AlertTriangle,
   RotateCcw,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Alert, Badge } from "@/components/ui";
 import {
   formatMoney,
   formatTime,
@@ -206,29 +206,25 @@ export function OrderTrackingView({
 
             {/* Estimated Timing Banner or Cancellation Banner */}
             {isCancelled ? (
-              <div
-                className="bg-destructive/10 border-destructive/30 mt-4 rounded-lg border p-3.5"
+              <Alert
+                tone="error"
+                role="status"
+                title={dict.orderCancelledTitle}
+                icon={<AlertTriangle className="h-4 w-4" />}
                 data-testid="tracking-cancellation-banner"
+                className="mt-4"
               >
-                <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
-                  <div className="flex flex-col gap-1">
-                    <p className="text-destructive text-xs font-bold">{dict.orderCancelledTitle}</p>
-                    {order.cancellationReason && (
-                      <p
-                        className="text-foreground text-xs leading-relaxed"
-                        data-testid="tracking-cancellation-reason"
-                      >
-                        <span className="font-semibold">{dict.rejectionReasonLabel}: </span>
-                        <span>&ldquo;{order.cancellationReason}&rdquo;</span>
-                      </p>
-                    )}
-                    <p className="text-muted-foreground text-caption">
-                      {dict.cancelledPaymentHelp}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                {order.cancellationReason && (
+                  <p
+                    className="text-foreground text-xs leading-relaxed"
+                    data-testid="tracking-cancellation-reason"
+                  >
+                    <span className="font-semibold">{dict.rejectionReasonLabel}: </span>
+                    <span>&ldquo;{order.cancellationReason}&rdquo;</span>
+                  </p>
+                )}
+                <p className="text-muted-foreground text-caption">{dict.cancelledPaymentHelp}</p>
+              </Alert>
             ) : !isCompleted ? (
               <div className="bg-muted border-border mt-3 flex items-center gap-3 rounded-lg border p-3">
                 <div className="bg-primary-soft text-primary-soft-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full">

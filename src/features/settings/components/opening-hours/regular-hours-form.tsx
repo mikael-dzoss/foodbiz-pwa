@@ -1,12 +1,12 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { AlertCircle, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { getDictionary, type SupportedLocale } from "@/domain/i18n";
 import { weeklyHoursSchema, type WeeklyHours } from "@/domain/opening-hours";
 import { actionErrorMessage } from "@/lib/actions/error-message";
 import type { ActionResult } from "@/lib/actions/types";
-import { ActionBar, Button, ConfirmDialog, useToastOptional } from "@/components/ui";
+import { ActionBar, Alert, Button, ConfirmDialog, useToastOptional } from "@/components/ui";
 import {
   WeeklyHoursEditor,
   cloneWeeklyHours,
@@ -156,14 +156,9 @@ export function RegularHoursForm({
     <>
       <form action={formAction} className="space-y-6" data-testid={testId}>
         {formError && (
-          <div
-            role="alert"
-            data-testid={`${testId}-error`}
-            className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border px-3.5 py-3 text-sm"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{formError}</span>
-          </div>
+          <Alert tone="error" data-testid={`${testId}-error`}>
+            {formError}
+          </Alert>
         )}
 
         <WeeklyHoursEditor

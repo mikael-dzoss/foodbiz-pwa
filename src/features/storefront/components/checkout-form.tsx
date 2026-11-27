@@ -47,6 +47,7 @@ import {
   type GuestContactStorage,
 } from "@/domain/checkout";
 import { normalizePhoneNumber } from "@/domain/guest";
+import { Alert } from "@/components/ui";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -835,14 +836,9 @@ export function CheckoutForm({
       </div>
 
       {!resolvedAcceptingOrders && (
-        <div
-          role="alert"
-          data-testid="checkout-not-accepting-notice"
-          className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-xl border p-3 text-sm"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{dict.checkoutBlockedNotAccepting}</span>
-        </div>
+        <Alert tone="error" role="status" data-testid="checkout-not-accepting-notice">
+          {dict.checkoutBlockedNotAccepting}
+        </Alert>
       )}
 
       {/* 1. Customer Contact (Guest) */}
@@ -1080,22 +1076,19 @@ export function CheckoutForm({
         </h2>
 
         {closedButAccepting && (
-          <div
-            role="status"
+          <Alert
+            tone="warning"
+            icon={<Clock className="h-4 w-4" />}
             data-testid="checkout-closed-schedule-notice"
-            className="border-warning bg-warning-soft text-warning-soft-foreground flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed"
           >
-            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>
-              {selectedRelay
-                ? closedNextOpening
-                  ? dict.pickupLocationClosedNextOpening.replace("{when}", closedNextOpening)
-                  : dict.pickupLocationClosedScheduleNotice
-                : closedNextOpening
-                  ? dict.checkoutClosedNextOpening.replace("{when}", closedNextOpening)
-                  : dict.checkoutClosedScheduleNotice}
-            </span>
-          </div>
+            {selectedRelay
+              ? closedNextOpening
+                ? dict.pickupLocationClosedNextOpening.replace("{when}", closedNextOpening)
+                : dict.pickupLocationClosedScheduleNotice
+              : closedNextOpening
+                ? dict.checkoutClosedNextOpening.replace("{when}", closedNextOpening)
+                : dict.checkoutClosedScheduleNotice}
+          </Alert>
         )}
 
         <div className="space-y-2.5">
@@ -1556,27 +1549,17 @@ export function CheckoutForm({
             </div>
           </>
         ) : (
-          <div
-            role="alert"
-            data-testid="checkout-pricing-error"
-            className="border-destructive/30 bg-destructive/10 text-destructive text-body-sm flex items-start gap-2 rounded-xl border p-3"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 wrap-anywhere">{dict.pricingUnavailableError}</span>
-          </div>
+          <Alert tone="error" data-testid="checkout-pricing-error">
+            {dict.pricingUnavailableError}
+          </Alert>
         )}
       </section>
 
       {/* Error Feedback Message if any */}
       {errorFeedback && (
-        <div
-          data-testid="checkout-error-feedback"
-          role="alert"
-          className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-xl border p-3 text-sm"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorFeedback}</span>
-        </div>
+        <Alert tone="error" data-testid="checkout-error-feedback">
+          {errorFeedback}
+        </Alert>
       )}
 
       {/* In-flow sticky actions bar: settles above the footer at the end of the content (#237) */}

@@ -13,6 +13,7 @@ import {
   Phone,
   UserRound,
 } from "lucide-react";
+import { Alert } from "@/components/ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -196,22 +197,14 @@ export function CustomerDetail({
           </p>
         </div>
         {result && !result.ok && (
-          <p
-            id="customer-save-error"
-            role="alert"
-            className="border-destructive/30 bg-destructive/10 text-destructive rounded-lg border p-3 text-sm"
-          >
+          <Alert tone="error" id="customer-save-error">
             {text[CUSTOMER_ERROR_KEYS[result.code] ?? "saveFailed"]}
-          </p>
+          </Alert>
         )}
         {result?.ok && (
-          <p
-            role="status"
-            className="border-primary/20 bg-primary-soft text-primary-soft-foreground flex items-center gap-2 rounded-lg border p-3 text-sm"
-          >
-            <Check aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <Alert tone="info" icon={<Check className="h-4 w-4" />}>
             {text.saved}
-          </p>
+          </Alert>
         )}
         <Button
           type="submit"

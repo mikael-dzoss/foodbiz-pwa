@@ -24,6 +24,7 @@ import {
   CircleDot,
   RotateCcw,
 } from "lucide-react";
+import { Alert } from "@/components/ui";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { ActionBar } from "@/components/ui/action-bar";
 import { Button } from "@/components/ui/button";
@@ -511,14 +512,9 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
       </div>
 
       {errorMessage && (
-        <div
-          className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-3 text-sm"
-          role="alert"
-          data-testid="order-detail-error"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
+        <Alert tone="error" data-testid="order-detail-error">
+          {errorMessage}
+        </Alert>
       )}
 
       {/* 1. Guest & Service Card (Matching Stitch M-21) */}
@@ -718,12 +714,9 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
 
         {/* Special Instructions Pill BEFORE Subtotal (per user instruction) */}
         {currentOrder.notes && (
-          <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 my-2.5 flex items-center gap-2 rounded-lg border p-2 text-xs">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>
-              <strong className="font-semibold">{t.kitchenNote}</strong> {currentOrder.notes}
-            </span>
-          </div>
+          <Alert tone="warning" role="none" className="my-2.5">
+            <strong className="font-semibold">{t.kitchenNote}</strong> {currentOrder.notes}
+          </Alert>
         )}
 
         {/* Price Breakdown with Subtotal, VAT tax, and Total */}
@@ -844,37 +837,35 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
           )}
 
           {currentOrder.status === "CANCELLED" && currentOrder.paid === "paid" && (
-            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex flex-col gap-2 rounded-lg border p-2.5 text-xs">
-              <div className="flex items-center gap-1.5 font-semibold">
-                <AlertCircle className="text-warning h-4 w-4 shrink-0" />
-                <span>{t.paidBeforeCancel}</span>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRefundDialogOpen(true)}
-                disabled={Boolean(refundDisabledReason)}
-                aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
-                className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-10 w-full gap-1.5 text-xs font-semibold"
-                data-testid="record-refund-cta"
-              >
-                <CreditCard className="h-4 w-4" />
-                <span>
-                  {interpolate(t.recordRefund, {
-                    amount: formatMoney(currentOrder.totalAmount, locale),
-                  })}
-                </span>
-              </Button>
-              {refundDisabledReason && (
-                <p
-                  id="refund-owner-only"
-                  className="text-muted-foreground text-body-sm"
-                  data-testid="refund-owner-only"
+            <Alert tone="warning" role="none" title={t.paidBeforeCancel}>
+              <div className="mt-1 flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setRefundDialogOpen(true)}
+                  disabled={Boolean(refundDisabledReason)}
+                  aria-describedby={refundDisabledReason ? "refund-owner-only" : undefined}
+                  className="border-warning text-warning-soft-foreground hover:bg-warning-soft/80 min-h-10 w-full gap-1.5 text-xs font-semibold"
+                  data-testid="record-refund-cta"
                 >
-                  {refundDisabledReason}
-                </p>
-              )}
-            </div>
+                  <CreditCard className="h-4 w-4" />
+                  <span>
+                    {interpolate(t.recordRefund, {
+                      amount: formatMoney(currentOrder.totalAmount, locale),
+                    })}
+                  </span>
+                </Button>
+                {refundDisabledReason && (
+                  <p
+                    id="refund-owner-only"
+                    className="text-muted-foreground text-body-sm"
+                    data-testid="refund-owner-only"
+                  >
+                    {refundDisabledReason}
+                  </p>
+                )}
+              </div>
+            </Alert>
           )}
 
           {currentOrder.status === "COMPLETED" && currentOrder.paid === "paid" && (
@@ -1047,10 +1038,9 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
           data-testid="order-actions-bar"
         >
           {isReadyNotPaid && (
-            <div className="bg-warning-soft text-warning-soft-foreground border-warning/30 text-caption flex items-center gap-1.5 rounded-lg border p-2 font-semibold">
-              <AlertCircle className="text-warning h-3.5 w-3.5 shrink-0" />
-              <span>{t.paymentRequired}</span>
-            </div>
+            <Alert tone="warning" role="none">
+              {t.paymentRequired}
+            </Alert>
           )}
 
           <div className="flex items-center gap-2">
@@ -1194,27 +1184,19 @@ export function OrderDetail({ order, shop, refundDisabledReason }: OrderDetailPr
           </DialogHeader>
 
           {currentOrder.paid === "paid" && (
-            <div
-              className="bg-warning-soft text-warning-soft-foreground border-warning/30 flex items-start gap-2 rounded-lg border p-2.5 text-xs font-semibold"
-              data-testid="cancel-paid-warning"
-            >
-              <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
-              <div className="flex flex-col gap-0.5">
-                <span>
-                  {interpolate(
-                    currentOrder.paymentMethod
-                      ? t.cancelDialog.paidWarningVia
-                      : t.cancelDialog.paidWarning,
-                    {
-                      amount: formatMoney(currentOrder.totalAmount, locale),
-                      method: currentOrder.paymentMethod
-                        ? o.paymentMethods[currentOrder.paymentMethod]
-                        : "",
-                    },
-                  )}
-                </span>
-              </div>
-            </div>
+            <Alert tone="warning" data-testid="cancel-paid-warning">
+              {interpolate(
+                currentOrder.paymentMethod
+                  ? t.cancelDialog.paidWarningVia
+                  : t.cancelDialog.paidWarning,
+                {
+                  amount: formatMoney(currentOrder.totalAmount, locale),
+                  method: currentOrder.paymentMethod
+                    ? o.paymentMethods[currentOrder.paymentMethod]
+                    : "",
+                },
+              )}
+            </Alert>
           )}
 
           <Field id="cancel-reason-input" label={t.cancelDialog.reasonLabel} className="py-2">
