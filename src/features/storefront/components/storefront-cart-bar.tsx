@@ -21,7 +21,11 @@ export function StorefrontCartBar({ locale, dict }: StorefrontCartBarProps) {
   const itemText = totalCount === 1 ? dict.item : dict.items;
 
   return (
-    <div className="bottom-sticky-safe sticky z-30 mt-6 w-full">
+    <div
+      className="bottom-sticky-safe sticky z-30 mt-6 w-full"
+      data-testid="storefront-cart-bar"
+      data-count={totalCount}
+    >
       <div className="border-border bg-card/95 mx-auto flex max-w-4xl items-center justify-between gap-4 rounded-xl border p-3.5 shadow-lg backdrop-blur-md dark:shadow-black/40">
         <div className="flex items-center gap-3">
           <div className="bg-primary text-primary-foreground relative flex h-10 w-10 items-center justify-center rounded-lg">
