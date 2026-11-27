@@ -59,7 +59,7 @@ export async function resolveOgImageSrc(
   const local = parseLocalPublicImagePath(trimmed);
   if (local) {
     const publicRoot = path.resolve(
-      options.publicDir ?? path.join(/* turbopackIgnore: true */ process.cwd(), "public"),
+      /* turbopackIgnore: true */ options.publicDir ?? path.join(process.cwd(), "public"),
     );
     const targetPath = path.resolve(publicRoot, local.relativePath);
     if (!targetPath.startsWith(`${publicRoot}${path.sep}`)) return null;
