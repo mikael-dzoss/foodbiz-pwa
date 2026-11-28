@@ -242,7 +242,7 @@ Active screen IDs live in [`SCREENS.md`](SCREENS.md#active-stitch-screens). **Ge
 
 ### Working with Stitch (agents)
 
-Stitch MCP runs through the local stdio bridge (`scripts/stitch-mcp-bridge.mjs`, default `STITCH_TIMEOUT_MS=180000` / 3 min) in `.mcp.json` (Claude Code, with `MCP_TOOL_TIMEOUT=210000`), `.vscode/mcp.json` (GitHub Copilot), and `~/.gemini/config/mcp_config.json` (Antigravity, installed/reinstalled via `node scripts/setup-agy-mcp.mjs`).
+Stitch MCP runs through the local stdio bridge (`scripts/stitch-mcp-bridge.mjs`, default `STITCH_TIMEOUT_MS=180000` / 3 min) in `.mcp.json` (shared by Claude Code with `MCP_TOOL_TIMEOUT=210000` and GitHub Copilot via `chat.mcp.workspaceRootConfig.enabled`) and `~/.gemini/config/mcp_config.json` (Antigravity, installed/reinstalled via `node scripts/setup-agy-mcp.mjs`).
 
 Every `generate_screen_from_text`, `edit_screens` and `generate_variants` call creates a **new screen card**, and the old card stays. So:
 

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildMcpConfig, installAgyMcp, parseArgs } from "./setup-agy-mcp.mjs";
+import { buildMcpConfig, installAgyMcp, parseArgs } from "../setup-agy-mcp.mjs";
 
 const tempDirs: string[] = [];
 

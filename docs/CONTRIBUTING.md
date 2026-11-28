@@ -6,17 +6,17 @@ Code standards live in [`AGENTS.md`](../AGENTS.md#rules) and [`.agents/rules/`](
 
 Primary agents are GitHub Copilot and Claude Code (VS Code). Each asset has one canonical file; edit it there, never in a tool-specific copy.
 
-| Canonical source                                      | GitHub Copilot                     | Claude Code                                                 |
-| ----------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
-| `AGENTS.md`                                           | `chat.useAgentsMdFile`             | `CLAUDE.md` → `@AGENTS.md`                                  |
-| `.agents/rules/*.instructions.md` (scoped by `paths`) | `.claude/rules/` symlinks          | `.claude/rules/` symlinks                                   |
-| `.agents/skills/`                                     | native (`.claude/skills` disabled) | `.claude/skills` symlink                                    |
-| `.claude/agents/` (subagents)                         | native                             | native                                                      |
-| `.claude/hooks/` via `.claude/settings.json`          | `chat.useClaudeHooks`              | native                                                      |
-| MCP servers                                           | `.vscode/mcp.json`                 | `.mcp.json` (Antigravity: `node scripts/setup-agy-mcp.mjs`) |
-| Command auto-approval                                 | `chat.tools.terminal.autoApprove`  | `.claude/settings.json`                                     |
+| Canonical source                                      | GitHub Copilot                         | Claude Code                                            |
+| ----------------------------------------------------- | -------------------------------------- | ------------------------------------------------------ |
+| `AGENTS.md`                                           | `chat.useAgentsMdFile`                 | `CLAUDE.md` → `@AGENTS.md`                             |
+| `.agents/rules/*.instructions.md` (scoped by `paths`) | `.claude/rules/` symlinks              | `.claude/rules/` symlinks                              |
+| `.agents/skills/`                                     | native (`.claude/skills` disabled)     | `.claude/skills` symlink                               |
+| `.claude/agents/` (subagents)                         | native                                 | native                                                 |
+| `.claude/hooks/` via `.claude/settings.json`          | `chat.useClaudeHooks`                  | native                                                 |
+| `.mcp.json` (MCP servers)                             | `chat.mcp.workspaceRootConfig.enabled` | native (Antigravity: `node scripts/setup-agy-mcp.mjs`) |
+| Command auto-approval                                 | `chat.tools.terminal.autoApprove`      | `.claude/settings.json`                                |
 
-MCP servers and auto-approval lists are the only intentional duplicates (different schemas); Stitch routes through the shared local stdio bridge (`scripts/stitch-mcp-bridge.mjs`, 180s timeout) across Copilot, Claude Code, and Antigravity. The `graphify` skill sets `disable-model-invocation: true`; re-apply it after `graphify install` updates the skill.
+Command auto-approval lists are the only intentional duplicate between Copilot and Claude Code (different schemas); Stitch routes through the shared local stdio bridge (`scripts/stitch-mcp-bridge.mjs`, 180s timeout) via `.mcp.json` for Copilot and Claude Code, and via `~/.gemini/config/mcp_config.json` (`node scripts/setup-agy-mcp.mjs`) for Antigravity. The `graphify` skill sets `disable-model-invocation: true`; re-apply it after `graphify install` updates the skill.
 
 ## Branches
 

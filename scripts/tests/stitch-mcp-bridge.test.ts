@@ -11,7 +11,7 @@ import {
   forwardJsonRpc,
   parseSseMessages,
   parseTimeoutMs,
-} from "./stitch-mcp-bridge.mjs";
+} from "../stitch-mcp-bridge.mjs";
 
 const servers: http.Server[] = [];
 
@@ -322,7 +322,7 @@ describe("createBridge", () => {
       );
     });
 
-    const scriptPath = resolve(import.meta.dirname, "stitch-mcp-bridge.mjs");
+    const scriptPath = resolve(import.meta.dirname, "..", "stitch-mcp-bridge.mjs");
     const child = spawn(process.execPath, [scriptPath], {
       env: {
         ...process.env,

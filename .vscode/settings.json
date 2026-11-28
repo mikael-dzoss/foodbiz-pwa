@@ -11,6 +11,7 @@
     ".claude/skills": false
   },
   "chat.useClaudeHooks": true,
+  "chat.mcp.workspaceRootConfig.enabled": true,
   "chat.tools.terminal.autoApprove": {
     "/^npm run (lint|typecheck|test|test:coverage|test:tooling|test:e2e|format|format:check|build|gate|gate:quick|gate:full|db:status|db:types|db:types:check)\\b/": true,
     "/^npx (vitest|playwright test|tsc --noEmit|eslint)\\b/": true,
