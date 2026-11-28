@@ -3,10 +3,11 @@
 //
 // Why this exists: remote HTTP MCP clients (e.g. Antigravity's Go HTTP/2 transport) can enforce a
 // fixed 60s response-header timeout, while Stitch `generate_screen_from_text` and `edit_screens`
-// often take 65-180s. Running this bridge over stdio uses `node:https` with a configurable timeout
-// (default 180s via `STITCH_TIMEOUT_MS`) and works identically across Antigravity, Claude Code,
-// and GitHub Copilot.
+// often take 65-180s. Running this bridge over stdio uses `node:http2` (with 15s HTTP/2 PING
+// keep-alives + TCP keepalive) and a configurable timeout (default 180s via `STITCH_TIMEOUT_MS`),
+// plus elapsed-time/disconnect diagnostics on stderr, across Antigravity, Claude Code, and Copilot.
 import http from "node:http";
+import http2 from "node:http2";
 import https from "node:https";
 import readline from "node:readline";
 import { resolve } from "node:path";
@@ -15,6 +16,7 @@ import { fileURLToPath } from "node:url";
 export const DEFAULT_UPSTREAM_URL = "https://stitch.googleapis.com/mcp";
 export const DEFAULT_TIMEOUT_MS = 180_000;
 export const DEFAULT_PROGRESS_INTERVAL_MS = 25_000;
+export const DEFAULT_PING_INTERVAL_MS = 15_000;
 
 /**
  * Parses a positive millisecond timeout from env/CLI input, falling back safely on bad values.
@@ -82,17 +84,245 @@ function toSingleLineJson(text) {
 }
 
 /**
- * Forwards one JSON-RPC message over HTTP(S) to the Stitch Streamable HTTP MCP endpoint.
- * Uses `node:https` / `node:http` directly to avoid HTTP/2 60s header timeouts and `undici` caps.
- * @param {string} payload
- * @param {{ url: string, apiKey: string, timeoutMs: number, sessionId?: string | null }} options
- * @returns {Promise<{ statusCode: number, contentType: string, sessionId: string | null, body: string }>}
+ * Formats safe transport telemetry for stderr diagnostics and error messages (never contains keys).
+ * @param {{
+ *   protocol: "h2" | "h1",
+ *   elapsedMs: number,
+ *   pingsSent?: number,
+ *   pingsAcked?: number,
+ *   errCode?: string | null,
+ *   rstCode?: number | null,
+ *   goawayCode?: number | null,
+ * }} info
  */
-export function forwardJsonRpc(payload, { url, apiKey, timeoutMs, sessionId = null }) {
+export function formatTelemetry(info) {
+  const parts = [`protocol=${info.protocol}`, `elapsed=${info.elapsedMs}ms`];
+  if (info.protocol === "h2") {
+    parts.push(`pings=${info.pingsAcked ?? 0}/${info.pingsSent ?? 0}`);
+  }
+  if (info.errCode) parts.push(`code=${info.errCode}`);
+  if (info.rstCode !== undefined && info.rstCode !== null && info.rstCode !== 0) {
+    parts.push(`rst=${info.rstCode}`);
+  }
+  if (info.goawayCode !== undefined && info.goawayCode !== null) {
+    parts.push(`goaway=${info.goawayCode}`);
+  }
+  return parts.join(" ");
+}
+
+/**
+ * Extracts a safe, short label for a JSON-RPC request (method + optional tool name) for logs.
+ * @param {Record<string, unknown>} msg
+ * @returns {string}
+ */
+function requestLabel(msg) {
+  const method = typeof msg.method === "string" ? msg.method : "unknown";
+  const params =
+    msg.params && typeof msg.params === "object"
+      ? /** @type {Record<string, unknown>} */ (msg.params)
+      : null;
+  if (method === "tools/call" && typeof params?.name === "string") {
+    return `${method}:${params.name}`;
+  }
+  return method;
+}
+
+/**
+ * Forwards one JSON-RPC message over HTTP/2 with periodic PING keep-alive frames and TCP keepalive.
+ * @param {string} payload
+ * @param {{
+ *   url: string,
+ *   apiKey: string,
+ *   timeoutMs: number,
+ *   sessionId?: string | null,
+ *   pingIntervalMs?: number,
+ * }} options
+ * @returns {Promise<{
+ *   statusCode: number,
+ *   contentType: string,
+ *   sessionId: string | null,
+ *   body: string,
+ *   telemetry: { protocol: "h2", elapsedMs: number, pingsSent: number, pingsAcked: number },
+ * }>}
+ */
+export function forwardJsonRpcHttp2(
+  payload,
+  { url, apiKey, timeoutMs, sessionId = null, pingIntervalMs = DEFAULT_PING_INTERVAL_MS },
+) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const target = new URL(url);
+    const bodyBuffer = Buffer.from(payload, "utf8");
+    const startedAt = Date.now();
+    let pingsSent = 0;
+    let pingsAcked = 0;
+    /** @type {number | null} */
+    let goawayCode = null;
+    /** @type {number | null} */
+    let rstCode = null;
+    let settled = false;
+
+    const client = http2.connect(target.origin);
+    /** @type {ReturnType<typeof setInterval> | null} */
+    let pingTimer = null;
+
+    const cleanup = (destroy = false) => {
+      if (pingTimer) {
+        clearInterval(pingTimer);
+        pingTimer = null;
+      }
+      if (!client.destroyed) {
+        if (destroy) client.destroy();
+        else client.close();
+      }
+    };
+
+    const fail = (rawErr) => {
+      if (settled) return;
+      settled = true;
+      const elapsedMs = Date.now() - startedAt;
+      const errCode =
+        rawErr && typeof rawErr === "object" && "code" in rawErr && typeof rawErr.code === "string"
+          ? rawErr.code
+          : null;
+      const baseMessage = rawErr instanceof Error ? rawErr.message : String(rawErr);
+      const tag = formatTelemetry({
+        protocol: "h2",
+        elapsedMs,
+        pingsSent,
+        pingsAcked,
+        errCode,
+        rstCode,
+        goawayCode,
+      });
+      cleanup(true);
+      rejectPromise(new Error(`${baseMessage} (${tag})`));
+    };
+
+    const succeed = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanup(false);
+      resolvePromise(result);
+    };
+
+    client.on("connect", (_session, socket) => {
+      socket?.setKeepAlive?.(true, pingIntervalMs);
+    });
+
+    client.on("goaway", (errorCode) => {
+      goawayCode = errorCode;
+    });
+
+    client.on("error", (err) => fail(err));
+    client.on("close", () => {
+      if (!settled) fail(new Error("HTTP/2 session closed before response completed"));
+    });
+
+    if (pingIntervalMs > 0) {
+      pingTimer = setInterval(() => {
+        if (client.closed || client.destroyed) return;
+        pingsSent += 1;
+        client.ping((err) => {
+          if (!err) pingsAcked += 1;
+        });
+      }, pingIntervalMs);
+      pingTimer.unref?.();
+    }
+
+    /** @type {Record<string, string>} */
+    const headers = {
+      ":method": "POST",
+      ":path": `${target.pathname}${target.search}`,
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "content-length": String(bodyBuffer.length),
+      "x-goog-api-key": apiKey,
+    };
+    if (sessionId) {
+      headers["mcp-session-id"] = sessionId;
+    }
+
+    const req = client.request(headers);
+    let statusCode = 0;
+    let contentType = "";
+    /** @type {string | null} */
+    let nextSessionId = null;
+    const chunks = [];
+
+    req.on("response", (resHeaders) => {
+      statusCode = Number(resHeaders[":status"] ?? 0);
+      const rawSession = resHeaders["mcp-session-id"];
+      nextSessionId = Array.isArray(rawSession) ? (rawSession[0] ?? null) : (rawSession ?? null);
+      const rawContentType = resHeaders["content-type"];
+      contentType = (
+        Array.isArray(rawContentType) ? rawContentType[0] : (rawContentType ?? "")
+      ).toLowerCase();
+    });
+
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => {
+      const elapsedMs = Date.now() - startedAt;
+      succeed({
+        statusCode,
+        contentType,
+        sessionId: nextSessionId,
+        body: Buffer.concat(chunks).toString("utf8"),
+        telemetry: { protocol: "h2", elapsedMs, pingsSent, pingsAcked },
+      });
+    });
+
+    req.on("close", () => {
+      if (req.rstCode) rstCode = req.rstCode;
+      if (!settled) {
+        const reason = req.rstCode
+          ? `HTTP/2 stream reset (rstCode=${req.rstCode})`
+          : "HTTP/2 stream closed before response ended";
+        fail(new Error(reason));
+      }
+    });
+
+    req.setTimeout(timeoutMs, () => {
+      req.close(http2.constants.NGHTTP2_CANCEL);
+      fail(new Error(`Stitch MCP request timed out after ${timeoutMs}ms`));
+    });
+
+    req.on("error", (err) => {
+      if (req.rstCode) rstCode = req.rstCode;
+      fail(err);
+    });
+    req.write(bodyBuffer);
+    req.end();
+  });
+}
+
+/**
+ * Forwards one JSON-RPC message over HTTP/1.1 using a fresh non-pooled socket with TCP keepalive.
+ * Used for `http:` local test servers or when `STITCH_TRANSPORT=http1`.
+ * @param {string} payload
+ * @param {{
+ *   url: string,
+ *   apiKey: string,
+ *   timeoutMs: number,
+ *   sessionId?: string | null,
+ *   pingIntervalMs?: number,
+ * }} options
+ * @returns {Promise<{
+ *   statusCode: number,
+ *   contentType: string,
+ *   sessionId: string | null,
+ *   body: string,
+ *   telemetry: { protocol: "h1", elapsedMs: number, pingsSent: number, pingsAcked: number },
+ * }>}
+ */
+export function forwardJsonRpcHttp1(
+  payload,
+  { url, apiKey, timeoutMs, sessionId = null, pingIntervalMs = DEFAULT_PING_INTERVAL_MS },
+) {
   return new Promise((resolvePromise, rejectPromise) => {
     const target = new URL(url);
     const client = target.protocol === "http:" ? http : https;
     const bodyBuffer = Buffer.from(payload, "utf8");
+    const startedAt = Date.now();
     /** @type {Record<string, string | number>} */
     const headers = {
       "Content-Type": "application/json",
@@ -105,10 +335,17 @@ export function forwardJsonRpc(payload, { url, apiKey, timeoutMs, sessionId = nu
     }
 
     let settled = false;
-    const finish = (fn, value) => {
+    const fail = (rawErr) => {
       if (settled) return;
       settled = true;
-      fn(value);
+      const elapsedMs = Date.now() - startedAt;
+      const errCode =
+        rawErr && typeof rawErr === "object" && "code" in rawErr && typeof rawErr.code === "string"
+          ? rawErr.code
+          : null;
+      const baseMessage = rawErr instanceof Error ? rawErr.message : String(rawErr);
+      const tag = formatTelemetry({ protocol: "h1", elapsedMs, errCode });
+      rejectPromise(new Error(`${baseMessage} (${tag})`));
     };
 
     const req = client.request(
@@ -118,12 +355,15 @@ export function forwardJsonRpc(payload, { url, apiKey, timeoutMs, sessionId = nu
         port: target.port || (target.protocol === "http:" ? 80 : 443),
         path: `${target.pathname}${target.search}`,
         method: "POST",
+        agent: false,
         headers,
       },
       (res) => {
         const chunks = [];
         res.on("data", (chunk) => chunks.push(chunk));
         res.on("end", () => {
+          if (settled) return;
+          settled = true;
           const rawSession = res.headers["mcp-session-id"];
           const nextSessionId = Array.isArray(rawSession)
             ? (rawSession[0] ?? null)
@@ -132,25 +372,57 @@ export function forwardJsonRpc(payload, { url, apiKey, timeoutMs, sessionId = nu
           const contentType = (
             Array.isArray(rawContentType) ? rawContentType[0] : (rawContentType ?? "")
           ).toLowerCase();
-          finish(resolvePromise, {
+          resolvePromise({
             statusCode: res.statusCode ?? 0,
             contentType,
             sessionId: nextSessionId,
             body: Buffer.concat(chunks).toString("utf8"),
+            telemetry: {
+              protocol: "h1",
+              elapsedMs: Date.now() - startedAt,
+              pingsSent: 0,
+              pingsAcked: 0,
+            },
           });
         });
-        res.on("error", (err) => finish(rejectPromise, err));
+        res.on("error", (err) => fail(err));
       },
     );
+
+    req.on("socket", (socket) => {
+      socket.setKeepAlive(true, pingIntervalMs);
+    });
 
     req.setTimeout(timeoutMs, () => {
       req.destroy(new Error(`Stitch MCP request timed out after ${timeoutMs}ms`));
     });
 
-    req.on("error", (err) => finish(rejectPromise, err));
+    req.on("error", (err) => fail(err));
     req.write(bodyBuffer);
     req.end();
   });
+}
+
+/**
+ * Forwards one JSON-RPC message to the Stitch Streamable HTTP MCP endpoint.
+ * Defaults to HTTP/2 with 15s PING keep-alives for `https:` URLs (and `http2`/`h2c` mode),
+ * falling back to HTTP/1.1 with fresh sockets for plain `http:` test stubs or `http1` mode.
+ * @param {string} payload
+ * @param {{
+ *   url: string,
+ *   apiKey: string,
+ *   timeoutMs: number,
+ *   sessionId?: string | null,
+ *   pingIntervalMs?: number,
+ *   transportMode?: string,
+ * }} options
+ */
+export function forwardJsonRpc(payload, options) {
+  const mode = options.transportMode?.trim().toLowerCase();
+  const isHttps = new URL(options.url).protocol === "https:";
+  const useHttp2 =
+    mode === "h2" || mode === "http2" || mode === "h2c" || (mode !== "http1" && isHttps);
+  return useHttp2 ? forwardJsonRpcHttp2(payload, options) : forwardJsonRpcHttp1(payload, options);
 }
 
 /**
@@ -177,6 +449,8 @@ export function createBridge({
     env.STITCH_PROGRESS_INTERVAL_MS,
     DEFAULT_PROGRESS_INTERVAL_MS,
   );
+  const pingIntervalMs = parseTimeoutMs(env.STITCH_PING_INTERVAL_MS, DEFAULT_PING_INTERVAL_MS);
+  const transportMode = env.STITCH_TRANSPORT?.trim().toLowerCase();
   let sessionId = null;
 
   const writeLine = (line) => {
@@ -212,6 +486,7 @@ export function createBridge({
       Object.prototype.hasOwnProperty.call(msg, "id") &&
       msg.id !== undefined;
     const reqId = hasId ? msg.id : null;
+    const label = msg && typeof msg === "object" ? requestLabel(msg) : "unknown";
 
     const apiKey = env.STITCH_API_KEY?.trim() || "";
     if (!apiKey) {
@@ -241,19 +516,32 @@ export function createBridge({
     }
 
     try {
-      const response = await transport(trimmed, { url, apiKey, timeoutMs, sessionId });
+      const response = await transport(trimmed, {
+        url,
+        apiKey,
+        timeoutMs,
+        sessionId,
+        pingIntervalMs,
+        transportMode,
+      });
       if (response.sessionId) {
         sessionId = response.sessionId;
       }
+
+      const telemetryTag = response.telemetry ? formatTelemetry(response.telemetry) : "";
 
       if (response.statusCode >= 400) {
         const snippet = response.body.trim().slice(0, 300);
         const detail = snippet
           ? `Stitch MCP HTTP ${response.statusCode}: ${snippet}`
           : `Stitch MCP HTTP ${response.statusCode}`;
-        logError(detail);
+        logError(`${label} failed: ${detail}${telemetryTag ? ` (${telemetryTag})` : ""}`);
         if (hasId) writeJson(jsonRpcError(reqId, detail));
         return;
+      }
+
+      if (response.telemetry && response.telemetry.elapsedMs >= 5_000) {
+        logError(`${label} completed HTTP ${response.statusCode} (${telemetryTag})`);
       }
 
       if (
@@ -275,7 +563,7 @@ export function createBridge({
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logError(`Upstream request failed: ${message}`);
+      logError(`${label} upstream request failed: ${message}`);
       if (hasId) {
         writeJson(jsonRpcError(reqId, message));
       }

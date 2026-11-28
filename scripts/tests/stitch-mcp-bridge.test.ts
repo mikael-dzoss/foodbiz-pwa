@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { spawn } from "node:child_process";
 import http from "node:http";
+import http2 from "node:http2";
 import type { AddressInfo } from "node:net";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
@@ -8,7 +9,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_TIMEOUT_MS,
   createBridge,
+  formatTelemetry,
   forwardJsonRpc,
+  forwardJsonRpcHttp2,
   parseSseMessages,
   parseTimeoutMs,
 } from "../stitch-mcp-bridge.mjs";
@@ -365,7 +368,86 @@ describe("forwardJsonRpc", () => {
       timeoutMs: 2000,
     });
     expect(res.statusCode).toBe(200);
+    expect(res.telemetry.protocol).toBe("h1");
     expect(capturedAccept).toContain("application/json");
     expect(capturedAccept).toContain("text/event-stream");
+  });
+
+  it("forwards over HTTP/2 with periodic PING keep-alives and reports telemetry", async () => {
+    const h2Server = http2.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (c: Buffer) => chunks.push(c));
+      req.on("end", () => {
+        setTimeout(() => {
+          res.writeHead(200, {
+            "content-type": "application/json",
+            "mcp-session-id": "h2-sess-1",
+          });
+          res.end('{"jsonrpc":"2.0","id":1,"result":{"ok":true}}');
+        }, 90);
+      });
+    });
+
+    await new Promise<void>((r) => h2Server.listen(0, "127.0.0.1", r));
+    const { port } = h2Server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}/mcp`;
+
+    try {
+      const res = await forwardJsonRpcHttp2('{"jsonrpc":"2.0","id":1,"method":"ping"}', {
+        url,
+        apiKey: "test-key",
+        timeoutMs: 2000,
+        pingIntervalMs: 25,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.sessionId).toBe("h2-sess-1");
+      expect(res.telemetry.protocol).toBe("h2");
+      expect(res.telemetry.pingsSent).toBeGreaterThanOrEqual(2);
+      expect(res.telemetry.pingsAcked).toBeGreaterThanOrEqual(1);
+    } finally {
+      await new Promise<void>((r) => h2Server.close(() => r()));
+    }
+  });
+
+  it("includes HTTP/2 rstCode and telemetry when upstream resets a stream", async () => {
+    const h2Server = http2.createServer();
+    h2Server.on("stream", (stream) => {
+      stream.on("error", () => {});
+      setTimeout(() => {
+        stream.close(http2.constants.NGHTTP2_INTERNAL_ERROR);
+      }, 45);
+    });
+
+    await new Promise<void>((r) => h2Server.listen(0, "127.0.0.1", r));
+    const { port } = h2Server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${port}/mcp`;
+
+    try {
+      await expect(
+        forwardJsonRpc('{"jsonrpc":"2.0","id":1,"method":"tools/call"}', {
+          url,
+          apiKey: "test-key",
+          timeoutMs: 2000,
+          pingIntervalMs: 20,
+          transportMode: "h2c",
+        }),
+      ).rejects.toThrow(/protocol=h2 elapsed=\d+ms pings=\d+\/\d+.*rst=2/);
+    } finally {
+      await new Promise<void>((r) => h2Server.close(() => r()));
+    }
+  });
+
+  it("formats telemetry safely with optional fields", () => {
+    expect(
+      formatTelemetry({
+        protocol: "h2",
+        elapsedMs: 65120,
+        pingsSent: 4,
+        pingsAcked: 4,
+        errCode: "ERR_HTTP2_STREAM_ERROR",
+        rstCode: 8,
+        goawayCode: 0,
+      }),
+    ).toBe("protocol=h2 elapsed=65120ms pings=4/4 code=ERR_HTTP2_STREAM_ERROR rst=8 goaway=0");
   });
 });
