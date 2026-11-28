@@ -97,6 +97,9 @@
       "Bash(npx supabase db push*)"
     ]
   },
+  "env": {
+    "MCP_TOOL_TIMEOUT": "210000"
+  },
   "enabledMcpjsonServers": ["stitch", "vercel"],
   "hooks": {
     "SessionStart": [

@@ -51,7 +51,7 @@ Read only the section you need.
 - **Auth, sessions, secrets, headers, CSP:** [security.instructions.md](.agents/rules/security.instructions.md)
 - **Explore or explain code:** [graphify.instructions.md](.agents/rules/graphify.instructions.md) (always on)
 - **Build a screen or component / Stitch:** [design.instructions.md](.agents/rules/design.instructions.md) (Stitch canvas-first flow), [DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md) (§2 tokens, §7 components), [SCREENS.md](docs/design/SCREENS.md#screens)
-- **MCP servers (Stitch, Vercel):** Copilot [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code [`.mcp.json`](.mcp.json); keys come from `STITCH_API_KEY` / `VERCEL_API_TOKEN`.
+- **MCP servers (Stitch, Vercel):** Copilot [`.vscode/mcp.json`](.vscode/mcp.json), Claude Code [`.mcp.json`](.mcp.json), Antigravity `~/.gemini/config/mcp_config.json` (install/reinstall via `node scripts/setup-agy-mcp.mjs`). Stitch uses the local stdio bridge [`scripts/stitch-mcp-bridge.mjs`](scripts/stitch-mcp-bridge.mjs) (180s timeout); keys come from `STITCH_API_KEY` / `VERCEL_API_TOKEN`.
 - **Business rules, domain model:** [FUNCTIONAL_SPECIFICATION.md#5-core-business-rules](docs/FUNCTIONAL_SPECIFICATION.md#5-core-business-rules), [#6-domain-model](docs/FUNCTIONAL_SPECIFICATION.md#6-domain-model)
 - **Supabase clients, session refresh:** [architecture.md#supabase-clients](docs/architecture.md#supabase-clients)
 - **Port legacy Expo behaviour:** [LEGACY_EXPO_REFERENCE.md](docs/LEGACY_EXPO_REFERENCE.md)

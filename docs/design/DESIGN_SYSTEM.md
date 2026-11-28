@@ -242,10 +242,14 @@ Active screen IDs live in [`SCREENS.md`](SCREENS.md#active-stitch-screens). **Ge
 
 ### Working with Stitch (agents)
 
+Stitch MCP runs through the local stdio bridge (`scripts/stitch-mcp-bridge.mjs`, default `STITCH_TIMEOUT_MS=180000` / 3 min) in `.mcp.json` (Claude Code, with `MCP_TOOL_TIMEOUT=210000`), `.vscode/mcp.json` (GitHub Copilot), and `~/.gemini/config/mcp_config.json` (Antigravity, installed/reinstalled via `node scripts/setup-agy-mcp.mjs`).
+
 Every `generate_screen_from_text`, `edit_screens` and `generate_variants` call creates a **new screen card**, and the old card stays. So:
 
 1. **Generate once per screen (Light mode only).** Pass `designSystem` explicitly (`assets/14358508387441273017`), `deviceType: MOBILE`, and the exact hex values from §2 in the prompt. **Generating dark theme models is strictly banned.**
-2. **Never retry on timeout or connection loss.** Generation continues on the server; poll `list_screens` / `get_screen` until the screen appears.
-3. **Inspect before changing** with `get_screen` (screenshot + HTML). Edit only when the owner asks or a real defect exists, and batch all fixes into one `edit_screens` call.
-4. **Don't fix the device type.** Screens may be stored as `DESKTOP`; the HTML is responsive and Stitch Preview → Mobile shows the real layout.
-5. **Update the registry** in `SCREENS.md` after every call that creates a screen: new ID becomes active, the previous one moves to "superseded". Stitch MCP cannot delete screens; the owner cleans them up manually.
+2. **Choose `modelId` by complexity.** Use `GEMINI_3_8_FLASH` **only for complex screens** (detailed layouts, dense multi-section flows); use `GEMINI_3_5_FLASH_LITE` for rapid generation of standard screens, sheets, dialogs, and simpler forms.
+3. **Cap concurrency at 2, downgrade on timeout.** Run **at most 2 concurrent** `generate_screen_from_text` calls. If any call times out, immediately **downgrade to sequential** calls (1 at a time) for the remaining work.
+4. **Never retry immediately on timeout or connection loss.** Generation may still complete on the server; always check the project (`list_screens` / `get_screen`) for the generated screen before making any new attempt.
+5. **Inspect before changing** with `get_screen` (screenshot + HTML). Edit only when the owner asks or a real defect exists, and batch all fixes into one `edit_screens` call.
+6. **Don't fix the device type.** Screens may be stored as `DESKTOP`; the HTML is responsive and Stitch Preview → Mobile shows the real layout.
+7. **Update the registry** in `SCREENS.md` after every call that creates a screen: new ID becomes active, the previous one moves to "superseded". Stitch MCP cannot delete screens; the owner cleans them up manually.
