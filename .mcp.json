@@ -1,11 +1,12 @@
 {
   "mcpServers": {
     "stitch": {
-      "type": "http",
-      "url": "https://stitch.googleapis.com/mcp",
-      "headers": {
-        "Accept": "application/json",
-        "X-Goog-Api-Key": "${STITCH_API_KEY}"
+      "type": "stdio",
+      "command": "node",
+      "args": ["scripts/stitch-mcp-bridge.mjs"],
+      "env": {
+        "STITCH_API_KEY": "${STITCH_API_KEY}",
+        "STITCH_TIMEOUT_MS": "180000"
       }
     },
     "vercel": {

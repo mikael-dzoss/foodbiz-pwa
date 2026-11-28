@@ -37,6 +37,8 @@ GOOGLE_CLIENT_SECRET=
 
 When `GH_CLI_PAT` is set, `.devcontainer/post-create.sh` automatically authenticates `gh` (`gh auth login --with-token`) and configures `git` credentials for `github.com`.
 
+When `STITCH_API_KEY` (and optionally `VERCEL_API_TOKEN`) is set, `.devcontainer/post-create.sh` also runs `node scripts/setup-agy-mcp.mjs` to install or update Antigravity's `~/.gemini/config/mcp_config.json` (`0600`) so Stitch uses the local stdio bridge (`scripts/stitch-mcp-bridge.mjs`, default `STITCH_TIMEOUT_MS=180000`) via `env.STITCH_API_KEY`. You can re-run `node scripts/setup-agy-mcp.mjs` anytime on a clean host to reinstall Antigravity's MCP config. Claude Code's `MCP_TOOL_TIMEOUT` is set to `210000` in `.devcontainer/devcontainer.json` and `.claude/settings.json` to give headroom above the 180s bridge timeout.
+
 > [!NOTE]
 > Updating this file on your host while the devcontainer is already running requires restarting or reloading the container (`Cmd/Ctrl+Shift+P` -> `Developer: Reload Window` or `Dev Containers: Rebuild Container`) for changes to take effect.
 

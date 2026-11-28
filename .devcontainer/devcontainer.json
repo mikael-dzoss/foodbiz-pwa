@@ -24,7 +24,8 @@
   "otherPortsAttributes": { "onAutoForward": "ignore" },
   "containerEnv": {
     "NEXT_TELEMETRY_DISABLED": "1",
-    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "MCP_TOOL_TIMEOUT": "210000"
   },
   "initializeCommand": "sh \"${localWorkspaceFolder}/.devcontainer/init-host.sh\" \"${localEnv:HOME}\" \"${localWorkspaceFolderBasename}\"",
   "mounts": [

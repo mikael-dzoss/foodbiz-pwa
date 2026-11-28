@@ -31,6 +31,7 @@ When implementing or redesigning any screen from `SCREENS.md`:
    - Always set `deviceType: MOBILE` — never generate desktop cards in Stitch.
    - Only the **Light mode** Stitch design (`assets/14358508387441273017`) is allowed via `generate_screen_from_text`.
    - **Generation of dark theme models in Stitch is strictly banned.** Dark mode styling is derived automatically through our well-defined design color tokens in `src/app/globals.css`.
+   - **Model selection (`modelId`)**: Use `GEMINI_3_8_FLASH` **only for complex screens** (detailed layouts, dense multi-section views); use `GEMINI_3_5_FLASH_LITE` by default for rapid generation of standard screens, sheets, dialogs, and simpler forms.
    - Batch minor tweaks into `edit_screens`.
 3. **Update Registry**:
    - Record the active Light ID in `SCREENS.md`. If replacing an existing screen, move the old ID to `Superseded (to delete)`.
@@ -58,5 +59,7 @@ Stitch generative models often generate unmapped static components not explicitl
 
 ## 3. Stitch MCP Discipline
 
-- **Timeouts vs. Regeneration**: The "generate once" rule guards strictly against MCP transport timeouts. Because Stitch generates asynchronously on the server, **never retry immediately on timeout** — poll `list_screens` until the card appears. Intentional regeneration for major redesigns is fully permitted.
+- **Transport & timeout**: Stitch routes through the shared local stdio MCP bridge (`scripts/stitch-mcp-bridge.mjs`, default `STITCH_TIMEOUT_MS=180000`, 3 minutes) across Antigravity, Claude Code, and GitHub Copilot to avoid 60s HTTP/2 header timeouts.
+- **Concurrency & fallback**: Run **at most 2 concurrent** `generate_screen_from_text` calls at a time. If any call times out, immediately **downgrade to sequential** calls (1 at a time) for the remaining screens.
+- **Timeouts vs. Regeneration**: The "generate once" rule guards strictly against MCP transport timeouts. Because Stitch may continue generating asynchronously on the server, **never retry immediately on timeout** — always check the project (`list_screens` / `get_screen`) for the generated screen before making any new attempt. Intentional regeneration for major redesigns is fully permitted.
 - **No device switching**: Do not attempt to fix or toggle device type on existing cards.

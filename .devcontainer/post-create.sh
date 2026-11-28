@@ -21,6 +21,11 @@ if command -v graphify >/dev/null 2>&1 && [ ! -f graphify-out/graph.json ]; then
   graphify update . >/tmp/graphify-update.log 2>&1 || echo "graphify update failed; see /tmp/graphify-update.log"
 fi
 
+# Configure Antigravity MCP servers (Stitch local stdio bridge + Vercel) when keys are available.
+if [ -f scripts/setup-agy-mcp.mjs ]; then
+  node scripts/setup-agy-mcp.mjs || echo "Warning: setup-agy-mcp.mjs failed; run manually once STITCH_API_KEY is set." >&2
+fi
+
 # Authenticate GitHub CLI if GH_CLI_PAT is provided via devcontainer env.
 if command -v gh >/dev/null 2>&1 && [ -n "${GH_CLI_PAT:-}" ]; then
   if printf '%s\n' "$GH_CLI_PAT" | env -u GH_TOKEN -u GITHUB_TOKEN gh auth login --hostname github.com --git-protocol https --with-token; then
